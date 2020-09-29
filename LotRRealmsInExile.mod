@@ -1,4 +1,4 @@
-name="DEV LotR: Realms in Exile"
+name="LotR: Realms in Exile"
 tags={
 	"Total Conversions"
 }
