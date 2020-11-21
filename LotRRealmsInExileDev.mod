@@ -1,6 +1,8 @@
 name="LotR: Realms in Exile Developer"
 tags={
-	"Total Conversions"
+	"Total Conversion"
+	"Gameplay"
+	"Map"
 }
 supported_version="1.1.*"
 path="mod/LotRRealmsInExileDev"
