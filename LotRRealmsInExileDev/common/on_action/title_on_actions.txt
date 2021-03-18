@@ -1,4 +1,6 @@
 ﻿# LotR: removed references to real world.
+#	edited the Scandinavians for adventuring code.
+
 #On actions about titles
 
 # All on-actions in this file provide scope:transfer_type unless otherwise noted
@@ -66,12 +68,11 @@ on_title_gain = {
 		}
 	}
 	events = {
-		#Test event for title destruction on-action.
-#		roman_restoration.0005 #New Roman Emperor gets Augustus trait. (old holder, if still alive, loses it)
-#		roman_restoration.0199 #Restoring the Pentarchy.
-		religious_decision.0312 #New holder of a county with a runestone
+		religious_decision.0312 # Base game: new holder of a county with a runestone
+		fp1_other_decisions.0113 # FP1: new holder of a county with a runestone
 		coa.1 # check if title Coat of Arms should change.
-		
+		delay = { days = 1 }
+		realm_maintenance.2001 #Big notification about inheriting emperor tier title
 		saruman.0502 #handles spawned istari vassals
 		sauron.0502 #handles spawned maia vassals
 	}
@@ -85,13 +86,6 @@ on_title_gain_inheritance = {
 	events = {
 	}
 	effect = {
-#		if = {
-#			limit = {
-#				scope:title = title:e_mongol_empire
-#				has_character_flag = gain_mongol_succession_dread
-#			}
-#			add_dread = 50
-#		}
 	}
 }
 
@@ -110,6 +104,63 @@ on_title_gain_usurpation = {
 # scope:new_holder = new holder.
 on_title_lost = {
 	events = {
+	}
+
+	effect = {
+		#Earmark landless Scandinavians for adventuring.
+		if = {
+			limit = {
+				#We only want to grab tribal cultures.
+				culture = {
+					NOT = { has_cultural_era_or_later = culture_era_late_medieval }
+#					NOT = { has_cultural_era_or_later = culture_era_early_medieval }
+				}
+				#Must have lost their last piece of land.
+				is_landed = no
+				#If they've ventured far outside Europe, they're unlikely to come back, so we don't #want them.
+				scope:title = {
+					tier = tier_county
+					title_province = {
+						OR = {
+							geographical_region = middleearth
+#							geographical_region = world_europe
+#							geographical_region = world_asia_minor
+						}
+					}
+				}
+			}
+			#Norse, Norwegians, & Danes go into the western adventurer list.
+			if = {
+				limit = {
+					OR = {
+						has_culture_group = culture_group:lotr_dunlending_group
+						has_culture = culture:eotheod
+						has_culture = culture:leofring
+#						has_culture = culture:norse
+#						has_culture = culture:norwegian
+#						has_culture = culture:danish
+					}
+				}
+				add_to_global_variable_list = {
+					name = western_scandinavian_adventurer_list
+					target = this
+				}
+			}
+			#Norse & Swedes go into the eastern adventurer list.
+			if = {
+				limit = {
+					has_culture = culture:umbarean
+#					OR = {
+#						has_culture = culture:norse
+#						has_culture = culture:swedish
+#					}
+				}
+				add_to_global_variable_list = {
+					name = eastern_scandinavian_adventurer_list
+					target = this
+				}
+			}
+		}
 	}
 }
 
@@ -143,6 +194,22 @@ on_rank_up = { # Will not fire during history execution or for dying characters
 		every_ally = {
 			update_embassies_effect = yes
 		}
+		# Make a note of ranking up for stele purposes.
+		if = {
+			limit = {
+				# DLC check.
+				has_fp1_dlc_trigger = yes
+				# Is the culture eligible?
+				fp1_can_raise_stele_trigger = yes
+				# Aaaaand, for balance reasons, were they landed already?
+				exists = scope:title
+			}
+			set_variable = {
+				name = recent_rank_increase
+				value = root.primary_title
+				years = 5
+			}
+		}
 	}
 }
 
@@ -171,5 +238,19 @@ on_rank_down = { # Will not fire during history execution or for dying character
 on_vassal_gained = {
 	events = {
 		realm_maintenance.1000 # Notify vassals of new liege
+	}
+}
+
+# A baron is found or created for a title, E.G., due to the player using the "Give to Low Noble" action
+# No transfer type here; it's always a grant
+# root = the baron
+# scope:liege = the person who wanted them created
+# scope:title = the barony
+on_baron_found_or_created_for_title = {
+	effect = {
+		add_opinion = {
+			target = scope:liege
+			modifier = received_title_barony
+		}
 	}
 }
