@@ -4,5 +4,5 @@ tags={
 	"Gameplay"
 	"Map"
 }
-supported_version="1.2.*"
+supported_version="1.3.*"
 path="mod/LotRRealmsInExileDev"
