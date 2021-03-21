@@ -5,4 +5,4 @@ tags={
 	"Map"
 }
 supported_version="1.3.*"
-path="C:/Users/Lassi/Documents/Paradox Interactive/Crusader Kings III/mod/LotRRealmsInExileDev"
+path="mod/LotRRealmsInExileDev"
