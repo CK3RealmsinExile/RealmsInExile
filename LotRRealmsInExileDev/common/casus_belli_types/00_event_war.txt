@@ -309,140 +309,380 @@ fp1_scandi_adventurer_conquest = {
 }
 
 castamir_claim_cb = {
-	group = de_jure
+	group = invasion
 
+	combine_into_one = yes
+	should_show_war_goal_subview = yes
+	mutually_exclusive_titles = { always = yes }
+
+	allowed_for_character = {
+		OR = {
+			has_government = tribal_government
+			faith = {
+				has_doctrine_parameter = invasion_cb_enabled
+			}
+		}
+		NOT = {
+			has_character_flag = used_lifetime_invasion
+		}
+	}
+
+	allowed_for_character_display_regardless = {
+		prestige_level >= 4
+	}
+	
 	allowed_against_character = {
-		NOR = {
-			scope:defender = { target_is_liege_or_above = scope:attacker }
-			scope:attacker = { target_is_liege_or_above = scope:defender }
-			scope:attacker = { has_character_flag = flag_pushing_castamir_claim } #Only once per Emperor.
+		scope:attacker = {
+			ALL_FALSE = {
+				top_liege = scope:defender.top_liege
+				liege = scope:defender
+			}
 		}
 	}
 	target_titles = all
 	target_title_tier = all
+	target_de_jure_regions_above = yes
 	ignore_effect = change_title_holder
 
-	white_peace_possible = no
-	on_white_peace_desc = {
-		desc = WHITE_PEACE_DISABLED
+	ai_can_target_all_titles = {
+		can_use_viking_invasion_cbs_trigger = yes
 	}
-	
+	ai_score_mult = {
+		value = viking_conquest_ai_score_value
+	}
+
 	valid_to_start = {
-		OR = {
-			scope:target = { this = title:e_gondor }
-			scope:target = { this = title:e_gondor_steward }
+		scope:target = {
+			any_in_de_jure_hierarchy = {
+				tier = tier_county
+				neighboring_county_or_viking_conquest_trigger = { CHARACTER = root }
+			}
 		}
 	}
 
+	should_invalidate = {
+		NOT = {
+			any_in_list = {
+				list = target_titles
+				any_in_de_jure_hierarchy = {
+					tier = tier_county
+					holder = {
+						target_is_same_character_or_above = scope:defender
+					}
+				}
+			}
+		}
+	}
+
+	on_invalidated_desc = msg_invasion_war_invalidated_message
+	
+	on_invalidated = {
+		scope:attacker = {
+			remove_character_flag = used_lifetime_invasion # If the war is invalidated, you should be permitted to try again
+		}
+	}
+
+	cost = {
+		piety = {
+			value = 0
+			if = { # Attacking your HoF is impious
+				limit = {
+					exists = scope:attacker.faith.religious_head
+					scope:attacker.faith.religious_head = scope:defender
+				}
+				if = {
+					limit = {
+						scope:attacker.faith = {
+							has_doctrine = doctrine_spiritual_head
+						}
+					}
+					add = {
+						value = massive_piety_value
+						desc = CB_ATTACKER_HOF
+					}
+				}
+				else = {
+					add = {
+						value = medium_piety_value
+						desc = CB_ATTACKER_HOF
+					}
+				}
+			}
+			if = {
+				limit = {
+					scope:attacker.faith = scope:defender.faith
+					scope:defender = {
+						has_government = theocracy_government
+					}
+				}
+				add = {
+					value = medium_piety_value
+					desc = CB_ATTACKER_THEOCRACY
+				}
+			}
+		}
+		prestige = {
+			add = {
+				value = 2000
+				desc = CB_BASE_COST
+			}
+
+			#Innovation Prestige Discounts
+			if = {
+				limit = {
+					scope:attacker = {
+						culture = {
+							has_innovation = innovation_chronicle_writing
+							has_innovation = innovation_land_grants
+							has_innovation = innovation_rightful_ownership
+						}
+					}
+				}
+				multiply = {
+					value = 0.7
+					desc = CB_ATTACKER_INNOVATIONS
+				}
+			}
+			else_if = {
+				limit = {
+					scope:attacker = {
+						culture = {
+							OR = {
+								has_innovation = innovation_chronicle_writing
+								has_innovation = innovation_land_grants
+							}
+							OR = {
+								has_innovation = innovation_land_grants
+								has_innovation = innovation_rightful_ownership
+							}
+							OR = {
+								has_innovation = innovation_chronicle_writing
+								has_innovation = innovation_rightful_ownership
+							}
+						}
+					}
+				}
+				multiply = {
+					value = 0.8
+					desc = CB_ATTACKER_INNOVATIONS
+				}
+			}
+			else_if = {
+				limit = {
+					scope:attacker = {
+						culture = {
+							OR = {
+								has_innovation = innovation_chronicle_writing
+								has_innovation = innovation_land_grants
+								has_innovation = innovation_rightful_ownership
+							}
+						}
+					}
+				}
+				multiply = {
+					value = 0.9
+					desc = CB_ATTACKER_INNOVATIONS
+				}
+			}
+
+			# Bellum Justum Perk
+			if = {
+				limit = {
+					scope:attacker = {
+						has_perk = bellum_justum_perk
+					}
+				}
+				multiply = {
+					add = bellum_justum_discount_percentage
+					divide = 100
+					desc = CB_ATTACKER_BELLUM_JUSTUM
+				}
+			}
+
+			# Dynasty Warfare Perk
+			if = {
+				limit = {
+					scope:attacker = {
+						has_dynasty = yes
+						dynasty = {
+							has_dynasty_perk = warfare_legacy_2
+						}
+					}
+				}
+				multiply = {
+					value = warfare_legacy_2_discount
+					desc = CB_ATTACKER_DYNASTY_WARFARE
+				}
+			}
+
+			# Vassal contract in-realm cost reduction
+			if = {
+				limit = {
+					scope:attacker = {
+						is_independent_ruler = no
+						vassal_contract_has_flag = vassal_contract_war_override
+						liege = scope:defender.liege
+					}
+				}
+				multiply = {
+					value = war_declaration_rights_allowed_cost_reduction
+					desc = "CB_ATTACKER_VASSAL_CONTRACT"
+				}
+			}
+			
+			if = {
+				limit = {
+					has_game_rule = no_cost_casus_belli_costs
+				}
+				multiply = {
+					value = 0
+					desc = CB_GAME_RULE_NO_COST
+				}
+			}
+		}
+	}
+	
 	on_declaration = {
 		on_declared_war = yes
+		scope:attacker = {
+			add_character_flag = used_lifetime_invasion
+		}
 	}	
 
 	on_victory_desc = {
-		desc = dismantle_holy_pretender_cb_victory_desc
+		first_valid = {
+			triggered_desc = {
+				trigger = { scope:attacker = { is_local_player = yes } }
+				desc = invasion_war_victory_desc_attacker
+			}
+			desc = invasion_war_victory_desc
+		}
+		triggered_desc = {
+			trigger = { scope:attacker = { is_local_player = yes } }
+			desc = invasion_war_warning_desc
+		}
 	}
 	
 	on_victory = {
-		if = {
-			limit = { title_created = title:e_gondor_steward }
-			scope:attacker = { show_pow_release_message_effect = yes }
-			scope:defender = { save_scope_as = gondor_steward.ruler }
-			scope:attacker = {
-				save_scope_as = emp_umbar
-				destroy_title = title:e_gondor
-				add_character_flag = { #No repeats.
-					flag = castamir_claim_pushed
-				}
-			}		
-			hidden_effect = {
-				title:e_gondor_steward = {
-					every_in_de_jure_hierarchy = {
-						limit = {
-							tier = tier_kingdom
-						}
-						set_de_jure_liege_title = title:e_umbar #Drift Gondor into Umbar
-					}
-				}
-			}
+		scope:attacker = { show_pow_release_message_effect = yes }
+		create_title_and_vassal_change = {
+			type = conquest
+			save_scope_as = change
+			add_claim_on_loss = yes
 		}
-		else_if = {
-			limit = { title_created = title:e_gondor }
-			scope:attacker = { show_pow_release_message_effect = yes }
-			scope:defender = { save_scope_as = gondor_steward.ruler }
-			scope:attacker = {
-				save_scope_as = emp_umbar
-				destroy_title = title:e_gondor
-				add_character_flag = { #No repeats.
-					flag = castamir_claim_pushed
-				}
-			}		
-			hidden_effect = {
-				title:e_gondor_steward = {
-					every_in_de_jure_hierarchy = {
-						limit = {
-							tier = tier_kingdom
-						}
-						set_de_jure_liege_title = title:e_umbar #Drift Gondor into Umbar
-					}
-				}
-			}
+		
+		setup_invasion_cb = {
+			titles = target_titles
+			attacker = scope:attacker
+			defender = scope:defender
+			change = scope:change
+			take_occupied = yes
 		}
-		# truce
+		resolve_title_and_vassal_change = scope:change
+
+		# Attacker gets Prestige Experience, Defender loses Prestige, all other participants gain Prestige based on their war contribution.
+		modify_all_participants_fame_values = {
+			WINNER = scope:attacker
+			LOSER = scope:defender
+			FAME_BASE = scope:cb_prestige_factor # Set by 'setup_invasion_cb'
+			IS_RELIGIOUS_WAR = no
+			WINNER_FAME_SCALE = 10
+			LOSER_FAME_SCALE = -10
+			WINNER_ALLY_FAME_SCALE = 10
+			LOSER_ALLY_FAME_SCALE = 10
+		}
+
+		# Truce
 		add_truce_attacker_victory_effect = yes
 
-		hidden_effect = {
-			scope:attacker = {
-				trigger_event = umbar.1002
+		# FP1: note the victory for future memorialisation via stele (if applicable).
+		scope:attacker = { fp1_remember_recent_conquest_victory_effect = yes }
+	}
+
+	on_white_peace_desc = {
+		first_valid = {
+			triggered_desc = {
+				trigger = { scope:defender = { is_local_player = yes } }
+				desc = invasion_war_white_peace_desc_defender
 			}
-			scope:defender = {
-				trigger_event = umbar.1003
+			desc = invasion_war_white_peace_desc
+		}
+	}
+	
+	on_white_peace = {
+		scope:attacker = { show_pow_release_message_effect = yes }
+
+		# Prestige for the attacker's war allies
+		add_from_contribution_attackers = {
+			prestige = major_prestige_value
+			opinion = {
+				modifier = contributed_in_war
 			}
+		}
+
+		# Prestige for the defender's war allies
+		add_from_contribution_defenders = {
+			prestige = major_prestige_value
+			opinion = {
+				modifier = contributed_in_war
+			}
+		}
+
+		# Truce
+		add_truce_white_peace_effect = yes
+
+		scope:attacker = {
+			add_prestige = mongol_invasion_cb_prestige_white_peace
 		}
 	}
 
 	on_defeat_desc = {
-		desc = 
+		first_valid = {
+			triggered_desc = {
+				trigger = { scope:defender = { is_local_player = yes } }
+				desc = invasion_war_white_peace_desc_defender
+			}
+			desc = invasion_war_white_peace_desc
+		}
 	}
 	
 	on_defeat = {
 		scope:attacker = { show_pow_release_message_effect = yes }
-		scope:defender = { save_scope_as = gondor.ruler }
+
+		# Prestige loss for the attacker
 		scope:attacker = {
-			save_scope_as = umbar_king
-			add_character_flag = { #No repeats.
-				flag = castamir_claim_pushed
-			}
 			pay_short_term_gold = {
-				gold = 10
+				gold = 5
 				target = scope:defender
 				yearly_income = yes
 			}
+			add_prestige = {
+				value = massive_prestige_value
+				multiply = -1.0
+			}
 		}
 		
-		every_in_list = {
-			list = target_titles
-			save_temporary_scope_as = target
-		}
-		
-		setup_de_jure_cb = {
+		setup_invasion_cb = {
+			titles = target_titles
 			attacker = scope:attacker
 			defender = scope:defender
-			#attacker_prestige = -10
+			claimant = scope:claimant
 			victory = no
-			title = scope:target
+		}
+
+		# Attacker loses Prestige, all other war participants gain Prestige (Defender gains full prestige, all allies on both sides gain based on war contribution).
+		modify_all_participants_fame_values = {
+			WINNER = scope:defender
+			LOSER = scope:attacker
+			FAME_BASE = scope:cb_prestige_factor # Set by 'setup_claim_cb'
+			IS_RELIGIOUS_WAR = no
+			WINNER_FAME_SCALE = 10
+			LOSER_FAME_SCALE = -10
+			WINNER_ALLY_FAME_SCALE = 10
+			LOSER_ALLY_FAME_SCALE = 10
 		}
 	
-		# Truce
 		add_truce_attacker_defeat_effect = yes
-
-		hidden_effect = {
-			scope:attacker = {
-				trigger_event = umbar.1004
-			}
-			scope:defender = {
-				trigger_event = umbar.1005
-			}
-		}
 		
 		scope:attacker = {
 			save_temporary_scope_as = loser
@@ -450,26 +690,23 @@ castamir_claim_cb = {
 		on_lost_aggression_war_discontent_loss = yes
 	}
 	
+	transfer_behavior = transfer
+	
 	on_primary_attacker_death = inherit
 	on_primary_defender_death = inherit
-	
-	transfer_behavior = transfer
 	
 	attacker_allies_inherit = yes
 	defender_allies_inherit = yes
 	
-	war_name = "DISMANTLE_EMPIRE_WAR_SPECIFIC_NAME"
-	war_name_base = "DISMANTLE_EMPIRE_WAR_SPECIFIC_NAME_BASE"
-	cb_name = DISMANTLE_EMPIRE_SPECIFIC_NAME
-	interface_priority = 98 #Below take all and regular dejure.
+	war_name = "INVASION_WAR_NAME"
+	war_name_base = "INVASION_WAR_NAME_BASE"
+	cb_name = "INVASION_CB_NAME"
 	
-	attacker_ticking_warscore = 0.01
-	defender_ticking_warscore = 0.05
-	attacker_wargoal_percentage = 0.9
-	defender_ticking_warscore_delay = { months = 24 }
+	interface_priority = 100
 	
-	max_ai_diplo_distance_to_title = 2000
+	use_de_jure_wargoal_only = yes
+	
+	attacker_wargoal_percentage = 0.8
+	
 	min_ai_score = 100
-	
-	on_invalidated_desc = msg_invalidate_war_title
 }
