@@ -28,17 +28,31 @@ scripted_trigger yearly_3001_vassal_trigger = {
 		}
 	}
 	is_imprisoned = no
-	NOT = { has_trait = content }
-	NOT = { is_heir_of = root }
-	NOT = {
+	NOR = {
+		has_trait = content
+		is_heir_of = root
 		has_character_modifier = liege_looking_away_modifier
 	}
 	is_ai = yes
+
+	#Find either another vassal of the same rank within the same realm as you, or a foreign character of the same rank, or any independent neighbor if you are independent
+	save_temporary_scope_as = vassal
+	root = {
+		trigger_if = {
+			limit = { is_independent_ruler = no }	
+			any_neighboring_realm_same_rank_owner = { yearly_3001_neighbor_trigger = yes }
+		}
+		trigger_else = {
+			any_neighboring_top_liege_realm_owner = { yearly_3001_neighbor_trigger = yes }
+		}
+	}
 }
 
 scripted_trigger yearly_3001_possibly_lying_trigger = {
-	NOT = { has_trait = honest }
-	NOT = { has_trait = just }
+	NOR = {
+		has_trait = honest
+		has_trait = just
+	}
 }
 
 scripted_trigger yearly_3001_possibly_truthful_trigger = {
@@ -66,8 +80,10 @@ scripted_trigger yearly_3001_neighbor_trigger = {
 		yearly_3001_possibly_lying_trigger = yes
 		yearly_3001_possibly_truthful_trigger = yes
 	}
-	NOT = { has_relation_friend = root }
-	NOT = { has_relation_friend = scope:vassal }
+	NOR = {
+		has_relation_friend = root
+		has_relation_friend = scope:vassal
+	}
 	basic_is_available_ai = yes
 	#The neighboring ruler has to be within one tier rank of you
 	save_temporary_scope_value_as = {
@@ -120,62 +136,41 @@ yearly.3001 = {
 	trigger = {
 		NOT = { has_character_flag = had_event_yearly_3001 }
 		is_landed = yes # Requires map location checks
-		#Find a suitable vassal
+		#Find a suitable vassal, also checks for neighbor
 		any_vassal = {
 			yearly_3001_vassal_trigger = yes
-			save_temporary_scope_as = vassal
-		}
-		#Find either another vassal of the same rank within the same realm as you, or a foreign character of the same rank, or any independent neighbor if you are independent
-		trigger_if = {
-			limit = {
-				is_independent_ruler = no	
-			}
-			any_neighboring_realm_same_rank_owner = {
-				yearly_3001_neighbor_trigger = yes
-			}
-		}
-		trigger_else = {
-			any_neighboring_top_liege_realm_owner = {
-				yearly_3001_neighbor_trigger = yes
-			}
 		}
 	}
-
-	weight_multiplier = {
-		base = 1
-
-	}
+	
 	immediate = {
 		add_character_flag = {
 			flag = had_event_yearly_3001
 			years = 10
 		}
+
+		#To save the vassal that will be accused
 		random_vassal = {
 			limit = {
 				yearly_3001_vassal_trigger = yes
 			}
 			save_scope_as = vassal
 		}
+
+		#To save the neighbor
 		if = {
-			limit = { is_independent_ruler = no }
-			every_neighboring_realm_same_rank_owner = {
-				limit = {
-					yearly_3001_neighbor_trigger = yes
-				}
-				add_to_temporary_list = potential_neighbors
+			limit = {
+				is_independent_ruler = no
+			}
+			random_neighboring_realm_same_rank_owner = {
+				limit = { yearly_3001_neighbor_trigger = yes }
+				save_scope_as = neighbor
 			}
 		}
 		else = {
-			every_neighboring_top_liege_realm_owner = {
-				limit = {
-					yearly_3001_neighbor_trigger = yes
-				}
-				add_to_temporary_list = potential_neighbors
+			random_neighboring_top_liege_realm_owner = {
+				limit = { yearly_3001_neighbor_trigger = yes }
+				save_scope_as = neighbor
 			}
-		}
-		random_in_list = {
-			list = potential_neighbors
-			save_scope_as = neighbor
 		}
 
 		#Set whether the neighbor is telling the truth or not
@@ -214,13 +209,16 @@ yearly.3001 = {
 			}
 			random_relation = {
 				type = best_friend
+				limit = {
+					NOT = { this = scope:vassal }
+				}
 				save_scope_as = friend
 				random_list = {
 					10 = {
 						#Friend backs neighbor
 						modifier = {
 							add = 50
-							always = scope:telling_truth
+							exists = scope:telling_truth
 						}
 						modifier = {
 							add = 50
@@ -228,7 +226,7 @@ yearly.3001 = {
 						}
 						modifier = {
 							add = 50
-							always = scope:telling_truth
+							exists = scope:telling_truth
 							has_trait = intellect_good
 						}
 						save_scope_value_as = {
@@ -241,7 +239,7 @@ yearly.3001 = {
 						#Friend backs vassal
 						modifier = {
 							add = 50
-							always = scope:telling_truth
+							exists = scope:telling_truth
 						}
 						modifier = {
 							add = 50
@@ -253,7 +251,7 @@ yearly.3001 = {
 						}
 						modifier = {
 							add = 50
-							NOT = { always = scope:telling_truth }
+							NOT = { exists = scope:telling_truth }
 							has_trait = intellect_good
 						}
 						save_scope_value_as = {
@@ -602,7 +600,10 @@ yearly.3002 = {
 
 	immediate = {
 		scope:vassal = {
-			assign_quirk_effect = yes
+			if = {
+				limit = { root = { is_ai = no }	}
+				assign_quirk_effect = yes
+			}
 		}
 	}
 
@@ -1379,6 +1380,9 @@ yearly.3012 = {
 	title = yearly.3011.t
 	desc = yearly.3012.desc
 	theme = diplomacy
+	override_background = {
+		event_background = feast
+	}
 	left_portrait = {
 		character = scope:liege
 		animation = happiness
@@ -3100,9 +3104,15 @@ yearly.3051 = {
 		NOT = { has_character_flag = had_event_yearly_3051 }
 		any_vassal = {
 			yearly_3051_vassal_trigger = yes
+			NOT = { 
+				this = cp:councillor_steward 
+			}
 		}
 		OR = {
-			exists = cp:councillor_steward
+			AND = {
+				exists = cp:councillor_steward 		
+				cp:councillor_steward = { is_alive = yes }
+			}
 			AND = {
 				exists = cp:councillor_spouse
 				cp:councillor_spouse = {
@@ -3121,6 +3131,19 @@ yearly.3051 = {
 			flag = had_event_yearly_3051
 			years = 10
 		}
+		random_vassal = {
+			limit = {
+				yearly_3051_vassal_trigger = yes
+				NOT = { this = cp:councillor_steward }
+			}
+			random_held_title = {
+				limit = {
+					yearly_3051_county_trigger = yes
+				}
+				save_scope_as = county
+			}
+			save_scope_as = vassal
+		}
 		if = {
 			limit = {
 				exists = cp:councillor_spouse
@@ -3136,18 +3159,6 @@ yearly.3051 = {
 			cp:councillor_steward = {
 				save_scope_as = councillor
 			}
-		}
-		random_vassal = {
-			limit = {
-				yearly_3051_vassal_trigger = yes
-			}
-			random_held_title = {
-				limit = {
-					yearly_3051_county_trigger = yes
-				}
-				save_scope_as = county
-			}
-			save_scope_as = vassal
 		}
 		hidden_effect = {
 			if = {
@@ -3186,13 +3197,29 @@ yearly.3051 = {
 		}
 		if = {
 			limit = {
-				exists = scope:becoming_rivals
+				OR = {
+					exists = scope:becoming_rivals
+					has_relation_potential_rival = scope:vassal
+				}
+				can_set_relation_rival_trigger = { CHARACTER = scope:vassal }
 			}
 			set_relation_rival = scope:vassal
 		}
-		else = {
+		else_if = {
+			limit = {
+				can_set_relation_potential_rival_trigger = { CHARACTER = scope:vassal }
+			}
 			hidden_effect = {
 				set_relation_potential_rival = scope:vassal
+			}
+		}
+		else = {
+			scope:vassal = {
+				add_opinion = {
+					target = root
+					modifier = hate_opinion
+					opinion = -20
+				}
 			}
 		}
 
@@ -3241,9 +3268,9 @@ yearly.3051 = {
 ################################
 scripted_trigger yearly_3061_county_trigger = {
 	tier = tier_county
-	title_province = {
-		always = no
-	}
+#	title_province = { # LotR
+#		geographical_region = special_cagot_region
+#	}
 	faith = root.faith
 }
 
@@ -3279,7 +3306,8 @@ yearly.3061 = {
 	trigger = {
 		is_ai = no
 		NOT = { exists = global_var:had_cagot_event }
-		always = no
+		always = no #LotR
+#		religion = religion:christianity_religion
 		any_held_title = {
 			yearly_3061_county_trigger = yes
 		}

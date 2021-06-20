@@ -1,8 +1,33 @@
-﻿#On actions about titles
+﻿# LotR: removed references to real world.
+#	edited the Scandinavians for adventuring code.
+
+#On actions about titles
+
+# All on-actions in this file provide scope:transfer_type unless otherwise noted
+# scope:transfer_type has the following permutations:
+# flag:conquest
+# flag:conquest_holy_war
+# flag:conquest_claim
+# flag:conquest_populist
+# flag:inheritance
+# flag:abdication
+# flag:destroyed
+# flag:created
+# flag:usurped
+# flag:granted
+# flag:revoked
+# flag:election
+# flag:independency
+# flag:returned
+# flag:leased_out
+# flag:lease_revoked
+# flag:faction_demand
+# flag:swear_fealty
 
 # A title is destroyed
 # root = the holder before destruction
 # scope:landed_title = the title that is being destroyed
+# Does *not* provide scope:transfer_type
 on_title_destroyed = {
 	events = {
 	}
@@ -43,12 +68,12 @@ on_title_gain = {
 		}
 	}
 	events = {
-		#Test event for title destruction on-action.
-
-		religious_decision.0312 #New holder of a county with a runestone
+		orcs.0010
+		religious_decision.0312 # Base game: new holder of a county with a runestone
+		fp1_other_decisions.0113 # FP1: new holder of a county with a runestone
 		coa.1 # check if title Coat of Arms should change.
-		
-		saruman.0502 #handles spawned istari vassals
+		delay = { days = 1 }
+		realm_maintenance.2001 #Big notification about inheriting emperor tier title
 	}
 }
 
@@ -79,6 +104,99 @@ on_title_gain_usurpation = {
 on_title_lost = {
 	events = {
 	}
+
+	effect = {
+		#Earmark landless Scandinavians for adventuring.
+		if = {
+			limit = {
+				#We only want to grab tribal cultures.
+				culture = {
+					NOT = { has_cultural_era_or_later = culture_era_late_medieval }
+#					NOT = { has_cultural_era_or_later = culture_era_early_medieval }
+				}
+				#Must have lost their last piece of land.
+				is_landed = no
+				#If they've ventured far outside Europe, they're unlikely to come back, so we don't #want them.
+				scope:title = {
+					tier = tier_county
+					title_province = {
+						OR = {
+							geographical_region = middleearth
+#							geographical_region = world_europe
+#							geographical_region = world_asia_minor
+						}
+					}
+				}
+			}
+			#Norse, Norwegians, & Danes go into the western adventurer list.
+			if = {
+				limit = {
+					OR = {
+						has_culture_group = culture_group:lotr_dunlending_group
+						has_culture = culture:eotheod
+						has_culture = culture:leofring
+#						has_culture = culture:norse
+#						has_culture = culture:norwegian
+#						has_culture = culture:danish
+					}
+				}
+				add_to_global_variable_list = {
+					name = western_scandinavian_adventurer_list
+					target = this
+				}
+			}
+			#Norse & Swedes go into the eastern adventurer list.
+			if = {
+				limit = {
+					has_culture = culture:umbarean
+#					OR = {
+#						has_culture = culture:norse
+#						has_culture = culture:swedish
+#					}
+				}
+				add_to_global_variable_list = {
+					name = eastern_scandinavian_adventurer_list
+					target = this
+				}
+			}
+		}
+
+		#Apply loss of stress to the Rivals
+		if = {
+			limit = {
+				OR = {
+					scope:transfer_type = flag:conquest
+					scope:transfer_type = flag:conquest_holy_war
+					scope:transfer_type = flag:conquest_claim
+					scope:transfer_type = flag:conquest_populist
+					scope:transfer_type = flag:abdication
+					scope:transfer_type = flag:usurped
+					scope:transfer_type = flag:revoked
+					scope:transfer_type = flag:faction_demand
+				}
+			}
+			root = {
+				save_scope_as = actor
+			}
+			every_relation ={
+				type = rival
+
+				send_interface_message = {
+					type = event_generic_neutral
+					title = msg_rival_dethroned
+					left_icon = scope:actor
+					right_icon = scope:title
+
+					custom_tooltip = msg_rival_dethroned_desc
+
+					stress_impact = { 
+						base = medium_stress_loss
+						vengeful = medium_stress_loss
+					}
+				}
+			}
+		}
+	}
 }
 
 # A claim is gained by a character
@@ -106,10 +224,26 @@ on_rank_up = { # Will not fire during history execution or for dying characters
 	events = {
 	}
 	effect = {
-		add_achievement_flag = { FLAG = achievement_moving_up_in_the_world_flag }
+		add_achievement_flag_effect = { FLAG = achievement_moving_up_in_the_world_flag }
 		update_embassies_effect = yes
 		every_ally = {
 			update_embassies_effect = yes
+		}
+		# Make a note of ranking up for stele purposes.
+		if = {
+			limit = {
+				# DLC check.
+				has_fp1_dlc_trigger = yes
+				# Is the culture eligible?
+				fp1_can_raise_stele_trigger = yes
+				# Aaaaand, for balance reasons, were they landed already?
+				exists = scope:title
+			}
+			set_variable = {
+				name = recent_rank_increase
+				value = root.primary_title
+				years = 5
+			}
 		}
 	}
 }
@@ -129,5 +263,33 @@ on_rank_down = { # Will not fire during history execution or for dying character
 		every_ally = {
 			update_embassies_effect = yes
 		}
+	}
+}
+
+# A character gains a vassal
+# root = character gaining vassal
+# scope:vassal = vassal being gained
+# scope:old_liege = the previous liege of the vassal. Might be the null character (vassal used to be a non-ruler or independent), so make sure to use "exists" checks where relevant
+on_vassal_gained = {
+	events = {
+		realm_maintenance.1000 # Notify vassals of new liege
+	}
+}
+
+# A baron is found or created for a title, E.G., due to the player using the "Give to Low Noble" action
+# No transfer type here; it's always a grant
+# root = the baron
+# scope:liege = the person who wanted them created
+# scope:title = the barony
+on_baron_found_or_created_for_title = {
+	effect = {
+		add_opinion = {
+			target = scope:liege
+			modifier = received_title_barony
+		}
+	}
+	
+	events = {
+		race.0001 #set up races
 	}
 }
