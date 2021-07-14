@@ -4,5 +4,12 @@ tags={
 	"Gameplay"
 	"Map"
 }
+replace_path="common/landed_titles"
+replace_path="common/culture/cultures"
+replace_path="common/religion/religions"
+replace_path="history/cultures"
+replace_path="history/characters"
+replace_path="history/provinces"
+replace_path="history/titles"
 supported_version="1.4.*"
 path="mod/LotRRealmsInExileDev"
