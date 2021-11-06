@@ -1,5 +1,200 @@
 ﻿namespace = tedjin
 
+#Tedjin Faction Demand Events
+
+tedjin.0001 = { # Faction Demand Notice
+	type = letter_event
+	sender = scope:faction_leader
+	opening = {
+		desc = "FACTION_DEMAND_TEDJIN_CIVIL_WAR_SEND_DEMAND_NOTIFICATION"
+	}
+	desc = "FACTION_DEMAND_TEDJIN_CIVIL_WAR_SEND_DEMAND_NOTIFICATION_DESC"
+
+	option = {
+		name = "FACTION_DEMAND_SEND_DEMAND_NOTIFICATION_OPT"	
+	}
+}
+
+tedjin.0002 = {
+	type = letter_event
+	sender = scope:faction_leader
+	opening = {
+		desc = "FACTION_DEMAND_TEDJIN_CIVIL_WAR"
+	}
+	desc = "FACTION_DEMAND_TEDJIN_CIVIL_WAR_DESC"
+	
+	trigger = {
+		exists = scope:faction # May have ceased to exist by the time this triggers
+	}
+
+	option = {
+		name = "FACTION_DEMAND_ACCEPT"
+
+		scope:faction = {
+			every_faction_member = {
+				trigger_event = tedjin.0003
+			}
+		}
+
+		create_title_and_vassal_change = {
+			type = faction_demand
+			save_scope_as = change
+			add_claim_on_loss = no
+		}
+
+		root = {
+			save_scope_as = faction_target
+			add_prestige = -500			
+			add_dread = -30
+			every_held_title = {
+				change_title_holder = {
+					holder = scope:faction_leader
+					change = scope:change
+				}
+			}
+		}
+		
+		resolve_title_and_vassal_change = scope:change
+
+		ai_chance = {
+			base = 1
+			modifier = {
+				add = 99
+				scope:faction = { faction_power >= 100 }
+			}
+			modifier = {
+				add = 50
+				scope:faction = { faction_power >= 125 }
+			}
+			modifier = {
+				add = 50
+				scope:faction = { faction_power >= 150 }
+			}
+			modifier = {
+				add = 50
+				scope:faction = { faction_power >= 200 }
+			}
+			modifier = {
+				factor = 0.1
+				any_ally = {
+					NOR = {
+						target_is_liege_or_above = root
+						target_is_vassal_or_below = root
+					}
+					max_military_strength > root.max_military_strength
+				}
+			}
+			compare_modifier = {
+				value = debt_level
+				multiplier = 25
+			}
+			modifier = {
+				add = -50
+				scope:faction_target = {
+					is_at_war = no
+					primary_title.tier >= tier_kingdom
+				}
+			}
+			modifier = {
+				add = -150
+				scope:faction_target = {
+					is_at_war = no
+					primary_title.tier >= tier_empire
+				}
+			}
+		}
+	}
+
+	option = {
+		name = "FACTION_DEMAND_REFUSE"
+
+		show_as_tooltip = {
+			scope:faction = {
+				faction_start_war = {}
+			}
+		}
+		
+		root = {
+			save_scope_as = faction_target
+		}
+		
+		scope:faction_leader = {
+			trigger_event = tedjin.0004
+		}
+
+		ai_chance = {
+			base = 100
+			ai_value_modifier = {
+				ai_boldness = 4.0
+			}
+			modifier = {
+				add = 50
+				scope:faction = { faction_power < 80 }
+			}
+			modifier = {
+				add = 100
+				scope:faction = { faction_power < 60 }
+			}
+			modifier = {
+				add = 1000
+				scope:faction = { faction_power < 40 }
+			}
+			compare_modifier = {
+				value = debt_level
+				multiplier = -25
+			}
+		}
+	}
+}
+
+tedjin.0003 = { #Acceptance notification
+	type = letter_event
+	sender = scope:faction_target
+	opening = {
+		desc = "FACTION_DEMAND_TEDJIN_CIVIL_WAR_ACCEPTED"
+	}
+	desc = "FACTION_DEMAND_TEDJIN_CIVIL_WAR_ACCEPTED_DESC"
+
+	option = {
+		name = "FACTION_DEMAND_ACCEPTED_OPT"
+#		custom_tooltip = faction_demand.0002.tt
+	}
+}
+
+tedjin.0004 = { #Refusal notification to leader
+	type = letter_event
+	sender = scope:faction_target
+	opening = {
+		desc = "FACTION_DEMAND_TEDJIN_CIVIL_WAR_REFUSED"
+	}
+	desc = "FACTION_DEMAND_TEDJIN_CIVIL_WAR_REFUSED_DESC"
+
+	option = {
+		name = "FACTION_DEMAND_REFUSED_OPT"
+		scope:faction = {
+			faction_start_war = {}
+			
+			every_faction_member = {
+				limit = { NOT = { this = scope:faction.faction_leader } }
+				trigger_event = tedjin.0005
+			}
+		}
+	}
+}
+
+tedjin.0005 = { #Refusal notification to members
+	type = letter_event
+	sender = scope:faction_target
+	opening = {
+		desc = "FACTION_DEMAND_TEDJIN_CIVIL_WAR_REFUSED"
+	}
+	desc = "FACTION_DEMAND_TEDJIN_CIVIL_WAR_REFUSED_DESC"
+
+	option = {
+		name = "FACTION_DEMAND_REFUSED_OPT"	
+	}
+}
+
 # Tedjin Events
 # Tedjin.0100 = Tedjin start-up events (Character intros)
 
@@ -125,6 +320,18 @@ tedjin.0103 = { # Bor decides how he should reign
 		stress_impact = {
 			stubborn = medium_stress_impact_gain
 		}
+		if = {
+			limit = { has_realm_law = crown_authority_1 }
+			add_realm_law = crown_authority_0
+		}
+		else_if = {
+			limit = { has_realm_law = crown_authority_2 }
+			add_realm_law = crown_authority_1
+		}
+		else_if = {
+			limit = { has_realm_law = crown_authority_3 }
+			add_realm_law = crown_authority_2
+		} 
 		add_character_modifier = {
 			modifier = tedjin_moderate_modifier
 		}
@@ -206,10 +413,14 @@ tedjin.0104 = { # Death of Gyuruchill II
 tedjin.0105 = { # Bor's perspective - send out for Bulga's appeal
 	title = tedjin.0105.t
 	desc = tedjin.0105.desc
-	theme = death
+	theme = diplomacy
 	left_portrait = {
 		character = root
-		animation = angry
+		animation = personality_cynical
+	}
+	right_portrait = {
+		character = character:lineofazumenakhad87
+		animation = beg
 	}
 	
 	option = { # Kill Gyuruchill II
@@ -229,7 +440,11 @@ tedjin.0106 = { # Bulga's appeal
 	theme = death
 	left_portrait = {
 		character = root
-		animation = angry
+		animation = stress
+	}
+	right_portrait = {
+		character = character:lineofazumenakhad87
+		animation = beg
 	}
 	
 	option = { # Ignore her pleas
@@ -239,11 +454,15 @@ tedjin.0106 = { # Bulga's appeal
 		#	modifier = #Potentially make it harder to kill him with schemes
 		#}
 		##CUE FOREIGN SUPPORT
-		character:lineofthezij51 = {		
-			trigger_event = { #Bulga returns disappointed
-				id = tedjin.0103
-				days = 7
-			}
+		#character:lineofthezij51 = {		
+		#	trigger_event = { #Bulga returns disappointed
+		#		id = tedjin.0103
+		#		days = 1
+		#	}
+		#}
+		create_faction = {
+			type = tedjin_civil_war_faction  #tedjin_civil_war_faction
+			target = character:lineofthezij51
 		}
 	}
 	
@@ -268,5 +487,74 @@ tedjin.0106 = { # Bulga's appeal
 			set_relation_friend = character:lineofthezij51
 		}
 		##TRIGGER NOTIFICATION OF WAR
+	}
+}
+
+tedjin.0200 = { # The Civil War begins
+	title = tedjin.0200.t
+	desc = tedjin.0200.desc
+	theme = vassal
+	left_portrait = {
+		character = root
+		animation = stress
+	}
+	
+	option = { 
+		name = tedjin.0200.a # Cave to their demands
+		#every_vassal = { # Notify the lords!
+		#	trigger_event = {
+		#		#id = gondor.0556
+		#	}		
+		#}
+		#character:lineisildur42 = { # Aragorn is allowed into Minas Tirith
+		#	trigger_event = {
+		#		id = gondor.0502
+		#		days = { 30 60 }
+		#	}
+		#}
+		#ai_chance = {
+		#	base = 20 # LotR: The AI has already made its choice - this is a last check for the player, but give a small chance for variety
+		#}
+	}
+	
+	option = { 
+		name = tedjin.0200.b # I shall not be blackmailed... to war!
+		# Start war
+		#title:k_belfalas.holder = { # Notify the Rebel Leader
+		#	start_war = { 
+		#		casus_belli = kingstrife_cb
+		#		target = root
+		#	}
+		#	trigger_event = {
+		#		id = gondor.0557
+		#	}
+		#}
+		#every_vassal = { # Let all other lords pick their side
+		#	limit = {
+		#		NOT = { has_title = title:k_belfalas }
+		#	}
+		#	trigger_event = {
+		#		id = gondor.0558
+		#		days = 1
+		#	}		
+		#}
+		#title:e_mordor.holder = { # Notify Sauron after some time
+		#	trigger_event = {
+		#		id = gondor.0559
+		#		days = { 30 180 }
+		#	}
+		#}
+		#every_living_character = {
+		#	limit = {
+		#		NOT = { root = this }
+		#	}
+		#	trigger_event = { 
+		#		id = gondor.0560
+		#		days = 14
+		#	}
+		#}
+		#ai_chance = {
+		#	base = 80 # LotR: The AI has already made its choice - this is a last check for the player, but give a small chance for variety
+		#}
 	}
 }
