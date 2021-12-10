@@ -1,0 +1,196 @@
+﻿on_game_start_after_lobby= {
+    on_actions = {
+        delay = { months = 1 }
+        T4N_on_monthly_tribute
+    }
+}
+
+T4N_on_monthly_tribute = {
+    effect = {
+        every_suzerain = {
+            # Determine if still a suzerain
+            trigger_event = { id = tributaries.4 }
+            # Income
+            trigger_event = { id = tributaries.5 }
+        }
+        trigger_event = {
+            on_action = T4N_on_monthly_tribute
+            months = 1
+        }
+    }
+}
+
+
+on_war_won_attacker = {
+	# The war notifications are handled in `effect` instead of `events` due to order of operations.
+	# `effect` fires on THIS tick, `events` fires on the NEXT tick, and the war gets destroyed between this tick and the next.
+	on_actions = {
+		T4N_tributaries_on_war_won_attacker
+	}
+}
+
+T4N_tributaries_on_war_won_attacker = {
+	effect = {
+        if = {
+            limit = {
+                scope:defender = {
+                    OR = {
+                        is_tributary = yes
+                        is_suzerain = yes
+                    }
+                }
+            }
+            scope:attacker = {
+                save_scope_as = tributaries_slash_suzerain_war_winner
+            }
+            scope:defender = {
+                save_scope_as = tributary_slash_suzerain_loser
+            }
+            scope:tributaries_slash_suzerain_war_winner = {
+                trigger_event = { id = tributaries.3 days = 1 }
+            }
+        }
+	} 
+}
+
+# called when a war is started.
+# same scopes are available in these events as in the CBs' on_declaration, this just fires for all CBs instead of a specific CB.
+
+on_war_started = {
+    on_actions = {
+        T4N_tributaries_on_war_started
+    }
+}
+
+T4N_tributaries_on_war_started = {
+    effect = {
+        if = { #permanent tributary calls his suzerain to defensive war
+            limit = {
+                scope:defender = {
+                    exists = var:my_suzerain
+                    any_war_ally = {
+                        NOT = {
+                            this = var:my_suzerain
+                        }
+                    }
+                    var:my_suzerain = {
+                        is_target_in_variable_list = { name = permanent_tributaries target = prev }
+                    }
+                }
+            }
+            scope:defender = {
+                save_scope_as = call_to_arms_tribute
+                var:my_suzerain = {
+                    trigger_event = { id = tributaries.6 }
+                }
+            }
+        }
+    }
+}
+
+# A title is lost by a character
+# root = the old holder
+# scope:title = the title that changes hands
+# scope:new_holder = new holder.
+on_title_lost = {
+    on_actions = {
+        T4N_tributaries_on_title_lost
+    }
+}
+
+T4N_tributaries_on_title_lost = {
+    effect = {
+        switch = {
+            trigger = exists
+
+            var:my_suzerain = {
+                if = {
+                    limit = {
+                        OR = {
+                            is_landed = no
+                            is_independent_ruler = no
+                        }
+                        is_permanent_tributary = {
+                            SUZERAIN = var:my_suzerain
+                            TRIBUTARY = root
+                        }
+                    }
+                    var:my_suzerain = {
+                        remove_list_variable = { name = permanent_tributaries target = root }
+                        remove_list_variable = { name = all_tributaries target = root }
+                    }
+                    remove_variable = my_suzerain
+                }
+                else_if = {
+                    limit = {
+                        OR = {
+                            is_landed = no
+                            is_independent_ruler = no
+                        }
+                        is_non_permanent_tributary = {
+                            SUZERAIN = var:my_suzerain
+                            TRIBUTARY = root
+                        }
+                    }  
+                    var:my_suzerain = {    
+                        remove_list_variable = { name = non_permanent_tributaries target = root }
+                        remove_list_variable = { name = all_tributaries target = root }
+                    }       
+                    remove_variable = my_suzerain  
+                }
+            }
+            var:suzerain = {
+                if = {
+                    limit = {
+                        OR = {
+                            is_landed = no
+                            is_independent_ruler = no
+                            liege = scope:new_holder
+                        }
+                    }
+                    every_in_list = {
+                        variable = permanent_tributaries
+                   
+                        set_variable = { name = my_suzerain value = scope:new_holder }
+                        scope:new_holder = {
+                            add_to_variable_list = { name = permanent_tributaries target = prev }
+                            add_to_variable_list = { name = all_tributaries target = prev}
+                        }
+                    }
+                    clear_variable_list = permanent_tributaries
+                    clear_variable_list = non_permanent_tributaries
+                }
+            }
+        }
+    }
+}
+
+# character just about to die in root scope
+# if a killer is know, it's set as scope:killer
+#Triggered by code
+on_death = {
+    on_actions = {
+        T4N_tributaries_on_death
+    }
+}
+
+T4N_tributaries_on_death = {
+    effect = {
+        if = {
+            limit = {
+                root = {
+                    exists = var:suzerain
+                }
+            }
+            trigger_event = { id = tributaries.1 }
+        }
+        if = {
+            limit = {
+                root = {
+                    exists = var:my_suzerain
+                }
+            }
+            trigger_event = { id = tributaries.2 }
+        }
+    }
+}
