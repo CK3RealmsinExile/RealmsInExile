@@ -13,6 +13,7 @@ offer_protection_interaction = {
 	
 	is_shown = {
 		scope:actor = { #Protector
+			is_tributary = no
 			OR = {
 				religion = religion:free_peoples_religion
 				faith = { has_doctrine = doctrine_echoes_of_the_ainur }
@@ -1669,62 +1670,211 @@ offer_protection_interaction = {
 #	}
 #}
 
-call_suzerain_to_war = {
+call_suzerain_to_war_interaction = { ####TRY SCRIPTED RELATION FOR TARGETS?
+	category = interaction_category_diplomacy
+	desc = call_suzerain_to_war_interaction_desc
+	interface_priority = 61
+	interface = call_ally
+	special_interaction = call_ally_interaction
+	popup_on_receive = yes
+	pause_on_receive = yes
 	use_diplomatic_range = no
-
+	
+	greeting = positive
+	notification_text = CALL_SUZERAIN_NOTIFICATION
+	
 	is_shown = {
 		scope:actor = { #put here every tributary type which should be able to call suzerain
-			scope:recipient = {
-				is_tributary = yes
-			}
-			OR = {
-				is_defender = yes
-				is_attacker = yes
-			}
+			is_at_war = yes
+			#scope:recipient = {
+			#	is_tributary = yes
+			#}
 			NOT = { is_at_war_with = scope:recipient }
 		}
-		scope:recipient = {
-			exists = var:suzerain
-		}
+		#scope:recipient = {
+		#	exists = var:suzerain
+		#}
+		always = yes
 	}
 
 	is_valid_showing_failures_only = {
+		scope:recipient = {
+			is_ruler = yes
+		}
+		
+		# Only War Leaders can call allies
+		scope:actor = {
+			custom_description = {
+				text = must_be_war_leader
+				any_character_war = {
+					is_war_leader = scope:actor
+				}
+			}
+		}
+		
+		# Cannot call the same character multiple times
+		scope:actor = {
+			custom_description = {
+				text = cannot_call_same_character_multiple_times
+				subject = scope:recipient
+				any_character_war = {
+					ALL_FALSE = {
+						was_called = scope:recipient
+						is_participant = scope:recipient
+					}
+				}
+			}
+		}
+		
+		# Cannot call a character of the "wrong" religion to a Great Holy War
+		scope:actor = {
+			trigger_if = {
+				limit = {
+					NOT = { faith = scope:recipient.faith }
+				}
+				custom_description = {
+					text = is_of_wrong_faith_for_holy_war
+					subject = scope:actor
+					object = scope:recipient
+					any_character_war = {
+						NOR = {
+							using_cb = undirected_great_holy_war
+							using_cb = directed_great_holy_war
+						}
+					}
+				}
+			}
+		}
+	
 		#all hail jank, this is a only way i think i can achive that xD
-		NOT = {
-			scope:actor = {
-				exists = var:my_suzerain
-				any_war_ally = {
-					this = var:my_suzerain
+		#NOT = {
+		#	scope:actor = {
+		#		exists = var:my_suzerain
+		#		any_war_ally = {
+		#			this = var:my_suzerain
+		#		}
+		#		var:my_suzerain = {
+		#			is_target_in_variable_list = { name = permanent_tributaries target = prev }
+		#		}
+		#	}
+		#}
+	}
+
+	has_valid_target = {
+		exists = scope:target
+	}	
+
+	has_valid_target_showing_failures_only = {
+		scope:target = {
+			is_war_leader = scope:actor
+		}
+
+		joiner_not_already_in_another_war_with_any_target_war_participants_trigger = {
+			WARRIOR = scope:actor
+			JOINER = scope:recipient
+		}
+	}
+	
+	can_be_picked = {
+		can_join_war_liege_vassal_check_trigger = { WARRIOR = scope:actor JOINER = scope:recipient }
+
+		scope:target = {
+			is_war_leader = scope:actor
+
+			# Not already in target war
+			custom_description = {
+				text = join_war_interaction_already_in_target_war
+				NOR = {
+					any_war_attacker = { this = scope:recipient }
+					any_war_defender = { this = scope:recipient }
 				}
-				var:my_suzerain = {
-					is_target_in_variable_list = { name = permanent_tributaries target = prev }
-				}
+			}
+			
+			#Can only call into defensive wars
+			custom_description = {
+				text = suzerain_join_war_interaction_offensive_war
+				any_war_defender = { this = scope:actor }
 			}
 		}
 	}
 
 	on_accept = {
+		call_ally_interaction_effect = yes
+
+		save_scope_value_as = {
+			name = call_ally_interaction
+			value = yes
+		}
+
 		scope:actor = {
-			if = {
-				limit = {
-					is_attacker = yes
+			hidden_effect = { #To nudge friendship
+				if = {
+					limit = {
+						NOR = {
+							has_relation_friend = scope:recipient
+							has_relation_potential_friend = scope:recipient
+						}
+					}
+					set_relation_potential_friend = scope:recipient
 				}
-				add_attacker = scope:recipient
 			}
-			else = {
-				add_defender = scope:recipient
-			}
+			trigger_event = call_ally.0100
 		}
 	}
 
-	ai_target_quick_trigger = {							# Quick triggers for the ai_targets
-		adult = yes										# The target needs to be adult
-		attracted_to_owner = yes						# The target needs to be attracted to owner
-		owner_attracted = yes							# Owner needs to be attracted to the target
-		prison = yes 									# Target must be in prison
+	on_decline = {
+		#The war could theoretically end on the day the decline is sent
+		if = {
+			limit = {
+				exists = scope:target
+			}
+			scope:target = {
+				if = {
+					limit = {
+						is_attacker = scope:actor
+					}
+					scope:actor = {
+						free_tributary = yes
+						add_opinion = {
+							modifier = rejected_call_to_offensive_war
+							target = scope:recipient
+						}
+					}
+					scope:recipient = {
+						custom_tooltip = loss_of_suzerainship.tt
+						add_prestige_experience = major_prestige_loss
+					}
+				}
+				else = {
+					scope:actor = {
+						free_tributary = yes
+						add_opinion = {
+							modifier = rejected_call_to_defensive_war
+							target = scope:recipient
+						}
+					}
+					scope:recipient = {
+						custom_tooltip = loss_of_suzerainship.tt
+						add_prestige_experience = massive_prestige_loss
+					}
+				}
+				hidden_effect = {
+					if = {
+						limit = {
+							NOT = { was_called = scope:recipient }
+						}
+						set_called_to = scope:recipient
+					}
+				}
+			}
+			scope:actor = {
+				trigger_event = call_ally.0101
+			}
+		}
 	}
-	ai_accept = {
-		base = 20
+	
+	ai_accept = { #Make more intelligent
+		base = 50
 
 		modifier = {  # Refuse call against Heir
 			add = -1000
@@ -1769,12 +1919,6 @@ call_suzerain_to_war = {
 		ai_value_modifier = {
 			ai_honor = 1
 			min = 0
-		}
-
-		modifier = {  # Tends to join defensive wars
-			add = 50
-			scope:target.casus_belli.primary_defender = scope:actor
-			desc = DEFENSIVE_WAR_REASON
 		}
 
 		compare_modifier = { # Likes fighting infidels
@@ -1851,69 +1995,64 @@ call_suzerain_to_war = {
 	# Score above 0 means the AI will call this ally. Note that DESIRED_WAR_SIDE_STRENGTH still applies and can prevent calling the ally
 	ai_will_do = {
 		base = 100
-		
-		modifier = { # If the player is at war, do not bother them with offensive calls
-			scope:target.casus_belli.primary_attacker = scope:actor
-			scope:recipient = {
-				is_ai = no
-				any_character_war = {
-					primary_defender = scope:recipient
-				}
-			}
-			factor = 0
-		}
-		
-		modifier = { # Don't call players in against their heirs (they wouldn't accept the reverse situation... don't be a hypocrite)
-			exists = scope:recipient.player_heir
-			scope:recipient = {			
-				is_ai = no
-			}
-			trigger_if = {
-				limit = { scope:target.casus_belli.primary_defender = scope:actor }
-				scope:target.casus_belli.primary_attacker = scope:recipient.player_heir
-			}
-			trigger_else = {
-				scope:target.casus_belli.primary_defender = scope:recipient.player_heir
-			}
-			factor = 0
-		}
-		
-		modifier = { # Same with spouses
-			scope:recipient = {			
-				is_ai = no
-			}
-			trigger_if = {
-				limit = { scope:target.casus_belli.primary_defender = scope:actor }
-				any_spouse = {
-					this = scope:target.casus_belli.primary_attacker
-				}
-			}
-			trigger_else = {
-				any_spouse = {
-					this = scope:target.casus_belli.primary_defender
-				}
-			}
-			factor = 0
-		}
-		
-		modifier = { # Don't call brand-new allies into old wars, at least until some time has elapsed.
-			has_variable = delay_calling_recent_ally
-			var:delay_calling_recent_ally = scope:recipient
-			scope:target = {
-				war_days >= 30
-			}
-			factor = 0
-
-		}
-
-		modifier = { # If the recipient is allied to both the attacker and the defender, the attacker shouldn't call
-			scope:target.casus_belli.primary_attacker = scope:actor
-			scope:target.casus_belli.primary_defender = {
-				is_allied_to = scope:recipient
-			}
-			factor = 0
-		}
+				
+		#modifier = { # Don't call players in against their heirs (they wouldn't accept the reverse situation... don't be a hypocrite)
+		#	exists = scope:recipient.player_heir
+		#	scope:recipient = {			
+		#		is_ai = no
+		#	}
+		#	trigger_if = {
+		#		limit = { scope:target.casus_belli.primary_defender = scope:actor }
+		#		scope:target.casus_belli.primary_attacker = scope:recipient.player_heir
+		#	}
+		#	trigger_else = {
+		#		scope:target.casus_belli.primary_defender = scope:recipient.player_heir
+		#	}
+		#	factor = 0
+		#}
+		#
+		#modifier = { # Same with spouses
+		#	scope:recipient = {			
+		#		is_ai = no
+		#	}
+		#	trigger_if = {
+		#		limit = { scope:target.casus_belli.primary_defender = scope:actor }
+		#		any_spouse = {
+		#			this = scope:target.casus_belli.primary_attacker
+		#		}
+		#	}
+		#	trigger_else = {
+		#		any_spouse = {
+		#			this = scope:target.casus_belli.primary_defender
+		#		}
+		#	}
+		#	factor = 0
+		#}
+		#
+		#modifier = { # If the recipient is allied to both the attacker and the defender, the attacker shouldn't call
+		#	scope:target.casus_belli.primary_attacker = scope:actor
+		#	scope:target.casus_belli.primary_defender = {
+		#		is_allied_to = scope:recipient
+		#	}
+		#	factor = 0
+		#}
 	}
+
+	ai_potential = {
+		is_at_war = yes
+	}
+
+	ai_target_quick_trigger = {
+		adult = yes
+	}
+
+	ai_targets = {
+		ai_recipients = scripted_relations
+		chance = 1
+	}
+	
+	ai_frequency = 3	
+		
 }
 
 #Call Tributaries to war
