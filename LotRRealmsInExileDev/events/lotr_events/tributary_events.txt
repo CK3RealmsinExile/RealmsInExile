@@ -1,0 +1,153 @@
+namespace = tributary
+
+tributary.0001 = { # Call Protector to Defensive War
+	title = tributary.0001.t
+	desc = tributary.0001.desc
+	theme = stewardship_duty_focus
+	left_portrait = {
+		character = root
+		animation = war_attacker
+	}
+	right_portrait = {
+		character = scope:defender
+		animation = war_defender
+	}
+
+	option = { # Join
+		name = tributary.0001.a
+		save_scope_as = protector
+		scope:war = {
+			every_war_participant = {
+				send_interface_toast = {
+					left_icon = root
+					right_icon = scope:defender
+					title = tributary.0001.a.toast
+					custom_tooltip = tributary.0001.a.toast.tt
+				}
+			}
+			add_defender = prev
+		}
+		scope:defender = {
+			if = {
+				limit = {
+					NOR = {
+						has_relation_friend = prev
+						has_relation_potential_friend = prev
+					}
+				}
+				set_relation_potential_friend = prev
+			}
+		}
+		ai_chance = { ### NEED TO MAKE AI MORE INTELLIGENT
+			base = 50
+			opinion_modifier = { # Opinion Factor
+				who = root
+				opinion_target = scope:defender
+				multiplier = 1.0
+			}
+		}
+	}
+	
+	option = { # Reject
+		name = tributary.0001.b
+		save_scope_as = protector
+		custom_tooltip = loss_of_suzerainship.tt
+		add_prestige_experience = -500
+		scope:defender = {
+			send_interface_toast = {
+					left_icon = root
+					title = tributary.0001.b.toast
+			}
+			free_tributary = yes
+			add_opinion = {
+				modifier = rejected_call_to_defensive_war
+				target = root
+			}
+		}
+		ai_chance = { ### NEED TO MAKE AI MORE INTELLIGENT
+			base = 0
+			opinion_modifier = { # Opinion Factor
+				who = root
+				opinion_target = scope:defender
+				multiplier = -1.0
+			}
+		}
+	}
+}
+
+tributary.0002 = { # Protector has died, copy list of protectorates to their primary heir on death
+	type = character_event
+	hidden = yes
+
+	immediate = {
+		every_in_list = {
+			variable = permanent_tributaries
+			root.primary_heir = {
+				add_to_variable_list = { name = permanent_tributaries target = prev }
+				add_to_variable_list = { name = all_tributaries target = prev }
+				set_variable = { name = suzerain value = this }
+			}
+			set_variable = { name = my_suzerain value = prev.primary_heir }
+		}		
+		every_in_list = {
+			variable = non_permanent_tributaries
+			remove_variable = my_suzerain
+		}	
+		remove_variable = suzerain
+	}
+}
+
+tributary.0003 = { # Protectorate has died, make heir new protectorate
+	type = character_event
+	hidden = yes
+
+	immediate = {
+		if = {
+			limit = { exists = root.primary_heir}
+			if = {
+				limit = {
+					exists = var:my_suzerain
+					var:my_suzerain = {
+						is_target_in_variable_list = { name = permanent_tributaries target = prev }
+					}
+				}
+				var:my_suzerain = {
+					root.primary_heir = { 
+						set_variable = { name = my_suzerain value = prev }
+						#prev = {
+						#	add_to_variable_list = { name = all_tributaries target = prev} #NOT CURRENTLY WORKING
+						#}
+					}
+					remove_list_variable = { name = all_tributaries target = prev }
+					remove_list_variable = { name = permanent_tributaries target = prev }
+				}
+				#move trib type + character income to the heir
+				pass_tributary_type_to_heir = {
+					SCOPE = root
+					TYPE = var:tributary_type
+					NEW_RULER = root.primary_heir
+				}
+			}
+			if = {
+				limit = {
+					exists = var:my_suzerain
+					var:my_suzerain = {
+						is_target_in_variable_list = { name = non_permanent_tributaries target = prev }
+					}
+				}
+				var:my_suzerain = {
+					remove_list_variable = { name = non_permanent_tributaries target = prev }
+					remove_list_variable = { name = all_tributaries target = prev}
+				}	
+	
+			}
+		}
+		else = {
+			var:my_suzerain = {
+				remove_list_variable = { name = permanent_tributaries target = prev }
+				remove_list_variable = { name = non_permanent_tributaries target = prev }
+				remove_list_variable = { name = all_tributaries target = prev}
+			}
+		}
+	}
+}
