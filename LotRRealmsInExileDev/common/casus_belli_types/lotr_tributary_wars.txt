@@ -70,7 +70,184 @@
 	}
 
     cost = {
-        prestige = 150
+		piety = {
+			value = 0
+			if = { # Attacking your HoF is impious
+				limit = {
+					exists = scope:attacker.faith.religious_head
+					scope:attacker.faith.religious_head = scope:defender
+				}
+				if = {
+					limit = {
+						scope:attacker.faith = {
+							has_doctrine = doctrine_spiritual_head
+						}
+					}
+					add = {
+						value = massive_piety_value
+						desc = CB_ATTACKER_HOF
+					}
+				}
+				else = {
+					add = {
+						value = medium_piety_value
+						desc = CB_ATTACKER_HOF
+					}
+				}
+			}
+			if = {
+				limit = {
+					scope:attacker.faith = scope:defender.faith
+					scope:defender = {
+						has_government = theocracy_government
+					}
+				}
+				add = {
+					value = medium_piety_value
+					desc = CB_ATTACKER_THEOCRACY
+				}
+			}
+		}
+		prestige = {
+			value = 0
+			add = {
+				desc = CB_BASE_COST
+				add = {
+					value = 150
+				}
+			}
+			if = {
+				limit = {
+					scope:defender.primary_title = {
+						tier = tier_duchy
+					}
+				}
+				multiply = {
+					value = 2
+					desc = CB_COST_RULES_DUCHY
+				}
+			}
+			if = {
+				limit = {
+					scope:defender.primary_title = {
+						tier = tier_kingdom
+					}
+				}
+				multiply = {
+					value = 3
+					desc = CB_COST_RULES_KINGDOM
+				}
+			}
+			if = {
+				limit = {
+					scope:defender.primary_title = {
+						tier = tier_empire
+					}
+				}
+				multiply = {
+					value = 4
+					desc = CB_COST_RULES_EMPIRE
+				}
+			}
+
+			#Innovation Prestige Discounts
+			if = {
+				limit = {
+					scope:attacker = {
+						culture = {
+							has_innovation = innovation_chronicle_writing
+							has_innovation = innovation_land_grants
+							has_innovation = innovation_rightful_ownership
+						}
+					}
+				}
+				multiply = {
+					value = 0.7
+					desc = CB_ATTACKER_INNOVATIONS
+				}
+			}
+			else_if = {
+				limit = {
+					scope:attacker = {
+						culture = {
+							OR = {
+								has_innovation = innovation_chronicle_writing
+								has_innovation = innovation_land_grants
+							}
+							OR = {
+								has_innovation = innovation_land_grants
+								has_innovation = innovation_rightful_ownership
+							}
+							OR = {
+								has_innovation = innovation_chronicle_writing
+								has_innovation = innovation_rightful_ownership
+							}
+						}
+					}
+				}
+				multiply = {
+					value = 0.8
+					desc = CB_ATTACKER_INNOVATIONS
+				}
+			}
+			else_if = {
+				limit = {
+					scope:attacker = {
+						culture = {
+							OR = {
+								has_innovation = innovation_chronicle_writing
+								has_innovation = innovation_land_grants
+								has_innovation = innovation_rightful_ownership
+							}
+						}
+					}
+				}
+				multiply = {
+					value = 0.9
+					desc = CB_ATTACKER_INNOVATIONS
+				}
+			}
+
+			# Bellum Justum Perk
+			if = {
+				limit = {
+					scope:attacker = {
+						has_perk = bellum_justum_perk
+					}
+				}
+				multiply = {
+					add = bellum_justum_discount_percentage
+					divide = 100
+					desc = CB_ATTACKER_BELLUM_JUSTUM
+				}
+			}
+
+			# Dynasty Warfare Perk
+			if = {
+				limit = {
+					scope:attacker = {
+						has_dynasty = yes
+						dynasty = {
+							has_dynasty_perk = warfare_legacy_2
+						}
+					}
+				}
+				multiply = {
+					value = warfare_legacy_2_discount
+					desc = CB_ATTACKER_DYNASTY_WARFARE
+				}
+			}
+			
+			if = {
+				limit = {
+					has_game_rule = no_cost_casus_belli_costs
+				}
+				multiply = {
+					value = 0
+					desc = CB_GAME_RULE_NO_COST
+				}
+			}
+		}
     }
 
 	on_declaration = {
@@ -97,6 +274,45 @@
             SUZERAIN = scope:attacker
             TRIBUTARY = scope:defender
         }
+		
+		# Prestige level progress for the attacker
+		scope:attacker = {
+			add_prestige_experience = {
+				value = medium_prestige_value
+			}
+			show_pow_release_message_effect = yes
+		}
+
+		# Prestige loss for the defender
+		scope:defender = {
+			add_prestige = {
+				value = medium_prestige_value
+				multiply = -1.0
+			}
+		}
+
+		# Prestige for the attacker's war allies
+		add_from_contribution_attackers = {
+			prestige = {
+				value = major_prestige_value
+			}
+			opinion = {
+				modifier = contributed_in_war
+			}
+		}
+
+		# Prestige for the defender's war allies
+		add_from_contribution_defenders = {
+			prestige = {
+				value = major_prestige_value
+			}
+			opinion = {
+				modifier = contributed_in_war
+			}
+		}
+		
+		# Truce
+		add_truce_attacker_victory_effect = yes
     }
 
 	on_white_peace_desc = {
@@ -114,9 +330,43 @@
 	}
 
 	on_white_peace = { 
-        scope:attacker = {
-            prestige = -150 
-        }
+		scope:attacker = { show_pow_release_message_effect = yes }
+		# Prestige loss for the attacker
+		scope:attacker = {
+			add_prestige = {
+				value = minor_prestige_value
+				multiply = -1.0
+			}
+			stress_impact = {
+				ambitious = medium_stress_impact_gain
+				arrogant = medium_stress_impact_gain
+			}
+		}
+
+		# Prestige for the attacker's war allies
+		add_from_contribution_attackers = {
+			prestige = minor_prestige_value
+			opinion = {
+				modifier = contributed_in_war
+			}
+		}
+
+		# Prestige for the defender's war allies
+		add_from_contribution_defenders = {
+			prestige = minor_prestige_value
+			opinion = {
+				modifier = contributed_in_war
+			}
+		}
+		
+		scope:defender = {
+			stress_impact = {
+				arrogant = medium_stress_impact_gain
+			}
+		}
+
+		# Truce
+		add_truce_white_peace_effect = yes
     }
 
 	on_defeat_desc = {
@@ -129,15 +379,57 @@
 				trigger = { scope:defender = { is_local_player = yes } }
 				desc = trib_on_defeat_desc_defender
 			}
-			desc = trib_on_defeat
+			desc = trib_on_defeat_desc
 		}
 	}
 
     on_defeat = {
-        scope:attacker = {
-            prestige = -150
-            pay_long_term_gold = { target = scope:defender gold = 150 }
-        }
+		scope:attacker = { show_pow_release_message_effect = yes }
+		
+		# Prestige loss for the attacker
+		scope:attacker = {
+			pay_short_term_gold = {
+				gold = 3
+				target = scope:defender
+				yearly_income = yes
+			}
+			add_prestige = {
+				value = major_prestige_value
+				multiply = -1.0
+			}
+		}
+
+		# Prestige for the defender
+		scope:defender = {
+			add_prestige = {
+				value = medium_prestige_value
+			}
+		}
+
+		# Prestige for the attacker's war allies
+		add_from_contribution_attackers = {
+			prestige = major_prestige_value
+			opinion = {
+				modifier = contributed_in_war
+			}
+		}
+
+		# Prestige for the defender's war allies
+		add_from_contribution_defenders = {
+			prestige = major_prestige_value
+			opinion = {
+				modifier = contributed_in_war
+			}
+		}
+		
+		scope:attacker = {
+			save_temporary_scope_as = loser
+		}
+
+		# Truce
+		add_truce_attacker_defeat_effect = yes
+		
+		on_lost_aggression_war_discontent_loss = yes
     }
 
 	on_invalidated = {}
@@ -270,7 +562,184 @@ permament_tributary_war_cb = {
 	}
 
     cost = {
-        prestige = 150
+		piety = {
+			value = 0
+			if = { # Attacking your HoF is impious
+				limit = {
+					exists = scope:attacker.faith.religious_head
+					scope:attacker.faith.religious_head = scope:defender
+				}
+				if = {
+					limit = {
+						scope:attacker.faith = {
+							has_doctrine = doctrine_spiritual_head
+						}
+					}
+					add = {
+						value = massive_piety_value
+						desc = CB_ATTACKER_HOF
+					}
+				}
+				else = {
+					add = {
+						value = medium_piety_value
+						desc = CB_ATTACKER_HOF
+					}
+				}
+			}
+			if = {
+				limit = {
+					scope:attacker.faith = scope:defender.faith
+					scope:defender = {
+						has_government = theocracy_government
+					}
+				}
+				add = {
+					value = medium_piety_value
+					desc = CB_ATTACKER_THEOCRACY
+				}
+			}
+		}
+		prestige = {
+			value = 0
+			add = {
+				desc = CB_BASE_COST
+				add = {
+					value = 150
+				}
+			}
+			if = {
+				limit = {
+					scope:defender.primary_title = {
+						tier = tier_duchy
+					}
+				}
+				multiply = {
+					value = 2
+					desc = CB_COST_RULES_DUCHY
+				}
+			}
+			if = {
+				limit = {
+					scope:defender.primary_title = {
+						tier = tier_kingdom
+					}
+				}
+				multiply = {
+					value = 3
+					desc = CB_COST_RULES_KINGDOM
+				}
+			}
+			if = {
+				limit = {
+					scope:defender.primary_title = {
+						tier = tier_empire
+					}
+				}
+				multiply = {
+					value = 4
+					desc = CB_COST_RULES_EMPIRE
+				}
+			}
+
+			#Innovation Prestige Discounts
+			if = {
+				limit = {
+					scope:attacker = {
+						culture = {
+							has_innovation = innovation_chronicle_writing
+							has_innovation = innovation_land_grants
+							has_innovation = innovation_rightful_ownership
+						}
+					}
+				}
+				multiply = {
+					value = 0.7
+					desc = CB_ATTACKER_INNOVATIONS
+				}
+			}
+			else_if = {
+				limit = {
+					scope:attacker = {
+						culture = {
+							OR = {
+								has_innovation = innovation_chronicle_writing
+								has_innovation = innovation_land_grants
+							}
+							OR = {
+								has_innovation = innovation_land_grants
+								has_innovation = innovation_rightful_ownership
+							}
+							OR = {
+								has_innovation = innovation_chronicle_writing
+								has_innovation = innovation_rightful_ownership
+							}
+						}
+					}
+				}
+				multiply = {
+					value = 0.8
+					desc = CB_ATTACKER_INNOVATIONS
+				}
+			}
+			else_if = {
+				limit = {
+					scope:attacker = {
+						culture = {
+							OR = {
+								has_innovation = innovation_chronicle_writing
+								has_innovation = innovation_land_grants
+								has_innovation = innovation_rightful_ownership
+							}
+						}
+					}
+				}
+				multiply = {
+					value = 0.9
+					desc = CB_ATTACKER_INNOVATIONS
+				}
+			}
+
+			# Bellum Justum Perk
+			if = {
+				limit = {
+					scope:attacker = {
+						has_perk = bellum_justum_perk
+					}
+				}
+				multiply = {
+					add = bellum_justum_discount_percentage
+					divide = 100
+					desc = CB_ATTACKER_BELLUM_JUSTUM
+				}
+			}
+
+			# Dynasty Warfare Perk
+			if = {
+				limit = {
+					scope:attacker = {
+						has_dynasty = yes
+						dynasty = {
+							has_dynasty_perk = warfare_legacy_2
+						}
+					}
+				}
+				multiply = {
+					value = warfare_legacy_2_discount
+					desc = CB_ATTACKER_DYNASTY_WARFARE
+				}
+			}
+			
+			if = {
+				limit = {
+					has_game_rule = no_cost_casus_belli_costs
+				}
+				multiply = {
+					value = 0
+					desc = CB_GAME_RULE_NO_COST
+				}
+			}
+		}
     }
 
 	on_declaration = {
@@ -297,6 +766,44 @@ permament_tributary_war_cb = {
             SUZERAIN = scope:attacker
             TRIBUTARY = scope:defender
         }
+		
+		# Prestige level progress for the attacker
+		scope:attacker = {
+			add_prestige_experience = {
+				value = medium_prestige_value
+			}
+		}
+
+		# Prestige loss for the defender
+		scope:defender = {
+			add_prestige = {
+				value = medium_prestige_value
+				multiply = -1.0
+			}
+		}
+
+		# Prestige for the attacker's war allies
+		add_from_contribution_attackers = {
+			prestige = {
+				value = major_prestige_value
+			}
+			opinion = {
+				modifier = contributed_in_war
+			}
+		}
+
+		# Prestige for the defender's war allies
+		add_from_contribution_defenders = {
+			prestige = {
+				value = major_prestige_value
+			}
+			opinion = {
+				modifier = contributed_in_war
+			}
+		}
+		
+		# Truce
+		add_truce_attacker_victory_effect = yes
     }
 
 	on_white_peace_desc = {
@@ -314,9 +821,43 @@ permament_tributary_war_cb = {
 	}
 
 	on_white_peace = { 
-        scope:attacker = {
-            prestige = -150 
-        }
+		scope:attacker = { show_pow_release_message_effect = yes }
+		# Prestige loss for the attacker
+		scope:attacker = {
+			add_prestige = {
+				value = minor_prestige_value
+				multiply = -1.0
+			}
+			stress_impact = {
+				ambitious = medium_stress_impact_gain
+				arrogant = medium_stress_impact_gain
+			}
+		}
+
+		# Prestige for the attacker's war allies
+		add_from_contribution_attackers = {
+			prestige = minor_prestige_value
+			opinion = {
+				modifier = contributed_in_war
+			}
+		}
+
+		# Prestige for the defender's war allies
+		add_from_contribution_defenders = {
+			prestige = minor_prestige_value
+			opinion = {
+				modifier = contributed_in_war
+			}
+		}
+		
+		scope:defender = {
+			stress_impact = {
+				arrogant = medium_stress_impact_gain
+			}
+		}
+
+		# Truce
+		add_truce_white_peace_effect = yes
     }
 
 	on_defeat_desc = {
@@ -329,15 +870,57 @@ permament_tributary_war_cb = {
 				trigger = { scope:defender = { is_local_player = yes } }
 				desc = perma_trib_on_defeat_desc_defender
 			}
-			desc = perma_trib_on_defeat
+			desc = perma_trib_on_defeat_desc
 		}
 	}
 
     on_defeat = {
-        scope:attacker = {
-            prestige = -150
-            pay_long_term_gold = { target = scope:defender gold = 150 }
-        }
+		scope:attacker = { show_pow_release_message_effect = yes }
+		
+		# Prestige loss for the attacker
+		scope:attacker = {
+			pay_short_term_gold = {
+				gold = 3
+				target = scope:defender
+				yearly_income = yes
+			}
+			add_prestige = {
+				value = major_prestige_value
+				multiply = -1.0
+			}
+		}
+
+		# Prestige for the defender
+		scope:defender = {
+			add_prestige = {
+				value = medium_prestige_value
+			}
+		}
+
+		# Prestige for the attacker's war allies
+		add_from_contribution_attackers = {
+			prestige = major_prestige_value
+			opinion = {
+				modifier = contributed_in_war
+			}
+		}
+
+		# Prestige for the defender's war allies
+		add_from_contribution_defenders = {
+			prestige = major_prestige_value
+			opinion = {
+				modifier = contributed_in_war
+			}
+		}
+		
+		scope:attacker = {
+			save_temporary_scope_as = loser
+		}
+
+		# Truce
+		add_truce_attacker_defeat_effect = yes
+		
+		on_lost_aggression_war_discontent_loss = yes
     }
 
 	on_invalidated = {}
@@ -398,121 +981,375 @@ permament_tributary_war_cb = {
 	
 }
 
-#independence_tributary_war_cb = {
-#    group = tributary
-#	ai_only_against_neighbors = no
-#
-#	war_name = independence_tributary_war_cb
-#	my_war_name = independence_tributary_war_me # Used when the claimant and attacker is the same person
-#	war_name_base = independence_tributary_war_m_b
-#	my_war_name_base = independence_tributary_war_m_b
-#
-#    truce_days = 970
-#
-#    allowed_for_character = {
-#        scope:attacker = {
-#            exists = var:my_suzerain
-#            var:my_suzerain = scope:defender
-#        }
-#    }
-#
-#    allowed_for_character_display_regardless = {
-#        scope:attacker = {
-#            exists = var:my_suzerain
-#            var:my_suzerain = {
-#                OR = {
-#                    is_target_in_variable_list = { name = non_permanent_tributaries target = scope:attacker }
-#                    is_target_in_variable_list = { name = permanent_tributaries target = scope:attacker }
-#                }
-#            }
-#        }
-#    }
-#
-#    cost = {
-#        prestige = 150
-#    }
-#
-#
-#	on_victory_desc = {
-#		first_valid = {
-#			triggered_desc = {
-#				trigger = { scope:attacker = { is_local_player = yes } }
-#				desc = trib_indp_on_victory_desc_attacker
-#			}
-#			triggered_desc = {
-#				trigger = { scope:defender = { is_local_player = yes } }
-#				desc = trib_indp_on_victory_desc_defender
-#			}
-#			desc = trib_indp_on_victory_desc
-#		}
-#	}
-#
-#    on_victory = {
-#        scope:attacker = {
-#            delete_variable = var:my_suzerain
-#        }
-#        scope:defender = {
-#            if = {
-#                limit = {
-#                    is_target_in_variable_list = { name = permanent_tributaries target = scope:attacker }
-#                }
-#                remove_list_variable = { name = permanent_tributaries target = scope:attacker }
-#                remove_list_variable = { name = all_tributaries target = scope:attacker }
-#            }
-#            if = {
-#                limit = {
-#                    is_target_in_variable_list = { name = non_permanent_tributaries target = scope:attacker }
-#                }
-#                remove_list_variable = { name = non_permanent_tributaries target = scope:attacker }
-#                remove_list_variable = { name = all_tributaries target = scope:attacker }
-#            }           
-#        }
-#    }
-#
-#	on_white_peace_desc = {
-#		first_valid = {
-#			triggered_desc = {
-#				trigger = { scope:attacker = { is_local_player = yes } }
-#				desc = trib_indp_on_white_peace_desc_attacker
-#			}
-#			triggered_desc = {
-#				trigger = { scope:defender = { is_local_player = yes } }
-#				desc = trib_indp_on_white_peace_desc_defender
-#			}
-#			desc = trib_indp_on_white_peace_desc
-#		}
-#	}
-#
-#	on_white_peace = { 
-#        scope:attacker = {
-#           prestige = -150 
-#        }
-#    }
-#
-#
-#	on_defeat_desc = {
-#		first_valid = {
-#			triggered_desc = {
-#				trigger = { scope:attacker = { is_local_player = yes } }
-#				desc = trib_indp_on_defeat_desc_attacker
-#			}
-#			triggered_desc = {
-#				trigger = { scope:defender = { is_local_player = yes } }
-#				desc = trib_indp_on_defeat_desc_defender
-#			}
-#			desc = trib_indp_on_defeat_desc
-#		}
-#	}
-#
-#    on_defeat = {
-#        scope:attacker = {
-#            prestige = -150
-#            pay_long_term_gold = { target = scope:defender gold = 150 }
-#        }
-#    }
-#
-#    on_invalidated_desc = {
-#        desc = trib_indp_on_invalidated_des
-#    }
-#
-#}
+independence_tributary_war_cb = {
+    group = tributary
+	ai_only_against_neighbors = no
+
+	war_name = INDEPENDENCE_WAR_NAME #independence_tributary_war_cb
+	my_war_name = independence_tributary_war_me # Used when the claimant and attacker is the same person
+	war_name_base = independence_tributary_war_m_b
+	my_war_name_base = independence_tributary_war_m_b
+
+    truce_days = 970
+
+	on_primary_attacker_death = inherit 
+	on_primary_defender_death = invalidate
+	transfer_behavior = transfer
+	attacker_allies_inherit = yes
+	defender_allies_inherit = yes
+
+	max_attacker_score_from_battles = 100
+	max_defender_score_from_battles = 50
+
+    allowed_for_character = {
+        scope:attacker = {
+            exists = var:my_suzerain
+            var:my_suzerain = scope:defender
+			NOT = { has_variable = overlord_protector }
+        }
+    }
+
+    allowed_for_character_display_regardless = {
+        scope:attacker = {
+            exists = var:my_suzerain
+            var:my_suzerain = {
+                OR = {
+                    is_target_in_variable_list = { name = non_permanent_tributaries target = scope:attacker }
+                    is_target_in_variable_list = { name = permanent_tributaries target = scope:attacker }
+                }
+            }
+        }
+    }
+
+	should_invalidate = {
+		OR = {
+			scope:defender = {
+				is_independent_ruler = no
+			}
+			scope:defender = {
+				is_tributary = yes
+			}
+			scope:defender = {
+				primary_title = {
+					tier < tier_county
+				}
+			}
+			scope:attacker = {
+				is_independent_ruler = no
+			}
+			scope:attacker = {
+				is_tributary = no
+			}
+			scope:attacker = {
+				primary_title = {
+					tier <= tier_county
+				}
+			}
+		}
+	}
+
+    cost = {
+		piety = {
+			value = 0
+			if = { # Attacking your HoF is impious
+				limit = {
+					exists = scope:attacker.faith.religious_head
+					scope:attacker.faith.religious_head = scope:defender
+				}
+				if = {
+					limit = {
+						scope:attacker.faith = {
+							has_doctrine = doctrine_spiritual_head
+						}
+					}
+					add = {
+						value = massive_piety_value
+						desc = CB_ATTACKER_HOF
+					}
+				}
+				else = {
+					add = {
+						value = medium_piety_value
+						desc = CB_ATTACKER_HOF
+					}
+				}
+			}
+			if = {
+				limit = {
+					scope:attacker.faith = scope:defender.faith
+					scope:defender = {
+						has_government = theocracy_government
+					}
+				}
+				add = {
+					value = medium_piety_value
+					desc = CB_ATTACKER_THEOCRACY
+				}
+			}
+		}
+		prestige = {
+			value = 0
+			add = {
+				desc = CB_BASE_COST
+				add = {
+					value = 100
+				}
+			}
+			if = {
+				limit = {
+					scope:defender.primary_title = {
+						tier = tier_duchy
+					}
+				}
+				multiply = {
+					value = 2
+					desc = CB_COST_RULES_DUCHY
+				}
+			}
+			if = {
+				limit = {
+					scope:defender.primary_title = {
+						tier = tier_kingdom
+					}
+				}
+				multiply = {
+					value = 3
+					desc = CB_COST_RULES_KINGDOM
+				}
+			}
+			if = {
+				limit = {
+					scope:defender.primary_title = {
+						tier = tier_empire
+					}
+				}
+				multiply = {
+					value = 4
+					desc = CB_COST_RULES_EMPIRE
+				}
+			}
+
+
+			#Innovation Prestige Discounts
+			if = {
+				limit = {
+					scope:attacker = {
+						culture = {
+							has_innovation = innovation_chronicle_writing
+							has_innovation = innovation_land_grants
+							has_innovation = innovation_rightful_ownership
+						}
+					}
+				}
+				multiply = {
+					value = 0.7
+					desc = CB_ATTACKER_INNOVATIONS
+				}
+			}
+			else_if = {
+				limit = {
+					scope:attacker = {
+						culture = {
+							OR = {
+								has_innovation = innovation_chronicle_writing
+								has_innovation = innovation_land_grants
+							}
+							OR = {
+								has_innovation = innovation_land_grants
+								has_innovation = innovation_rightful_ownership
+							}
+							OR = {
+								has_innovation = innovation_chronicle_writing
+								has_innovation = innovation_rightful_ownership
+							}
+						}
+					}
+				}
+				multiply = {
+					value = 0.8
+					desc = CB_ATTACKER_INNOVATIONS
+				}
+			}
+			else_if = {
+				limit = {
+					scope:attacker = {
+						culture = {
+							OR = {
+								has_innovation = innovation_chronicle_writing
+								has_innovation = innovation_land_grants
+								has_innovation = innovation_rightful_ownership
+							}
+						}
+					}
+				}
+				multiply = {
+					value = 0.9
+					desc = CB_ATTACKER_INNOVATIONS
+				}
+			}
+
+			# Bellum Justum Perk
+			if = {
+				limit = {
+					scope:attacker = {
+						has_perk = bellum_justum_perk
+					}
+				}
+				multiply = {
+					add = bellum_justum_discount_percentage
+					divide = 100
+					desc = CB_ATTACKER_BELLUM_JUSTUM
+				}
+			}
+
+			# Dynasty Warfare Perk
+			if = {
+				limit = {
+					scope:attacker = {
+						has_dynasty = yes
+						dynasty = {
+							has_dynasty_perk = warfare_legacy_2
+						}
+					}
+				}
+				multiply = {
+					value = warfare_legacy_2_discount
+					desc = CB_ATTACKER_DYNASTY_WARFARE
+				}
+			}
+			
+			if = {
+				limit = {
+					has_game_rule = no_cost_casus_belli_costs
+				}
+				multiply = {
+					value = 0
+					desc = CB_GAME_RULE_NO_COST
+				}
+			}
+		}
+    }
+
+	on_declaration = {
+		on_declared_war = yes
+		scope:defender = {
+			every_in_list = {
+				variable = all_tributaries
+				limit = { 
+					NOT = { this = scope:attacker }
+					any_war_ally = { NOT = { this = scope:defender } }
+				}
+				trigger_event = tributary.0002
+			}
+		}
+	}
+
+	on_victory_desc = {
+		first_valid = {
+			triggered_desc = {
+				trigger = { scope:attacker = { is_local_player = yes } }
+				desc = trib_indp_on_victory_desc_attacker
+			}
+			triggered_desc = {
+				trigger = { scope:defender = { is_local_player = yes } }
+				desc = trib_indp_on_victory_desc_defender
+			}
+			desc = trib_indp_on_victory_desc
+		}
+	}
+
+    on_victory = {
+		scope:attacker = { 
+			show_pow_release_message_effect = yes
+			add_prestige = medium_prestige_value
+			free_tributary = yes
+			every_war_ally = {
+				limit = {
+					exists = var:my_suzerain
+					var:my_suzerain = scope:defender
+				}
+				free_tributary = yes
+			}	
+		}
+    }
+
+	on_white_peace_desc = {
+		first_valid = {
+			triggered_desc = {
+				trigger = { scope:attacker = { is_local_player = yes } }
+				desc = trib_indp_on_white_peace_desc_attacker
+			}
+			triggered_desc = {
+				trigger = { scope:defender = { is_local_player = yes } }
+				desc = trib_indp_on_white_peace_desc_defender
+			}
+			desc = trib_indp_on_white_peace_desc
+		}
+	}
+
+	on_white_peace = { 
+        scope:attacker = { 
+			show_pow_release_message_effect = yes 
+			stress_impact = {
+ 				ambitious = medium_stress_impact_gain
+ 				arrogant = medium_stress_impact_gain
+ 			}
+		}
+		hidden_effect = {
+			scope:attacker = {
+				add_truce_both_ways = {
+					character = scope:defender
+					days = 1825
+					war = root.war
+					result = white_peace
+				}
+			}
+		}
+		scope:defender = {
+			stress_impact = {
+ 				arrogant = medium_stress_impact_gain
+ 			}
+			add_prestige = minor_prestige_value
+		}
+    }
+
+
+	on_defeat_desc = {
+		first_valid = {
+			triggered_desc = {
+				trigger = { scope:attacker = { is_local_player = yes } }
+				desc = trib_indp_on_defeat_desc_attacker
+			}
+			triggered_desc = {
+				trigger = { scope:defender = { is_local_player = yes } }
+				desc = trib_indp_on_defeat_desc_defender
+			}
+			desc = trib_indp_on_defeat_desc
+		}
+	}
+
+    on_defeat = {
+		scope:attacker = { show_pow_release_message_effect = yes }
+		scope:defender = {
+			add_dread = medium_dread_gain
+			add_prestige = medium_prestige_value
+		}
+		scope:war = {
+			every_war_attacker = {
+				limit = {
+					exists = var:my_suzerain
+					var:my_suzerain = scope:defender
+				}
+				hard_imprison_character_effect = {
+					TARGET = this
+					IMPRISONER = scope:defender
+				}
+			}
+		}
+    }
+
+    on_invalidated_desc = {
+        desc = trib_indp_on_invalidated_desc
+    }
+
+}
