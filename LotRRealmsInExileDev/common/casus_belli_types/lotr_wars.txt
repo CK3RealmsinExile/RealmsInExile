@@ -592,6 +592,1001 @@ abrakhan_claim_cb = {
 	defender_ticking_warscore_delay = { months = 24 }
 }
 
+raid_for_captives_cb = {
+	group = religious_disorganised
+	ai_only_against_neighbors = yes
+
+	# Root is the title
+	# scope:attacker is the attacker
+	# scope:defender is the defender
+	allowed_against_character = {
+		scope:attacker = {
+			faith = { 
+				has_doctrine_parameter = flower_war_cb_active 
+				NOT = { has_doctrine_parameter = human_sacrifice_active }
+			}
+		}
+
+		scope:defender = {
+			is_independent_ruler = yes
+			trigger_if = {
+				limit = { scope:attacker = { is_ai = no } } # Already pre-filtered by the AI due to ai_only_against_neighbors = yes. any_neighboring_top_liege_realm_owner is expensive
+				scope:attacker = {
+					any_neighboring_top_liege_realm_owner = {
+						this = scope:defender
+					}
+				}
+			}
+		}
+	}
+
+	allowed_against_character_display_regardless = { #LotR Tributaries
+		scope:defender = {
+			is_guaranteed_by_attackers_top_liege = no
+			is_guaranteed_by_me = no
+		}
+	}
+
+	cost = {
+		piety = {
+			add = {
+				value = 100
+				desc = CB_BASE_COST
+			}
+			# Faith Doctrine Piety Discounts
+			if = {
+				limit = {
+					scope:attacker.faith = {
+						has_doctrine_parameter = divine_destiny_holy_war_cost_reduction
+					}
+				}
+				multiply = {
+					value = 0.5
+					desc = CB_DIVINE_DESTINY_COST
+				}
+			}
+
+			if = {
+				limit = {
+					scope:attacker.faith = {
+						has_doctrine_parameter = cheaper_holy_wars_active
+					}
+				}
+				multiply = {
+					value = 0.8
+					desc = CB_REDUCED_HOLY_WAR_COST
+				}
+			}
+
+			# Innovation Piety Discounts
+			if = {
+				limit = {
+					scope:attacker = {
+						culture = {
+							has_innovation = innovation_reconquista
+						}
+					}
+				}
+				multiply = {
+					value = 0.9
+					desc = CB_RECONQUISTA_COST
+				}
+			}
+
+			# Bellum Justum Perk
+			if = {
+				limit = {
+					scope:attacker = {
+						has_perk = bellum_justum_perk
+					}
+				}
+				multiply = {
+					add = bellum_justum_discount_percentage
+					divide = 100
+					desc = CB_ATTACKER_BELLUM_JUSTUM
+				}
+			}
+
+			# Dynasty Warfare Perk
+			if = {
+				limit = {
+					scope:attacker = {
+						has_dynasty = yes
+						dynasty = {
+							has_dynasty_perk = warfare_legacy_2
+						}
+					}
+				}
+				multiply = {
+					value = warfare_legacy_2_discount
+					desc = CB_ATTACKER_DYNASTY_WARFARE
+				}
+			}
+
+			# Vassal contract in-realm cost reduction
+			if = {
+				limit = {
+					scope:attacker = {
+						is_independent_ruler = no
+						vassal_contract_has_flag = vassal_contract_war_override
+						liege = scope:defender.liege
+					}
+				}
+				multiply = {
+					value = war_declaration_rights_allowed_cost_reduction
+					desc = "CB_ATTACKER_VASSAL_CONTRACT"
+				}
+			}
+
+			if = {
+				limit = {
+					has_game_rule = no_cost_casus_belli_costs
+				}
+				multiply = {
+					value = 0
+					desc = CB_GAME_RULE_NO_COST
+				}
+			}
+		}
+	}
+
+	should_invalidate = {
+		OR = {
+			AND = {	#A formal flowery war only invalidates if neither side is an interested participant.
+				scope:attacker.faith = {
+					NOT = { 
+						has_doctrine_parameter = flower_war_cb_active 
+						NOT = { has_doctrine_parameter = human_sacrifice_active }
+					}
+				}
+				scope:defender.faith = {
+					NOT = { 
+						has_doctrine_parameter = flower_war_cb_active 
+						NOT = { has_doctrine_parameter = human_sacrifice_active }
+					}
+				}
+			}
+		}
+	}
+
+	on_invalidated_desc = {
+		desc = raid_for_captives_cb_ended_invalid_desc
+	}
+
+	on_invalidated = {
+		
+	}
+
+	on_declaration = {
+		on_declared_war = yes
+	}
+
+	on_victory_desc = {
+		desc = raid_for_captives_cb_victory_desc
+	}
+
+	on_victory = {
+		scope:attacker = { show_pow_release_message_effect = yes }
+		scope:attacker = {
+			if = {
+				limit = { scope:defender.primary_title.tier = tier_county }
+				add_prestige = { value = minor_prestige_gain }
+			}
+			if = {
+				limit = { scope:defender.primary_title.tier = tier_duchy }
+				add_prestige = { value = medium_prestige_gain }
+			}
+			if = {
+				limit = { scope:defender.primary_title.tier = tier_kingdom }
+				add_prestige = { value = major_prestige_gain }
+			}
+			if = {
+				limit = { scope:defender.primary_title.tier = tier_empire }
+				add_prestige = { value = massive_prestige_gain }
+			}
+		}
+		scope:defender = {
+			if = {
+				limit = { scope:defender.primary_title.tier = tier_county }
+				add_prestige = { value = minor_prestige_loss }
+			}
+			if = {
+				limit = { scope:defender.primary_title.tier = tier_duchy }
+				add_prestige = { value = medium_prestige_loss }
+			}
+			if = {
+				limit = { scope:defender.primary_title.tier = tier_kingdom }
+				add_prestige = { value = major_prestige_loss }
+			}
+			if = {
+				limit = { scope:defender.primary_title.tier = tier_empire }
+				add_prestige = { value = massive_prestige_loss }
+			}
+		}
+		scope:attacker = {	#If the attacker has the appropriate tenet, grab some suitable courtiers from the defender.
+			custom_tooltip = raid_for_captives_cb_prisoners.tt_attacker
+			hidden_effect = {
+				scope:defender = {
+					every_courtier_or_guest = { add_to_list = potential_captives_list }
+					random_in_list = {	#Nab someone related to the defender, preferring tangentials.
+						list = potential_captives_list
+						limit = {
+							OR = {
+								AND = {
+									has_dynasty = yes
+									dynasty = scope:defender.dynasty
+								}
+								is_consort_of = scope:defender
+							}
+						}
+						alternative_limit = { always = yes }
+						weight = {
+							base = 1
+							modifier = {
+								add = 25
+								NOT = { is_close_family_of = scope:defender }
+							}
+							modifier = {
+								add = 15
+								NOT = { is_extended_family_of = scope:defender }
+							}
+						}
+						add_to_list = definite_captives_list
+						save_temporary_scope_as = future_captive
+						scope:attacker = {
+							imprison = {
+								target = scope:future_captive
+								type = dungeon
+							}
+						}
+					}
+					random_in_list = {	#Always try to grab a second person.
+						list = potential_captives_list
+						limit = {
+							NOT = { is_in_list = definite_captives_list }
+						}
+						weight = {
+							base = 1
+							modifier = {
+								add = 40
+								NOT = {
+									any_claim = {
+										useful_courtier_or_guest_claim_trigger = { RULER = scope:defender }
+									}
+								}
+							}
+							modifier = {
+								add = 10
+								NAND = {
+									can_be_chancellor_trigger = { COURT_OWNER = scope:defender }
+									diplomacy >= high_skill_rating
+								}
+							}
+							modifier = {
+								add = 10
+								NAND = {
+									can_be_marshal_trigger = { COURT_OWNER = scope:defender }
+									martial >= high_skill_rating
+								}
+							}
+							modifier = {
+								add = 10
+								NAND = {
+									can_be_steward_trigger = { COURT_OWNER = scope:defender }
+									stewardship >= high_skill_rating
+								}
+							}
+							modifier = {
+								add = 10
+								NAND = {
+									can_be_spymaster_trigger = { COURT_OWNER = scope:defender }
+									intrigue >= high_skill_rating
+								}
+							}
+							modifier = {
+								add = 10
+								NOT = { learning >= high_skill_rating }
+							}
+							modifier = {
+								add = 10
+								NOT = {	prowess >= high_skill_rating }
+							}
+							modifier = {
+								add = 50
+								NOT = { is_close_or_extended_family_of = scope:defender }
+							}
+						}
+						add_to_list = definite_captives_list
+						save_temporary_scope_as = future_captive
+						scope:attacker = {
+							imprison = {
+								target = scope:future_captive
+								type = dungeon
+							}
+						}
+					}
+					random_in_list = {	#Always try to grab a third person.
+						list = potential_captives_list
+						limit = {
+							NOT = { is_in_list = definite_captives_list }
+						}
+						weight = {
+							base = 1
+							modifier = {
+								add = 40
+								NOT = {
+									any_claim = {
+										useful_courtier_or_guest_claim_trigger = { RULER = scope:defender }
+									}
+								}
+							}
+							modifier = {
+								add = 10
+								NAND = {
+									can_be_chancellor_trigger = { COURT_OWNER = scope:defender }
+									diplomacy >= high_skill_rating
+								}
+							}
+							modifier = {
+								add = 10
+								NAND = {
+									can_be_marshal_trigger = { COURT_OWNER = scope:defender }
+									martial >= high_skill_rating
+								}
+							}
+							modifier = {
+								add = 10
+								NAND = {
+									can_be_steward_trigger = { COURT_OWNER = scope:defender }
+									stewardship >= high_skill_rating
+								}
+							}
+							modifier = {
+								add = 10
+								NAND = {
+									can_be_spymaster_trigger = { COURT_OWNER = scope:defender }
+									intrigue >= high_skill_rating
+								}
+							}
+							modifier = {
+								add = 10
+								NOT = { learning >= high_skill_rating }
+							}
+							modifier = {
+								add = 10
+								NOT = {	prowess >= high_skill_rating }
+							}
+							modifier = {
+								add = 50
+								NOT = { is_close_or_extended_family_of = scope:defender }
+							}
+						}
+						add_to_list = definite_captives_list
+						save_temporary_scope_as = future_captive
+						scope:attacker = {
+							imprison = {
+								target = scope:future_captive
+								type = dungeon
+							}
+						}
+					}
+					if = {	#If at least duchy-tier, try to grab a fourth person.
+						limit = { primary_title.tier >= tier_duchy }
+						random_in_list = {
+							list = potential_captives_list
+							limit = {
+								NOT = { is_in_list = definite_captives_list }
+							}
+							weight = {
+								base = 1
+								modifier = {
+									add = 40
+									NOT = {
+										any_claim = {
+											useful_courtier_or_guest_claim_trigger = { RULER = scope:defender }
+										}
+									}
+								}
+								modifier = {
+									add = 10
+									NAND = {
+										can_be_chancellor_trigger = { COURT_OWNER = scope:defender }
+										diplomacy >= high_skill_rating
+									}
+								}
+								modifier = {
+									add = 10
+									NAND = {
+										can_be_marshal_trigger = { COURT_OWNER = scope:defender }
+										martial >= high_skill_rating
+									}
+								}
+								modifier = {
+									add = 10
+									NAND = {
+										can_be_steward_trigger = { COURT_OWNER = scope:defender }
+										stewardship >= high_skill_rating
+									}
+								}
+								modifier = {
+									add = 10
+									NAND = {
+										can_be_spymaster_trigger = { COURT_OWNER = scope:defender }
+										intrigue >= high_skill_rating
+									}
+								}
+								modifier = {
+									add = 10
+									NOT = { learning >= high_skill_rating }
+								}
+								modifier = {
+									add = 10
+									NOT = { prowess >= high_skill_rating }
+								}
+							}
+							add_to_list = definite_captives_list
+							save_temporary_scope_as = future_captive
+							scope:attacker = {
+								imprison = {
+									target = scope:future_captive
+									type = dungeon
+								}
+							}
+						}
+					}
+					if = {	#If at least kingdom-tier, try to grab a fifth person.
+						limit = { primary_title.tier >= tier_kingdom }
+						random_in_list = {
+							list = potential_captives_list
+							limit = {
+								NOT = { is_in_list = definite_captives_list }
+							}
+							weight = {
+								base = 1
+								modifier = {
+									add = 40
+									NOT = {
+										any_claim = {
+											useful_courtier_or_guest_claim_trigger = { RULER = scope:defender }
+										}
+									}
+								}
+								modifier = {
+									add = 10
+									NAND = {
+										can_be_chancellor_trigger = { COURT_OWNER = scope:defender }
+										diplomacy >= high_skill_rating
+									}
+								}
+								modifier = {
+									add = 10
+									NAND = {
+										can_be_marshal_trigger = { COURT_OWNER = scope:defender }
+										martial >= high_skill_rating
+									}
+								}
+								modifier = {
+									add = 10
+									NAND = {
+										can_be_steward_trigger = { COURT_OWNER = scope:defender }
+										stewardship >= high_skill_rating
+									}
+								}
+								modifier = {
+									add = 10
+									NAND = {
+										can_be_spymaster_trigger = { COURT_OWNER = scope:defender }
+										intrigue >= high_skill_rating
+									}
+								}
+								modifier = {
+									add = 10
+									NOT = { learning >= high_skill_rating }
+								}
+								modifier = {
+									add = 10
+									NOT = { prowess >= high_skill_rating }
+								}
+							}
+							add_to_list = definite_captives_list
+							save_temporary_scope_as = future_captive
+							scope:attacker = {
+								imprison = {
+									target = scope:future_captive
+									type = dungeon
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+
+		# Prestige for the attacker's war allies
+		add_from_contribution_attackers = {
+			prestige = {
+				value = major_prestige_value
+			}
+			opinion = {
+				modifier = contributed_in_war
+			}
+		}
+
+		# Prestige for the defender's war allies
+		add_from_contribution_defenders = {
+			prestige = {
+				value = major_prestige_value
+			}
+			opinion = {
+				modifier = contributed_in_war
+			}
+		}
+
+		# Truce
+		add_truce_attacker_victory_effect = yes
+
+	}
+
+	on_white_peace_desc = {
+		desc = raid_for_captives_cb_white_peace_desc
+	}
+
+	on_white_peace = {
+		scope:attacker = { 
+			show_pow_release_message_effect = yes
+			stress_impact = {
+				ambitious = medium_stress_impact_gain
+				arrogant = medium_stress_impact_gain
+			}
+		}
+		scope:attacker = {	
+			add_prestige = {
+				value = medium_prestige_loss
+			}
+		}
+
+		# Prestige for the attacker's war allies
+		add_from_contribution_attackers = {
+			prestige = {
+				value = major_prestige_value
+			}
+			opinion = {
+				modifier = contributed_in_war
+			}
+		}
+
+		# Prestige for the defender's war allies
+		add_from_contribution_defenders = {
+			prestige = {
+				value = major_prestige_value
+			}
+			opinion = {
+				modifier = contributed_in_war
+			}
+		}
+
+		scope:defender = {
+			stress_impact = {
+				arrogant = medium_stress_impact_gain
+			}
+		}
+
+		# Truce
+		add_truce_attacker_victory_effect = yes
+
+	}
+
+	on_defeat_desc = {
+		desc = raid_for_captives_cb_defeat_desc
+	}
+
+	on_defeat = {
+		scope:attacker = { show_pow_release_message_effect = yes }
+		scope:attacker = {
+			if = {
+				limit = { scope:attacker.primary_title.tier = tier_county }
+				add_prestige = { value = minor_prestige_loss }
+			}
+			if = {
+				limit = { scope:attacker.primary_title.tier = tier_duchy }
+				add_prestige = { value = medium_prestige_loss }
+			}
+			if = {
+				limit = { scope:attacker.primary_title.tier = tier_kingdom }
+				add_prestige = { value = major_prestige_loss }
+			}
+			if = {
+				limit = { scope:attacker.primary_title.tier = tier_empire }
+				add_prestige = { value = massive_prestige_loss }
+			}
+		}
+		scope:defender = {
+			if = {
+				limit = { scope:attacker.primary_title.tier = tier_county }
+				add_prestige = { value = minor_prestige_gain }
+			}
+			if = {
+				limit = { scope:attacker.primary_title.tier = tier_duchy }
+				add_prestige = { value = medium_prestige_gain }
+			}
+			if = {
+				limit = { scope:attacker.primary_title.tier = tier_kingdom }
+				add_prestige = { value = major_prestige_gain }
+			}
+			if = {
+				limit = { scope:attacker.primary_title.tier = tier_empire }
+				add_prestige = { value = massive_prestige_gain }
+			}
+		}
+		scope:defender = {	#If the defender has the appropriate tenet, and doesn't already have sacrificial victims, grab some suitable courtiers from the attacker.
+			if = {
+				limit = {
+					faith = { 
+						has_doctrine_parameter = flower_war_cb_active 
+						NOT = { has_doctrine_parameter = human_sacrifice_active } 
+					}
+				}
+				custom_tooltip = raid_for_captives_prisoners.tt_defender
+				hidden_effect = {
+					scope:attacker = {
+						every_courtier_or_guest = { add_to_list = potential_captives_list }
+						random_in_list = {	#Nab someone related to the attacker, preferring tangentials.
+							list = potential_captives_list
+							limit = {
+								OR = {
+									AND = {
+										has_dynasty = yes
+										dynasty = scope:attacker.dynasty
+									}
+									is_consort_of = scope:attacker
+								}
+							}
+							alternative_limit = { always = yes }
+							weight = {
+								base = 1
+								modifier = {
+									add = 25
+									NOT = { is_close_family_of = scope:attacker }
+								}
+								modifier = {
+									add = 15
+									NOT = { is_extended_family_of = scope:attacker }
+								}
+							}
+							add_to_list = definite_captives_list
+							save_temporary_scope_as = future_captive
+							scope:defender = {
+								imprison = {
+									target = scope:future_captive
+									type = dungeon
+								}
+							}
+						}
+						random_in_list = {	#Always try to grab a second person.
+							list = potential_captives_list
+							limit = {
+								NOT = { is_in_list = definite_captives_list }
+							}
+							weight = {
+								base = 1
+								modifier = {
+									add = 40
+									NOT = {
+										any_claim = {
+											useful_courtier_or_guest_claim_trigger = { RULER = scope:attacker }
+										}
+									}
+								}
+								modifier = {
+									add = 10
+									NAND = {
+										can_be_chancellor_trigger = { COURT_OWNER = scope:attacker }
+										diplomacy >= high_skill_rating
+									}
+								}
+								modifier = {
+									add = 10
+									NAND = {
+										can_be_marshal_trigger = { COURT_OWNER = scope:attacker }
+										martial >= high_skill_rating
+									}
+								}
+								modifier = {
+									add = 10
+									NAND = {
+										can_be_steward_trigger = { COURT_OWNER = scope:attacker }
+										stewardship >= high_skill_rating
+									}
+								}
+								modifier = {
+									add = 10
+									NAND = {
+										can_be_spymaster_trigger = { COURT_OWNER = scope:attacker }
+										intrigue >= high_skill_rating
+									}
+								}
+								modifier = {
+									add = 10
+									NOT = { learning >= high_skill_rating }
+								}
+								modifier = {
+									add = 10
+									NOT = {	prowess >= high_skill_rating }
+								}
+								modifier = {
+									add = 50
+									NOT = { is_close_or_extended_family_of = scope:defender }
+								}
+							}
+							add_to_list = definite_captives_list
+							save_temporary_scope_as = future_captive
+							scope:defender = {
+								imprison = {
+									target = scope:future_captive
+									type = dungeon
+								}
+							}
+						}
+						random_in_list = {	#Always try to grab a third person.
+							list = potential_captives_list
+							limit = {
+								NOT = { is_in_list = definite_captives_list }
+							}
+							weight = {
+								base = 1
+								modifier = {
+									add = 40
+									NOT = {
+										any_claim = {
+											useful_courtier_or_guest_claim_trigger = { RULER = scope:attacker }
+										}
+									}
+								}
+								modifier = {
+									add = 10
+									NAND = {
+										can_be_chancellor_trigger = { COURT_OWNER = scope:attacker }
+										diplomacy >= high_skill_rating
+									}
+								}
+								modifier = {
+									add = 10
+									NAND = {
+										can_be_marshal_trigger = { COURT_OWNER = scope:attacker }
+										martial >= high_skill_rating
+									}
+								}
+								modifier = {
+									add = 10
+									NAND = {
+										can_be_steward_trigger = { COURT_OWNER = scope:attacker }
+										stewardship >= high_skill_rating
+									}
+								}
+								modifier = {
+									add = 10
+									NAND = {
+										can_be_spymaster_trigger = { COURT_OWNER = scope:attacker }
+										intrigue >= high_skill_rating
+									}
+								}
+								modifier = {
+									add = 10
+									NOT = { learning >= high_skill_rating }
+								}
+								modifier = {
+									add = 10
+									NOT = {	prowess >= high_skill_rating }
+								}
+								modifier = {
+									add = 50
+									NOT = { is_close_or_extended_family_of = scope:defender }
+								}
+							}
+							add_to_list = definite_captives_list
+							save_temporary_scope_as = future_captive
+							scope:defender = {
+								imprison = {
+									target = scope:future_captive
+									type = dungeon
+								}
+							}
+						}
+						if = {	#If at least duchy-tier, try to grab a fourth person.
+							limit = { primary_title.tier >= tier_duchy }
+							random_in_list = {
+								list = potential_captives_list
+								limit = {
+									NOT = { is_in_list = definite_captives_list }
+								}
+								weight = {
+									base = 1
+									modifier = {
+										add = 40
+										NOT = {
+											any_claim = {
+												useful_courtier_or_guest_claim_trigger = { RULER = scope:attacker }
+											}
+										}
+									}
+									modifier = {
+										add = 10
+										NAND = {
+											can_be_chancellor_trigger = { COURT_OWNER = scope:attacker }
+											diplomacy >= high_skill_rating
+										}
+									}
+									modifier = {
+										add = 10
+										NAND = {
+											can_be_marshal_trigger = { COURT_OWNER = scope:attacker }
+											martial >= high_skill_rating
+										}
+									}
+									modifier = {
+										add = 10
+										NAND = {
+											can_be_steward_trigger = { COURT_OWNER = scope:attacker }
+											stewardship >= high_skill_rating
+										}
+									}
+									modifier = {
+										add = 10
+										NAND = {
+											can_be_spymaster_trigger = { COURT_OWNER = scope:attacker }
+											intrigue >= high_skill_rating
+										}
+									}
+									modifier = {
+										add = 10
+										NOT = { learning >= high_skill_rating }
+									}
+									modifier = {
+										add = 10
+										NOT = { prowess >= high_skill_rating }
+									}
+								}
+								add_to_list = definite_captives_list
+								save_temporary_scope_as = future_captive
+								scope:defender = {
+									imprison = {
+										target = scope:future_captive
+										type = dungeon
+									}
+								}
+							}
+						}
+						if = {	#If at least kingdom-tier, try to grab a fifth person.
+							limit = { primary_title.tier >= tier_kingdom }
+							random_in_list = {
+								list = potential_captives_list
+								limit = {
+									NOT = { is_in_list = definite_captives_list }
+								}
+								weight = {
+									base = 1
+									modifier = {
+										add = 40
+										NOT = {
+											any_claim = {
+												useful_courtier_or_guest_claim_trigger = { RULER = scope:attacker }
+											}
+										}
+									}
+									modifier = {
+										add = 10
+										NAND = {
+											can_be_chancellor_trigger = { COURT_OWNER = scope:attacker }
+											diplomacy >= high_skill_rating
+										}
+									}
+									modifier = {
+										add = 10
+										NAND = {
+											can_be_marshal_trigger = { COURT_OWNER = scope:attacker }
+											martial >= high_skill_rating
+										}
+									}
+									modifier = {
+										add = 10
+										NAND = {
+											can_be_steward_trigger = { COURT_OWNER = scope:attacker }
+											stewardship >= high_skill_rating
+										}
+									}
+									modifier = {
+										add = 10
+										NAND = {
+											can_be_spymaster_trigger = { COURT_OWNER = scope:attacker }
+											intrigue >= high_skill_rating
+										}
+									}
+									modifier = {
+										add = 10
+										NOT = { learning >= high_skill_rating }
+									}
+									modifier = {
+										add = 10
+										NOT = { prowess >= high_skill_rating }
+									}
+								}
+								add_to_list = definite_captives_list
+								save_temporary_scope_as = future_captive
+								scope:defender = {
+									imprison = {
+										target = scope:future_captive
+										type = dungeon
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+
+		# Prestige for the attacker's war allies
+		add_from_contribution_attackers = {
+			prestige = {
+				value = major_prestige_value
+			}
+			opinion = {
+				modifier = contributed_in_war
+			}
+		}
+
+		# Prestige for the defender's war allies
+		add_from_contribution_defenders = {
+			prestige = {
+				value = major_prestige_value
+			}
+			opinion = {
+				modifier = contributed_in_war
+			}
+		}
+
+		# Truce
+		add_truce_attacker_victory_effect = yes
+
+		scope:attacker = { save_temporary_scope_as = loser }
+		on_lost_aggression_war_discontent_loss = yes
+	}
+
+	on_primary_attacker_death = inherit
+	on_primary_defender_death = inherit
+
+	attacker_allies_inherit = yes
+	defender_allies_inherit = yes
+
+	war_name = "RAID_FOR_CAPTIVES_CB_NAME"
+	war_name_base = "RAID_FOR_CAPTIVES_NAME_BASE"
+	cb_name = "RAID_FOR_CAPTIVES_CB_NAME"
+	interface_priority = 80
+
+	ticking_war_score_targets_entire_realm = yes
+	attacker_ticking_warscore = 0
+	attacker_wargoal_percentage = 0.01
+	attacker_score_from_occupation_scale = 50
+	defender_score_from_occupation_scale = 50
+	attacker_score_from_battles_scale = 200
+	defender_score_from_battles_scale = 200
+
+	max_attacker_score_from_battles = 200
+	max_defender_score_from_battles = 200
+
+	max_ai_diplo_distance_to_title = 500
+
+	ai_score_mult = {
+		value = 1
+		# Holy War are limited to connected neighbour to limit big empire expansions over weak realms.
+		add = {
+			if = {
+				limit = {  religious_war_vassals_constraints = yes }
+				add = -1000
+			}
+		}
+	}
+}
 
 
 
