@@ -7,6 +7,7 @@ tags={
 replace_path="common/landed_titles"
 replace_path="common/culture/cultures"
 replace_path="common/religion/religions"
+replace_path="common/bookmark_portraits"
 replace_path="history/cultures"
 replace_path="history/characters"
 replace_path="history/provinces"
