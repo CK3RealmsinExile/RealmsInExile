@@ -16,11 +16,71 @@ on_death = {
 				exists = player_heir
 			}
 			player_heir = {
-				add_character_flag = {
-					flag = tutorial_reactive_advice_succession
+				apply_hold_court_grace_effect = yes
+			}
+			if = {
+				limit = {
+					is_ai = no
+				}
+				player_heir = {
+					add_character_flag = {
+						flag = tutorial_reactive_advice_succession
+					}
+				}
+				if = {
+					limit = {
+						has_royal_court = yes
+						any_sponsored_inspiration = { count >= 1 }
+					}
+					save_scope_as = old_ruler
+					every_sponsored_inspiration = { add_to_list = inherited_inspiration_list }
+					player_heir = {
+						trigger_event = { id = fund_inspiration.9005 days = 5 }
+					}
+				}
+			}
+#			if = {
+#				limit = {
+#					has_character_flag = undertaking_hungarian_migration
+#				}
+#				player_heir = {
+#					add_character_flag = {
+#						flag = undertaking_hungarian_migration
+#					}
+#				}
+#			}
+		}
+		
+		if = { # Lower Grandeur a little bit on death
+			limit = {
+				has_royal_court = yes
+				exists = primary_heir
+				primary_heir = {
+					has_royal_court = no
+				}
+			}
+			change_current_court_grandeur = grandeur_loss_on_succession_value
+		}
+		
+		if = { # Grandeur in elective realms
+			limit = {
+				has_royal_court = yes
+				exists = primary_heir
+				primary_heir = {
+					has_royal_court = no
+				}
+				primary_title = {
+					has_order_of_succession = election
+				}
+			}
+			primary_heir = {
+				set_variable = {
+					name = previous_holder_grandeur_value
+					value = prev.court_grandeur_current
 				}
 			}
 		}
+		
 #		if = {
 #			limit = {
 #				exists = global_var:mongol_empire_was_broken_up
@@ -33,6 +93,98 @@ on_death = {
 #		}
 
 		invalidate_claimant_factions_on_death_effect = yes
+
+		# Event Setup
+		## FP1: Rumoured Draugr - fp1_yearly.0051
+		if = {
+			limit = {
+				#DLC check.
+				has_fp1_dlc_trigger = yes
+				#Must be within the player's court.
+				is_knight = yes
+				court_owner = { is_ai = no }
+				#Must be an intimidating fighter.
+				prowess >= extremely_high_skill_rating
+				#Aaaaand must have a personality that makes people think they'd come back to harass the living.
+				calc_true_if = {
+					amount >= 2
+					has_trait = wrathful
+					has_trait = arrogant
+					has_trait = deceitful
+					has_trait = craven
+					has_trait = ambitious
+					has_trait = arbitrary
+					has_trait = cynical
+					has_trait = vengeful
+					has_trait = sadistic
+				}
+			}
+			save_scope_as = potential_draugr
+			court_owner = {
+				set_variable = {
+					name = potential_draugr
+					value = scope:potential_draugr
+					years = 5
+				}
+			}
+		}
+
+		# Might later be rumored to haunt the location in a court event
+		if = {
+			limit = {
+				OR = {
+					AND = {
+						exists = capital_province
+						location = capital_province
+						exists = player_heir
+						OR = {
+							any_close_family_member = { this = root.player_heir }
+							any_spouse = { this = root.player_heir }
+						}
+					}
+					AND = {
+						exists = court_owner
+						court_owner = {
+							is_ai = no
+							exists = capital_province
+						}
+						location = court_owner.capital_province
+						OR = {
+							any_close_family_member = { this = root.court_owner }
+							any_spouse = { this = root.court_owner }
+						}
+					}
+				}
+			}
+			location = {
+				set_variable = {
+					name = possible_haunting
+					value = prev
+					years = 100
+				}
+			}
+		}
+
+		if = {
+			limit = { has_royal_court = yes }
+			# Clear pay homage once-per-liege grace
+			every_vassal = {
+				if = {
+					limit = { has_variable = homage_type }
+					remove_variable = homage_type
+				}
+			}
+			# Check equipped artifacts
+			if = {
+				limit = {
+					any_equipped_character_artifact = { ep1_artifact_is_court_artifact_trigger = yes }
+				}
+				every_equipped_character_artifact = {
+					limit = { ep1_artifact_is_court_artifact_trigger = yes }
+					set_variable = equipped_court_succession
+				}
+			}
+		}
 	}
 	events = {
 		#LotR Events on Death

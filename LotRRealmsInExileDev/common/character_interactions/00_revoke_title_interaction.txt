@@ -50,62 +50,6 @@
 				scope:recipient.primary_title.tier >= tier_county
 			}
 		}
-		scope:actor = {
-			OR = {
-				NOT = {
-					republic_has_senate_form = yes
-					republic_has_council_form = yes
-					republic_has_bicameral_form = yes
-				}
-				AND = {
-					is_independent_ruler = no
-					republic_has_senate_form = yes
-				}
-				AND = {
-					is_independent_ruler = no
-					republic_has_bicameral_form = yes
-				}
-				AND = {
-					is_independent_ruler = no
-					republic_has_council_form = yes
-				}
-				AND = {
-					OR = {
-						republic_has_senate_form = yes
-						republic_has_council_form = yes
-						republic_has_bicameral_form = yes
-					}
-					primary_title = {
-						any_in_list = {
-							variable = valid_revocation_targets_list
-							this = scope:recipient
-						}
-					}
-				}
-				AND = {
-					OR = {
-						republic_has_senate_form = yes
-						republic_has_council_form = yes
-					}
-					primary_title = {
-						exists = var:leaders_discretion_title_revocation
-					}
-				}
-				AND = {
-					OR = {
-						republic_has_bicameral_form = yes
-					}
-					primary_title = {
-						exists = var:leaders_discretion_title_powers
-					}
-				}
-				AND = {
-					exists = house
-					exists = house.var:titular_republic
-					house.var:titular_republic = { has_variable = current_dictatorship }
-				}
-			}
-		}
 	}
 	
 	is_valid_showing_failures_only = {
@@ -238,7 +182,7 @@
 
 	on_accept = {
 		revoke_title_interaction_effect = yes
-		
+
 		save_scope_value_as = {
 			name = revoke_title_interaction
 			value = yes
@@ -246,15 +190,6 @@
 		
 		scope:actor = {
 			trigger_event = char_interaction.0199
-			if = {
-				limit = { holds_valid_merchant_republic = yes }
-				primary_title = {
-					remove_list_variable = {
-						name = valid_revocation_targets_list
-						target = scope:recipient
-					}
-				}
-			}
 		}
 
 		if = {
@@ -262,6 +197,24 @@
 				scope:actor = { has_character_flag = flag_hostile_actions_disabled_delay }
 			}
 			scope:actor = { remove_character_flag = flag_hostile_actions_disabled_delay }
+		}
+
+		# For revoking titles of character's imprisoned abroard who have lost a revocation war
+		hidden_effect = {
+			scope:actor = {
+				if = {
+					limit = {
+						has_opinion_modifier = {
+							target = scope:recipient
+							modifier = foreign_prison_revocation_opinion
+						}
+					}
+					remove_opinion = {
+						target = scope:recipient
+						modifier = foreign_prison_revocation_opinion
+					}
+				}
+			}
 		}
 	}
 
@@ -302,19 +255,39 @@
 	}
 
 	auto_accept = {
-		OR = {
-			scope:recipient = {
-				highest_held_title_tier = tier_barony
-			}
-			scope:recipient = {
-				is_imprisoned_by = scope:actor
-			}
-			custom_description = {
-				text = "spending_hook"
-				subject = scope:actor
-				object = scope:recipient
-				scope:hook = yes
-				scope:actor = { has_strong_hook = scope:recipient }
+		scope:recipient = {
+			calc_true_if = {
+				amount >= 1
+				custom_description = {
+					text = "baron_revocation"
+					highest_held_title_tier = tier_barony
+				}
+				custom_description = {
+					text = "prisoner_revocation"
+					is_imprisoned_by = scope:actor
+				}
+				custom_description = {
+					text = "spending_hook"
+					subject = scope:actor
+					object = scope:recipient
+					scope:hook = yes
+					scope:actor = { has_strong_hook = scope:recipient }
+				}
+				custom_description = {
+					text = "foreign_prison_revocation"
+					subject = scope:actor
+					object = scope:recipient
+					scope:recipient = {
+						is_imprisoned = yes
+						NOT = { is_imprisoned_by = scope:actor }
+					}
+					scope:actor = {
+						has_opinion_modifier = {
+							target = scope:recipient
+							modifier = foreign_prison_revocation_opinion
+						}
+					}
+				}
 			}
 		}
 	}
@@ -428,7 +401,16 @@
 					divide = { value = scope:actor.max_military_strength min = 1 }
 					}
 				multiply = 50
+				max = 20
 	  		}
+		}
+		modifier = { # Legalistic tradition
+			desc = tradition_legalistic_name
+			scope:actor = {
+				has_revoke_title_reason = scope:recipient
+				culture = { has_cultural_parameter = vassals_more_likely_accept_punishments }
+			}
+			add = legalistic_vassal_punishment_acceptance
 		}
 	}
 

@@ -65,52 +65,6 @@ namespace = birth
 # 9003 - You said no to their suggestion and pick a name of your own
 
 
-scripted_trigger allow_naming_on_birth_of_child_trigger = {
-	save_temporary_scope_as = naming_parent
-	exists = $CHILD$
-	is_ai = no
-	OR = {
-		#I am the only player parent of child
-		NOT = {
-			$CHILD$ = {
-				any_parent = {
-					is_ai = no
-					NOT = { this = scope:naming_parent }
-				}
-			}
-		}
-		#I am the best player to name this child
-		AND = {
-			$CHILD$ = { #There are two player parents
-				exists = father
-				exists = mother
-				NOT = { any_parent = { is_ai = yes } }
-			}
-			OR = {
-				AND = { #They are of my dynasty, not theirs
-					dynasty = $CHILD$.dynasty
-					$CHILD$ = {
-						any_parent = {
-							NOT = { this = scope:naming_parent }
-							NOT = { dynasty = $CHILD$.dynasty }
-						}
-					}
-				}
-				AND = { #I am their mother, and parents are of same dynasty/neither has baby's dynasty
-					$CHILD$ = { mother = { this = scope:naming_parent } }
-					OR = {
-						$CHILD$.mother.dynasty = $CHILD$.father.dynasty
-						NOR = {
-							$CHILD$.mother.dynasty = $CHILD$.dynasty
-							$CHILD$.father.dynasty = $CHILD$.dynasty
-						}
-					}
-				}
-			}
-		}
-	}
-}
-
 scripted_trigger allow_naming_on_birth_of_dynasty_child_trigger = {
 	save_temporary_scope_as = naming_dynasty_member
 	exists = $CHILD$
@@ -1056,6 +1010,9 @@ birth.1002 = {
 		add_character_flag = peasant_affair_already_looking
 		custom_tooltip = search_for_real_father_tt
 	}
+	after = {
+		bastard_real_father_discovery_on_birth_effect = yes
+	}
 }
 
 
@@ -1467,6 +1424,11 @@ birth.1006 = {
 		scope:secret = {
 			expose_secret = root
 		}
+		scope:child = { remove_inherited_descendent_traits_effect = yes }
+		if = {
+			limit = { exists = scope:child_2 }
+			scope:child_2 = { remove_inherited_descendent_traits_effect = yes }
+		}
 
 		ai_chance = {
 			base = 10
@@ -1499,7 +1461,17 @@ birth.1006 = {
 #Host of the same dynasty (not ai) get to name the child
 birth.1010 = {
 	type = character_event
-	title = birth.1010.t
+	title = {
+		first_valid = {
+			triggered_desc = {
+				trigger = {
+					exists = scope:child_2
+				}
+				desc = birth.1010.t_twins
+			}
+			desc = birth.1010.t
+		}
+	}
 	desc = {
 		first_valid = {
 			triggered_desc = {
@@ -1630,7 +1602,13 @@ birth.2001 = {
 
 	immediate = {
 		play_music_cue = mx_cue_seduction
-
+		hidden_effect = {
+			scope:child = { remove_inherited_descendent_traits_effect = yes }
+			if = {
+				limit = { exists = scope:child_2 }
+				scope:child_2 = { remove_inherited_descendent_traits_effect = yes }
+			}
+		}
 		#To get the picture of the other parent, and send correct follow-up events
 		if = {
 			limit = {
@@ -1994,22 +1972,22 @@ birth.2011 = {
 			trigger_event = birth.2012
 		}
 
-			#Spouse of mother must know about baby
-			if = {
-				limit = {
-					exists = scope:mother.primary_spouse
-					scope:mother.primary_spouse = {
-						NOR = {
-							this = scope:legitimizer
-							this = scope:other_parent
-							this = scope:real_father
-						}
+		#Spouse of mother must know about baby
+		if = {
+			limit = {
+				exists = scope:mother.primary_spouse
+				scope:mother.primary_spouse = {
+					NOR = {
+						this = scope:legitimizer
+						this = scope:other_parent
+						this = scope:real_father
 					}
 				}
-				scope:mother.primary_spouse = {
-					trigger_event = birth.2102
-				}
 			}
+			scope:mother.primary_spouse = {
+				trigger_event = birth.2102
+			}
+		}
 	}
 }
 
@@ -2082,6 +2060,7 @@ birth.2102 = {
 birth.2104 = {
 	type = character_event
 	title = birth.2104.t
+	orphan = yes # TODO [CD] - Figure out why
 	desc = {
 		first_valid = {
 			triggered_desc = {
@@ -3731,6 +3710,10 @@ birth.9002 = {
 
 		trigger_event = birth.9003
 	}
+	
+	after = {
+		bastard_real_father_discovery_on_birth_effect = yes
+	}
 }
 
 #You said no to their suggestion and pick a name of your own
@@ -3760,5 +3743,43 @@ birth.9003 = { #by Mathilda Bjarnehed
 	
 	option = {
 		name = birth.9003.a
+	}
+}
+
+birth.9004 = {
+	type = character_event
+	title = birth.9004.t
+	desc = birth.9004.desc.me
+	theme = family
+	right_portrait = {
+		character = scope:child
+		animation = happiness
+	}
+
+	#NAMING WIDGET
+	widgets = {
+		widget = {
+			is_shown = {
+				allow_naming_on_birth_of_child_trigger = { CHILD = scope:child }
+			}
+			gui = "event_window_widget_name_child"
+			container = "dynamic_birth_name"
+			controller = name_character
+			setup_scope = {
+				scope:child = { save_scope_as = name_character_target }
+			}
+		}
+	}
+	
+	option = {
+		name = birth.9004.a
+	}
+
+	option = {
+		name = birth.9004.b
+		flavor = birth.9004.b.tt
+		
+		is_cancel_option = yes
+	
 	}
 }
