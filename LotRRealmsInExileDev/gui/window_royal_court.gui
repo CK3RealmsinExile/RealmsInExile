@@ -1,0 +1,2016 @@
+window = {
+	name = "royal_court_window"
+	size = { 100% 100% }
+	parentanchor = center|hcenter
+	layer = royal_court
+	movable = no
+
+	using = Window_Size_MainTab
+	filter_mouse = all
+
+	datacontext = "[RoyalCourtWindow.AccessCourtEventWindow]"
+	datacontext = "[GetVariableSystem]"
+	datacontext = "[RoyalCourtWindow.GetCharacter]"
+	datacontext = "[Character.GetCourtGrandeurData]"
+
+	container = {
+		name = "royal_court_window_tutorial_uses_this"
+	}
+
+	state = {
+		name = _show
+		# Don't clear tabs etc. here, we need to be able to open the Royal Court in the Artifact tab from Character Inventory.
+
+		on_start = "[GetVariableSystem.Set( 'court_scene', 'yes' )]"
+		on_start = "[GetVariableSystem.Clear( 'court_type' )]"
+		on_start = "[RoyalCourtWindow.ClearSelectedArtifact]"
+
+		using = Sound_EP1_Courtroom_MapMute_Snapshot
+		using = Animation_FadeIn_Standard
+	}
+	state = {
+		name = _hide
+		using = Animation_FadeOut_Standard
+		on_finish = "[RoyalCourtWindow.AccessInspirationsWindow.ClearSelectedInspiration]"
+	}
+
+	background = {
+		texture = "gfx/interface/colors/black.dds"
+	}
+
+	widget = {
+		parentanchor = center
+		size = "[CalcResolutionLimitAspectRatio]"
+
+		button = {
+			name = "court_scene_image" #Name is referenced by the source, please do not rename. FPS Camera control is hooking into this button custom event filters.
+
+			state = {
+				name = "_mouse_enter"
+				on_start = "[RoyalCourtWindow.SetHoverWidgetActive( '(bool)yes' )]"
+			}
+
+			state = {
+				on_start = "[RoyalCourtWindow.SetHoverWidgetActive( '(bool)no' )]"
+				name = "_mouse_leave"
+			}
+
+			# Avoid having the click sound on everywhere in the court room
+			# and the hover sound when leaving hovered objects
+			oversound = ""
+			clicksound = ""
+
+			size = { 100% 100% }
+			effectname = "NoAlphaNoHighlight"
+
+			# We use the HoverRoyalCourt as a visible check so its run every frame to grab the update mouse position to find the new hover item, yes its a bit of a hack
+			visible = "[And( VariableSystem.Exists( 'court_scene' ), RoyalCourtWindow.HoverRoyalCourt( PdxGuiWidget.GetUnscaledMousePositionInteger ) )]"
+
+			button_ignore = none
+			onclick = "[RoyalCourtWindow.ClickRoyalCourt( PdxGuiWidget.GetUnscaledMousePositionInteger )]"
+			onrightclick = "[RoyalCourtWindow.RightClickRoyalCourt( PdxGuiWidget.GetUnscaledMousePositionInteger )]"
+
+			texture = "[RoyalCourtWindow.GetCourtRoomTexture( PdxGetWidgetScreenSize( PdxGuiWidget.Self ) )]"
+
+			widget = {
+				name = "hover_tooltip_anchor"
+				size = { 55 2 }
+				widgetanchor = center
+
+				position = "[PdxGuiWidget.AccessParent.GetScaledMousePosition]"
+
+				tooltipwidget = {
+					container = {
+						using = GeneralTooltipSetup
+						blockoverride "progress" {}
+
+						royal_court_character_tooltip = {
+							datacontext = "[GetRoyalCourtHoveredCharacter]"
+							visible = "[Character.IsValid]"
+
+							blockoverride "interaction_info"
+							{
+								text = "CHARACTER_TOOLTIP_INSTRUCTION_COURT_SCENE"
+							}
+						}
+
+						artifact_tooltip = {
+							datacontext = "[GetRoyalCourtHoveredArtifact]"
+							visible = "[Artifact.IsValid]"
+
+							blockoverride "extra_information"
+							{
+								hbox = {
+									layoutpolicy_horizontal = expanding
+
+									text_multi = { # Displayed In Selected Slot
+										visible = "[RoyalCourtWindow.IsActiveArtifactsTab]"
+										text = "ROYAL_COURT_ARTIFACT_TOOLTIP_INTERACTION_INFO"
+
+										max_width = 300
+										autoresize = yes
+										using = Font_Size_Small
+									}
+									expand = {}
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+
+		widget = {
+			name = "character_positioned_buttons"
+			visible = "[And( Not(VariableSystem.Exists('royal_court_screenshot_window')), And( Or( RoyalCourtWindow.GetCharacter.IsLocalPlayer, And(RoyalCourtWindow.IsInPetitionMode, RoyalCourtWindow.GetPetitionCharacter.IsLocalPlayer ) )   , Not( RoyalCourtWindow.ShouldShowFadeToBlack ) ) )]"
+			size = { 100% 100% }
+
+			using = Animation_ShowHide_Quick
+
+			widget = {
+				name = "court_events_popups"
+				datamodel = "[CourtEventWindow.GetCourtEventItems]"
+				visible = "[RoyalCourtWindow.IsActiveThroneTab]"
+				parentanchor = center
+				size = { 100% 100% }
+
+				using = Animation_ShowHide_Quick
+
+				item = {
+					flowcontainer = {
+						widgetanchor = bottom|hcenter
+						position = "[CourtEventItem.GetPositionCharacter.GetCourtScenePosition( PdxGuiWidget.AccessParent.Self )]"
+						direction = vertical
+						ignoreinvisible = yes
+						margin_bottom = 50
+
+						text_label_center = {
+							name = "court_event_timeout"
+							visible = "[LessThanOrEqualTo_int32( CourtEventItem.GetDaysRemaining, '(int32)30' )]"
+							parentanchor = hcenter
+							text = "COURT_EVENT_DAYS_REMAINING"
+						}
+
+						button = {
+							name = "court_event_icon"
+							parentanchor = hcenter
+
+							texture = "gfx/interface/icons/alerts/action_has_open_court_event.dds"
+							size = { 70 70 }
+							framesize = { 144 144 }
+							frame = 1
+
+							onclick = "[CourtEventWindow.OpenEvent( CourtEventItem.Self )]"
+							tooltip = "[CourtEventItem.GetTooltip]"
+							enabled = "[Not( CourtEventWindow.HasOpenEvent )]"
+						}
+					}
+				}
+			}
+		}
+
+		container = {
+			name = "static_hovered_icons"
+			visible = "[And( Not(VariableSystem.Exists('royal_court_screenshot_window')), RoyalCourtWindow.HasStaticHoveredObject )]"
+
+			using = Animation_ShowHide_Quick
+			widget = {
+				name = "static_hovered_icon"
+				position = "[RoyalCourtWindow.GetStaticHoveredObjectPosition( PdxGuiWidget.AccessParent.Self )]"
+				icon = {
+					size = { 40 40 }
+					position = { -20 -20 }
+					texture = "gfx/interface/icons/symbols/icon_arrow_up.dds"
+					mirror = vertical
+				}
+			}
+		}
+
+		button_close = {
+			name = "close_court_view"
+			visible = "[And( Not( VariableSystem.Exists('royal_court_screenshot_window' ) ), Not( RoyalCourtWindow.IsPlacingArtifact ) )]"
+			parentanchor = top|right
+			position = { -12 58 }
+
+			shortcut = "close_window"
+			tooltip = "CLOSE_TOOLTIP"
+			clicksound = "event:/SFX/UI/Generic/sfx_ui_generic_close"
+			onclick = "[RoyalCourtWindow.Close]"
+
+			using = Animation_ShowHide_Quick
+
+			background = {
+				using = Background_Area_Dark
+				margin = { 6 6 }
+				alpha = 0.8
+			}
+		}
+
+		widget = { # court artifacts window tab
+			name = "court_artifacts"
+			size = { 100% 100% }
+			visible = "[And( Not(VariableSystem.Exists('royal_court_screenshot_window')), RoyalCourtWindow.IsActiveArtifactsTab )]"
+
+			using = Animation_ShowHide_Quick
+
+			widget = {
+				name = "court_artifact_slots"
+				visible = "[RoyalCourtWindow.GetCharacter.IsLocalPlayer]"
+				datacontext = "[RoyalCourtWindow.GetCharacter.GetInventory]"
+				datamodel = "[Inventory.GetSlots]"
+				parentanchor = center
+				size = { 100% 100% }
+
+				item = {
+					flowcontainer = {
+						datacontext = "[InventorySlot.GetArtifact]"
+						position = "[GetCourtScenePositionForSlot( PdxGuiWidget.AccessParent.Self, InventorySlot.Self )]"
+						direction = vertical
+						widgetanchor = center
+
+						container = { #Slot and Glow effect
+							parentanchor = center
+							icon = { # Glow Effect
+								visible = "[And(RoyalCourtWindow.IsSelectedSlot( InventorySlot.Self ), InventorySlot.IsEmpty)]"
+								size = { 180% 180% }
+								texture = "gfx/interface/colors/white.dds"
+								using = Color_Bright_Yellow
+								alpha = 0.7
+								parentanchor=center
+
+								state = {
+									name = _show
+									using = Animation_Curve_Default
+									duration = 0.15
+									alpha = 0.7
+								}
+
+								state = {
+									name = _hide
+									using = Animation_Curve_Default
+									duration = 0.25
+									alpha = 0
+								}
+
+								state = {
+									name = "a"
+									next = "b"
+									trigger_on_create = yes
+									alpha = 0.7
+
+									modify_texture = {
+										name = "glow_1"
+										rotate_uv = 0
+									}
+
+									modify_texture = {
+										name = "glow_2"
+										rotate_uv = 0
+									}
+								}
+
+								state = {
+									name = "b"
+									next = "a"
+									duration = 7
+
+									modify_texture = {
+										name = "glow_1"
+										rotate_uv = 360
+									}
+
+									modify_texture = {
+										name = "glow_2"
+										rotate_uv = -360
+									}
+								}
+
+								modify_texture = {
+									name = "glow_1"
+									texture = "gfx/interface/component_masks/mask_glow.dds"
+									blend_mode = alphamultiply
+								}
+
+								modify_texture = {
+									name = "glow_2"
+									texture = "gfx/interface/component_masks/mask_glow_flipped.dds"
+									blend_mode = alphamultiply
+								}
+							}
+
+							button_tertiary = { # Button when we have an artifact selected
+								size = { 50 50 }
+								visible = "[And( Not( RoyalCourtWindow.HasSelectedSlot ), RoyalCourtWindow.CanSlotHoldSelectedArtifact( InventorySlot.Self ) )]"
+
+								alpha = "[Select_float(Or( Not( RoyalCourtWindow.HasSelectedSlot ), RoyalCourtWindow.IsSelectedSlot( InventorySlot.Self ) ), '(float)1.0', '(float)0.5')]"
+
+								onclick = "[RoyalCourtWindow.OnClickArtifactSlot( InventorySlot.Self )]"
+								onclick = "[RoyalCourtWindow.ClearSelectedArtifact]"
+
+								tooltip = "ROYAL_COURT_ARTIFACT_PLACE_ARTIFACT_IN_SLOT_TOOLTIP"
+
+								using = Animation_ShowHide_Quick
+
+								button_plus = {
+									visible = "[Inventory.HasUnequippedArtifactsInSlotType( InventorySlot.GetType )]"
+									parentanchor = center
+									alwaystransparent = yes
+
+									state = {
+										name = _show
+										using = Animation_FadeIn_Quick
+									}
+
+									state = {
+										name = _hide
+										using = Animation_FadeOut_Standard
+									}
+								}
+							}
+
+							button_tertiary = { # Button when we don't have an artifact selected
+								size = { 50 50 }
+								visible = "[And( InventorySlot.IsEmpty, Not( RoyalCourtWindow.HasSelectedArtifact ) )]"
+
+								alpha = "[Select_float( Inventory.HasArtifactsOfSlotType( InventorySlot.GetType ), '(float)1.0', '(float)0.75' )]"
+
+								onclick = "[RoyalCourtWindow.OnClickArtifactSlot( InventorySlot.Self )]"
+
+								enabled = "[Inventory.HasArtifactsOfSlotType( InventorySlot.GetType )]"
+
+								tooltip = ROYAT_COURT_SLOT_TOOLTIP
+
+								button_plus = {
+									visible = "[Inventory.HasUnequippedArtifactsInSlotType( InventorySlot.GetType )]"
+									parentanchor = center
+									alwaystransparent = yes
+
+									state = {
+										name = _show
+										using = Animation_FadeIn_Quick
+									}
+
+									state = {
+										name = _hide
+										using = Animation_FadeOut_Standard
+									}
+								}
+							}
+						}
+
+						flowcontainer = { #Durability low warning for displayed artifacts
+							visible = "[And( Not(InventorySlot.IsEmpty), Artifact.IsDurabilityLow )]"
+							spacing = 3
+							margin = { 8 0 }
+
+							tooltip = "[Artifact.GetDurabilityTooltip]"
+
+							icon_flat_standard = {
+								size = { 20 20 }
+								texture = "gfx/interface/icons/flat_icons/quality.dds"
+							}
+
+							progressbar_standard = {
+								name = "durability_low"
+								size = { 50 10 }
+								parentanchor = vcenter
+								min = 0
+								max = "[FixedPointToFloat( Artifact.GetMaxDurability )]"
+								value = "[FixedPointToFloat( Artifact.GetDurability )]"
+							}
+
+							icon = {
+								size = { 20 20 }
+								texture = "gfx/interface/icons/symbols/icon_warning.dds"
+							}
+
+							background = {
+								margin = { 20 2 }
+
+								texture = "gfx/interface/component_tiles/tile_title_bg_01.dds"
+								spriteType = Corneredtiled
+								spriteborder = { 40 8 }
+								texture_density = 2
+
+								modify_texture = {
+									name = "mask"
+									texture = "gfx/interface/component_masks/mask_fade_horizontal_middle_thick.dds"
+									spriteType = Corneredstretched
+									spriteborder = { 0 0 }
+									blend_mode = alphamultiply
+								}
+							}
+						}
+					}
+				}
+			}
+
+			margin_widget = { # artifact storage
+				name = "artifacts"
+				visible = "[And( Or( VariableSystem.HasValue( 'artifacts_tab', 'artifacts' ), RoyalCourtWindow.HasSelectedSlot ), Not( RoyalCourtWindow.IsPlacingArtifact ) ) ]"
+				parentanchor = right
+				size = { 670 100% }
+				margin_top = 26
+
+				state = {
+					name = _show
+					using = Animation_FadeIn_Quick
+					using = Sound_WindowShow_Standard
+					position_x = 25
+				}
+
+				state = {
+					name = _hide
+					using = Animation_FadeOut_Quick
+					using = Sound_WindowHide_Standard
+					position_x = 75
+					on_start = "[AccessLocalPlayerCachedData.AccessNewArtifacts.ClearNewArtifactsOfCategory( 'court' )]"
+				}
+
+				using = Window_Background
+
+				vbox = {
+					using = Window_Margins
+					margin_bottom = 70
+
+					header_pattern = {
+						visible = "[Not( RoyalCourtWindow.HasSelectedSlot )]"
+						layoutpolicy_horizontal = expanding
+
+						blockoverride "header_text"
+						{
+							text = "ARTIFACT_STORAGE"
+						}
+
+						blockoverride "button_close"
+						{
+							onclick = "[VariableSystem.Clear( 'artifacts_tab' )]"
+							onclick = "[RoyalCourtWindow.ClearSelectedArtifact]"
+						}
+					}
+
+					header_pattern = {
+						name = "header_selected_slot"
+						visible = "[RoyalCourtWindow.HasSelectedSlot]"
+						layoutpolicy_horizontal = expanding
+
+						blockoverride "header_text"
+						{
+							text = "ROYAL_COURT_ARTIFACT_STORAGE_EQUIPABLE_HEADER"
+						}
+
+						blockoverride "button_close"
+						{
+							onclick = "[RoyalCourtWindow.ClearSelectedSlot]"
+							onclick = "[RoyalCourtWindow.ClearSelectedArtifact]"
+							onclick = "[RoyalCourtWindow.SetCameraActiveByKey( GetDefine( 'NRoyalCourt', 'DEFAULT_ARTIFACTS_CAMERA' ) )]"
+						}
+					}
+
+					hbox = {
+						name = "court_artifact_sorting"
+						layoutpolicy_horizontal = expanding
+						margin = { 12 6 }
+						spacing = 5
+
+						button_standard = {
+							name = "sort_order"
+							size = { 25 25 }
+							tooltip = "ARTIFACT_SORT_ORDER_TOOLTIP"
+							using = tooltip_ne
+							onclick = "[RoyalCourtWindow.ToggleArtifactSortOrder]"
+
+							button_icon = {
+								size = { 25 25 }
+								texture = "gfx/interface/icons/flat_icons/sort_icon.dds"
+
+								framesize = { 66 66 }
+								frame = "[BoolTo2And1(RoyalCourtWindow.IsArtifactSortOrderDescending)]"
+
+								alwaystransparent = yes
+								blockoverride "button_frames"
+								{
+									effectname = "NoHighlight"
+								}
+							}
+						}
+
+						dropdown_menu_standard = {
+							name = "sort_artifacts"
+
+							blockoverride "dropdown_properties"
+							{
+								datamodel = "[RoyalCourtWindow.GetArtifactSortOptions]"
+
+								onselectionchanged = "[RoyalCourtWindow.SortArtifacts]"
+								selectedindex = "[RoyalCourtWindow.GetArtifactSortOptionsIndex]"
+							}
+
+							blockoverride "dropdown_active_item_properties"
+							{
+								text = "[Localize( CString.GetString )]"
+							}
+
+							blockoverride "dropdown_item_properties"
+							{
+								text = "[Localize( CString.GetString )]"
+							}
+						}
+
+						expand = {}
+					}
+
+					widget_court_artifact_list = {
+						visible = "[Not( RoyalCourtWindow.HasSelectedSlot )]"
+						layoutpolicy_horizontal = expanding
+						layoutpolicy_vertical = expanding
+					}
+
+					widget_equippable_court_artifact_list = {
+						visible = "[RoyalCourtWindow.HasSelectedSlot]"
+						layoutpolicy_vertical = expanding
+						layoutpolicy_horizontal = expanding
+					}
+				}
+			}
+
+			vbox = { # Display artifact from storage overlay
+				name = "display_artifact_from_storage_overlay"
+				margin_top = 100
+				margin_bottom = 10
+				spacing = 5
+
+				visible = "[RoyalCourtWindow.IsPlacingArtifact]"
+
+				text_label_center = {
+					text = "[RoyalCourtWindow.GetSelectedArtifact.GetName]"
+					align = center
+					using = Font_Size_Big
+				}
+
+				text_label_center = {
+					text = "ROYAL_COURT_ARTIFACT_PLACE_ARTIFACT_FROM_STORAGE_DESC"
+					align = center
+					using = Font_Size_Small
+				}
+
+				expand = {}
+			}
+
+			margin_widget = { # artifact claims
+				name = "claims"
+				visible = "[And( VariableSystem.HasValue( 'artifacts_tab', 'artifact_claims'), Not( RoyalCourtWindow.HasSelectedSlot ) )]"
+				parentanchor = right
+				size = { 670 100% }
+				margin_top = 26
+
+				state = {
+					name = _show
+					using = Animation_FadeIn_Quick
+					using = Sound_WindowShow_Standard
+					position_x = 25
+				}
+
+				state = {
+					name = _hide
+					using = Animation_FadeOut_Quick
+					using = Sound_WindowHide_Standard
+					position_x = 75
+				}
+
+				using = Window_Background
+
+				vbox = {
+					layoutpolicy_vertical = expanding
+					layoutpolicy_horizontal = expanding
+					using = Window_Margins
+					margin_bottom = 132
+
+					header_pattern = {
+						layoutpolicy_horizontal = expanding
+
+						blockoverride "header_text"
+						{
+							text = "ARTIFACT_CLAIMS"
+						}
+
+						blockoverride "button_close"
+						{
+							onclick = "[VariableSystem.Clear( 'artifacts_tab' )]"
+						}
+					}
+
+					hbox = {
+						name = "court_claims_sorting"
+						layoutpolicy_horizontal = expanding
+						margin = { 12 6 }
+						spacing = 6
+
+						datacontext = "[RoyalCourtWindow.GetArtifactClaimsList]"
+
+						button_standard = {
+							name = "sort_order"
+							size = { 25 25 }
+							tooltip = "ARTIFACT_CLAIM_SORT_ORDER_TOOLTIP"
+							using = tooltip_ne
+							onclick = "[ArtifactClaimsList.ToggleSortOrder]"
+
+							button_icon = {
+								size = { 25 25 }
+								texture = "gfx/interface/icons/flat_icons/sort_icon.dds"
+
+								framesize = { 66 66 }
+								frame = "[BoolTo2And1(ArtifactClaimsList.IsSortOrderDescending)]"
+
+								alwaystransparent = yes
+								blockoverride "button_frames"
+								{
+									effectname = "NoHighlight"
+								}
+							}
+						}
+
+						dropdown_menu_standard = {
+							name = "sort_claims"
+
+							blockoverride "dropdown_properties"
+							{
+								datamodel = "[ArtifactClaimsList.GetSortOptions]"
+
+								onselectionchanged = "[ArtifactClaimsList.SortClaims]"
+								selectedindex = "[ArtifactClaimsList.GetSortOptionsIndex]"
+							}
+
+							blockoverride "dropdown_active_item_properties"
+							{
+								text = "[Localize( CString.GetString )]"
+							}
+
+							blockoverride "dropdown_item_properties"
+							{
+								text = "[Localize( CString.GetString )]"
+							}
+						}
+
+						expand = {}
+					}
+
+					scrollbox = {
+						name = "artifact_claims"
+						datacontext = "[RoyalCourtWindow.GetArtifactClaimsList]"
+						layoutpolicy_vertical = expanding
+						layoutpolicy_horizontal = expanding
+
+						blockoverride "scrollbox_content" {
+							fixedgridbox = {
+								name = "artifact_claims_list"
+								datamodel = "[ArtifactClaimsList.GetClaims]"
+								addcolumn = 570
+								addrow = 122
+
+								item = {
+									artifact_claim = {
+										datacontext = "[ArtifactClaim.GetArtifact]"
+										datacontext = "[RoyalCourtWindow.GetCharacter]"
+										datacontext = "[Character.GetInventory]"
+									}
+								}
+							}
+						}
+
+						blockoverride "scrollbox_empty"
+						{
+							visible = "[IsDataModelEmpty( ArtifactClaimsList.GetClaims )]"
+							datacontext = "[RoyalCourtWindow.GetCharacter]"
+							text = "CHARACTER_HAS_NO_CLAIMED_ARTIFACTS"
+							max_width = 400
+						}
+					}
+				}
+			}
+		}
+
+		widget = {
+			name = "top_left_info"
+			size = { 660 212 }
+			visible = "[And( Not( VariableSystem.Exists('royal_court_screenshot_window' ) ), Not( RoyalCourtWindow.IsPlacingArtifact ) )]"
+
+			datacontext = "[RoyalCourtWindow.GetCharacter]"
+			datacontext = "[Character.GetCourtGrandeurData]"
+
+			using = Animation_ShowHide_Standard
+
+			flowcontainer = {
+				name = "tab_buttons"
+				position = { 15 55 }
+				spacing = -4
+
+				button_royal_court_tab = {
+					name = "tab_throne_tutorial_uses_this"
+					onclick = "[RoyalCourtWindow.SetActiveOptions( 'throne', 'characters' )]"
+					onclick = "[RoyalCourtWindow.SetCameraActiveByKey( GetDefine( 'NRoyalCourt', 'DEFAULT_THRONE_CAMERA' ) )]"
+					alwaystransparent = "[RoyalCourtWindow.IsActiveThroneTab]"
+
+					using = tooltip_se
+					tooltipwidget = {
+						container_royal_court_tab_tooltip = {
+							datacontext = "[AccessLocalPlayerCachedData.AccessCourtEvents]"
+
+							blockoverride "title_text" {
+								margin_top = 4
+								text = ROYAL_COURT_TAB_THRONE
+							}
+
+							blockoverride "action_description" {
+								cooltip_paragraph = {
+									visible = "[GreaterThan_int32( Character.GetNumPendingCourtEvents, '(int32)0' )]"
+									text = "ROYAL_COURT_STATUS_PENDING_EVENTS"
+								}
+								cooltip_paragraph = {
+									visible = "[GreaterThan_int32( LocalPlayerCourtEvents.GetNumberCourtEvents, '(int32)0' )]"
+									text = "ROYAL_COURT_STATUS_CURRENT_EVENTS"
+								}
+							}
+
+							blockoverride "spacer_visibility"  {
+								visible = "[Or(GreaterThan_int32( LocalPlayerCourtEvents.GetNumberCourtEvents, '(int32)0' ), GreaterThan_int32( Character.GetNumPendingCourtEvents, '(int32)0' ))]"
+							}
+						}
+					}
+
+					blockoverride "background_tab_active"
+					{
+						down = "[RoyalCourtWindow.IsActiveThroneTab]"
+					}
+
+					blockoverride "tab_texture"
+					{
+						texture = "gfx/interface/icons/roco_tabs/roco_trone.dds"
+						down = "[RoyalCourtWindow.IsActiveThroneTab]"
+					}
+
+					blockoverride "tab_active"
+					{
+						trigger_when = "[RoyalCourtWindow.IsActiveThroneTab]"
+					}
+
+					blockoverride "tab_inactive"
+					{
+						trigger_when = "[Not( RoyalCourtWindow.IsActiveThroneTab )]"
+					}
+
+					blockoverride "notification_highlight"
+					{
+						using = Current_Court_Events_Data
+					}
+
+					blockoverride "notification_number_text" {
+						text = "[Add_int32(LocalPlayerCourtEvents.GetNumberCourtEvents, Character.GetNumPendingCourtEvents)|V]"
+					}
+				}
+
+				button_royal_court_tab = {
+					name = "tab_grandeur_tutorial_uses_this"
+					onclick = "[RoyalCourtWindow.SetActiveOptions( 'grandeur', 'characters' )]"
+					onclick = "[RoyalCourtWindow.SetCameraActiveByKey( GetDefine( 'NRoyalCourt', 'DEFAULT_GRANDEUR_CAMERA' ) )]"
+					alwaystransparent = "[RoyalCourtWindow.IsActiveGrandeurTab]"
+
+					using = tooltip_se
+					tooltipwidget = {
+						container_royal_court_tab_tooltip = {
+							blockoverride "title_text" {
+								margin_top = 4
+								text = ROYAL_COURT_TAB_COURT_GRANDEUR
+							}
+
+							blockoverride "action_description" {
+								cooltip_paragraph = {
+									visible = "[LessThan_int32( CourtGrandeurData.GetCurrentLevel, CourtGrandeurData.GetMinimumExpectedLevel )]"
+									text = "ROYAL_COURT_STATUS_CGV_EXPECTATIONS"
+								}
+							}
+
+							blockoverride "spacer_visibility"  {
+								visible = "[LessThan_int32( CourtGrandeurData.GetCurrentLevel, CourtGrandeurData.GetMinimumExpectedLevel )]"
+							}
+						}
+					}
+
+					blockoverride "background_tab_active" 
+					{
+						down = "[RoyalCourtWindow.IsActiveGrandeurTab]"
+					}
+
+					blockoverride "tab_texture"
+					{
+						texture = "gfx/interface/icons/roco_tabs/roco_grandeur.dds"
+						down = "[RoyalCourtWindow.IsActiveGrandeurTab]"
+					}
+
+					blockoverride "tab_active"
+					{
+						trigger_when = "[RoyalCourtWindow.IsActiveGrandeurTab]"
+					}
+
+					blockoverride "tab_inactive"
+					{
+						trigger_when = "[Not( RoyalCourtWindow.IsActiveGrandeurTab )]"
+					}
+
+					blockoverride "notification_highlight"
+					{
+						using = Below_CGV_Expectations_Data
+					}
+
+					blockoverride "notification_number_text" {
+						# No number, only court grandeur triggers this.
+					}
+				}
+
+				button_royal_court_tab = {
+					name = "tab_artifact_tutorial_uses_this"
+					onclick = "[RoyalCourtWindow.SetActiveOptions( 'artifacts', 'artifacts' )]"
+					onclick = "[VariableSystem.Clear( 'artifacts_tab' )]"
+					onclick = "[RoyalCourtWindow.SetCameraActiveByKey( GetDefine( 'NRoyalCourt', 'DEFAULT_ARTIFACTS_CAMERA' ) )]"
+					onclick = "[RoyalCourtWindow.ClearSelectedArtifact]"
+					onclick = "[RoyalCourtWindow.ClearSelectedSlot]"
+					alwaystransparent = "[RoyalCourtWindow.IsActiveArtifactsTab]"
+
+					using = tooltip_se
+					tooltipwidget = {
+						container_royal_court_tab_tooltip = {
+							datacontext = "[AccessLocalPlayerCachedData.AccessNewArtifacts]"
+
+							blockoverride "title_text" {
+								margin_top = 4
+								text = ROYAL_COURT_TAB_COURT_ARTIFACTS
+							}
+
+							blockoverride "action_description" {
+								cooltip_paragraph = {
+									visible = "[GreaterThan_int32( LocalPlayerNewArtifacts.GetNumNewArtifactsOfCategory( 'court' ), '(int32)0' )]"
+									text = "ROYAL_COURT_STATUS_NEW_COURT_ARTIFACTS"
+								}
+							}
+
+							blockoverride "spacer_visibility"  {
+								visible = "[GreaterThan_int32( LocalPlayerNewArtifacts.GetNumNewArtifactsOfCategory( 'court' ), '(int32)0' )]"
+							}
+						}
+					}
+
+					blockoverride "background_tab_active" 
+					{
+						down = "[RoyalCourtWindow.IsActiveArtifactsTab]"
+					}
+
+					blockoverride "tab_texture"
+					{
+						texture = "gfx/interface/icons/roco_tabs/roco_artifact.dds"
+						down = "[RoyalCourtWindow.IsActiveArtifactsTab]"
+					}
+
+					blockoverride "tab_active"
+					{
+						trigger_when = "[RoyalCourtWindow.IsActiveArtifactsTab]"
+					}
+
+					blockoverride "tab_inactive"
+					{
+						trigger_when = "[Not( RoyalCourtWindow.IsActiveArtifactsTab )]"
+					}
+
+					blockoverride "notification_highlight"
+					{
+						using = New_Court_Artifacts_Data
+					}
+
+					blockoverride "notification_number_text" {
+						text = "[LocalPlayerNewArtifacts.GetNumNewArtifactsOfCategory( 'court' )|V]"
+					}
+				}
+			}
+
+			widget = {
+				name = "top_section"
+				size = { 660 212 }
+
+				widget = {
+					name = "background"
+					size = { 574 92 }
+					background = {
+						name = "banner"
+						texture = "gfx/interface/icons/roco_tabs/banner_header_rank_01.dds"
+						frame = 2
+
+						visible = "[LessThanOrEqualTo_int32(CourtGrandeurData.GetCurrentLevel, '(int32)4')]"
+					}
+
+					background = {
+						name = "banner"
+						texture = "gfx/interface/icons/roco_tabs/banner_header_rank_02.dds"
+						frame = 2
+
+						visible = "[And(GreaterThan_int32(CourtGrandeurData.GetCurrentLevel, '(int32)4'),LessThanOrEqualTo_int32(CourtGrandeurData.GetCurrentLevel, '(int32)7'))]"
+					}
+
+					background = {
+						name = "banner"
+						texture = "gfx/interface/icons/roco_tabs/banner_header_rank_04.dds"
+						frame = 2
+
+						visible = "[GreaterThan_int32(CourtGrandeurData.GetCurrentLevel, '(int32)7')]"
+					}
+				}
+
+				# flowcontainer = {
+				# 	name = "banner_transition_video"
+				# 	parentanchor = top|left
+				# 	direction = vertical
+
+				# 	video_icon = {
+				# 		name = "animation"
+				# 		visible = no
+				# 		size = { 660 212 }
+				# 		gfxtype = videogfx
+				# 		shaderfile = ""
+				# 		video = "gfx/interface/video/royal_sparkle_v3_transparent.bk2"
+				# 		alwaystransparent = yes
+				# 		loop = no
+				# 	}
+				# }
+
+				vbox = {
+					margin = { 27 16 }
+
+					hbox = {
+						datacontext = "[RoyalCourtWindow.GetCourtGrandeurWindow]"
+						datacontext = "[RoyalCourtWindow.GetCharacter]"
+						datacontext = "[Character.GetCourtGrandeurData]"
+						layoutpolicy_horizontal = expanding
+
+						tooltipwidget = {
+							court_grandeur_level_header_tooltip = {}
+						}
+
+						text_single = {
+							layoutpolicy_vertical = expanding
+							text = "[CourtGrandeurData.GetCurrentLevel]"
+							fontsize = 36
+							default_format = "#high"
+							align = center|nobaseline
+							margin_top = 15
+
+							minimumsize = { 50 50 }
+						}
+
+						vbox = {
+							layoutpolicy_horizontal = expanding
+							layoutpolicy_vertical = expanding
+							margin_left = 25
+							spacing = 5
+
+							text_single = {
+								layoutpolicy_horizontal = expanding
+								text = "ROYAL_COURT_WINDOW_HEADER"
+								using = Font_Size_Medium
+								default_format = "#high"
+								align = nobaseline
+								margin_top = 2
+							}
+
+							text_single = {
+								layoutpolicy_horizontal = expanding
+								text = "ROYAL_COURT_WINDOW_GRANDEUR_SUMMERY"
+								align = nobaseline
+								margin_top = 12
+							}
+						}
+
+						expand = {}
+					}
+
+					expand = {}
+				}
+			}
+		}
+
+		widget = {
+			name = "artifact_buttons"
+			size = { 460 150 }
+			position = { -68 -56 }
+			parentanchor = bottom|right
+
+			vbox = {
+				layoutpolicy_vertical = expanding
+				visible = "[RoyalCourtWindow.IsActiveArtifactsTab]"
+				spacing = 8
+
+				expand = {}
+
+				button_tertiary = {
+					name = "deselect_slot"
+					visible = "[RoyalCourtWindow.HasSelectedSlot]"
+					size = { 300 50 }
+					text = "CLOSE_LABEL"
+
+					onclick = "[RoyalCourtWindow.ClearSelectedSlot]"
+					onclick = "[RoyalCourtWindow.ClearSelectedArtifact]"
+					onclick = "[RoyalCourtWindow.SetCameraActiveByKey( GetDefine( 'NRoyalCourt', 'DEFAULT_ARTIFACTS_CAMERA' ) )]"
+					shortcut = "close_window"
+				}
+
+				button_tertiary = {
+					name = "close"
+					visible = "[RoyalCourtWindow.IsPlacingArtifact]"
+
+					size = { 300 50 }
+					text = "CANCEL"
+
+					onclick = "[RoyalCourtWindow.ClearSelectedArtifact]"
+					shortcut = "close_window"
+				}
+
+				hbox = {
+					name = "artifact_buttons_holder"
+					visible = "[And( Not( RoyalCourtWindow.IsPlacingArtifact ), Not( RoyalCourtWindow.HasSelectedSlot ) )]"
+					layoutpolicy_horizontal = expanding
+					spacing = 10
+
+					container = {
+						name = "court_artifact_tab_open_tutorial_uses_this"
+					}
+
+					button_standard = {
+						datacontext = "[RoyalCourtWindow.GetCharacter.GetInventory]"
+						size = { 200 33 }
+
+						onclick = "[VariableSystem.SetOrToggle( 'artifacts_tab', 'artifacts' )]"
+						down = "[VariableSystem.HasValue( 'artifacts_tab', 'artifacts' )]"
+
+						hbox = {
+							margin = { 10 0 }
+
+							text_single = {
+								layoutpolicy_horizontal = expanding
+								autoresize = no
+								align = center|nobaseline
+								text = "ARTIFACT_STORAGE"
+								default_format = "#clickable"
+							}
+
+							text_single = {
+								min_width = 30
+								autoresize = no
+								align = center|nobaseline
+								text = "[Inventory.GetNumOfArtifactInCategory( 'court' )]"
+								default_format = "#clickable"
+							}
+						}
+
+					}
+
+					button_standard = {
+						size = { 200 33 }
+						text = "INVENTORY_TAB_CLAIMS"
+						onclick = "[VariableSystem.SetOrToggle( 'artifacts_tab', 'artifact_claims' )]"
+						down = "[VariableSystem.HasValue( 'artifacts_tab', 'artifact_claims' )]"
+					}
+				}
+			}
+		}
+
+		widget_top_right_bar = {
+			name = "top_bar_hud"
+			visible = "[Not(VariableSystem.Exists('royal_court_screenshot_window'))]"
+			datacontext = "[AccessTopBar]"
+			parentanchor = top|right
+
+			using = Animation_ShowHide_Quick
+		}
+
+		#JONAS HERE
+
+		flowcontainer = {
+			direction = vertical
+
+			parentanchor = bottom|right
+			position = {-15 -50}
+			spacing = 1
+
+			button_round  = {
+				visible = "[And( Not( VariableSystem.Exists('royal_court_screenshot_window' ) ), RoyalCourtWindow.IsActiveThroneTab )]"
+				size = { 50 50 }
+				onclick = "[VariableSystem.Set('royal_court_screenshot_window', 'yes')]"
+				onclick = "[RoyalCourtWindow.OpenScreenshotWindow]"
+				alpha = 0.4
+				tooltip = "ROYAL_COURT_SCREENSHOT_BUTTON_TT"
+				using = tooltip_nw
+				parentanchor = right
+
+				state = {
+					name = _show
+					using = Animation_Curve_Default
+					duration = 0.15
+
+					alpha = 0.7
+				}
+
+				state = {
+					name = _hide
+					using = Animation_Curve_Default
+					duration = 0.25
+
+					alpha = 0
+				}
+
+				state = {
+					name = _mouse_hierarchy_enter
+					using = Animation_Curve_Default
+					duration = 0.15
+
+					alpha = 1
+				}
+
+				state = {
+					name = _mouse_hierarchy_leave
+					using = Animation_Curve_Default
+					duration = 0.25
+
+					alpha = 0.7
+				}
+
+				button_capture = {
+					parentanchor = center
+					size = { 30 30 }
+					alwaystransparent = yes
+				}
+			}
+
+			button_hold_court = {
+				name = "button_hold_court_tutorial_uses_this"
+				visible = "[And( And( Not(VariableSystem.Exists('royal_court_screenshot_window')) , RoyalCourtWindow.IsActiveThroneTab ) , RoyalCourtWindow.GetCharacter.IsLocalPlayer) ]"
+				datacontext = "[GetDecisionWithKey( 'hold_court_decision' )]"
+				parentanchor = bottom|right
+				size = { 345 80 }
+
+				container = {
+					name = "throne_room_tab_tutorial_uses_this"
+				}
+			}
+		}
+
+		button_petition_liege = {
+			name = "button_petition_liege"
+			visible = "[And( And( Not(VariableSystem.Exists('royal_court_screenshot_window')) , RoyalCourtWindow.IsActiveThroneTab ) , RoyalCourtWindow.IsLiegesCourt ) ]"
+			datacontext = "[GetDecisionWithKey( 'petition_liege_decision' )]"
+			parentanchor = bottom|right
+			position = { -50 -50 }
+			size = { 345 80 }
+
+			container = {
+				name = "throne_room_tab_tutorial_uses_this"
+			}
+		}
+
+		widget_court_grandeur_view = {
+			name = "court_grandeur"
+			visible = "[And( Not( VariableSystem.Exists( 'royal_court_screenshot_window') ), RoyalCourtWindow.IsActiveGrandeurTab )]"
+			datacontext = "[RoyalCourtWindow.GetCourtGrandeurWindow]"
+			datacontext = "[RoyalCourtWindow.AccessCourtAmenitiesWindow]"
+			datacontext = "[CourtGrandeurWindow.GetRoyalCourtWindow.GetCharacter]"
+			parentanchor = bottom|hcenter
+			size = { 100% 332 }
+			alwaystransparent = no
+		}
+
+		widget = {
+			size = { 100% 100% }
+			visible = "[Not(VariableSystem.Exists('royal_court_screenshot_window'))]"
+
+			using = Animation_ShowHide_Quick
+
+			flowcontainer_inspirations_list = {
+				name = "inspirations_tutorial_uses_this"
+				datacontext = "[RoyalCourtWindow.AccessInspirationsWindow]"
+
+				visible = "[And( And( Not( RoyalCourtWindow.IsActiveArtifactsTab ), Not( CourtEventWindow.HasOpenEvent ) ), InspirationsWindow.HasPotentialOrSponsoredInspirations )]"
+
+				parentanchor = left|vcenter
+				widgetanchor = top|left
+				position = { 15 -250 }
+			}
+		}
+
+		widget = {
+			name = "events"
+			size = { 100% 100% }
+			visible = "[And( Not(VariableSystem.Exists('royal_court_screenshot_window')), And(CourtEventWindow.HasOpenEvent, RoyalCourtWindow.IsActiveThroneTab ) )]"
+
+			using = Animation_ShowHide_Quick
+
+			widget_court_event = {
+				datacontext = "[CourtEventWindow.GetOpenEvent]"
+				visible = "[CourtEventWindow.IsVisible]"
+				name = "court_event_window"
+				parentanchor = bottom|right
+				position = { 30 0 }
+				size = { 600 800 }
+			}
+		}
+
+		widget_royal_court_screenshot_window = {
+			visible = "[VariableSystem.Exists('royal_court_screenshot_window')]"
+			datacontext = "[RoyalCourtWindow.AccessScreenshotWindow]"
+
+			using = Animation_ShowHide_Quick
+		}
+	}
+
+	court_scene_editor_window = {
+		visible = "[And( Not(VariableSystem.Exists('royal_court_screenshot_window')), And( InDebugMode, VariableSystem.Exists('scene_editor') ) )]"
+		datacontext = "[RoyalCourtWindow.AccessCourtSceneEditorWindow]"
+
+		using = Animation_ShowHide_Quick
+
+	}
+
+	artifact_test_helper_window = {
+		visible = "[And( Not(VariableSystem.Exists('royal_court_screenshot_window')), And( InDebugMode, VariableSystem.Exists( 'artifact_test' ) ) )]"
+		datacontext = "[RoyalCourtWindow.AccessArtifactHelperWindow]"
+
+		using = Animation_ShowHide_Quick
+
+	}
+
+	flowcontainer = {
+		name = "debug_buttons"
+		datacontext = "[RoyalCourtWindow.GetCourtSceneEditorWindow]"
+		visible = "[And( Not(VariableSystem.Exists('royal_court_screenshot_window')), InDebugMode )]"
+		parentanchor = top|hcenter
+		ignoreinvisible = yes
+		margin_top = 10
+
+		background = {
+			using = Background_Area_Dark
+		}
+
+		flowcontainer = {
+			direction = vertical
+			ignoreinvisible = yes
+
+			flowcontainer = {
+				spacing = 5
+				ignoreinvisible = yes
+
+				button_tertiary = {
+					raw_text = "#D Toggle scene#!"
+					onclick = "[VariableSystem.Toggle( 'court_scene' )]"
+				}
+
+				button_tertiary = {
+					raw_text = "#D Open editor settings#!"
+					visible = "[Not(VariableSystem.Exists('scene_editor'))]"
+					onclick = "[VariableSystem.Toggle('scene_editor')]"
+					onclick = "[RoyalCourtWindow.ShowEditor]"
+				}
+
+				button_tertiary = {
+					raw_text = "#D Hide editor settings#!"
+					visible = "[VariableSystem.Exists('scene_editor')]"
+					onclick = "[VariableSystem.Toggle('scene_editor')]"
+					onclick = "[RoyalCourtWindow.HideEditor]"
+				}
+
+				button_tertiary = {
+					raw_text = "#D Artifact test#!"
+					onclick = "[RoyalCourtWindow.AccessArtifactHelperWindow.UpdateEntities]"
+					onclick = "[VariableSystem.Toggle( 'artifact_test' )]"
+				}
+			}
+
+			text_multi = {
+				visible = "[VariableSystem.Exists('scene_editor')]"
+				name = "court_hint_cam_control"
+				max_width = 500
+				autoresize = yes
+				raw_text = "#D Hold RMB and use WASD/Q/E/Shift to move the current camera. Press C to toggle between developer camera and an in-game camera.#!"
+			}
+
+			text_single = {
+				visible = "[VariableSystem.Exists('scene_editor')]"
+				name = "court_hint_current_cam"
+				raw_text = "#D Current Camera: [Select_CString( StringIsEmpty( CourtSceneEditorWindow.GetCameraDescription( CourtSceneEditorWindow.GetCurrentCamera ) ), 'Camera', CourtSceneEditorWindow.GetCameraDescription( CourtSceneEditorWindow.GetCurrentCamera ) )] #!"
+			}
+		}
+	}
+
+	icon = {
+		name = "fade_to_black_overlay"
+		visible = "[And(Not(VariableSystem.Exists('royal_court_screenshot_window')), Not(VariableSystem.Exists('scene_editor')))]"
+		size = { 100% 100% }
+		texture = "gfx/interface/colors/black.dds"
+		alpha = 0
+
+		state = {
+			name = "show"
+			next = "hide"
+			alpha = 1
+			duration = 0.0
+
+			trigger_when = "[RoyalCourtWindow.ShouldShowFadeToBlack]"
+		}
+
+		state = {
+			name = "hide"
+			alpha = 0
+			duration = 0.3
+		}
+	}
+
+	error_horse = {
+		parentanchor = bottom|left
+		position = { 610 -10 }
+		visible = "[And( Not(VariableSystem.Exists('royal_court_screenshot_window')), And( Not( IsPauseMenuShown ), Not(ReleaseMode) ) )]"
+	}
+}
+
+types RoyalCourtTypes
+{
+	type button_hold_court = button_normal
+	{
+		enabled = "[And( Decision.IsPossibleForPlayer, Not(CourtEventWindow.HasOpenEvent) )]"
+		onclick = "[RoyalCourtWindow.OpenDecisionDetailView( 'hold_court_decision' )]"
+
+		tooltip = SHOW_DECISION_TOOLTIP
+		clicksound = "event:/DLC/EP1/SFX/UI/hold_court"
+
+
+		state = {
+			name = _mouse_hierarchy_enter
+			on_start = "[PdxGuiInterruptThenTriggerAllAnimations('glow_hold_court_leave','glow_hold_court_enter')]"
+		}
+
+		state = {
+			name = _mouse_hierarchy_leave
+			on_start = "[PdxGuiInterruptThenTriggerAllAnimations('glow_hold_court_enter','glow_hold_court_leave')]"
+		}
+
+		icon = {
+			size = { 100% 100% }
+			texture = "gfx/interface/buttons/button_hold_court_bg.dds"
+
+			@duration_button_holdcourt_enter = 0.03
+			@duration_button_holdcourt_leave = 0.1
+
+			modify_texture = {
+				name = "glow_hold_court"
+				texture= "gfx/interface/buttons/button_hold_court_glow.dds"
+				blend_mode = colordodge
+				alpha = 0
+			}
+
+			state = {
+				name = "glow_hold_court_enter"
+				duration = @duration_button_holdcourt_enter
+				using = Animation_Curve_Default
+
+				modify_texture = {
+					name = "glow_hold_court"
+					alpha = 1
+				}
+			}
+
+			state = {
+				name = "glow_hold_court_leave"
+				duration = @duration_button_holdcourt_leave
+				using = Animation_Curve_Default
+
+				modify_texture = {
+					name = "glow_hold_court"
+					alpha = 0
+				}
+			}
+		}
+
+		icon = {
+			size = { 100% 100% }
+			texture = "gfx/interface/buttons/button_hold_court_frame.dds"
+
+
+		}
+
+		text_single = {
+			parentanchor = center
+			default_format = "#high"
+			using = Font_Size_Medium
+			text = "[Decision.GetTitleForPlayer]"
+			margin_bottom = 5
+
+		}
+
+
+	}
+
+	type button_petition_liege = button_normal
+	{
+		enabled = "[Decision.IsPossibleForPlayer]"
+		onclick = "[RoyalCourtWindow.SetPetitionerCharacter( GetPlayer )]"
+		onclick = "[RoyalCourtWindow.OpenDecisionDetailView( 'petition_liege_decision'  )]"
+		onclick = "[GetVariableSystem.Set('show_decision_step_two', 'true')]"
+
+		tooltip = SHOW_DECISION_TOOLTIP
+		clicksound = "event:/DLC/EP1/SFX/UI/hold_court"
+
+
+		state = {
+			name = _mouse_hierarchy_enter
+			on_start = "[PdxGuiInterruptThenTriggerAllAnimations('glow_hold_court_leave','glow_hold_court_enter')]"
+		}
+
+		state = {
+			name = _mouse_hierarchy_leave
+			on_start = "[PdxGuiInterruptThenTriggerAllAnimations('glow_hold_court_enter','glow_hold_court_leave')]"
+		}
+
+		icon = {
+			size = { 100% 100% }
+			texture = "gfx/interface/buttons/button_hold_court_bg.dds"
+
+			@duration_button_petition_liege_enter = 0.03
+			@duration_button_petition_liege_leave = 0.1
+
+			modify_texture = {
+				name = "glow_hold_court"
+				texture= "gfx/interface/buttons/button_hold_court_glow.dds"
+				blend_mode = colordodge
+				alpha = 0
+			}
+
+			state = {
+				name = "glow_hold_court_enter"
+				duration = @duration_button_petition_liege_enter
+				using = Animation_Curve_Default
+
+				modify_texture = {
+					name = "glow_hold_court"
+					alpha = 1
+				}
+			}
+
+			state = {
+				name = "glow_hold_court_leave"
+				duration = @duration_button_petition_liege_leave
+				using = Animation_Curve_Default
+
+				modify_texture = {
+					name = "glow_hold_court"
+					alpha = 0
+				}
+			}
+		}
+
+		icon = {
+			size = { 100% 100% }
+			texture = "gfx/interface/buttons/button_hold_court_frame.dds"
+
+
+		}
+
+		text_single = {
+			parentanchor = center
+			default_format = "#high"
+			using = Font_Size_Medium
+			text = "[Decision.GetTitleForPlayer]"
+			margin_bottom = 5
+
+		}
+	}
+
+	type widget_court_artifact_list = widget
+	{
+		scrollbox = {
+			name = "court_artifacts"
+			datacontext = "[RoyalCourtWindow.GetCharacter]"
+			datacontext = "[RoyalCourtWindow.GetCharacter.GetInventory]"
+
+			size = { 100% 93% }
+
+			blockoverride "scrollbox_content" {
+				fixedgridbox = {
+					name = "artifacts_list"
+					datamodel = "[RoyalCourtWindow.GetSortedArtifacts]"
+					addcolumn = 560
+					addrow = 118
+
+					item = {
+						widget_artifact_entry = {
+							datacontext = "[RoyalCourtWindow.GetCharacter.GetInventory]"
+							datacontext = "[Inventory.GetSlotFromType( RoyalCourtWindow.GetSelectedSlot )]"
+
+							using = tooltip_es
+							tooltipwidget = {
+								artifact_tooltip = {
+									blockoverride "extra_information"
+									{
+										hbox = {
+											visible = "[RoyalCourtWindow.GetCharacter.IsLocalPlayer]"
+											layoutpolicy_horizontal = expanding
+
+											text_multi = {
+												visible = "[Inventory.IsEquipped( Artifact.Self)]"
+
+												text = "REMOVE_COURT_ARTIFACT_FROM_DISPLAY"
+
+												max_width = 300
+												autoresize = yes
+												using = Font_Size_Small
+											}
+
+											text_multi = {
+												visible = "[Not( Inventory.IsEquipped( Artifact.Self ) )]"
+
+												text = "DISPLAY_ARTIFACT"
+
+												max_width = 300
+												autoresize = yes
+												using = Font_Size_Small
+											}
+
+											expand = {}
+										}
+									}
+								}
+							}
+
+
+							state = {
+								name = _mouse_hierarchy_enter
+								on_start = "[AccessLocalPlayerCachedData.AccessNewArtifacts.RemoveNewArtifact( Artifact.Self )]"
+							}
+
+							blockoverride "background_button_overrides"
+							{
+								onclick = "[RoyalCourtWindow.OnClickArtifact( Artifact.Self )]"
+								enabled = "[And( RoyalCourtWindow.GetCharacter.IsLocalPlayer, Inventory.CanEquipReplace( Artifact.Self ) )]"
+							}
+
+							blockoverride "button"
+							{
+								down = "[RoyalCourtWindow.IsArtifactSelected( Artifact.Self )]"
+								enabled = "[And( RoyalCourtWindow.GetCharacter.IsLocalPlayer, Inventory.CanEquipReplace( Artifact.Self ) )]"
+							}
+
+							blockoverride "on_click"
+							{
+								onclick = "[RoyalCourtWindow.OnClickArtifact( Artifact.Self )]"
+							}
+
+							blockoverride "portrait" {
+								expand = {}
+							}
+						}
+					}
+				}
+			}
+
+			blockoverride "scrollbox_empty"
+			{
+				visible = "[IsDataModelEmpty( Inventory.GetArtifacts )]"
+				max_width = 400
+				text = "CHARACTER_HAS_NO_ARTIFACTS"
+			}
+		}
+	}
+
+	type widget_equippable_court_artifact_list = widget {
+
+		scrollbox = {
+			name = "equippable_court_artifacts"
+			datacontext = "[RoyalCourtWindow.GetCharacter]"
+			datacontext = "[RoyalCourtWindow.GetCharacter.GetInventory]"
+
+			size = { 100% 93% }
+
+			blockoverride "scrollbox_content"
+			{
+				fixedgridbox = {
+					name = "artifacts_list"
+					datamodel = "[RoyalCourtWindow.GetSortedArtifactForSelectedSlot]"
+					layoutpolicy_horizontal = expanding
+					addcolumn = 550
+					addrow = 118
+
+					item = {
+						widget_artifact_entry = {
+							datacontext = "[RoyalCourtWindow.GetCharacter.GetInventory]"
+							datacontext = "[Inventory.GetSlotFromType( RoyalCourtWindow.GetSelectedSlot )]"
+
+							tooltipwidget = {
+								artifact_tooltip = {
+									blockoverride "extra_information"
+									{
+										hbox = {
+											visible = "[RoyalCourtWindow.GetCharacter.IsLocalPlayer]"
+											layoutpolicy_horizontal = expanding
+
+											text_multi = { # Displayed In Selected Slot
+												visible = "[And( Inventory.IsEquipped( Artifact.Self), ObjectsEqual( Inventory.GetSlotFromType( RoyalCourtWindow.GetSelectedSlot ).GetArtifact, Artifact.Self ) )]"
+
+												text = "REMOVE_COURT_ARTIFACT_FROM_DISPLAY"
+
+												max_width = 300
+												autoresize = yes
+												using = Font_Size_Small
+											}
+
+											text_multi = { # Displayed somewhere else
+												visible = "[And( Inventory.IsEquipped( Artifact.Self), Not( ObjectsEqual( Inventory.GetSlotFromType( RoyalCourtWindow.GetSelectedSlot ).GetArtifact, Artifact.Self ) ) )]"
+
+												text = "MOVE_COURT_ARTIFACT_TO_DISPLAY"
+
+												max_width = 300
+												autoresize = yes
+												using = Font_Size_Small
+											}
+
+											text_multi = { # In Storage
+												visible = "[Not( Inventory.IsEquipped( Artifact.Self ) )]"
+
+												text = "[RoyalCourtWindow.CanPutInSelectedSlotTooltip( Artifact.Self )]"
+
+												max_width = 300
+												autoresize = yes
+												using = Font_Size_Small
+											}
+
+											expand = {}
+										}
+									}
+								}
+							}
+							using = tooltip_es
+
+							blockoverride "background_button_overrides"
+							{
+								onclick = "[RoyalCourtWindow.OnClickArtifact( Artifact.Self )]"
+								onclick = "[RoyalCourtWindow.ClearSelectedSlot]"
+								onclick = "[RoyalCourtWindow.SetCameraActiveByKey( GetDefine( 'NRoyalCourt', 'DEFAULT_ARTIFACTS_CAMERA' ) )]"
+								onclick = "[RoyalCourtWindow.ClearSelectedArtifact]"
+
+								enabled = "[And( RoyalCourtWindow.GetCharacter.IsLocalPlayer, RoyalCourtWindow.CanPutInSelectedSlot( Artifact.Self ) )]"
+							}
+
+							blockoverride "button"
+							{
+								down = "[RoyalCourtWindow.IsArtifactSelected( Artifact.Self )]"
+								enabled = "[And( RoyalCourtWindow.GetCharacter.IsLocalPlayer, RoyalCourtWindow.CanPutInSelectedSlot( Artifact.Self ) )]"
+								clicksound = "event:/DLC/EP1/SFX/UI/inventory_artifact_place"
+							}
+
+							blockoverride "on_click"
+							{
+								onclick = "[RoyalCourtWindow.OnClickArtifact( Artifact.Self )]"
+								onclick = "[RoyalCourtWindow.ClearSelectedSlot]"
+								onclick = "[SetActiveRoyalCourtCameraFromKey( GetDefine( 'NRoyalCourt', 'DEFAULT_ARTIFACTS_CAMERA' ) )]"
+								onclick = "[RoyalCourtWindow.ClearSelectedArtifact]"
+
+							}
+
+							blockoverride "round_buttons"
+							{
+								button_round = {
+									name = "reforge"
+									size = { 35 35 }
+
+									button_icon_highlight = {
+										size = { 25 25 }
+										parentanchor = center
+										texture = "gfx/interface/icons/flat_icons/reforge.dds"
+									}
+									visible = "[Artifact.GetOwner.IsLocalPlayer]"
+
+									onclick = "[ToggleGameViewData( 'reforge_artifact', Artifact.GetID )]"
+									enabled = "[Artifact.CanReforgeOrRepair( Artifact.GetOwner.Self )]"
+									tooltip = "[Artifact.GetReforgeOrRepairTooltip( Artifact.GetOwner.Self )]"
+								}
+
+								button_round = {
+									name = "details"
+									size = { 35 35 }
+
+									button_icon_highlight = {
+										size = { 25 25 }
+										position = { 0 -6 }
+										parentanchor = center
+										texture = "gfx/interface/icons/flat_icons/dots.dds"
+									}
+
+									onclick = "[ToggleGameViewData( 'artifact_details', Artifact.GetID )]"
+									tooltip = "ARTIFACT_DETAILS"
+								}
+							}
+
+							blockoverride "portrait" {
+								expand = { minimumsize = { 85 0 } }
+							}
+
+							blockoverride "bottom_hbox_contents"
+							{
+								debug_square = {
+									visible = "[Inventory.IsEquipped( Artifact.Self )]"
+									size = { 40 20 }
+									tooltip = "COURT_ARTIFACT_ON_DISPLAY"
+								}
+
+								expand = {}
+							}
+						}
+					}
+				}
+			}
+
+			blockoverride "scrollbox_empty"
+			{
+				visible = "[IsDataModelEmpty( Inventory.GetArtifacts )]"
+				max_width = 400
+				text = "CHARACTER_HAS_NO_ARTIFACTS"
+			}
+		}
+	}
+
+	type button_royal_court_tab = button_normal
+	{
+		size = { 74 126 }
+
+		state = {
+			name = "court_tab_reset"
+			duration = 0.2
+			using = Animation_Curve_Default
+			position_y = 0
+
+			block "tab_inactive" {}
+		}
+
+		state = {
+			name = "button_selection"
+			delay = 0.05
+			duration = 0.2
+			using = Animation_Curve_Default
+			position_y = 20
+
+			block "tab_active" {}
+		}
+
+		state = {
+			name = _mouse_hierarchy_enter
+			position_y = 2
+
+			using = Animation_Curve_Default
+			duration = 0.2
+		}
+
+		state = {
+			name = _mouse_hierarchy_leave
+			position_y = 0
+
+			using = Animation_Curve_Default
+			duration = 0.05
+		}
+
+		icon = {
+			name = "notification_banner"
+			position = { 0 7 }
+			size = { 29 38 }
+			texture = "gfx/interface/icons/roco_tabs/banner_notification.dds"
+			parentanchor = bottom|hcenter
+
+			block "notification_highlight"
+			{
+				visible = no
+			}
+
+			text_single = {
+				name = "notification_number"
+				using = Font_Size_Small
+				default_format = "#high"
+				align = nobaseline
+				parentanchor = center
+
+				block "notification_number_text" {
+				}
+			}
+		}
+
+		highlight_icon = {
+			size = { 74 110 }
+			framesize = { 148 220 }
+			alwaystransparent = yes
+			texture = "gfx/interface/icons/roco_tabs/banner_tab_rank_01.dds"
+
+			gfxtype = togglepushbuttongfx
+			effectname = "NoHighlight"
+
+			upframe = 1
+			uphoverframe = 2
+			uppressedframe = 3
+			downframe = 4
+
+			block "background_tab_active" {}
+
+			highlight_icon = {
+				name = "rank_2"
+				size = { 74 110 }
+				framesize = { 148 220 }
+				frame = 1
+				texture = "gfx/interface/icons/roco_tabs/banner_tab_rank_02.dds"
+				visible = "[And(GreaterThan_int32(CourtGrandeurData.GetCurrentLevel, '(int32)4'),LessThanOrEqualTo_int32(CourtGrandeurData.GetCurrentLevel, '(int32)7'))]"
+
+				gfxtype = togglepushbuttongfx
+				effectname = "NoHighlight"
+
+				upframe = 1
+				uphoverframe = 2
+				uppressedframe = 3
+				downframe = 4
+
+				block "background_tab_active" {}
+			}
+
+			highlight_icon = {
+				name = "rank_4"
+				size = { 74 110 }
+				framesize = { 148 220 }
+				frame = 1
+				texture = "gfx/interface/icons/roco_tabs/banner_tab_rank_04.dds"
+				visible = "[GreaterThan_int32(CourtGrandeurData.GetCurrentLevel, '(int32)7')]"
+
+				gfxtype = togglepushbuttongfx
+				effectname = "NoHighlight"
+
+				upframe = 1
+				uphoverframe = 2
+				uppressedframe = 3
+				downframe = 4
+
+				block "background_tab_active" {}
+			}
+
+			highlight_icon = {
+				name = "icon_banner"
+				framesize = { 140 140 }
+				size = { 56 56 }
+				position = { 0 10 }
+				alwaystransparent = yes
+				parentanchor = center
+
+				gfxtype = togglepushbuttongfx
+				effectname = "NoHighlight"
+
+				upframe = 1
+				uphoverframe = 2
+				uppressedframe = 3
+				downframe = 2
+
+				block "tab_texture"
+				{
+					using = debug_square
+				}
+			}
+		}
+	}
+
+	type widget_royal_court_notification = widget
+	{
+		size = { 25 25 }
+		tooltip = ROYAL_COURT_STATUS_PENDING_EVENTS
+		tooltip_enabled = no
+
+		button_round  = {
+			parentanchor = center
+			size = { 25 25 }
+			frame = 1
+			upframe = 1
+			alwaystransparent = yes
+
+			text_single = {
+				parentanchor = center
+				text = "[Add_int32( Character.GetNumPendingCourtEvents, Add_int32( LocalPlayerCourtEvents.GetNumberCourtEvents, LocalPlayerNewArtifacts.GetNumNewArtifactsOfCategory( 'court' ) ) )|V]"
+				default_format = "#high"
+				align = nobaseline
+			}
+		}
+	}
+
+	type widget_new_court_artifacts = widget
+	{
+		datacontext = "[AccessLocalPlayerCachedData.AccessNewArtifacts]"
+		size = { 25 25 }
+		tooltip = "ROYAL_COURT_STATUS_NEW_COURT_ARTIFACTS"
+		tooltip_enabled = no
+
+		button_round  = {
+			parentanchor = center
+			size = { 25 25 }
+			frame = 1
+			upframe = 1
+			alwaystransparent = yes
+
+			text_single = {
+				parentanchor = center
+				text = "[LocalPlayerNewArtifacts.GetNumNewArtifactsOfCategory( 'court' )|V]"
+				default_format = "#high"
+				align = nobaseline
+			}
+		}
+	}
+
+	type widget_new_artifacts = widget
+	{
+		datacontext = "[AccessLocalPlayerCachedData.AccessNewArtifacts]"
+		size = { 25 25 }
+		tooltip = "ROYAL_COURT_STATUS_NEW_COURT_ARTIFACTS"
+		tooltip_enabled = no
+
+		button_round  = {
+			parentanchor = center
+			size = { 25 25 }
+			frame = 1
+			upframe = 1
+			alwaystransparent = yes
+
+			text_single = {
+				parentanchor = center
+				text = "[LocalPlayerNewArtifacts.GetNumNewArtifacts|V]"
+				default_format = "#high"
+				align = nobaseline
+			}
+		}
+	}
+
+	type widget_below_cgv_expectations = widget
+	{
+		size = { 25 25 }
+		tooltip = "ROYAL_COURT_STATUS_CGV_EXPECTATIONS"
+		tooltip_enabled = no
+
+		icon = {
+			size = { 25 25 }
+			visible = "[LessThan_int32( CourtGrandeurData.GetCurrentLevel, CourtGrandeurData.GetMinimumExpectedLevel )]"
+			texture = "gfx/interface/icons/symbols/icon_warning.dds"
+		}
+	}
+
+	type container_royal_court_tab_tooltip = container
+	{
+		using = GeneralTooltipSetup
+		alwaystransparent = no
+
+		object_tooltip_pop_out = {
+			blockoverride "concept_link"
+			{
+				visible = no
+			}
+
+			blockoverride "main_description"
+			{
+				vbox = {
+					layoutpolicy_horizontal = expanding
+					block "action_description" {}
+
+					spacer = {
+						size = { 0 10 }
+
+						block "spacer_visibility" {}
+					}
+				}
+			}
+		}
+	}
+}
+
+template Pending_Court_Events_Data
+{
+	visible = "[GreaterThan_int32( Character.GetNumPendingCourtEvents, '(int32)0' )]"
+	tooltip = ROYAL_COURT_STATUS_PENDING_EVENTS
+}
+
+template New_Court_Artifacts_Data
+{
+	datacontext = "[AccessLocalPlayerCachedData.AccessNewArtifacts]"
+	visible = "[GreaterThan_int32( LocalPlayerNewArtifacts.GetNumNewArtifactsOfCategory( 'court' ), '(int32)0' )]"
+	tooltip = "ROYAL_COURT_STATUS_NEW_COURT_ARTIFACTS"
+}
+
+template Below_CGV_Expectations_Data
+{
+	visible = "[LessThan_int32( CourtGrandeurData.GetCurrentLevel, CourtGrandeurData.GetMinimumExpectedLevel )]"
+	tooltip = "ROYAL_COURT_STATUS_CGV_EXPECTATIONS"
+}
+
+template Current_Court_Events_Data
+{
+	datacontext = "[AccessLocalPlayerCachedData.AccessCourtEvents]"
+	visible = "[GreaterThan_int32( LocalPlayerCourtEvents.GetNumberCourtEvents, '(int32)0' )]"
+	tooltip = "ROYAL_COURT_STATUS_CURRENT_EVENTS"
+}
