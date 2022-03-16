@@ -496,7 +496,7 @@ start_hunt_decision = {
 }
 
 hold_court_decision = {
-	ai_check_interval = 0
+	ai_check_interval = 96
 	picture = "gfx/interface/illustrations/decisions/decision_knight_kneeling.dds"
 	major = yes
 	is_invisible = yes
@@ -553,10 +553,12 @@ hold_court_decision = {
 	}
 	
 	ai_potential = {
+		is_at_war = no
+		gold >= minor_gold_value
 	}
 
 	ai_will_do = {
-		base = 0
+		base = 100
 	}
 }
 
@@ -583,6 +585,13 @@ petition_liege_decision = {
 		is_available_adult = yes
 		liege = { is_available_adult = yes }
 		is_at_war_with_liege = no
+		trigger_if = {
+			limit = {
+				is_ai = no
+				has_royal_court = yes
+			}
+			has_spawned_court_events = no # should only be used for human players
+		}
 
 		trigger_if = { # Council
 			limit = { 
@@ -856,7 +865,7 @@ petition_liege_decision = {
 			icon = "gfx/interface/icons/message_feed/war.dds"
 			ai_chance = { value = 0 } # Currently unused
 		}
-		### Counties/Council
+		### Counties
 		item = { # Control
 			value = petition_liege_county_control
 			is_valid = {
@@ -1142,6 +1151,14 @@ pay_homage_decision = {
 		liege = { is_available_adult = yes }
 		is_at_war_with_liege = no
 		trigger_if = {
+			limit = {
+				is_ai = no
+				has_royal_court = yes
+			}
+			has_spawned_court_events = no # should only be used for human players
+		}
+		
+		trigger_if = {
 			limit = { has_variable = pay_homage_grace } # Has not paid homage to this liege before
 			custom_tooltip = {
 				text = pay_homage_grace_tt
@@ -1149,7 +1166,9 @@ pay_homage_decision = {
 			}
 		}
 		trigger_if = {
-			limit = { is_ai = yes }
+			limit = {
+				is_ai = yes
+			}
 			NOT = {
 				liege = { has_variable = pay_homage_cooldown }
 			}
@@ -1169,8 +1188,15 @@ pay_homage_decision = {
 			current_description = pay_homage_submission_desc
 			localization = pay_homage_decision_option_submission
 			icon = "gfx/interface/icons/icon_liege.dds"
-			ai_chance = { # Most likely
+			ai_chance = { # Always likely
 				value = 50
+				if = { # Generous vassals want to give gold if they can!
+					limit = {
+						ai_greed <= -50
+						gold >= medium_gold_value
+					}
+					add = -50
+				}
 			}
 		}
 
@@ -1188,10 +1214,20 @@ pay_homage_decision = {
 			localization = pay_homage_decision_option_hook
 			icon = "gfx/interface/icons/message_feed/hook.dds"
 			ai_chance = { # More likely if family
-				value = 10
+				value = 25
 				if = {
 					limit = { is_close_or_extended_family_of = liege }
-					add = 20
+					add = 25
+				}
+				if = { # Certain AI's really do not want to be indebted
+					limit = {
+						OR = {
+							has_trait = paranoid
+							has_trait = arrogant
+							ai_greed >= 50
+						}
+					}
+					add = -50
 				}
 			}
 		}
@@ -1224,7 +1260,7 @@ pay_homage_decision = {
 							vassal_contract_obligation_level:feudal_government_taxes = feudal_tax_low_level
 						}
 					}
-					add = 10
+					add = 40
 				}
 				else_if = {
 					limit = {
@@ -1233,7 +1269,18 @@ pay_homage_decision = {
 							vassal_contract_obligation_level:feudal_government_taxes = feudal_tax_exempt_level
 						}
 					}
-					add = 20
+					add = 90
+				}
+				
+				if = { # Certain AI's really do not want increased obligations
+					limit = {
+						OR = {
+							has_trait = ambitious
+							has_trait = arrogant
+							ai_greed >= 50
+						}
+					}
+					add = -50
 				}
 			}
 		}
@@ -1250,10 +1297,17 @@ pay_homage_decision = {
 			localization = pay_homage_decision_option_gold
 			icon = "gfx/interface/icons/message_feed/money.dds"
 			ai_chance = { # More likely if rich
-				value = 10
+				value = 50
 				if = {
 					limit = { gold > major_gold_value }
-					add = 10
+					add = 50
+				}
+				
+				if = { # Certain AI's really do not want to part with gold
+					limit = {
+						ai_greed >= 50
+					}
+					add = -100
 				}
 			}
 		}
@@ -1346,14 +1400,14 @@ pay_homage_decision = {
 					}
 					set_variable = { # To stop AI vassals taking decision all at once
 						name = pay_homage_cooldown
-						years = 3
+						years = 2
 					}
 				}
 				else = {
 					remove_variable = pay_homage_cooldown
 					set_variable = { # To stop AI vassals taking decision all at once
 						name = pay_homage_cooldown
-						years = 3
+						years = 2
 					}
 				}
 			}
@@ -1361,7 +1415,7 @@ pay_homage_decision = {
 	}
 	
 	ai_potential = {
-		always = yes
+		is_at_war = no
 	}
 
 	ai_will_do = {
@@ -1369,6 +1423,12 @@ pay_homage_decision = {
 		modifier = {
 			add = 50
 			prestige > standard_activity_cost
+		}
+		modifier = { # AI's who can give gold are more likely
+			add = 50
+			gold >= medium_gold_value
+			ai_greed < 50
+			primary_title.tier > tier_county
 		}
 		modifier = {
 			add = -50
