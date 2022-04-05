@@ -1,0 +1,224 @@
+﻿populate_wok_marriage_candidates = {
+	every_relation = {
+		type = lover
+		type = friend
+		type = soulmate
+		type = crush
+		# type = canon_spouse # Doesn't teach people about the mechanic if Find Spouse works immediately.
+		limit = { # Don't marry other faiths' landed HoFs
+			NAND = {
+				is_landless_ruler = yes
+				faith.religious_head = this
+				NOT = { scope:secondary_actor.faith = faith }
+			}
+		}
+		add_to_list = characters
+	}
+}
+
+marry_canon_spouse = {
+	save_scope_as = actor
+	#save_scope_as = secondary_actor
+	if = {
+		limit = {
+			any_relation = {
+				type = canon_spouse
+			}
+		}
+		# save_scope_value_as = {
+		# 	name = marriage_hook
+		# 	value = no
+		# }
+		random_relation = {
+			type = canon_spouse
+			limit = {
+				can_marry_character_trigger = {
+					CHARACTER = scope:actor
+				}
+			}
+			#save_scope_as = recipient
+			#save_scope_as = secondary_recipient
+			if = {
+				limit = {
+					OR = {
+						this = character:BookHoid
+						this = character:BookJasnahKholin
+					}
+				}
+				marry_matrilineal = prev
+				if = {limit = {num_of_relation_soulmate = 0} set_relation_soulmate = prev}
+			}
+			else = {
+				marry = prev
+			}
+		}
+		#marriage_interaction_on_accept_effect = yes
+	}
+}
+
+# Courtship Revamp System
+
+test_courtship = {
+	start_scheme = {
+		type = courting
+		target = character:BookJasnahKholin
+	}
+	random_scheme = {
+		save_scope_as = scheme
+		scheme_target = {
+			save_scope_as = target
+		}
+	}
+	trigger_event = wok_courtship.1001
+}
+
+start_wokc_scheme = {
+	scope:secondary_actor = {
+		start_scheme = {
+			type = $SCHEME$
+			target = scope:secondary_recipient
+		}
+		random_scheme = {
+			limit = {
+				scheme_type = $SCHEME$
+				scheme_target = scope:secondary_recipient
+			}
+			set_variable = {
+				name = matchmaker
+				value = scope:actor
+			}
+			if = {
+				limit = {
+					exists = scope:secondary_actor
+					NOT = {
+						scope:actor = scope:secondary_actor
+					}
+				}
+				scope:actor = {
+					add_to_variable_list = {
+						name = arranged_courtships
+						target = prev
+					}
+				}
+			}
+		}
+	}
+}
+
+setup_matchmaker_notification_target = { # Needed because the scheme may end before the matchmaker is notified.
+	if = {
+		limit = {
+			exists = scope:scheme.var:matchmaker
+			scope:scheme.var:matchmaker = {is_alive = yes is_ai = no}
+		}
+		scope:scheme.var:matchmaker = {
+			save_scope_as = matchmaker
+		}
+	}
+}
+
+notify_matchmaker_of_courting_outcome = { # SUCCESS = bool/flag notify_matchmaker_of_courting_outcome = {SUCCESS = yes}
+	hidden_effect = {
+		if = {
+			limit = {
+				exists = scope:matchmaker
+				scope:matchmaker = {
+					is_alive = yes
+					is_ai = no
+				}
+			}
+			save_temporary_scope_value_as = {
+				name = match_made
+				value = $SUCCESS$
+			}
+			scope:matchmaker = {
+				remove_list_variable = {
+					name = arranged_courtships
+					target = scope:scheme
+				}
+				if = {
+					limit = {
+						exists = scope:scheme_successful
+						scope:match_made = yes
+					}
+					send_interface_message = {
+						type = msg_arranged_courtship_good
+						title = arrange_courtship_outcome
+						desc = msg_effect
+						left_icon = scope:scheme.scheme_owner
+						right_icon = scope:scheme.scheme_target
+						custom_tooltip = arrange_courtship_success
+					}
+				}
+				else_if = {
+					limit = {scope:match_made = flag:invalidated}
+					# send_interface_message = {
+					# 	type = msg_arranged_courtship_inconclusive
+					# 	title = arrange_courtship_outcome
+					# 	desc = msg_effect
+					# 	left_icon = scope:scheme.scheme_owner
+					# 	right_icon = scope:scheme.scheme_target
+					# 	custom_tooltip = arrange_courtship_invalidated
+					# }
+				}
+				else_if = {
+					limit = {NOT = {scope:match_made = no}}
+					send_interface_message = {
+						type = msg_arranged_courtship_inconclusive
+						title = arrange_courtship_outcome
+						desc = msg_effect
+						left_icon = scope:scheme.scheme_owner
+						right_icon = scope:scheme.scheme_target
+						custom_tooltip = arrange_courtship_inconclusive
+					}
+				}
+				else = {
+					send_interface_message = {
+						type = msg_arranged_courtship_bad
+						title = arrange_courtship_outcome
+						desc = msg_effect
+						left_icon = scope:scheme.scheme_owner
+						right_icon = scope:scheme.scheme_target
+						custom_tooltip = arrange_courtship_failure
+					}
+				}
+			}
+		}
+	}
+}
+
+wok_arrange_courtship_prompt_effect = {
+	if = {
+		limit = {
+			scope:recipient = {
+				wok_arrange_courtship_prompt_trigger = yes
+			}
+		}
+		open_interaction_window = {
+			interaction = arrange_courtship
+			actor = scope:actor
+			recipient = scope:actor
+			secondary_actor = scope:recipient
+		}
+	}
+	else = {
+		open_interaction_window = {
+			interaction = marry_off_interaction
+			actor = scope:actor
+			recipient = scope:recipient
+		}
+	}
+}
+
+# Test_msg = {
+# 	save_scope_as = owner
+# 	save_scope_as = target
+# 	send_interface_message = {
+# 		type = msg_arranged_courtship_bad
+# 		title = arrange_courtship_outcome
+# 		desc = msg_effect
+# 		left_icon = root
+# 		right_icon = root
+# 		custom_tooltip = arrange_courtship_failure
+# 	}
+# }
