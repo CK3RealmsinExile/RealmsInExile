@@ -122,6 +122,11 @@ event_saruman_does_not_rule_isengard_effect = {
 #		vassal_contract_set_obligation_level = { type = war_declaration_rights level = 1 }
 		vassal_contract_set_obligation_level = { type = title_revocation_rights level = 1 }
 	}
+	# A Wizard in the Hall of Kings.
+	trigger_event = {
+		id = saruman.0005
+		days = { 900 3300 }
+	}
 }
 decision_saruman_palantir_introduction_effect = {
 	add_stress = medium_stress_impact_gain
@@ -146,7 +151,7 @@ event_saruman_palantir_deceived_sauron_effect = {
 		days = { 1200 1800 }
 	}
 	trigger_event = { # Cult of the White Hand.
-		id = saruman.0005
+		id = saruman.0006
 		days = { 900 2100 }
 	}
 	# Thrydan of the Wildmen of Dunland.
@@ -191,6 +196,290 @@ event_saruman_palantir_lost_effect = {
 	}
 	remove_character_flag = saruman_palantir_introduction
 }
+event_saruman_gondor_visit_character_effect = {
+	create_character = {
+		gender_female_chance = root_soldier_female_chance
+		employer = root
+		location = root.location
+		template = new_warrior_character
+		culture = culture:calenardhon_gwathurim
+		faith = faith:faith_edain
+		trait = open_terrain_expert
+		trait = blood_of_numenor_1
+		save_scope_as = anorien_knight_1
+	}
+	create_character = {
+		gender_female_chance = root_soldier_female_chance
+		employer = root
+		location = root.location
+		template = new_warrior_character
+		culture = culture:isengard_dunlending
+		faith = faith:faith_edain
+		trait = outrider_leader
+		trait = blood_of_numenor_1
+		save_scope_as = isengarder_knight_1
+	}
+}
+event_saruman_gondor_importance_effect = {
+	remove_short_term_gold = major_gold_loss
+	add_piety = medium_piety_gain
+	add_character_modifier = { modifier = lotr_influence_in_minas_tirith years = 10 }
+	if = {
+		limit = { NOT = { is_ai = yes } }
+		scope:gondor_holder = { add_prestige = medium_prestige_loss }
+	}
+	scope:gondor_holder = {
+		add_opinion = {
+			target = scope:saruman
+			modifier = respect_opinion
+			opinion = 5
+		}
+		send_interface_message = {
+			title = saruman.0005.a.gondor_holder
+			add_courtier = scope:isengarder_knight_1
+			spawn_army = {
+				uses_supply = no
+				inheritable = no
+				name = isengarder_tower_guard_event_troops
+				men_at_arms = {
+					type = orthanc_guard
+					stacks = 1
+				}
+				location = title:c_isengard.title_province
+			}
+			left_icon = scope:saruman
+		}
+	}
+	hidden_effect = {
+		scope:anorien_knight_1 = { death = { death_reason = death_disappearance } }
+		random = {
+			chance = 10
+			lotr_generate_small_family = { CHARACTER = scope:isengarder_knight_1 }
+		}
+	}
+}
+event_saruman_gondor_friend_effect = {
+	remove_short_term_gold = minor_gold_loss
+	add_prestige = medium_prestige_loss
+	scope:gondor_holder = {
+		add_opinion = {
+			target = scope:saruman
+			modifier = friendliness_opinion
+			opinion = 20
+		}
+		send_interface_message = {
+			title = saruman.0005.b.gondor_holder
+			spawn_army = {
+				uses_supply = no
+				inheritable = no
+				name = anorien_tower_guard_event_troops
+				men_at_arms = {
+					type = guard_of_the_citadel
+					stacks = 1
+				}
+				location = title:c_minas_tirith.title_province
+			}
+			add_courtier = scope:anorien_knight_1
+			left_icon = scope:saruman
+		}
+	}
+	hidden_effect = {
+		scope:isengarder_knight_1 = { death = { death_reason = death_disappearance } }
+		random = {
+			chance = 20
+			lotr_generate_small_family = { CHARACTER = scope:anorien_knight_1 }
+		}
+	}
+}
+
+
+event_saruman_cult_of_white_hand_convert_effect = {
+	if = {
+		limit = { NOT = { faith = faith:white_hand_cult } }
+		set_character_faith = faith:white_hand_cult
+		hidden_effect = {
+			faith:white_hand_cult = {
+				change_fervor = {
+					value = 10
+					desc = fervor_gain_holy_order_founded
+				}
+				set_religious_head_title = title:k_the_white_hand
+			}
+			title:k_the_white_hand = {
+				change_title_holder = {
+					holder = scope:saruman
+					change = scope:change
+				}
+			}
+		}
+	}
+	if = {
+		limit = { NOT = { capital_county = { faith = faith:white_hand_cult } } }
+		capital_county = { set_county_faith = faith:white_hand_cult }
+	}
+	
+	# Creat Holy Order for Cult of the White Hand. Saruman's Manslayers!
+	custom_tooltip = create_holy_order_decision_effect_message
+	title:c_isengard = { save_scope_as = designated_county }
+	# Select an appropriate barony. If there's an empty space in the capital, we create a castle.
+	# Otherwise, grab an existing non-capital castle/city.
+	if = {
+		limit = { scope:designated_county = { any_county_province = { has_holding = no } } }
+		scope:designated_county = {
+			random_county_province = {
+				limit = { has_holding = no }
+				set_holding_type = castle_holding
+				barony = { save_scope_as = leased_barony }
+			}
+		}
+	}
+	else = {
+		scope:designated_county = {
+			random_county_province = {
+				limit = {
+					is_county_capital = no
+					OR = {
+						has_holding_type = castle_holding
+						has_holding_type = city_holding
+					}
+				}
+				barony = { save_scope_as = leased_barony }
+			}
+		}
+	}
+	# Create a suitable leader for the Holy Order.
+	if = {
+		limit = { has_character_flag = saruman_has_urukhai }
+		create_character = {
+			template = orc_holy_order_character
+			location = scope:leased_barony.title_province
+			save_scope_as = leader
+		}
+	}
+	else = {
+		create_character = {
+			template = dunlending_holy_order_character
+			location = scope:leased_barony.title_province
+			save_scope_as = leader
+		}
+	}
+	# Create the actual Holy Order.
+	create_holy_order = {
+		leader = scope:leader
+		capital = scope:leased_barony
+		save_scope_as = new_holy_order
+	}
+	hidden_effect = {
+		scope:leader = {
+			add_trait = order_member
+			add_piety_level = 2
+			add_gold = holy_order_starting_gold
+			every_courtier = {
+				add_trait = order_member
+				if = {
+					limit = { has_character_flag = saruman_has_urukhai }
+					set_culture = culture:isengard_urukhai
+				}
+				else = { set_culture = culture:isengard_dunlending }
+				set_character_faith = faith:white_hand_cult
+			}
+		}
+	}
+	# Give it some buildings.
+	hidden_effect = {
+		scope:leased_barony.title_province = {
+			if = {
+				limit = { NOT = { has_building_or_higher = curtain_walls_01 } }
+				if = {
+					limit = { free_building_slots = 0 }
+					add_building_slot = 1
+				}
+				add_building = curtain_walls_01
+			}
+			if = {
+				limit = { NOT = { has_building_or_higher = barracks_01 } }
+				if = {
+					limit = { free_building_slots = 0 }
+					add_building_slot = 1
+				}
+				add_building = barracks_01
+			}
+			if = {
+				limit = { NOT = { has_building_or_higher = military_camps_01 } }
+				if = {
+					limit = { free_building_slots = 0 }
+					add_building_slot = 1
+				}
+				add_building = military_camps_01
+			}
+			if = {
+				limit = { NOT = { has_building_or_higher = gondor_battle_tower } }
+				if = {
+					limit = { free_building_slots = 0 }
+					add_building_slot = 1
+				}
+				add_building = gondor_battle_tower
+			}
+		}
+	}
+	# Some minor misc effects.
+#	create_holy_order_effect = yes
+	scope:leader.primary_title = {
+		set_coa = ho_white_hand_cult
+		set_title_name = holy_order_white_hand_cult
+	}
+	# Messages.
+	send_interface_toast = {
+		type = holy_order_founded_message
+		desc = i_created_holy_order_message
+		left_icon = scope:leader
+		right_icon = scope:new_holy_order.title
+	}
+	save_scope_as = holy_order_creator
+	every_ruler = {
+		limit = {
+			faith = scope:holy_order_creator.faith
+			NOT = { this = scope:holy_order_creator }
+		}
+		send_interface_message = {
+			type = holy_order_founded_message
+			desc = someone_created_holy_order_message
+			left_icon = scope:holy_order_creator
+			right_icon = scope:new_holy_order.title
+		}
+	}
+	every_neighboring_top_liege_realm_owner = {
+		limit = { NOT = { faith = scope:holy_order_creator.faith } }
+		send_interface_message = {
+			type = enemy_holy_order_founded_message
+			desc = other_faith_neighbor_created_holy_order_message
+			left_icon = scope:holy_order_creator
+			right_icon = scope:new_holy_order.title
+		}
+	}
+	
+	
+	
+	
+	
+}
+event_saruman_cult_of_white_hand_stay_effect = {
+	add_prestige = minor_prestige_loss
+	add_stress = medium_stress_impact_gain
+}
+event_saruman_cult_of_white_hand_return_effect = {
+	if = {
+		limit = { NOT = { faith = faith:faith_ainur } }
+		set_character_faith = faith:faith_ainur
+	}
+	add_piety = massive_piety_loss
+	add_stress = massive_stress_impact_gain
+}
+
+
+
+
+
 ### WIZARDS'S NEW CLOTHES ###
 decision_saruman_many_colours_effect = {
 	add_prestige = major_prestige_gain
