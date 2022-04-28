@@ -121,7 +121,7 @@ PixelShader =
 			// color for k_france is { 15 27 187 }
 			const float3 DISCARDED_COLOR = float3(0.0, 0.0, 0.0);
 
-			float KeepColorStepValue = step(0.15, distance(PrimaryColor.rgb, DISCARDED_COLOR));
+			float KeepColorStepValue = step(0.01, distance(PrimaryColor.rgb, DISCARDED_COLOR));
 
 			PrimaryColor = lerp(float4(0.0, 0.0, 0.0, 0.0), PrimaryColor, KeepColorStepValue);
 			// END MOD
