@@ -31,14 +31,10 @@ on_war_started = {
 		wastelands.0002 # Immediate truce if declaring war agains Wastelands
 	}
 	effect = {
-
 		scope:attacker = {
 			if = {
 				limit = {
 					any_vassal_or_below = { is_ai = no }
-					NOT = {
-						has_truce = scope:defender
-					}
 				}
 				every_vassal_or_below = {
 					limit = { is_ai = no }
@@ -54,9 +50,6 @@ on_war_started = {
 			if = { # LotR tributary system calls
 				limit = { 
 					has_non_permanent_tributaries = yes
-					NOT = {
-						has_truce = scope:defender
-					}
 				}
 				trigger_event = {
 					id = tributary.0007
@@ -68,9 +61,6 @@ on_war_started = {
 			if = {
 				limit = {
 					any_vassal_or_below = { is_ai = no }
-					NOT = {
-						has_truce = scope:attacker
-					}
 				}
 				every_vassal_or_below = {
 					limit = { is_ai = no }
@@ -90,9 +80,6 @@ on_war_started = {
 						SUZERAIN = var:my_suzerain
 						TRIBUTARY = scope:defender
 					}
-					NOT = {
-						has_truce = scope:attacker
-					}
 				}
 				var:my_suzerain = { 
 					trigger_event = {
@@ -104,13 +91,19 @@ on_war_started = {
 			if = { # LotR tributary system calls
 				limit = { 
 					has_non_permanent_tributaries = yes
-					NOT = {
-						has_truce = scope:attacker
-					}
 				}
 				trigger_event = {
 					id = tributary.0008
 					days = 1
+				}
+			}
+			#life is just a joke tradition stress loss
+			if = {
+				limit = {
+					scope:defender.culture = { has_cultural_parameter = war_stress_loss }
+				}
+				stress_impact = {
+					base = medium_stress_loss
 				}
 			}
 		}
@@ -143,7 +136,66 @@ on_war_won_attacker = {
 					trigger_event = { id = game_rule.3 days = 1 }
 				}
 			}
+			fp2_contract_assistance_war_pay_effect = yes # Pay out Contract Assistance money
 		}
+
+		# Add a variable to count recent losses
+		if = {
+			limit = { scope:defender = { has_variable = recently_lost_wars } }
+			scope:defender = {
+				save_temporary_scope_value_as = {
+					name = prev_lost_wars
+					value = var:recently_lost_wars
+				}
+
+				remove_variable = recently_lost_wars
+				set_variable = {
+					name = recently_lost_wars
+					value =  {
+						add = scope:prev_lost_wars
+						add = 1
+					}
+					years = 10
+				}
+			}
+		}
+		else = {
+			scope:defender = {
+				set_variable = {
+					name = recently_lost_wars
+					value =  1
+					years = 10
+				}
+			}
+		}
+
+		# Struggle Catalysts
+		scope:attacker = {
+			if = {
+				limit = {
+					any_character_struggle = {
+						involvement = involved
+						activate_struggle_catalyst_secondary_character_involvement_involved_trigger = {
+							CATALYST = catalyst_win_any_war_within_the_region
+							CHAR = scope:defender
+						}
+					}
+				}
+				every_character_struggle = {
+					limit = {
+						activate_struggle_catalyst_secondary_character_involvement_involved_trigger = {
+							CATALYST = catalyst_win_any_war_within_the_region
+							CHAR = scope:defender
+						}
+					}
+					activate_struggle_catalyst = {
+						catalyst = catalyst_win_any_war_within_the_region
+						character = scope:attacker
+					}
+				}
+			}
+		}
+
 	}
 }
 
@@ -166,6 +218,37 @@ on_war_won_defender = {
 					trigger_event = { id = game_rule.3 days = 1 }
 				}
 			}
+			fp2_contract_assistance_war_pay_effect = yes
+		}
+
+		# Add a variable to count recent losses
+		if = {
+			limit = { scope:attacker = {  has_variable = recently_lost_wars } }
+			scope:attacker = {
+				save_temporary_scope_value_as = {
+					name = prev_lost_wars
+					value = var:recently_lost_wars
+				}
+
+				remove_variable = recently_lost_wars
+				set_variable = {
+					name = recently_lost_wars
+					value =  {
+						add = scope:prev_lost_wars
+						add = 1
+					}
+					years = 10
+				}
+			}
+		}
+		else = {
+			scope:attacker = {
+				set_variable = {
+					name = recently_lost_wars
+					value =  1
+					years = 10
+				}
+			}
 		}
 	}
 }
@@ -182,6 +265,7 @@ on_war_white_peace = {
 					trigger_event = { id = game_rule.3 days = 1 }
 				}
 			}
+			fp2_contract_assistance_war_pay_effect = yes # Pay out Contract Assistance money
 		}
 	}
 }
@@ -208,6 +292,7 @@ on_war_invalidated = {
 					trigger_event = { id = game_rule.3 days = 1 }
 				}
 			}
+			fp2_contract_assistance_invalidated_effect = yes
 		}
 	}
 }

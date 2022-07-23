@@ -126,7 +126,20 @@ start_abduct = {
 	ignores_pending_interaction_block = yes
 	
 	is_shown = {
-		scope:actor = { has_perk = kidnapper_perk } # Scheme unlocked by the Kidnapper Perk
+		scope:actor = {
+			OR = {
+				has_perk = kidnapper_perk  # Scheme unlocked by the Kidnapper Perk
+				AND = {
+					any_character_struggle = {
+						involvement = involved
+						has_struggle_phase_parameter = unlocks_abduct_for_all
+						is_secondary_character_involvement_involved_trigger = {
+							CHAR = scope:recipient
+						}
+					}
+				}
+			}
+		}
 		
 		scope:actor = {
 			NOT = { has_culture = culture:wastelands }
@@ -258,6 +271,7 @@ befriend_interaction = {
 
 	ai_targets = {
 		ai_recipients = liege
+		ai_recipients = neighboring_rulers
 	}
 	ai_targets = {
 		ai_recipients = vassals
@@ -267,7 +281,6 @@ befriend_interaction = {
 	ai_frequency = 36
 
 	is_shown = {
-	
 		scope:actor = {
 			NOT = { has_culture = culture:wastelands }
 		}
@@ -275,18 +288,8 @@ befriend_interaction = {
 			NOT = { has_culture = culture:wastelands }
 		}
 		scope:actor = {
-			OR = {
-				has_perk = befriend_perk # Unlocked by the Befriend Perk
-				AND = {
-					exists = dynasty
-					dynasty = {
-						has_dynasty_perk = fp1_adventure_legacy_5
-					}
-					target_is_vassal_or_below = scope:recipient
-				}
-			}
+			can_use_befriend_scheme_trigger = { TARGET = scope:recipient }
 		}
-		
 		NOT = { scope:actor = scope:recipient }
 	}
 
@@ -391,6 +394,11 @@ befriend_interaction = {
 					has_dynasty_perk = fp1_adventure_legacy_5
 				}
 			}
+			culture = { has_cultural_parameter = automatic_befriend_access }
+			any_character_struggle = {
+				involvement = involved
+				has_struggle_phase_parameter = struggle_unlocks_befriend_schemes_for_everyone
+			}
 		}
 		NOR = {
 			has_trait = shy
@@ -453,6 +461,65 @@ befriend_interaction = {
 				number_of_personality_traits_in_common = {
 					target = scope:actor
 					value < 1
+				}
+			}
+		}
+		
+		# Struggle
+		modifier = {
+			scope:actor = {
+				any_character_struggle = {
+					involvement = involved
+					is_struggle_type = iberian_struggle
+					phase_has_catalyst = catalyst_became_friend_lover_with_character
+				}
+			}
+			scope:recipient = {
+				any_character_struggle = {
+					involvement = involved
+					is_struggle_type = iberian_struggle
+					phase_has_catalyst = catalyst_became_friend_lover_with_character
+				}
+			}
+			add = {
+				value = 0
+				if = {
+					limit = {
+						scope:actor = {
+							has_character_flag = agenda_towards_deescalation
+							trait_compatibility = {
+								target = scope:recipient
+								value >= low_positive_trait_compatibility
+							}
+						}
+						scope:recipient = {
+							has_character_flag = agenda_towards_deescalation
+						}
+					}
+					add = 200
+				}
+				else_if = {
+					limit = {
+						scope:actor = {
+							has_character_flag = agenda_towards_deescalation
+							trait_compatibility = {
+								target = scope:recipient
+								value >= low_positive_trait_compatibility
+							}
+						}
+					}
+					add = 50
+				}
+				else_if = {
+					limit = {
+						scope:actor = {
+							has_character_flag = agenda_towards_escalation
+						}
+					}
+					add = -200
+				}
+				else = {
+					add = 10
 				}
 			}
 		}
@@ -563,6 +630,15 @@ seduce_interaction = {
 	ai_targets = {
 		ai_recipients = guests
 		ai_recipients = courtiers
+		ai_recipients = neighboring_rulers
+	}
+	ai_targets = {
+		ai_recipients = vassals
+		max = 5
+	}
+	ai_targets = {
+		ai_recipients = peer_vassals
+		max = 5
 	}
 	
 	# We don't want this to grow ludicrously large in big realms
@@ -850,6 +926,53 @@ seduce_interaction = {
 				NOT = { is_pool_guest_of = scope:actor }
 			}
 		}
+		
+		# Struggle
+		modifier = {
+			scope:recipient = {
+				any_character_struggle = {
+					involvement = involved
+					is_struggle_type = iberian_struggle
+					phase_has_catalyst = catalyst_became_friend_lover_with_character
+				}
+			}
+			scope:actor = {
+				any_character_struggle = {
+					involvement = involved
+					is_struggle_type = iberian_struggle
+					phase_has_catalyst = catalyst_became_friend_lover_with_character
+				}
+			}
+			add = {
+				value = 0
+				if = {
+					limit = {
+						scope:actor = {
+							has_character_flag = agenda_towards_deescalation
+							trait_compatibility = {
+								target = scope:recipient
+								value >= low_positive_trait_compatibility
+							}
+						}
+						scope:recipient = {
+							has_character_flag = agenda_towards_deescalation
+						}
+					}
+					add = 50
+				}
+				else_if = {
+					limit = {
+						scope:actor = {
+							has_character_flag = agenda_towards_escalation
+						}
+					}
+					add = -200
+				}
+				else = {
+					add = 5
+				}
+			}
+		}
 
 		modifier = {
 			factor = 1.25
@@ -1016,6 +1139,17 @@ court_interaction = {
 
 	ai_targets = {
 		ai_recipients = spouses
+		ai_recipients = neighboring_rulers
+	}
+	
+	ai_targets = {
+		ai_recipients = vassals
+		max = 5
+	}
+	
+	ai_targets = {
+		ai_recipients = peer_vassals
+		max = 5
 	}
 
 	ai_targets = {
@@ -1121,9 +1255,17 @@ court_interaction = {
 		is_adult = yes
 		trigger_if = {
 			limit = {
-				NOT = {
+				NOR = {
 					culture = {
 						has_cultural_parameter = ai_romance_scheme_increase
+					}
+					AND = {
+						has_character_flag = agenda_towards_deescalation
+						any_character_struggle = {
+							involvement = involved
+							is_struggle_type = iberian_struggle
+							phase_has_catalyst = catalyst_became_best_friend_soulmate_with_very_important_character
+						}
 					}
 				}
 			}
@@ -1155,6 +1297,71 @@ court_interaction = {
 	
 	ai_will_do = {
 		base = 0
+		
+		
+		
+		# Struggle
+		modifier = {
+			scope:actor = {
+				any_character_struggle = {
+					involvement = involved
+					is_struggle_type = iberian_struggle
+					phase_has_catalyst = catalyst_became_best_friend_soulmate_with_very_important_character
+				}
+			}
+			scope:recipient = {
+				any_character_struggle = {
+					involvement = involved
+					is_struggle_type = iberian_struggle
+					phase_has_catalyst = catalyst_became_best_friend_soulmate_with_very_important_character
+				}
+			}
+			add = {
+				value = 0
+				if = {
+					limit = {
+						scope:actor = {
+							has_character_flag = agenda_towards_deescalation
+						}
+						scope:recipient = {
+							has_character_flag = agenda_towards_deescalation
+						}
+					}
+					add = 25
+				}
+				else_if = {
+					limit = {
+						scope:actor = {
+							has_character_flag = agenda_towards_escalation
+						}
+					}
+					add = -200
+				}
+				else = {
+					add = 5
+				}
+			}
+		}
+		
+		modifier = { # Motivate AI's to use it on catalyst providers exclusively
+			add = -50
+			scope:actor = {
+				any_character_struggle = {
+					involvement = involved
+					is_struggle_type = iberian_struggle
+					phase_has_catalyst = catalyst_became_best_friend_soulmate_with_very_important_character
+				}
+			}
+			scope:recipient = {
+				NOT = {
+					any_character_struggle = {
+						involvement = involved
+						is_struggle_type = iberian_struggle
+						phase_has_catalyst = catalyst_became_best_friend_soulmate_with_very_important_character
+					}
+				}
+			}
+		}
 
 		opinion_modifier = {
 			opinion_target = scope:recipient
@@ -1587,6 +1794,41 @@ learn_language_interaction = {
 	
 	ai_will_do = {
 		base = 0
+
+		# Struggle
+		modifier = {
+			scope:recipient = {
+				any_character_struggle = {
+					involvement = involved
+					phase_has_catalyst = catalyst_learned_new_language_important
+				}
+			}
+			scope:actor = {
+				any_character_struggle = {
+					involvement = involved
+					phase_has_catalyst = catalyst_learned_new_language_important
+				}
+			}
+			add = {
+				value = 0
+				if = {
+					limit = {
+						scope:actor = {
+							has_character_flag = agenda_towards_deescalation
+						}
+					}
+					add = 100
+				}
+				else_if = {
+					limit = {
+						scope:actor = {
+							has_character_flag = agenda_towards_escalation
+						}
+					}
+					add = -50
+				}
+			}
+		}
 		
 		modifier = { # Focus on befriending if that's the path you've chosen
 			add = -50
@@ -1662,60 +1904,72 @@ learn_language_interaction = {
 			}
 		}
 		
-		#modifier = { # Muslims want to learn arabic
-		#	add = 25
-		#	scope:actor = {
-		#		faith.religion = religion:islam_religion
-		#		NOT = {
-		#			knows_language = language_arabic
-		#		}
-		#	}
-		#	scope:recipient = {
-		#		culture = {
-		#			has_cultural_pillar = language_arabic
-		#		}
-		#	}
-		#}
+#		modifier = { # Muslims want to learn arabic
+		modifier = { # LotR: Dúnedain want to learn Westron (or Sindarin?)
+			add = 25
+			scope:actor = {
+#				faith.religion = religion:islam_religion
+				faith.religion = religion:dunedain_religion
+				NOT = {
+#					knows_language = language_arabic
+					knows_language = language_westron
+				}
+			}
+			scope:recipient = {
+				culture = {
+#					has_cultural_pillar = language_arabic
+					has_cultural_pillar = language_westron
+				}
+			}
+		}
 		
-		#modifier = { # Catholic clergy/pious people want to learn latin
-		#	add = 50
-		#	scope:actor = {
-		#		faith = faith:catholic
-		#		OR = {
-		#			has_trait = zealous
-		#			has_trait = humble
-		#			is_clergy = yes
-		#		}
-		#		NOT = {
-		#			knows_language = language_latin
-		#		}
-		#	}
-		#	scope:recipient = {
-		#		culture = {
-		#			has_cultural_pillar = language_latin
-		#		}
-		#	}
-		#}
+#		modifier = { # Catholic clergy/pious people want to learn latin
+		modifier = { # LotR: Free Peoples clergy/pious people want to learn Sindarin
+			add = 50
+			scope:actor = {
+#				faith = faith:catholic
+				faith.religion = { is_in_family = rf_eruhini }
+				OR = {
+					has_trait = zealous
+					has_trait = humble
+					is_clergy = yes
+				}
+				NOT = {
+#					knows_language = language_latin
+					knows_language = language_sindarin
+				}
+			}
+			scope:recipient = {
+				culture = {
+#					has_cultural_pillar = language_latin
+					has_cultural_pillar = language_sindarin
+				}
+			}
+		}
 		
-		#modifier = { # Catholic clergy/pious people want to learn Italian
-		#	add = 50
-		#	scope:actor = {
-		#		faith = faith:catholic
-		#		OR = {
-		#			has_trait = zealous
-		#			has_trait = humble
-		#			is_clergy = yes
-		#		}
-		#		NOT = {
-		#			knows_language = language_italian
-		#		}
-		#	}
-		#	scope:recipient = {
-		#		culture = {
-		#			has_cultural_pillar = language_italian
-		#		}
-		#	}
-		#}
+#		modifier = { # Catholic clergy/pious people want to learn Italian
+		modifier = { # LotR: Forces of Evil clergy/pious people want to learn Black Speech
+			add = 50
+			scope:actor = {
+#				faith = faith:catholic
+				faith.religion = { is_in_family = rf_forcesofevil }
+				OR = {
+					has_trait = zealous
+					has_trait = humble
+					is_clergy = yes
+				}
+				NOT = {
+#					knows_language = language_italian
+					knows_language = language_black_speech
+				}
+			}
+			scope:recipient = {
+				culture = {
+#					has_cultural_pillar = language_italian
+					has_cultural_pillar = language_black_speech
+				}
+			}
+		}
 		
 		modifier = { # Clergy/pious people want to learn their HoF's language
 			add = 50
@@ -1730,48 +1984,59 @@ learn_language_interaction = {
 			scope:recipient = { knows_language_of_culture = scope:actor.faith.religious_head.culture }
 		}
 		
-		#modifier = { # Coptic/Orthodox clergy/pious people want to learn greek
-		#	add = 50
-		#	scope:actor = {
-		#		OR = {
-		#			faith = faith:orthodox
-		#			faith = faith:coptic
-		#		}
-		#		OR = {
-		#			has_trait = zealous
-		#			has_trait = humble
-		#			is_clergy = yes
-		#		}
-		#		NOT = {
-		#			knows_language = language_greek
-		#		}
-		#	}
-		#	scope:recipient = {
-		#		culture = {
-		#			has_cultural_pillar = language_greek
-		#		}
-		#	}
-		#}
+#		modifier = { # Coptic/Orthodox clergy/pious people want to learn greek
+		modifier = { # LotR: Kings Men clergy/pious people want to learn Adunaic
+			add = 50
+			scope:actor = {
+#				OR = {
+#					faith = faith:orthodox
+#					faith = faith:coptic
+#				}
+				faith.religion = religion:adunai_religion
+				OR = {
+					has_trait = zealous
+					has_trait = humble
+					is_clergy = yes
+				}
+				NOT = {
+#					knows_language = language_greek
+					knows_language = language_adunaic
+				}
+			}
+			scope:recipient = {
+				culture = {
+#					has_cultural_pillar = language_greek
+					has_cultural_pillar = language_adunaic
+				}
+			}
+		}
 		
-		#modifier = { # Nestorian clergy/pious people want to learn aramaic
-		#	add = 50
-		#	scope:actor = {
-		#		faith = faith:nestorian
-		#		OR = {
-		#			has_trait = zealous
-		#			has_trait = humble
-		#			is_clergy = yes
-		#		}
-		#		NOT = {
-		#			knows_language = language_aramaic
-		#		}
-		#	}
-		#	scope:recipient = {
-		#		culture = {
-		#			has_cultural_pillar = language_aramaic
-		#		}
-		#	}
-		#}
+#		modifier = { # Nestorian clergy/pious people want to learn aramaic
+		modifier = { # Northmen clergy/pious people want to learn Rohirric
+			add = 50
+			scope:actor = {
+#				faith = faith:nestorian
+				OR = {
+					faith.religion = religion:northmen_religion
+					faith.religion = religion:rhevain_religion
+				}
+				OR = {
+					has_trait = zealous
+					has_trait = humble
+					is_clergy = yes
+				}
+				NOT = {
+#					knows_language = language_aramaic
+					knows_language = language_rohirric
+				}
+			}
+			scope:recipient = {
+				culture = {
+#					has_cultural_pillar = language_aramaic
+					has_cultural_pillar = language_rohirric
+				}
+			}
+		}
 		
 		modifier = {
 			add = 20
