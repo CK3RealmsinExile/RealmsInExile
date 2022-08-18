@@ -698,7 +698,7 @@ Effect snap_to_terrain_alpha_to_coverage_colormap
 	VertexShader = "VS_standard"
 	PixelShader = "PS_standard"
 	BlendState = "alpha_to_coverage"
-	Defines = { "PDX_MESH_SNAP_VERTICES_TO_TERRAIN" "COLORMAP" "ALPHA_TO_COVERAGE" }
+	Defines = { "PDX_MESH_SNAP_VERTICES_TO_TERRAIN" "COLORMAP" "ALPHA_TO_COVERAGE" "APPLY_WINTER" }
 }
 Effect snap_to_terrain_alpha_to_coverage_colormapShadow
 {
@@ -706,6 +706,18 @@ Effect snap_to_terrain_alpha_to_coverage_colormapShadow
 	PixelShader = "PixelPdxMeshAlphaBlendShadow"
 	RasterizerState = ShadowRasterizerState
 	Defines = { "PDX_MESH_SNAP_VERTICES_TO_TERRAIN" "ALPHA_TO_COVERAGE" }
+}
+Effect standard_colormap
+{
+	VertexShader = "VS_standard"
+	PixelShader = "PS_standard"
+	Defines = { "COLORMAP" "APPLY_WINTER" }
+}
+Effect standard_colormapShadow
+{
+	VertexShader = "VertexPdxMeshStandardShadow"
+	PixelShader = "PixelPdxMeshAlphaBlendShadow"
+	RasterizerState = ShadowRasterizerState
 }
 Effect snap_to_terrain_atlas
 {
@@ -839,7 +851,7 @@ Effect snap_to_terrain_alpha_to_coverage_colormap_mapobject
 	VertexShader = "VS_mapobject"
 	PixelShader = "PS_standard"
 	BlendState = "alpha_to_coverage"
-	Defines = { "PDX_MESH_SNAP_VERTICES_TO_TERRAIN" "COLORMAP" "ALPHA_TO_COVERAGE" }
+	Defines = { "PDX_MESH_SNAP_VERTICES_TO_TERRAIN" "COLORMAP" "ALPHA_TO_COVERAGE" "APPLY_WINTER" }
 }
 Effect snap_to_terrain_alpha_to_coverage_colormapShadow_mapobject
 {
@@ -847,6 +859,18 @@ Effect snap_to_terrain_alpha_to_coverage_colormapShadow_mapobject
 	PixelShader = "PS_jomini_mapobject_shadow_alphablend"
 	RasterizerState = ShadowRasterizerState
 	Defines = { "PDX_MESH_SNAP_VERTICES_TO_TERRAIN" "ALPHA_TO_COVERAGE" }
+}
+Effect standard_colormap_mapobject
+{
+	VertexShader = "VS_mapobject"
+	PixelShader = "PS_standard"
+	Defines = { "COLORMAP" "APPLY_WINTER" }
+}
+Effect standard_colormapShadow_mapobject
+{
+	VertexShader = "VS_jomini_mapobject_shadow"
+	PixelShader = "PS_jomini_mapobject_shadow_alphablend"
+	RasterizerState = ShadowRasterizerState
 }
 Effect snap_to_terrain_atlas_mapobject
 {
