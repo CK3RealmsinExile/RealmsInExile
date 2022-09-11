@@ -12,7 +12,7 @@ offer_vassalization_interaction = {
 	ai_target_quick_trigger = {
 		adult = yes
 	}
-	ai_frequency = 48
+	ai_frequency = 12
 
 	is_shown = {
 		scope:recipient = {
@@ -50,7 +50,7 @@ offer_vassalization_interaction = {
 	ai_max_reply_days = 10
 
 	ai_accept = {
-		base = -45
+		base = -50
 		
 		#WASTELANDS
 
@@ -105,6 +105,19 @@ offer_vassalization_interaction = {
 				scope:actor = { has_character_modifier = event_bonus_to_vassal_accept }
 			}
 			add = 20
+		}
+		
+		modifier = { # Cultural Acceptance
+			add = offer_vassalage_acceptance_value
+			desc = cultural_acceptance_interaction_reason
+			trigger = {
+				scope:actor = {
+					NOT = { has_same_culture_as = scope:recipient }
+					culture = {
+						cultural_acceptance = { target = scope:recipient.culture value <= 90 }
+					}
+				}
+			}
 		}
 
 		# MAIN
@@ -227,7 +240,32 @@ offer_vassalization_interaction = {
 			trigger = {
 				scope:recipient = { highest_held_title_tier = tier_kingdom }
 			}
-			add = -50
+			add = {
+				value = -50
+				if = {
+					limit = {
+						scope:recipient = {
+							OR = {
+								has_government = republic_government
+								has_government = theocracy_government
+							}
+						}
+					}
+					add = -50
+				}
+				if = {
+					limit = {
+						scope:recipient.sub_realm_size >= 5
+					}
+					add = -50
+				}
+				if = {
+					limit = {
+						scope:recipient.sub_realm_size >= 10
+					}
+					add = -100
+				}
+			}
 		}
 		modifier = { #We just fought against each other.
 			desc = offer_vassalization_interaction_aibehavior_recent_war_tt
@@ -238,7 +276,7 @@ offer_vassalization_interaction = {
 					}
 				}
 			}
-			add = -40
+			add = -50
 		}
 		modifier = { #I fought an independence war against you.
 			desc = offer_vassalization_interaction_aibehavior_independence_war_tt
@@ -247,6 +285,49 @@ offer_vassalization_interaction = {
 					exists = var:independence_war_former_liege
 					var:independence_war_former_liege = scope:actor
 				}
+			}
+			add = -200
+		}
+		modifier = { # I am Tribal and you are not
+			desc = interaction_tribal_vs_nontribal
+			trigger = {
+				scope:recipient = {
+					has_government = tribal_government
+				}
+				scope:actor = {
+					NOT = { has_government = tribal_government }
+				}
+			}
+			add = -20
+		}
+		modifier = { # You are Tribal and I am not
+			desc = interaction_tribal_vs_nontribal
+			trigger = {
+				scope:actor = {
+					has_government = tribal_government
+				}
+				scope:recipient = {
+					NOT = { has_government = tribal_government }
+				}
+			}
+			add = -20
+		}
+		modifier = { # Isolationist tradition
+			desc = isolationist_reason
+			trigger = {
+				NOT = {
+					scope:actor.culture = scope:recipient.culture
+				}
+				scope:recipient.culture = {
+					has_cultural_tradition = tradition_isolationist
+				}
+			}
+			add = -20
+		}
+		modifier = { #Bankrupt
+			desc = bankrupt_reason
+			trigger = {
+				scope:actor.gold <= -1
 			}
 			add = -100
 		}
@@ -260,7 +341,16 @@ offer_vassalization_interaction = {
 					}
 				}
 			}
-			add = 5
+			add = 10
+		}
+		modifier = { # Allied
+			desc = offer_vassalization_interaction_aibehavior_allied_tt
+			trigger = {
+				scope:recipient = {
+					is_allied_to = scope:actor
+				}
+			}
+			add = 20
 		}
 		modifier = { # Is the Rightful Liege of recipient
 			desc = offer_vassalization_interaction_aibehavior_rightfulliegetitleholder_tt
@@ -270,7 +360,7 @@ offer_vassalization_interaction = {
 					LIEGE = scope:actor
 				}
 			}
-			add = 10
+			add = 20
 		}
 		modifier = { #Is not the Rightful Liege of recipient
 			desc = offer_vassalization_interaction_aibehavior_not_rightfulliegetitleholder_tt
@@ -282,7 +372,27 @@ offer_vassalization_interaction = {
 					}
 				}
 			}
-			add = -25
+			add = -20
+		}
+		modifier = { # Encircled
+			desc = offer_vassalization_interaction_aibehavior_encircled_tt
+			trigger = {
+				scope:recipient = {
+					NOT = {
+						any_neighboring_top_liege_realm_owner = {
+							NOT = {
+								this = scope:actor
+							}
+						}
+					}
+					NOT = {
+						any_realm_county = {
+							is_coastal_county = yes
+						}
+					}
+				}
+			}
+			add = 20
 		}
 		modifier = { #Distant Realm — Overseas Connection
 			desc = offer_vassalization_interaction_aibehavior_distantrealm_tt
@@ -328,12 +438,181 @@ offer_vassalization_interaction = {
 			desc = offer_vassalization_interaction_aibehavior_power_tt
 	  	  	add = {
 				value = 1
-					subtract = {
-					value = scope:recipient.max_military_strength
-					divide = { value = scope:actor.max_military_strength min = 1 }
-					}
+				subtract = {
+					value = scope:recipient.max_military_strength # Intended for recipient to use max, to avoid having vassalizations become too easy for weakened realms
+					divide = { value = scope:actor.current_military_strength min = 1 }
+				}
 				multiply = 20
 				ceiling = yes
+	  		}
+		}
+		modifier = {
+			desc = offer_vassalization_interaction_aibehavior_vassal_opinion_tt
+			trigger = {
+				number_of_powerful_vassals >= 1
+			}
+	  	  	add = {
+				value = 0
+				scope:actor = {
+					every_powerful_vassal = {
+						limit = {
+							opinion = { target = scope:actor value <= -10 }
+							NOT = { opinion = { target = scope:actor value <= -20 } }
+						}
+						add = -10
+					}
+					every_powerful_vassal = {
+						limit = {
+							opinion = { target = scope:actor value <= -20 }
+							NOT = { opinion = { target = scope:actor value <= -30 } }
+						}
+						add = -20
+					}
+					every_powerful_vassal = {
+						limit = {
+							opinion = { target = scope:actor value <= -30 }
+							NOT = { opinion = { target = scope:actor value <= -40 } }
+						}
+						add = -30
+					}
+					every_powerful_vassal = {
+						limit = {
+							opinion = { target = scope:actor value <= -40 }
+							NOT = { opinion = { target = scope:actor value <= -50 } }
+						}
+						add = -40
+					}
+					every_powerful_vassal = {
+						limit = {
+							opinion = { target = scope:actor value <= -50 }
+							NOT = { opinion = { target = scope:actor value <= -60 } }
+						}
+						add = -50
+					}
+					every_powerful_vassal = {
+						limit = {
+							opinion = { target = scope:actor value <= -60 }
+							NOT = { opinion = { target = scope:actor value <= -70 } }
+						}
+						add = -60
+					}
+					every_powerful_vassal = {
+						limit = {
+							opinion = { target = scope:actor value <= -70 }
+							NOT = { opinion = { target = scope:actor value <= -80 } }
+						}
+						add = -70
+					}
+					every_powerful_vassal = {
+						limit = {
+							opinion = { target = scope:actor value <= -80 }
+							NOT = { opinion = { target = scope:actor value <= -90 } }
+						}
+						add = -80
+					}
+					every_powerful_vassal = {
+						limit = {
+							opinion = { target = scope:actor value <= -90 }
+							NOT = { opinion = { target = scope:actor value <= -100 } }
+						}
+						add = -90
+					}
+					every_powerful_vassal = {
+						limit = {
+							opinion = { target = scope:actor value <= -100 }
+						}
+						add = -100
+					}
+					
+					every_powerful_vassal = {
+						limit = {
+							opinion = { target = scope:actor value < 10 }
+							NOT = { opinion = { target = scope:actor value > -10 } }
+						}
+						add = 1
+					}
+					
+					every_powerful_vassal = {
+						limit = {
+							opinion = { target = scope:actor value >= 10 }
+							NOT = { opinion = { target = scope:actor value >= 20 } }
+						}
+						add = 10
+					}
+					every_powerful_vassal = {
+						limit = {
+							opinion = { target = scope:actor value >= 20 }
+							NOT = { opinion = { target = scope:actor value >= 30 } }
+						}
+						add = 20
+					}
+					every_powerful_vassal = {
+						limit = {
+							opinion = { target = scope:actor value >= 30 }
+							NOT = { opinion = { target = scope:actor value >= 40 } }
+						}
+						add = 30
+					}
+					every_powerful_vassal = {
+						limit = {
+							opinion = { target = scope:actor value >= 40 }
+							NOT = { opinion = { target = scope:actor value >= 50 } }
+						}
+						add = 40
+					}
+					every_powerful_vassal = {
+						limit = {
+							opinion = { target = scope:actor value >= 50 }
+							NOT = { opinion = { target = scope:actor value >= 60 } }
+						}
+						add = 50
+					}
+					every_powerful_vassal = {
+						limit = {
+							opinion = { target = scope:actor value >= 60 }
+							NOT = { opinion = { target = scope:actor value >= 70 } }
+						}
+						add = 60
+					}
+					every_powerful_vassal = {
+						limit = {
+							opinion = { target = scope:actor value >= 70 }
+							NOT = { opinion = { target = scope:actor value >= 80 } }
+						}
+						add = 70
+					}
+					every_powerful_vassal = {
+						limit = {
+							opinion = { target = scope:actor value >= 80 }
+							NOT = { opinion = { target = scope:actor value >= 90 } }
+						}
+						add = 80
+					}
+					every_powerful_vassal = {
+						limit = {
+							opinion = { target = scope:actor value >= 90 }
+							NOT = { opinion = { target = scope:actor value >= 100 } }
+						}
+						add = 90
+					}
+					every_powerful_vassal = {
+						limit = {
+							opinion = { target = scope:actor value >= 100 }
+						}
+						add = 100
+					}
+					
+					if = {
+						limit = {
+							number_of_powerful_vassals > 0
+						}
+						divide = number_of_powerful_vassals
+					}
+					else = {
+						divide = 5
+					}
+					divide = 5
+				}
 	  		}
 		}
 
@@ -357,6 +636,25 @@ offer_vassalization_interaction = {
 			}
 			add = 20
 		}
+		modifier = { #Lover modifier.
+			desc = interaction_lover
+			trigger = {
+				scope:recipient = {
+					has_relation_lover = scope:actor
+					NOT = { has_relation_soulmate = scope:actor }
+				}
+			}
+			add = 10
+		}
+		modifier = { #Soulmate modifier.
+			desc = interaction_soulmate
+			trigger = {
+				scope:recipient = {
+					has_relation_soulmate = scope:actor
+				}
+			}
+			add = 20
+		}
 		modifier = { #Rivalry modifier.
 			desc = offer_vassalization_interaction_aibehavior_rival_tt
 			trigger = {
@@ -365,7 +663,7 @@ offer_vassalization_interaction = {
 					NOT = { has_relation_nemesis = scope:actor }
 				}
 			}
-			add = -10
+			add = -100
 		}
 		modifier = { #Nemesis modifier.
 			desc = offer_vassalization_interaction_aibehavior_nemesis_tt
@@ -386,25 +684,27 @@ offer_vassalization_interaction = {
 			add = 5
 		}
 		
-		modifier = { # Cultural Acceptance
-			add = offer_vassalage_acceptance_value
-			desc = cultural_acceptance_interaction_reason
-			trigger = {
-				scope:actor = {
-					NOT = { has_same_culture_as = scope:recipient }
-					culture = {
-						cultural_acceptance = { target = scope:recipient.culture value <= 90 }
-					}
-				}
-			}
-		}
-		
 		modifier = { # Same language
 			add = 5
 			desc = speaks_same_language_interaction_reason
 			trigger = {
 				scope:actor = {
 					knows_language_of_culture = scope:recipient.culture
+				}
+			}
+		}
+		
+		modifier = { # Iberian Struggle, less likely for outsiders to vassalize inside
+			add = -35
+			desc = iberian_struggle_reason_reason
+			trigger = {
+				scope:actor = {
+					NOT = {
+						any_character_struggle = { is_struggle_type = iberian_struggle }
+					}
+				}
+				scope:recipient = {
+					any_character_struggle = { is_struggle_type = iberian_struggle }
 				}
 			}
 		}
@@ -449,7 +749,77 @@ offer_vassalization_interaction = {
 					}
 				}
 			}
-			add = -15
+			add = -20
+		}
+
+		modifier = { # Ambitious
+			desc = TAKE_THE_VOWS_AMBITIOUS
+			trigger = {
+				scope:recipient = {
+					has_trait = ambitious
+				}
+			}
+			add = -20
+		}
+
+		modifier = { # Paranoid
+			desc = INTERACTION_PARANOID
+			trigger = {
+				scope:recipient = {
+					has_trait = paranoid
+				}
+			}
+			add = -20
+		}
+
+		modifier = { # Arrogant
+			desc = INTERACTION_ARROGANT
+			trigger = {
+				scope:recipient = {
+					has_trait = arrogant
+				}
+			}
+			add = -20
+		}
+
+		modifier = { # Fickle
+			desc = INTERACTION_FICKLE
+			trigger = {
+				scope:recipient = {
+					has_trait = fickle
+				}
+			}
+			add = -10
+		}
+
+		modifier = { # Stubborn
+			desc = INTERACTION_STUBBORN
+			trigger = {
+				scope:recipient = {
+					has_trait = stubborn
+				}
+			}
+			add = -10
+		}
+
+		modifier = { # Trusting
+			desc = TAKE_THE_VOWS_TRUSTING
+			trigger = {
+				scope:recipient = {
+					has_trait = trusting
+				}
+			}
+			add = 5
+		}
+
+		modifier = { # Content
+			desc = INTERACTION_CONTENT
+			trigger = {
+				scope:recipient = {
+					has_trait = content
+				}
+			}
+			add = 5
 		}
 
 		# OPINION INFLUENCE
@@ -473,7 +843,30 @@ offer_vassalization_interaction = {
 			}
 			desc = COWED_REASON
 		}
+		opinion_modifier = { #Compare Opinion modifier - Clans care more about opinion
+			trigger = {
+				scope:actor = {
+					has_government = clan_government
+				}
+				scope:recipient = {
+					has_government = clan_government
+				}
+			}
+			who = scope:recipient
+			opinion_target = scope:actor
+			multiplier = 0.7
+		}
 		opinion_modifier = { #Compare Opinion modifier.
+			trigger = {
+				OR = {
+					scope:actor = {
+						NOT = { has_government = clan_government }
+					}
+					scope:recipient = {
+						NOT = { has_government = clan_government }
+					}
+				}
+			}
 			who = scope:recipient
 			opinion_target = scope:actor
 			multiplier = 0.35
@@ -496,10 +889,10 @@ offer_vassalization_interaction = {
 							court_grandeur_current_level < court_grandeur_minimum_expected_level
 						}
 					}
-					multiply = 0.25
+					multiply = 0.15
 				}
 				else = {
-					multiply = 0.5
+					multiply = 0.3
 				}
 			}
 			desc = DIPLOMATIC_COURT_ACCEPTANCE_INCREASE_REASON
@@ -514,6 +907,12 @@ offer_vassalization_interaction = {
 		}
 		modifier = {
 			add = 30
+			scope:recipient = {	has_government = clan_government }
+			scope:religious_exemption_clan = yes
+			desc = CONTRACT_RELIGIOUS_EXEMPTION_REASON
+		}
+		modifier = {
+			add = 30
 			scope:recipient = {	has_government = feudal_government }
 			scope:low_obligations = yes
 			desc = CONTRACT_LOW_TAXES_REASON
@@ -523,6 +922,15 @@ offer_vassalization_interaction = {
 			scope:recipient = {	has_government = feudal_government }
 			scope:high_obligations = yes
 			desc = CONTRACT_HIGH_TAXES_REASON
+		}
+
+		modifier = { # AI-only weights, keep the pope from vassalizing too fast
+			trigger = {
+				exists = faith:catholic.religious_head
+				faith:catholic.religious_head = scope:actor
+				scope:actor = { is_ai = yes }
+			}
+			add = -50
 		}
 	}
 
@@ -573,6 +981,34 @@ offer_vassalization_interaction = {
 		}
 		flag = religious_exemption
 		localization = religious_exemption
+	}
+
+	# Religious exemption, for clans
+	send_option = {
+		is_shown = {
+			scope:recipient = {
+				has_government = clan_government
+			}
+		}
+		is_valid = {
+			NOT = { scope:recipient.faith = scope:actor.faith }
+		}
+		flag = religious_exemption_clan
+		localization = religious_exemption
+	}
+
+	# Nothing, for clans
+	send_option = {
+		is_shown = {
+			scope:recipient = {
+				has_government = clan_government
+			}
+		}
+		is_valid = {
+			always = yes
+		}
+		flag = no_exemption_clan
+		localization = no_exemption
 	}
 
 	send_options_exclusive = yes
@@ -931,6 +1367,22 @@ offer_fealty_interaction = {
 			scope:high_obligations = yes
 			desc = CONTRACT_HIGH_TAXES_REASON
 		}
+		modifier = {
+			add = {
+				value = -10
+				if = {
+					limit = { scope:recipient = { has_trait = zealous } }
+					add = -30
+				}
+				else_if = {
+					limit = { scope:recipient = { has_trait = cynical } }
+					add = 30
+				}
+			}
+			scope:actor = {	has_government = clan_government }
+			scope:religious_exemption_clan = yes
+			desc = CONTRACT_RELIGIOUS_EXEMPTION_REASON
+		}
 	}
 
 	# Low starting obligations
@@ -980,6 +1432,34 @@ offer_fealty_interaction = {
 		}
 		flag = religious_taxation
 		localization = religious_taxation
+	}
+
+	# Religious exemption, for clans
+	send_option = {
+		is_shown = {
+			scope:actor = {
+				has_government = clan_government
+			}
+		}
+		is_valid = {
+			NOT = { scope:recipient.faith = scope:actor.faith }
+		}
+		flag = religious_exemption_clan
+		localization = religious_exemption
+	}
+
+	# Nothing, for clans
+	send_option = {
+		is_shown = {
+			scope:actor = {
+				has_government = clan_government
+			}
+		}
+		is_valid = {
+			always = yes
+		}
+		flag = no_exemption_clan
+		localization = no_exemption
 	}
 
 	send_options_exclusive = yes
@@ -1080,7 +1560,7 @@ set_primary_spouse_interaction = {
 		}
 	}
 	is_valid_showing_failures_only = {
-		scope:recipient = { is_diplomatically_available = yes }
+		scope:recipient = { is_busy_in_events_localised = yes }
 		scope:recipient = {
 			NOT = {
 				has_trait = incapable
@@ -1374,7 +1854,7 @@ expose_secret_interaction = {
 	}
 
 	is_valid_showing_failures_only = {
-		scope:recipient = { is_diplomatically_available = yes } 
+		scope:recipient = { is_busy_in_events_localised = yes } 
 	}
 	
 	on_accept = {
@@ -1415,5 +1895,48 @@ expose_secret_interaction = {
 	}
 
 	auto_accept = yes
+
+	ai_will_do = {
+		base = 0
+
+		# Struggle
+		modifier = {
+			scope:recipient = {
+				any_character_struggle = {
+					involvement = involved
+				}
+				is_important_or_vip_struggle_character = yes
+			}
+			scope:actor = {
+				any_character_struggle = {
+					involvement = involved
+				}
+			}
+			add = {
+				value = 0
+				if = {
+					limit = {
+						scope:actor = {
+							any_character_struggle = {
+								phase_has_catalyst = catalyst_reveal_secret_important
+							}
+							has_character_flag = agenda_towards_escalation
+						}
+					}
+					add = 200
+				}
+				else_if = {
+					limit = {
+						scope:actor = {
+							any_character_struggle = {
+								phase_has_catalyst = catalyst_reveal_secret_important
+							}
+						}
+					}
+					add = -100
+				}
+			}
+		}
+	}
 }
 

@@ -6,6 +6,7 @@
 educate_child_interaction = {
 	category = interaction_category_friendly
 	common_interaction = yes
+	icon = child
 
 	send_name = SEND_PROPOSAL
 
@@ -425,6 +426,8 @@ educate_child_interaction = {
 	}
 	send_option = {
 		is_shown = {
+			exists = scope:actor
+			exists = scope:secondary_actor
 			NOT = { scope:secondary_actor = scope:actor }
 		}
 		is_valid = {
@@ -592,6 +595,7 @@ educate_child_interaction = {
 #This interaction is referenced in code! If it's renamed you have to ping a coder
 offer_ward_interaction = {
 	category = interaction_category_friendly
+	icon = child
 
 	desc = offer_ward_interaction_desc
 
@@ -617,14 +621,39 @@ offer_ward_interaction = {
 			if = {
 				limit = {
 					is_adult = no
-					num_of_relation_guardian = 0
+					is_physically_able = yes
+					NOT = {
+						any_relation = {
+							type = guardian
+							this = scope:recipient
+						}
+					}
 				}
 				add_to_list = characters
 			}
 			every_courtier = {
 				limit = {
 					is_adult = no
-					num_of_relation_guardian = 0
+					is_physically_able = yes
+					NOT = {
+						any_relation = {
+							type = guardian
+							this = scope:recipient
+						}
+					}
+				}
+				add_to_list = characters
+			}
+			every_courtier_away = {
+				limit = {
+					is_adult = no
+					is_physically_able = yes
+					NOT = {
+						any_relation = {
+							type = guardian
+							this = scope:recipient
+						}
+					}
 				}
 				add_to_list = characters
 			}
@@ -762,18 +791,44 @@ offer_ward_interaction = {
 				OR = {
 					any_courtier = {
 						is_adult = no
-						num_of_relation_guardian = 0
+						is_physically_able = yes
+						NOR = {
+							any_relation = {
+								type = guardian
+								this = scope:recipient
+							}
+							any_relation = {
+								type = guardian
+								OR = {
+									is_at_war_with = scope:actor
+									any_liege_or_above = { is_at_war_with = scope:actor }
+								}
+							}
+						}
 					}
 					AND = {
 						is_adult = no
-						num_of_relation_guardian = 0
+						is_physically_able = yes
+						NOR = {
+							any_relation = {
+								type = guardian
+								this = scope:recipient
+							}
+							any_relation = {
+								type = guardian
+								OR = {
+									is_at_war_with = scope:actor
+									any_liege_or_above = { is_at_war_with = scope:actor }
+								}
+							}
+						}
 					}
 				}
 			}
 		}
 		scope:recipient = {
 			is_imprisoned = no
-			is_diplomatically_available = yes
+			is_busy_in_events_localised = yes
 		}
 		trigger_if = {
 			limit = {
@@ -781,7 +836,7 @@ offer_ward_interaction = {
 			}
 			scope:secondary_recipient = {
 				is_imprisoned = no
-				is_diplomatically_available = yes
+				is_busy_in_events_localised = yes
 			}
 		}
 	}
@@ -790,16 +845,120 @@ offer_ward_interaction = {
 	on_accept = {
 		scope:secondary_actor = {
 			save_scope_as = ward
-			scope:secondary_recipient = { save_scope_as = guardian }
 			scope:actor = { save_scope_as = ward_liege }
 			scope:recipient = { save_scope_as = guardian_liege }
+			
+			if = {
+				limit = {
+					any_relation = {
+						type = guardian
+						NOT = {
+							this = scope:recipient
+						}
+					}
+				}
+				random_relation = {
+					type = guardian
+					save_scope_as = guardian
+					
+					#Letter event to guardian
+					if = {
+						limit = {
+							NOT = {
+								scope:guardian = scope:actor
+							}
+						}
+						scope:guardian = {
+							trigger_event = char_interaction.0090
+						}
+					}
+				}
+				scope:actor = {
+					send_interface_message = {
+						type = event_generic_neutral
+						title = remove_guardian_interaction_notification
+						left_icon = scope:guardian
+						right_icon = scope:ward
+
+						scope:ward = {
+							remove_relation_guardian = scope:guardian
+
+							if = {
+								limit = {
+									NOR = {
+										host = liege
+										is_landed = yes
+									}
+								}
+								return_to_court = yes
+							}
+						}
+						scope:guardian = {
+							if = {
+								limit = {
+									NOR = {
+										host = liege
+										is_landed = yes
+										any_relation = { #They're not at another ward's court
+											type = ward
+											is_landed = yes
+											this = scope:guardian.host
+										}
+									}
+								}
+								return_to_court = yes
+							}
+						}
+
+						#Was education promised in interaction or in vassal.2001? Then you get an opinion penalty
+						if = {
+							limit = {
+								exists = scope:ward.var:character_requested_as_educator
+								scope:ward.var:character_requested_as_educator = scope:guardian
+								exists = scope:ward.var:character_making_education_request
+								scope:ward.var:character_making_education_request = {
+									is_alive = yes
+									OR = {
+										this = scope:guardian
+										scope:guardian = { is_courtier_of = prev }
+									}
+									NOT = { this = scope:actor }
+								}
+							}
+							scope:ward.var:character_making_education_request = {
+								add_opinion = {
+									modifier = insult_opinion
+									target = scope:actor
+									opinion = -15
+								}
+							}
+						}
+					}
+				}
+			}
+			scope:secondary_recipient = { save_scope_as = guardian }
 		}
 
 		scope:actor = {
 			if = {
 				limit = { 
 					NOT = { this = scope:recipient } 
-					scope:ward = { num_of_relation_guardian = 0 }
+					scope:ward = {
+						#num_of_relation_guardian = 0
+						NOR = {
+							any_relation = {
+								type = guardian
+								this = scope:recipient
+							}
+							any_relation = {
+								type = guardian
+								OR = {
+									is_at_war_with = scope:actor
+									any_liege_or_above = { is_at_war_with = scope:actor }
+								}
+							}
+						}
+					}
 					scope:guardian = { num_of_relation_ward < 2	}
 				}
 				trigger_event = char_interaction.0080
@@ -1361,11 +1520,153 @@ offer_ward_interaction = {
 	extra_icon = "gfx/interface/icons/character_interactions/hook_icon.dds"
 
 	send_options_exclusive = no
+	
+	ai_targets = {
+		ai_recipients = vassals
+		ai_recipients = head_of_faith
+	}
+	
+	ai_frequency = 12
+	
+	ai_potential = {
+		primary_title.tier >= tier_duchy
+		any_courtier = {
+			is_physically_able_adult = no
+			is_child_of = root
+			is_imprisoned = no
+			NOT = { has_trait = incapable }
+		}
+		any_vassal = {
+			primary_title.tier >= tier_county
+			opinion = {
+				target = root
+				value <= -25
+			}
+		}
+	}
+	
+	ai_will_do = {
+		base = 0
+
+		modifier = { # The AI wants to use wards to improve opinion with their vassals
+			add = 500
+			scope:actor = {
+				NOT = {
+					has_trait = paranoid
+				}
+			}
+			scope:recipient = scope:secondary_recipient
+			scope:recipient = {
+				is_ruler = yes
+				primary_title.tier >= tier_county
+				OR = {
+					AND = {
+						is_vassal_of = scope:actor
+						opinion = {
+							target = scope:actor
+							value <= -25
+						}
+					}
+					AND = {
+						is_powerful_vassal_of = scope:actor
+						opinion = {
+							target = scope:actor
+							value <= 25
+						}
+					}
+				}
+			}
+		}
+
+		modifier = { # Zealous AI's want their head of faith to educate their children
+			add = 600
+			scope:actor = {
+				OR = {
+					has_trait = zealous
+					ai_zeal >= 90
+				}
+			}
+			scope:recipient = scope:secondary_recipient
+			scope:recipient = scope:actor.faith.religious_head
+			scope:recipient = {
+				is_ai = yes # Don't spam players
+				num_of_relation_ward < 2
+			}
+		}
+
+		modifier = { # Don't send your primary heir away
+			factor = 0
+			scope:secondary_actor = {
+				is_primary_heir_of = scope:actor
+			}
+		}
+
+		modifier = { # The AI shouldn't change culture/faith of their children
+			factor = 0
+			OR = {
+				scope:convert_culture = yes
+				scope:convert_faith = yes
+			}
+		}
+
+		modifier = { # Don't care about random children
+			factor = 0
+			scope:secondary_actor = {
+				NOR = {
+					is_close_family_of = scope:actor
+					this = scope:actor
+				}
+			}
+		}
+
+		modifier = { # Don't send children that are in need of a culture conversion
+			factor = 0
+			NOT = {
+				scope:secondary_actor.culture = scope:actor.culture
+			}
+		}
+
+		modifier = { # Don't send away yourself
+			factor = 0
+			scope:secondary_actor = scope:actor
+		}
+
+		modifier = { # Rivals are not welcome
+			factor = 0
+			scope:recipient = {
+				OR = {
+					has_relation_rival = scope:actor
+					has_relation_nemesis = scope:actor
+				}
+			}
+		}
+
+		modifier = { # Don't backtrack
+			factor = 0
+			scope:secondary_actor = {
+				any_relation = {
+					type = guardian
+					OR = {
+						is_vassal_of = scope:actor
+						this = scope:actor.faith.religious_head
+					}
+				}
+			}
+		}
+
+		modifier = { # Don't override players
+			factor = 0
+			scope:secondary_actor = {
+				has_character_flag = player_educated
+			}
+		}
+	}
 }
 
 #Request guardianship
 offer_guardianship_interaction = {
 	category = interaction_category_friendly
+	icon = child
 
 	send_name = SEND_PROPOSAL
 
@@ -1566,7 +1867,7 @@ offer_guardianship_interaction = {
 		}
 		scope:recipient = {
 			is_imprisoned = no
-			is_diplomatically_available = yes
+			is_busy_in_events_localised = yes
 		}
 		trigger_if = {
 			limit = {
@@ -1574,7 +1875,7 @@ offer_guardianship_interaction = {
 			}
 			scope:secondary_recipient = {
 				is_imprisoned = no
-				is_diplomatically_available = yes
+				is_busy_in_events_localised = yes
 			}
 		}
 		NOT = {
@@ -1591,6 +1892,17 @@ offer_guardianship_interaction = {
 			scope:secondary_recipient = { save_scope_as = ward }
 			scope:actor = { save_scope_as = ward_liege }
 			scope:recipient = { save_scope_as = guardian_liege }
+		}
+		
+		if = {
+			limit = {
+				scope:actor = {
+					is_ai = no
+				}
+			}
+			scope:ward = {
+				add_character_flag = player_educated
+			}
 		}
 
 		if = { #To block against too many wards
@@ -2179,7 +2491,7 @@ offer_guardianship_interaction = {
 		ai_recipients = vassals
 	}
 	
-	ai_frequency = 24
+	ai_frequency = 48
 	
 	ai_potential = {
 		is_imprisoned = no
@@ -2318,6 +2630,7 @@ offer_guardianship_interaction = {
 remove_guardian_interaction = {
 	category = interaction_category_friendly
 	desc = remove_guardian_interaction_desc
+	icon = child
 	
 	force_notification = yes
 	greeting = positive
@@ -2347,7 +2660,7 @@ remove_guardian_interaction = {
 				limit = { scope:recipient = { is_adult = yes } }
 
 				#Diplo availability/not imprisoned
-				#is_diplomatically_available = yes
+				#is_busy_in_events_localised = yes
 				
 				any_relation = {
 					type = ward
@@ -2372,7 +2685,7 @@ remove_guardian_interaction = {
 
 				any_relation = {
 					type = guardian
-					#is_diplomatically_available = yes
+					#is_busy_in_events_localised = yes
 				}
 
 				#War blocker
@@ -2989,5 +3302,29 @@ make_child_learn_language_interaction = {
 	
 	ai_accept = {
 		base = 100
+	}
+	
+	ai_frequency = 24
+	
+	ai_targets = {
+		ai_recipients = children
+	}
+	
+	ai_potential = {
+		has_ep1_court_positions_dlc_trigger = yes
+		employs_court_position = court_tutor_court_position
+		primary_title.tier >= tier_county
+	}
+	
+	ai_will_do = {
+		base = 0
+
+		modifier = { # The AI wants to prepare their children for ruling their vassals
+			add = 100
+			any_vassal = {
+				primary_title.tier >= tier_county
+				knows_language_of_culture = scope:secondary_actor.culture
+			}
+		}
 	}
 }
