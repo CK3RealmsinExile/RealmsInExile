@@ -4,7 +4,7 @@
 [![Discord Chat](http://img.shields.io/discord/751097183448727552.svg?logo=discord)](https://discord.gg/FKr4Zbr)
 
 
-![Description](/art/marketing/banners/RealmsDescription.png)
+![Description](/art/marketing/banners/Realms_Description.png)
 ## LotR: Realms in Exile
 A total overhaul mod for Crusader Kings III, based on the works of J.R.R. Tolkien's The Lord of the Rings.
 
