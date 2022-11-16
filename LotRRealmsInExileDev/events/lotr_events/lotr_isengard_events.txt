@@ -255,6 +255,10 @@ isengard.0003 = { # The War for Rohan - Isengard Victory
 	option = {
 		name = isengard.0003.a
 		add_character_flag = rohan_war_victory
+		trigger_event = {
+			id = isengard.0300
+			months = 3
+		}
 	}
 }
 
@@ -395,6 +399,13 @@ isengard.0005 = { # A Puppet in Rohan
 				set_realm_capital = title:c_kingstead
 			}
 			set_character_faith_with_conversion = root.faith
+		}
+	}
+
+	after = {
+		trigger_event = {
+			id = isengard.0300
+			months = 3
 		}
 	}
 }
@@ -1472,6 +1483,27 @@ isengard.0019 = { # The War for Rohan - Rohan Victory (Saruman Perspective - Ban
 	}
 }
 
+isengard.0020 = { #Timer event for Gandalf to free King of Rohan and start war
+	hidden = yes
+	type = empty
+
+	immediate = {
+		if = {
+			limit = {
+				current_year >= 7053
+			}
+			scope:k_rohan.holder = {
+				trigger_event = isengard.0287
+			}
+		}
+		else = {
+			trigger_event = {
+				id = isengard.0020
+				years = 1
+			}
+		}
+	}
+}
 
 ### Introduction ###
 
@@ -3668,6 +3700,7 @@ isengard.0250 = { # The Question of the Horselords
 		name = isengard.0250.a
 		custom_tooltip = isengard.0250.a.tt
 		add_character_flag = isengard_seeks_to_subdue_rohan
+		trigger_event = isengard.0020
 		## AI should typically taking this option
 		ai_chance = {
 			base = 0 # LotR: This should be tied to WotR mode.
@@ -3883,37 +3916,117 @@ isengard.0260 = { # Our Man in Edoras
 	desc = isengard.0260.desc
 	theme = intrigue
 	left_portrait = {
-		character = root
+		character = scope:agent
 		animation = schadenfreude
 	}
 	right_portrait = {
-		character = scope:agent
+		character = scope:rohanking
 		animation = personality_compassionate
 	}
 
 	immediate = {
-		if = { ## If Grima is unlanded, make sure he's put in the king's court
-			limit = {
-				character:6000044 = {
-					is_alive = yes
-					OR = {
-						is_courtier_of = title:k_rohan.holder
-						any_liege_or_above = { this = title:k_rohan.holder }
-					}
-				}
-			}
-			save_scope_as = agent
-		}
-    	else = {
-    		ordered_courtier = {
-    			order_by = intrigue
-    			save_scope_as = agent
-    		}
-    	}
+		save_agent_in_edoras_scope = yes # Find head agent in Edoras and save_scope_as agent
+		title:k_rohan.holder = { save_scope_as = rohanking }
 	}
 
 	option = {
 		name = isengard.0260.a
+		scope:agent = {
+			duel = {
+				skill = intrigue 
+				target = scope:rohanking
+				50 = { 
+					compare_modifier = {
+						value = scope:duel_value
+						multiplier = 1.5
+						max = 40
+					}
+					desc = isengard.0260.a.duel_success
+					root = {
+						send_interface_toast = {
+							left_icon = scope:agent
+							right_icon = scope:rohanking
+							title = isengard.0260.toast.success
+							add_hook_no_toast = {
+								type = influenced_advisors_hook
+								target = scope:rohanking
+							}
+						}
+					}
+					scope:rohanking = {
+						trigger_event = isengard.0261
+					}
+				}
+				50 = {
+					compare_modifier = {
+						value = scope:duel_value
+						multiplier = -1.5
+						min = -40
+					}
+					desc = isengard.0260.a.duel_failure
+					root = {
+						send_interface_toast = {
+							left_icon = scope:agent
+							right_icon = scope:rohanking
+							title = isengard.0260.toast.failure
+							add_character_modifier = {
+								modifier = ineffective_agents_character_modifier
+								years = 3
+							}
+						}
+					}
+					scope:rohanking = {
+						trigger_event = isengard.0262
+					}
+				}
+			}
+		}
+	}
+}
+
+isengard.0261 = { # Our Man in Edoras ( Theoden Perspective - Hooked )
+	type = character_event
+	title = isengard.0261.t
+	desc = isengard.0261.desc
+	theme = intrigue
+	left_portrait = {
+		character = scope:agent
+		animation = schadenfreude
+	}
+	right_portrait = {
+		character = scope:rohanking
+		animation = personality_compassionate
+	}
+
+	option = { # If they say so...
+		name = isengard.0261.a
+		show_as_tooltip = {
+			character:lineofsaruman = {
+				add_hook_no_toast = {
+					type = influenced_advisors_hook
+					target = scope:rohanking
+				}
+			}
+		}
+	}
+}
+
+isengard.0262 = { # Our Man in Edoras ( Theoden Perspective - Not Hooked )
+	type = character_event
+	title = isengard.0262.t
+	desc = isengard.0262.desc
+	theme = intrigue
+	left_portrait = {
+		character = scope:agent
+		animation = schadenfreude
+	}
+	right_portrait = {
+		character = scope:rohanking
+		animation = personality_compassionate
+	}
+
+	option = { # What was all that about?
+		name = isengard.0262.a
 	}
 }
 
@@ -4662,7 +4775,16 @@ isengard.0287 = { # Gandalf cures the King's corruption
 		name = isengard.0287.a
 		if = {
 			limit = { has_title = title:k_rohan }
+			character:lineofsaruman = {
+				remove_hook = { 
+					type = influenced_advisors_hook
+					target = scope:rohanking
+				}
+			}
+			# Fate of Grima
 			trigger_event = isengard.0288
+			# Muster the Rohirrim
+			trigger_event = isengard.0008
 		}
 	}
 }
