@@ -206,11 +206,13 @@ isengard.0002 = { # The War for Rohan
 	type = character_event
 	title = isengard.0002.t
 	desc = isengard.0002.desc
-	theme = martial
+	theme = war
+
 	left_portrait = {
 		character = root
 		animation = dismissal
 	}
+
 	right_portrait = {
 		character = title:k_rohan.holder
 		animation = personality_callous
@@ -222,6 +224,20 @@ isengard.0002 = { # The War for Rohan
 			casus_belli = rohan_war_cb
 			target = title:k_rohan.holder
 			target_title = title:k_rohan
+		}
+		every_vassal = {
+			limit = { this = title:k_dunland.holder }
+			save_scope_as = ally
+		}
+		every_character_war = {
+			add_attacker = scope:ally
+		}
+		title:k_rohan.holder = {
+			trigger_event = isengard.0015
+		}
+		# Start event loop to check for Gondor entering to prompt Mordor to intervene
+		character:lineofsauron = {
+			trigger_event = isengard.0017
 		}
 	}
 }
@@ -242,7 +258,7 @@ isengard.0003 = { # The War for Rohan - Isengard Victory
 	}
 }
 
-isengard.0004 = { # The War for Rohan - Rohan Victory
+isengard.0004 = { # The War for Rohan - Rohan Victory (Rohan Perspective)
 	type = character_event
 	title = isengard.0004.t
 	desc = isengard.0004.desc
@@ -251,9 +267,43 @@ isengard.0004 = { # The War for Rohan - Rohan Victory
 		character = root
 		animation = war_over_win
 	}
+	right_portrait = {
+		character = character:lineofsaruman
+		animation = prisondungeon
+	}
+
+	immediate = {
+		save_scope_as = victor
+	}
 	
-	option = {
+	option = { #Kill him
 		name = isengard.0004.a
+		destroy_title = title:e_isengard_unleashed
+		show_as_tooltip = {
+			character:lineofsaruman = { 
+				death = { 
+					death_reason = death_decapitated
+					killer = scope:victor
+				}
+			}
+		}
+		character:lineofsaruman = { 
+			trigger_event = isengard.0018
+		}
+	}
+
+	option = { #Banish him
+		name = isengard.0004.b
+		destroy_title = title:e_isengard_unleashed
+		show_as_tooltip = {
+			character:lineofsaruman = { 
+				depose = yes
+				hidden_effect = { move_to_pool = yes }
+			}
+		}
+		character:lineofsaruman = { 
+			trigger_event = isengard.0019
+		}
 	}
 }
 
@@ -475,35 +525,29 @@ isengard.0008 = { # Muster the Rohirrim!
 		character = root
 		animation = personality_bold
 	}
+	right_portrait = {
+		character = scope:saruman
+		animation = personality_callous
+	}
+
+	immediate = {
+		save_scope_as = rohanking
+		character:lineofsaruman = { save_scope_as = saruman }
+		character:6000000 = { save_scope_as = eorl }
+	}
 
 	option = { # Send out the riders!
 		name = isengard.0008.a
 		custom_tooltip = isengard.0008.a.tt
-		##### THIS NEEDS TO BE CLEVERER
-		title:c_grimslade.holder = { 
+		every_powerful_vassal = {
+			trigger_event = isengard.0009
+		}
+		scope:saruman = {
 			trigger_event = {
-				id = isengard.0009
-				days = 2
+				id = isengard.0002
+				days = 30
 			}
 		}
-		#title:c_harrowdale.holder = { 
-		#	trigger_event = {
-		#		id = theodred.0108
-		#		days = 2
-		#	}
-		#}
-		#title:c_aldburg.holder = { 
-		#	trigger_event = {
-		#		id = theodred.0109
-		#		days = 2
-		#	}
-		#}
-		#title:c_eormengrund.holder = { 
-		#	trigger_event = {
-		#		id = theodred.0110
-		#		days = 2
-		#	}
-		#}
 	}
 }
 
@@ -514,7 +558,7 @@ isengard.0009 = { # Muster the Rohirrim - Recipient Event
 	theme = martial
 
 	right_portrait = {
-		character = character:6000017
+		character = scope:rohanking
 		animation = personality_bold
 	}
 	
@@ -523,13 +567,23 @@ isengard.0009 = { # Muster the Rohirrim - Recipient Event
 		animation = admiration
 	}
 
+	immediate = {
+		save_scope_as = powerful_vassal
+	}
+
 	option = { # Send reinforcments to Edoras!
 		name = isengard.0009.a
-		title:k_rohan.holder = { 
+		scope:rohanking = {
 			trigger_event = {
 				id = isengard.0010
-				days = 2
+				days = { 7 29 }
 			}
+		}
+		remove_short_term_gold = 100
+		add_prestige = 200
+		add_character_modifier = {
+			modifier = mustered_rohirrim_character_modifier
+			years = 3
 		}
 		ai_chance = {
 			base = 0 # LotR: This should be tied to WotR mode.
@@ -547,14 +601,15 @@ isengard.0009 = { # Muster the Rohirrim - Recipient Event
 			}
 		}
 	}
-	option = { # Do not reinforcments to Edoras.
+	option = { # Do not send reinforcments to Edoras.
 		name = isengard.0009.b
-		title:k_rohan.holder = { 
+		scope:rohanking = {
 			trigger_event = {
-				id = isengard.0281
+				id = isengard.0011
 				days = 2
 			}
 		}
+		add_prestige = -200
 		ai_chance = {
 			base = 0 # LotR: This should be tied to WotR mode.
 			modifier = { # Game Rule
@@ -579,27 +634,83 @@ isengard.0010 = { # Muster the Rohirrim - Men Arrive at Edoras
 	desc = isengard.0010.desc
 	theme = martial
 
-	right_portrait = {
+	left_portrait = {
 		character = root
 		animation = personality_bold
+	}
+
+	right_portrait = {
+		character = scope:powerful_vassal
+		animation = personality_honorable
 	}
 	
 	option = { 
 		name = isengard.0010.a
-		spawn_army = {		  
-			uses_supply = no
-			inheritable = no
-			name = mustered_rohirrim_event_troops_grimslade
-			levies = 500
-			men_at_arms = {
-				type = eotheod_horse_archers
-				stacks = 4
+		if = {
+			limit = {
+				scope:powerful_vassal = { highest_held_title_tier = tier_kingdom }
 			}
-			men_at_arms = {
-				type = eotheod_horse_axemen
-				stacks = 4
+			spawn_army = {		  
+				uses_supply = no
+				inheritable = no
+				name = mustered_rohirrim_event_troops
+				men_at_arms = {
+					type = eotheod_horse_archers
+					stacks = 2
+				}
+				men_at_arms = {
+					type = helmingas_warriors
+					stacks = 2
+				}
+				location = capital_province
 			}
-			location = capital_province
+		}
+		else_if = {
+			limit = {
+				scope:powerful_vassal = { highest_held_title_tier = tier_duchy }
+			}
+			spawn_army = {		  
+				uses_supply = no
+				inheritable = no
+				name = mustered_rohirrim_event_troops
+				men_at_arms = {
+					type = eotheod_horse_archers
+					stacks = 1
+				}
+				men_at_arms = {
+					type = helmingas_warriors
+					stacks = 1
+				}
+				location = capital_province
+			}
+		}
+		else_if = {
+			limit = {
+				scope:powerful_vassal = { highest_held_title_tier = tier_county }
+			}
+			spawn_army = {		  
+				uses_supply = no
+				inheritable = no
+				name = mustered_rohirrim_event_troops
+				men_at_arms = {
+					type = eotheod_light_horsemen
+					stacks = 1
+				}
+				men_at_arms = {
+					type = eotheod_horse_axemen
+					stacks = 1
+				}
+				location = capital_province
+			}
+		}
+		else = {
+			spawn_army = {		  
+				uses_supply = no
+				inheritable = no
+				name = mustered_rohirrim_event_troops
+				levies = 250
+				location = capital_province
+			}
 		}
 	}
 }
@@ -610,13 +721,24 @@ isengard.0011 = { # Muster the Rohirrim - No Support for Edoras
 	desc = isengard.0011.desc
 	theme = martial
 
-	right_portrait = {
+	left_portrait = {
 		character = root
 		animation = personality_bold
+	}
+
+	right_portrait = {
+		character = scope:powerful_vassal
+		animation = personality_dishonorable
 	}
 	
 	option = { 
 		name = isengard.0011.a
+		add_opinion = {
+			target = scope:powerful_vassal
+			modifier = refusal_opinion
+			years = 10
+			opinion = -30
+		}
 	}
 }
 
@@ -1203,6 +1325,154 @@ isengard.0014 = { # Start Civil War - Petitioner Perspective
 	
 }
 
+isengard.0015 = { # The Horselords ride to war!
+	type = character_event
+	title = isengard.0015.t
+	desc = isengard.0015.desc
+	theme = war
+
+	left_portrait = {
+		character = root
+		animation = personality_bold
+	}
+
+	right_portrait = {
+		character = scope:saruman
+		animation = anger
+	}
+
+	immediate = {
+		character:lineofsaruman = { save_scope_as = saruman }
+	}
+
+	option = { # Send out the riders!
+		name = isengard.0015.a
+	}
+}
+
+isengard.0016 = { # Mordor joins the fray?
+	type = character_event
+	title = isengard.0016.t
+	desc = isengard.0016.desc
+	theme = war
+
+	left_portrait = {
+		character = root
+		animation = personality_bold
+	}
+
+	right_portrait = {
+		character = scope:saruman
+		animation = anger
+	}
+
+	immediate = {
+		character:lineofsaruman = { save_scope_as = saruman }
+	}
+
+	option = { # Order my Uruks to March
+		name = isengard.0016.a
+		add_prestige = 200
+		scope:saruman = {
+			every_character_war = {
+				add_attacker = root
+			}
+		}
+		add_character_flag = support_saruman_decision_made
+		ai_chance = {
+			base = 100
+		}
+	}
+
+	option = { # Leave the wizard to perish
+		name = isengard.0016.b
+		add_character_flag = support_saruman_decision_made
+		ai_chance = {
+			base = 0
+		}
+	}
+}
+
+isengard.0017 = { #Mordor war join checks event
+	hidden = yes
+	type = empty
+
+	trigger = {
+		character:lineofsaruman = {
+			is_at_war_with = title:k_rohan.holder
+		}
+		NOT = { has_character_flag = support_saruman_decision_made }
+	}
+
+	immediate = {
+		if = {
+			limit = {
+				character:lineofsaruman = {
+					OR = {
+						is_at_war_with = title:e_gondor.holder
+						is_at_war_with = title:e_gondor_steward.holder
+						is_at_war_with = title:e_castamir.holder
+					}
+				}
+			}
+			trigger_event = isengard.0016
+		}
+		else = {
+			trigger_event = {
+				id = isengard.0017
+				days = 14
+			}
+		}
+	}
+}
+
+isengard.0018 = { # The War for Rohan - Rohan Victory (Saruman Perspective - Death)
+	type = character_event
+	title = isengard.0018.t
+	desc = isengard.0018.desc
+	theme = dread
+	left_portrait = {
+		character = scope:victor
+		animation = war_over_win
+	}
+	right_portrait = {
+		character = character:lineofsaruman
+		animation = prisondungeon
+	}
+	
+	immediate = { show_as_tooltip = { destroy_title = title:e_isengard_unleashed } }
+
+	option = { #And so, I die
+		name = isengard.0018.a
+		death = { 
+			death_reason = death_decapitated
+			killer = scope:victor
+		}
+	}
+}
+
+isengard.0019 = { # The War for Rohan - Rohan Victory (Saruman Perspective - Banishment)
+	type = character_event
+	title = isengard.0019.t
+	desc = isengard.0019.desc
+	theme = dread
+	left_portrait = {
+		character = scope:victor
+		animation = war_over_win
+	}
+	right_portrait = {
+		character = character:lineofsaruman
+		animation = prisondungeon
+	}
+	
+	option = { #I won't forget this
+		name = isengard.0019.a
+		depose = yes
+		hidden_effect = { move_to_pool = yes }
+	}
+}
+
+
 ### Introduction ###
 
 isengard.0101 = { # The Lord of Isengard
@@ -1391,6 +1661,17 @@ isengard.0103 = { # The Palantír
 				opinion = 40
 			}
 		}
+		#Replace Good Buildings with Evil Buildings
+		hidden_effect = {
+			title:b_orthanc.title_province = {
+				remove_building = garrison_tower_02
+				add_building = slave_farms_02
+				remove_building = pastures_05
+				add_building = hunting_outposts_05
+				remove_building = barracks_05
+				add_building = uruk_pits_05
+			}
+		}
 		trigger_event = { # Build me an army worth of Mordor
 			id = isengard.0201
 			months = 6
@@ -1472,15 +1753,11 @@ isengard.0201 = { # The First Command of Sauron
 			name = isengard_orc_event_troops
 			men_at_arms = {
 				type = orc_warriors
-				stacks = 1
+				stacks = 2
 			}
 			men_at_arms = {
-				type = orc_archers
-				stacks = 1
-			}
-			men_at_arms = {
-				type = mountainorc_warriors
-				stacks = 1
+				type = orc_rabble
+				stacks = 2
 			}
 			location = capital_province
 		}
@@ -2314,6 +2591,52 @@ isengard.0221 = { # The Archers of the Uruk-hai
 		name = isengard.0221.a
 		custom_tooltip = isengard.0221.a.tt
 		add_character_flag = saruman_uruks_archers
+		if = {
+			limit = {
+				has_character_flag = saruman_uruks_light_infantry
+			}
+			spawn_army = {
+				uses_supply = no
+				inheritable = no
+				name = first_uruk_hai_troops
+				men_at_arms = {
+					type = urukhai_skirmishers
+					stacks = 3
+				}
+				men_at_arms = {
+					type = urukhai_spearmen
+					stacks = 3
+				}
+				men_at_arms = {
+					type = urukhai_archers
+					stacks = 6
+				}
+				location = capital_province
+			}
+		}
+		else = {
+			limit = {
+				has_character_flag = saruman_uruks_heavy_infantry
+			}
+			spawn_army = {
+				uses_supply = no
+				inheritable = no
+				name = first_uruk_hai_troops
+				men_at_arms = {
+					type = urukhai_fighting
+					stacks = 2
+				}
+				men_at_arms = {
+					type = urukhai_pikemen
+					stacks = 2
+				}
+				men_at_arms = {
+					type = urukhai_archers
+					stacks = 6
+				}
+				location = capital_province
+			}
+		}
 		ai_chance = {
 			base = 0 # LotR: This should be tied to WotR mode.
 			modifier = { # Game Rule
@@ -2334,6 +2657,52 @@ isengard.0221 = { # The Archers of the Uruk-hai
 		name = isengard.0221.b
 		custom_tooltip = isengard.0221.b.tt
 		add_character_flag = saruman_uruks_crossbowmen
+		if = {
+			limit = {
+				has_character_flag = saruman_uruks_light_infantry
+			}
+			spawn_army = {
+				uses_supply = no
+				inheritable = no
+				name = first_uruk_hai_troops
+				men_at_arms = {
+					type = urukhai_skirmishers
+					stacks = 3
+				}
+				men_at_arms = {
+					type = urukhai_spearmen
+					stacks = 3
+				}
+				men_at_arms = {
+					type = urukhai_crossbowmen
+					stacks = 4
+				}
+				location = capital_province
+			}
+		}
+		else = {
+			limit = {
+				has_character_flag = saruman_uruks_heavy_infantry
+			}
+			spawn_army = {
+				uses_supply = no
+				inheritable = no
+				name = first_uruk_hai_troops
+				men_at_arms = {
+					type = urukhai_fighting
+					stacks = 2
+				}
+				men_at_arms = {
+					type = urukhai_pikemen
+					stacks = 2
+				}
+				men_at_arms = {
+					type = urukhai_crossbowmen
+					stacks = 4
+				}
+				location = capital_province
+			}
+		}
 		ai_chance = {
 			base = 0 # LotR: This should be tied to WotR mode.
 			modifier = { # Game Rule
@@ -2371,6 +2740,16 @@ isengard.0222 = { # My Army's Secret Weapon
 		name = isengard.0222.a
 		custom_tooltip = isengard.0222.a.tt
 		add_character_flag = saruman_uruks_fire_of_isengard
+		spawn_army = {
+			uses_supply = no
+			inheritable = no
+			name = uruk_hai_sappers_troops
+			men_at_arms = {
+				type = urukhai_sappers
+				stacks = 3
+			}
+			location = capital_province
+		}
 		ai_chance = {
 			base = 0 # LotR: This should be tied to WotR mode.
 			modifier = { # Game Rule
@@ -2391,6 +2770,16 @@ isengard.0222 = { # My Army's Secret Weapon
 		name = isengard.0222.b
 		custom_tooltip = isengard.0222.b.tt
 		add_character_flag = saruman_uruks_cavalry
+		spawn_army = {
+			uses_supply = no
+			inheritable = no
+			name = uruk_hai_warg_troops
+			men_at_arms = {
+				type = urukhai_warg_riders
+				stacks = 2
+			}
+			location = capital_province
+		}
 		ai_chance = {
 			base = 0 # LotR: This should be tied to WotR mode.
 			modifier = { # Game Rule
@@ -2411,6 +2800,16 @@ isengard.0222 = { # My Army's Secret Weapon
 		name = isengard.0222.c
 		custom_tooltip = isengard.0222.c.tt
 		add_character_flag = saruman_uruks_monstrosity
+		spawn_army = {
+			uses_supply = no
+			inheritable = no
+			name = uruk_hai_monstrosity_troops
+			men_at_arms = {
+				type = urukhai_monstrosity
+				stacks = 1
+			}
+			location = capital_province
+		}
 		ai_chance = {
 			base = 0 # LotR: This should be tied to WotR mode.
 			modifier = { # Game Rule
@@ -2478,6 +2877,16 @@ isengard.0223 = { # The Most Loyal of Uruks
 
 	after = {
 		scope:gorluk = { set_employer = root }
+		spawn_army = {
+			uses_supply = no
+			inheritable = no
+			name = uruk_hai_berserker_troops
+			men_at_arms = {
+				type = urukhai_berserker
+				stacks = 2
+			}
+			location = capital_province
+		}
 	}
 }
 
@@ -2733,6 +3142,7 @@ isengard.0234 = { # Logging in Fangorn
 		custom_tooltip = isengard.0234.a.tt
 		custom_tooltip = isengard.0234.a.tt2
 		add_character_flag = logged_fangorn
+		add_gold = 100
 		trigger_event = {
 			id = isengard.0235
 			years = { 1 3 }
@@ -2804,6 +3214,14 @@ isengard.0235 = { # The Forges of Isengard
 		}
 		title:c_isengard.title_province = {
 			add_building_slot = 1
+		}
+		if = {
+			limit = {
+				title:c_isengard.title_province = {
+					NOT = { has_building_or_higher = furnaces_03 }
+				}
+			}
+			title:c_isengard.title_province = { add_building = furnaces_03 }
 		}
 		trigger_event = {
 			id = isengard.0250
@@ -3271,12 +3689,13 @@ isengard.0250 = { # The Question of the Horselords
 	option = { # Gather the Dunlendings and Uruk-hai. We shall subjugate the Rohirrim in a single swoop
 		name = isengard.0250.b
 		custom_tooltip = isengard.0250.b.tt
+		custom_tooltip = isengard.0250.b.tt2
 		add_character_flag = isengard_seeks_to_blitzkrieg_rohan
 		# Consider spawning of even troops or mechanics to do so.
 		scope:rohanking = {
 			trigger_event = {
 				id = isengard.0251
-				days = 1
+				months = 11
 			}
 		}
 		## AI shouldn't typically be taking this option
@@ -3314,13 +3733,11 @@ isengard.0251 = { # An Ultimatum from Isengard
 
 	option = { # Muster the Rohirrim and form the Éoherë!
 		name = isengard.0251.a
-		# Consider spawning of even troops or mechanics to do so.
+		## Muster the Rohirrim
+		trigger_event = isengard.0008
 		## Let Saruman know the bad news
 		scope:saruman = {
-			trigger_event = {
-				id = isengard.0252
-				days = 30
-			}
+			trigger_event = isengard.0252
 		}
 		## AI should typically taking this option
 		ai_chance = {
@@ -3424,10 +3841,6 @@ isengard.0252 = { # The Folly of Rohan
 	option = { # Cue up war
 		name = isengard.0252.a
 		custom_tooltip = isengard.0252.a.tt
-		trigger_event = {
-			id = isengard.0002
-			days = 365
-		}
 	}
 }
 
@@ -3809,7 +4222,6 @@ isengard.0274 = { # Ambush at the Isen
 						chance = 80
 						death = {
 							death_reason = death_wounded_2
-							killer = scope:uruk
 						}
 					} 
 				}
@@ -3898,7 +4310,6 @@ isengard.0277 = { # The Death of Theodred ( Theodred Perspective )
 		name = isengard.0277.a
 		death = {
 			death_reason = death_wounded_2
-			killer = scope:uruk
 		}
 		title:k_rohan.holder = { # Theoden is informed.
 			trigger_event = isengard.0279
@@ -3988,6 +4399,9 @@ isengard.0280 = { # The Maiming of Theodred ( Theoden Perspective )
 		trigger_event = {
 			id = isengard.0008
 		}
+		character:lineofsaruman = {
+			trigger_event = isengard.0281
+		}
 		add_stress = 90
 	}
 }
@@ -4010,9 +4424,6 @@ isengard.0281 = { # The Maiming of Theodred ( Saruman Perspective )
 
 	option = { # So it is war.
 		name = isengard.0281.a
-		trigger_event = {
-			id = isengard.0008
-		}
 		add_stress = 90
 	}
 }
@@ -4089,13 +4500,18 @@ isengard.0283 = { # The Death of Theodred - Eomer backs down ( Saruman Perspecti
 	}
 	
 	right_portrait = {
-		character = character:6000018
+		character = scope:eomer
 		animation = personality_content
 	}
 
 	lower_center_portrait = {
 		character = character:6000034
 		animation = pain
+	}
+
+	immediate = {
+		character:6000018 = { save_scope_as = eomer }
+		character:6000034 = { save_scope_as = theodred }
 	}
 
 	option = { # All is going according to plan
@@ -4115,13 +4531,18 @@ isengard.0284 = { # The Death of Theodred - Eomer is banished ( Saruman Perspect
 	}
 	
 	right_portrait = {
-		character = character:6000018
+		character = scope:eomer
 		animation = anger
 	}
 
 	lower_center_portrait = {
-		character = character:6000034
+		character = scope:theodred
 		animation = pain
+	}
+
+	immediate = {
+		character:6000018 = { save_scope_as = eomer }
+		character:6000034 = { save_scope_as = theodred }
 	}
 
 	option = { # Time is running short
@@ -4141,7 +4562,7 @@ isengard.0285 = { # The Death of Theodred - Eomer is already dead ( Saruman Pers
 	}
 
 	right_portrait = {
-		character = character:6000034
+		character = scope:theodred
 		animation = pain
 	}
 
