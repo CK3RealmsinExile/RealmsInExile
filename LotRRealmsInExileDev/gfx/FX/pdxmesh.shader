@@ -150,6 +150,20 @@ PixelShader =
 		SampleModeU = "Wrap"
 		SampleModeV = "Wrap"
 	}
+	# MOD(map-skybox)
+	TextureSampler SkyboxSample
+	{
+		Index = 12
+		MagFilter = "Linear"
+		MinFilter = "Linear"
+		MipFilter = "Linear"
+		SampleModeU = "Clamp"
+		SampleModeV = "Clamp"
+		Type = "Cube"
+		File = "gfx/map/environment/skybox.dds"
+		srgb = yes
+	}
+	# END MOD
 }
 
 VertexStruct VS_OUTPUT
@@ -332,7 +346,25 @@ PixelShader =
 			return UV;
 		}
 	]]
-	
+
+	# MOD(map-skybox)
+	MainCode SKYX_PS_sky
+	{
+		Input = "VS_OUTPUT"
+		Output = "PDX_COLOR"
+		Code
+		[[
+			PDX_MAIN
+			{
+				float3 FromCameraDir = normalize(Input.WorldSpacePos - CameraPosition);
+				float4 CubemapSample = PdxTexCube(SkyboxSample, FromCameraDir);
+
+				return CubemapSample;
+			}
+		]]
+	}
+	# END MOD
+
 	MainCode PS_standard
 	{
 		Input = "VS_OUTPUT"
@@ -898,6 +930,26 @@ Effect snap_to_terrain_atlas_usercolorShadow_mapobject
 	RasterizerState = ShadowRasterizerState
 	Defines = { "PDX_MESH_SNAP_VERTICES_TO_TERRAIN" }
 }
+
+# MOD(map-skybox)
+Effect SKYX_sky
+{
+	VertexShader = "VS_standard"
+	PixelShader = "SKYX_PS_sky"
+}
+
+Effect SKYX_sky_mapobject
+{
+	VertexShader = "VS_mapobject"
+	PixelShader = "SKYX_PS_sky"
+}
+
+Effect SKYX_sky_selection_mapobject
+{
+	VertexShader = "VS_mapobject"
+	PixelShader = "SKYX_PS_sky"
+}
+# END MOD
 
 Effect court
 {

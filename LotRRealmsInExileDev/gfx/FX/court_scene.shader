@@ -1989,3 +1989,60 @@ Effect sine_flag_animation
 	VertexShader = "VS_standard"
 	PixelShader = "PS_noop"
 }
+
+
+# MOD(court-skybox)
+Effect SKYX_court_sky
+{
+	VertexShader = "VS_standard"
+	PixelShader = "PS_SKYX_court_sky"
+}
+
+Effect SKYX_court_sky_selection
+{
+	VertexShader = "VS_standard"
+	PixelShader = "PS_SKYX_court_sky"
+}
+
+# Same as SKYX_court_sky, included for backwards compatibility
+Effect COOP_court_sky
+{
+	VertexShader = "VS_standard"
+	PixelShader = "PS_SKYX_court_sky"
+}
+
+# Same as SKYX_court_sky_selection, included for backwards compatibility
+Effect COOP_court_sky_selection
+{
+	VertexShader = "VS_standard"
+	PixelShader = "PS_SKYX_court_sky"
+}
+# END MOD
+
+# MOD(map-skybox)
+# The following effects are not used but need to be defined here to suppress errors
+
+Effect SKYX_sky
+{
+	VertexShader = "VS_standard"
+	PixelShader = "PS_noop"
+}
+
+Effect SKYX_sky_selection
+{
+	VertexShader = "VS_standard"
+	PixelShader = "PS_noop"
+}
+
+Effect SKYX_sky_mapobject
+{
+	VertexShader = "VS_standard"
+	PixelShader = "PS_noop"
+}
+
+Effect SKYX_sky_selection_mapobject
+{
+	VertexShader = "VS_standard"
+	PixelShader = "PS_noop"
+}
+# END MOD
