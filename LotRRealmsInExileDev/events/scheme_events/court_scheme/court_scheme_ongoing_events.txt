@@ -5132,3 +5132,551 @@ court_ongoing.1225 = {
 		}
 	}
 }
+
+###########################
+## ELVEN COURTING EVENTS ##
+###########################
+
+## FESTIVAL EVENT CHAIN ##
+
+# To check that the target will enjoy one of the options
+scripted_trigger court_ongoing.2001_dance_trigger = {
+	OR = {
+		has_personality_extroverted_trigger = yes
+		ai_energy > medium_positive_energy
+		has_trait = lifestyle_reveler
+	}
+	NOT = { has_trait = lazy }
+}
+
+scripted_trigger court_ongoing.2001_walk_trigger = {
+	OR = {
+		has_personality_introverted_trigger = yes
+		ai_rationality > medium_positive_rationality
+	}
+	NOT = { has_trait = lazy }
+}
+
+scripted_trigger court_ongoing.2001_story_trigger = {
+	OR = {
+		ai_boldness >= medium_positive_boldness
+		ai_greed >= medium_positive_greed
+		ai_honor >= medium_positive_honor
+		ai_compassion >= medium_positive_compassion
+	}
+}
+
+#An opportunity to do something
+court_ongoing.2001 = {
+	type = character_event
+	title = court_ongoing.2001.t
+	desc = {
+		first_valid = {
+			triggered_desc = {
+				trigger = {
+					scope:target = {
+						NOT = { court_owner = scope:owner }
+					}
+				}
+				desc = court_ongoing.2001.distant_opening
+			}
+			triggered_desc = {
+				trigger = {
+					scope:target = {
+						court_owner = scope:owner
+					}
+				}
+				desc = court_ongoing.2001.close_opening
+			}
+		}
+		desc = court_ongoing.2001.desc
+	}
+	
+	left_portrait = scope:target
+	theme = romance_scheme
+	widget = {
+		gui = "event_window_widget_scheme"
+		container = "custom_widgets_container"
+	}
+	
+	trigger = {
+		NOT = { has_variable = scheme_event_active_flag }
+		exists = scope:target.court_owner
+		scope:scheme = {
+			scheme_power_resistance_difference > 0
+		}
+		scope:target = {
+			exists = location.barony # In case the character in question is at sea
+			OR = {
+				court_ongoing.2001_dance_trigger = yes
+				court_ongoing.2001_walk_trigger = yes
+				court_ongoing.2001_story_trigger = yes
+			}
+			is_landed = no
+			is_available_adult = yes
+		}
+		is_elf = yes
+	}
+
+	immediate = {
+		set_variable = scheme_event_active_flag
+		scope:target.location.barony = {
+			save_scope_as = court_of_residence
+		}
+		scope:target = {
+			court_owner = {
+				save_scope_as = court_owner
+			}
+		}
+		save_scope_value_as = {
+			name = dance_approach
+			value = flag:empty
+		}
+	}
+
+	option = { #Dance with them
+		name = court_ongoing.2001.a
+		custom_tooltip = court_ongoing.2001.a.tt
+		save_scope_value_as = {
+			name = dance_approach
+			value = flag:dance
+		}
+		stress_impact = {
+			lazy = medium_stress_impact_gain
+			shy = medium_stress_impact_gain
+		}
+		ai_chance = {
+			base = 100
+			ai_value_modifier = {
+				ai_energy = 1
+				ai_boldness = 0.5
+				ai_rationality = 0.25
+			}
+		}
+	}
+
+	option = { #Take a walk
+		name = court_ongoing.2001.b
+		custom_tooltip = court_ongoing.2001.b.tt
+		save_scope_value_as = {
+			name = dance_approach
+			value = flag:walk
+		}
+		ai_chance = {
+			base = 100
+			ai_value_modifier = {
+				ai_energy = 0.5
+				ai_boldness = 0.5
+			}
+		}
+	}
+	
+	option = { #Listen to a story
+		name = court_ongoing.2001.c
+		custom_tooltip = court_ongoing.2001.c.tt
+		save_scope_value_as = {
+			name = dance_approach
+			value = flag:story
+		}
+		ai_chance = {
+			base = 100
+			ai_value_modifier = {
+				ai_greed = 0.5
+			}
+		}
+	}
+
+	after = {
+		remove_variable = scheme_event_active_flag
+		scope:target = {
+			hidden_effect = {
+				#Evaluate what makes for a "right" choice
+				if = {
+					limit = {
+						OR = {
+							AND = {
+								OR = {
+									has_personality_introverted_trigger = yes
+									ai_rationality > medium_positive_rationality
+								}
+								scope:dance_approach = flag:walk
+							}
+							AND = {
+								OR = {
+									has_personality_extroverted_trigger = yes
+									ai_energy > medium_positive_energy
+									has_trait = lifestyle_reveler
+								}
+								scope:dance_approach = flag:dance
+							}
+							AND = {
+								OR = {
+									ai_boldness >= medium_positive_boldness
+									ai_greed >= medium_positive_greed
+									ai_honor >= medium_positive_honor
+									ai_compassion >= medium_positive_compassion
+								}
+								scope:dance_approach = flag:story
+							}
+						}
+					}
+					save_scope_value_as = {
+						name = made_great_choice
+						value = yes
+					}
+				}
+
+
+				if = {
+					limit = {
+						scope:dance_approach = flag:dance
+					}
+					random_list = {
+						100 = { #Success
+							trigger_event = {
+								id = court_ongoing.2003
+								days = { 2 5 }
+							}
+							scope:owner = {
+								trigger_event = {
+									id = court_ongoing.2005
+									days = { 5 8 }
+								}
+							}
+						}
+						100 = { #Failure
+							trigger = {
+								NOT = { exists = scope:made_great_choice }
+							}
+							modifier = {
+								add = 100
+								has_trait = lazy
+							}
+							modifier = {
+								add = 100
+								has_trait = shy
+							}
+							trigger_event = {
+								id = court_ongoing.2004
+								days = { 2 5 }
+							}
+							scope:owner = {
+								trigger_event = {
+									id = court_ongoing.2006
+									days = { 5 8 }
+								}
+							}
+						}
+					}
+				}
+				else_if = {
+					limit = {
+						scope:dance_approach = flag:walk
+					}
+					random_list = {
+						100 = { #Success
+							modifier = {
+								add = 100
+								has_trait = shy
+							}
+							trigger_event = {
+								id = court_ongoing.2003
+								days = { 2 5 }
+							}
+							scope:owner = {
+								trigger_event = {
+									id = court_ongoing.2005
+									days = { 5 8 }
+								}
+							}
+						}
+						100 = { #Failure
+							trigger = {
+								NOT = { exists = scope:made_great_choice }
+							}
+							modifier = {
+								add = 100
+								has_trait = lazy
+							}
+							trigger_event = {
+								id = court_ongoing.2004
+								days = { 2 5 }
+							}
+							scope:owner = {
+								trigger_event = {
+									id = court_ongoing.2006
+									days = { 5 8 }
+								}
+							}
+						}
+					}
+				}
+				else_if = {
+					limit = {
+						scope:dance_approach = flag:story
+					}
+					random_list = {
+						100 = { #Success
+							compare_modifier = {
+								value = ai_sociability
+								multiplier = 2
+							}
+							compare_modifier = {
+								value = ai_boldness
+								multiplier = 4
+								min = 1
+							}
+							modifier = { #Would reasonably mean that they're interested in the subject
+								add = 40
+								OR = {
+									has_trait = education_diplomacy
+									has_lifestyle = diplomacy_lifestyle
+								}
+							}
+							modifier = {
+								add = 100
+								has_trait = patient
+							}
+							trigger_event = {
+								id = court_ongoing.2003
+								days = { 2 5 }
+							}
+							scope:owner = {
+								trigger_event = {
+									id = court_ongoing.2005
+									days = { 5 8 }
+								}
+							}
+						}
+						200 = { #Failure
+							trigger = {
+								NOT = { exists = scope:made_great_choice }
+							}
+							modifier = {
+								add = 100
+								has_trait = impatient
+							}
+							trigger_event = {
+								id = court_ongoing.2004
+								days = { 2 5 }
+							}
+							scope:owner = {
+								trigger_event = {
+									id = court_ongoing.2006
+									days = { 5 8 }
+								}
+							}
+						}
+					}
+				}
+				else_if = { #To stop error spamming about the scope being empty
+					limit = {
+						scope:dance_approach = flag:empty
+					}
+				}
+			}
+		}
+	}
+}
+
+
+#Target: Success
+court_ongoing.2003 = {
+	type = character_event
+	title = court_ongoing.2001.t
+	desc = {
+		desc = court_ongoing.2003.opening
+		first_valid = {
+			triggered_desc = {
+				trigger = {
+					scope:dance_approach = flag:dance
+				}
+				desc = court_ongoing.2003.dance
+			}
+			triggered_desc = {
+				trigger = {
+					scope:dance_approach = flag:walk
+				}
+				desc = court_ongoing.2003.walk
+			}
+			triggered_desc = {
+				trigger = {
+					scope:dance_approach = flag:story
+				}
+				desc = court_ongoing.2003.story
+			}
+			desc = court_ongoing.2003.fallback
+		}
+	}
+	
+	left_portrait = scope:owner
+	theme = romance_scheme
+
+	trigger = {
+		exists = scope:scheme
+	}
+
+	option = {
+		name = court_ongoing.2003.a
+		hidden_effect = {
+			scope:scheme = {
+				add_scheme_modifier = {
+					type = courting_charm_modifier
+				}
+			}
+		}
+		add_stress = minor_stress_loss
+	}
+}
+
+#Target: Failure
+court_ongoing.2004 = {
+	type = character_event
+	title = court_ongoing.2001.t
+	desc = {
+		desc = court_ongoing.2003.opening
+		first_valid = {
+			triggered_desc = {
+				trigger = {
+					scope:dance_approach = flag:dance
+				}
+				desc = court_ongoing.2004.dance
+			}
+			triggered_desc = {
+				trigger = {
+					scope:dance_approach = flag:walk
+				}
+				desc = court_ongoing.2004.walk
+			}
+			triggered_desc = {
+				trigger = {
+					scope:dance_approach = flag:story
+				}
+				desc = court_ongoing.2004.story
+			}
+			desc = court_ongoing.2004.fallback
+		}
+	}
+	
+	left_portrait = scope:owner
+	theme = unfriendly
+
+	trigger = {
+		exists = scope:scheme
+	}
+
+	option = {
+		name = court_ongoing.2004.a
+		hidden_effect = { 
+			scope:scheme = {
+				add_scheme_modifier = {
+					type = courting_boredom_modifier
+				}
+			}
+		}
+	}
+}
+
+#Owner: Success
+court_ongoing.2005 = {
+	type = character_event
+	title = court_ongoing.2001.t
+	desc = {
+		first_valid = {
+			triggered_desc = {
+				trigger = {
+					scope:dance_approach = flag:dance
+				}
+				desc = court_ongoing.2005.dance
+			}
+			triggered_desc = {
+				trigger = {
+					scope:dance_approach = flag:walk
+				}
+				desc = court_ongoing.2005.walk
+			}
+			triggered_desc = {
+				trigger = {
+					scope:dance_approach = flag:story
+				}
+				desc = court_ongoing.2005.story
+			}
+			desc = court_ongoing.2005.fallback
+		}
+	}
+	
+	left_portrait = {
+		character = scope:target
+		animation = happiness
+	}
+	theme = romance_scheme
+	widget = {
+		gui = "event_window_widget_scheme"
+		container = "custom_widgets_container"
+	}
+
+	trigger = {
+		exists = scope:scheme
+	}
+
+	option = {
+		name = court_ongoing.2005.a
+		show_as_tooltip = {
+			scope:scheme = {
+				add_scheme_modifier = {
+					type = courting_charm_modifier
+				}
+			}
+		}
+	}
+}
+
+
+#Owner: Failure
+court_ongoing.2006 = {
+	type = character_event
+	title = court_ongoing.2001.t
+	desc = {
+		first_valid = {
+			triggered_desc = {
+				trigger = {
+					scope:dance_approach = flag:dance
+				}
+				desc = court_ongoing.2006.dance
+			}
+			triggered_desc = {
+				trigger = {
+					scope:dance_approach = flag:walk
+				}
+				desc = court_ongoing.2006.walk
+			}
+			triggered_desc = {
+				trigger = {
+					scope:dance_approach = flag:story
+				}
+				desc = court_ongoing.2006.story
+			}
+			desc = court_ongoing.2006.fallback
+		}
+	}
+	
+	left_portrait = scope:target
+	theme = romance_scheme
+
+	trigger = {
+		exists = scope:scheme
+	}
+
+	option = {
+		name = court_ongoing.2006.a
+		show_as_tooltip = {
+			scope:scheme = {
+				add_scheme_modifier = {
+					type = courting_boredom_modifier
+				}
+			}
+		}
+	}
+}
+
+###END DANCE CHAIN
