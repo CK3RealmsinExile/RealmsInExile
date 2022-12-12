@@ -116,7 +116,7 @@ PixelShader =
 
 VertexStruct VS_OUTPUT_PDXMESHPORTRAIT
 {
-	float4 	Position		: PDX_POSITION;
+    float4 	Position		: PDX_POSITION;
 	float3 	Normal			: TEXCOORD0;
 	float3 	Tangent			: TEXCOORD1;
 	float3 	Bitangent		: TEXCOORD2;
