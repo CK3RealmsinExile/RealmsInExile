@@ -5146,7 +5146,7 @@ court_ongoing.1225 = {
 ## ELVEN COURTING EVENTS ##
 ###########################
 
-## FESTIVAL EVENT CHAIN ##
+### FESTIVAL EVENT CHAIN, by Brice Underhill ###
 
 # To check that the target will enjoy one of the options
 scripted_trigger court_ongoing.2001_dance_trigger = {
@@ -5718,4 +5718,551 @@ court_ongoing.2006 = {
 	}
 }
 
-###END DANCE CHAIN
+###END FESTIVAL CHAIN
+
+
+### ELVEN MEDITATION CHAIN, by Brice Underhill ###
+
+#To check that the target is likely to enjoy one of the options
+scripted_trigger court_ongoing_2011_meditation_trigger = {
+	OR = {
+		learning >= mediocre_skill_rating
+		piety >= medium_piety_value
+		ai_zeal = medium_positive_zeal
+		has_trait = zealous
+		has_trait = shy
+	}
+}
+
+scripted_trigger court_ongoing_2011_conversation_trigger = {
+	OR = {
+		ai_boldness >= medium_positive_boldness
+		ai_greed >= medium_positive_greed
+		ai_honor >= medium_positive_honor
+		ai_compassion >= medium_positive_compassion
+		has_trait = gregarious
+	}
+}
+
+scripted_trigger court_ongoing_2011_company_trigger = {
+	OR = {
+		learning >= mediocre_skill_rating
+		diplomacy >= mediocre_skill_rating
+		has_trait = calm
+	}
+}
+
+court_ongoing.2011 = {
+	type = character_event
+	title = {
+		first_valid = {
+			triggered_desc = {
+				trigger = {
+					exists = scope:location
+				}
+				desc = court_ongoing.2011.t
+			}
+			desc = court_ongoing.2011.t_no_location
+		}
+	}
+	desc = court_ongoing.2011.desc
+	
+	theme = seduce_scheme
+	left_portrait = scope:target
+	widget = {
+		gui = "event_window_widget_scheme"
+		container = "custom_widgets_container"
+	}
+	
+	trigger = {
+		NOT = { has_variable = scheme_event_active_flag }
+		is_available_adult = yes
+		scope:scheme = {
+			scheme_target = {
+				OR = {
+					court_ongoing_2011_meditation_trigger = yes
+					court_ongoing_2011_conversation_trigger = yes
+					court_ongoing_2011_company_trigger = yes
+				}
+				is_available_adult = yes
+			}
+		}
+	}
+
+	weight_multiplier = {
+		base = 1
+		compare_modifier = {
+			value = learning
+			multiplier = 1
+		}
+	}
+
+	immediate = {
+		set_variable = scheme_event_active_flag
+		if = {
+			limit = {
+				exists = scope:target.court_owner.capital_province.barony
+			}
+			scope:target = {
+				court_owner = {
+					capital_province = {
+						barony = {
+							save_scope_as = location
+						}
+					}
+				}
+			}
+		}
+		else_if = {
+			limit = {
+				exists = scope:target.location
+			}
+			scope:target.location = {
+				save_scope_as = location
+			}
+		}
+	}
+
+	option = { #Give them space
+		name = court_ongoing.2011.a
+		custom_tooltip = court_ongoing.2011.a.tt
+		save_scope_value_as = {
+			name = approach_selection
+			value = flag:meditation
+		}
+		ai_chance = {
+			base = 100
+			ai_value_modifier = {
+				ai_zeal = 1
+			}
+		}
+	}
+
+	option = { #Start a conversation
+		name = court_ongoing.2011.b
+		custom_tooltip = court_ongoing.2011.b.tt
+		save_scope_value_as = {
+			name = approach_selection
+			value = flag:conversation
+		}
+		ai_chance = {
+			base = 100
+			ai_value_modifier = {
+				ai_boldness = 1
+				ai_greed = 0.5
+			}
+		}
+	}
+	
+	option = { #Meditate together
+		name = court_ongoing.2011.c
+		custom_tooltip = court_ongoing.2011.c.tt
+		save_scope_value_as = {
+			name = approach_selection
+			value = flag:company
+		}
+		ai_chance = {
+			base = 100
+			compare_modifier = {
+				value = learning
+				multiplier = 3
+			}
+			compare_modifier = {
+				value = diplomacy
+				multiplier = 3
+			}
+		}
+	}
+
+	after = {
+		remove_variable = scheme_event_active_flag
+		scope:target = {
+			trigger_event = court_ongoing.2012
+		}
+	}
+}
+
+court_ongoing.2012 = {
+	hidden = yes
+	immediate = {
+		#Evaluate, and set what would have been a good choice
+		random_list = {
+			50 = {
+				trigger = { scope:approach_selection = flag:meditation }
+
+				compare_modifier = {
+					value = ai_zeal
+					multiplier = 6
+				}
+				compare_modifier = {
+					value = ai_sociability
+					multiplier = -2
+					min = 1
+				}
+				compare_modifier = {
+					value = piety_level
+					multiplier = 25
+				}
+				modifier = { #Would reasonably mean that they're interested
+					add = 40
+					OR = {
+						has_trait = education_learning
+						has_lifestyle = learning_lifestyle
+					}
+				}
+				modifier = {
+					add = {
+						value = learning
+						subtract = mediocre_skill_rating
+						multiply = 5
+						min = 0 # Low learning characters may still be interested due to piety.
+					}
+				}
+				trigger_event = court_ongoing.2013
+			}
+			50 = {
+				trigger = { scope:approach_selection = flag:conversation }
+				compare_modifier = {
+					value = ai_boldness
+					multiplier = 4
+					min = 1
+				}
+				compare_modifier = {
+					value = ai_greed
+					multiplier = 2
+					min = 1
+				}
+				compare_modifier = {
+					value = ai_sociability
+					multiplier = 3
+					min = 1
+				}
+				modifier = { #Would reasonably mean that they're interested
+					add = 40
+					OR = {
+						has_trait = education_diplomacy
+						has_lifestyle = diplomacy_lifestyle
+					}
+				}
+				modifier = { #They're a calm and/or "dry" person
+					add = -30
+					OR = {
+						has_trait = lazy
+						has_trait = content
+						has_trait = calm
+						has_trait = craven
+						has_trait = callous
+						has_trait = shy
+						has_trait = reclusive
+					}
+				}
+				modifier = { #They appreciate the distraction
+					add = 30
+					OR = {
+						has_trait = gregarious
+						has_trait = fickle
+						has_trait = compassionate
+					}
+				}
+				modifier = {
+					add = {
+						value = diplomacy
+						subtract = mediocre_skill_rating
+						multiply = 5
+						min = 0 # Low diplomacy characters may still be interested, but high skill characters value it more.
+					}
+				}
+				modifier = {
+					add = {
+						value = martial
+						subtract = mediocre_skill_rating
+						multiply = 5
+						min = 0 # Low martial characters may still be interested, but high skill characters value it more.
+					}
+				}
+				trigger_event = court_ongoing.2013
+			}
+			50 = {
+				trigger = { scope:book_selection = flag:company }
+
+				compare_modifier = {
+					value = ai_zeal
+					multiplier = -2 # Zealous characters would prefer meditation texts.
+					max = 0 # Cynical characters don't inherently appreciate these books though.
+				}
+				modifier = {
+					add = {
+						value = diplomacy
+						subtract = mediocre_skill_rating
+						multiply = 5
+						min = 0 # Low stewardship characters may still be interested, but high skill characters value it more.
+					}
+				}
+				modifier = {
+					add = {
+						value = learning
+						subtract = mediocre_skill_rating
+						multiply = 10
+						# Learning has a massive impact here, both if they're good OR bad at it!
+					}
+				}
+				modifier = { #Would reasonably mean that they're interested in the subject
+					add = 20
+					OR = {
+						has_trait = education_diplomacy
+						has_lifestyle = diplomacy_lifestyle
+					}
+				}
+				modifier = { #Would reasonably mean that they're interested in the subject
+					add = 30
+					OR = {
+						has_trait = education_learning
+						has_lifestyle = learning_lifestyle
+					}
+				}
+				# Traits
+				modifier = {
+					has_trait = impatient
+					add = -20
+				}
+				modifier = {
+					or = {
+						has_trait = calm
+						has_trait = patient
+						has_trait = gregarious
+					}
+					add = 20
+				}
+				
+
+				trigger_event = court_ongoing.2013
+			}
+			50 = { #Failure, choose what would have been a "better" choice
+				if = {
+					limit = {
+						scope:approach_selection = flag:meditation
+					}
+					random_list = {
+						50 = {
+							save_scope_value_as = {
+								name = approach_selection
+								value = flag:conversation
+							}		
+						}
+						50 = {
+							save_scope_value_as = {
+								name = approach_selection
+								value = flag:company
+							}		
+						}
+					}
+				}
+				else_if = {
+					limit = {
+						scope:book_selection = flag:conversation
+					}
+					random_list = {
+						50 = {
+							save_scope_value_as = {
+								name = approach_selection
+								value = flag:meditation
+							}
+						}
+						50 = {
+							save_scope_value_as = {
+								name = approach_selection
+								value = flag:company
+							}		
+						}
+					}
+				}
+				else_if = {
+					limit = {
+						scope:book_selection = flag:company
+					}
+					random_list = {
+						50 = {
+							save_scope_value_as = {
+								name = approach_selection
+								value = flag:meditation
+							}		
+						}
+						50 = {
+							save_scope_value_as = {
+								name = approach_selection
+								value = flag:conversation
+							}		
+						}
+					}
+				}
+				trigger_event = court_ongoing.2015
+			}
+		}
+	}
+}
+
+
+#Target: Success. Good Approach!
+court_ongoing.2013 = {
+	type = character_event
+	title = court_ongoing.2011.t
+	desc = court_ongoing.2013.desc
+	
+	theme = seduce_scheme
+	left_portrait = scope:owner
+
+	trigger = {
+		exists = scope:scheme
+	}
+
+	immediate = {
+		assign_quirk_effect = yes
+		scope:owner = {
+			trigger_event = court_ongoing.2014
+		}
+	}
+	
+	option = {
+		name = court_ongoing.2013.a
+	}
+}
+
+#Owner: Success
+court_ongoing.2014 = {
+	type = character_event
+	title = court_ongoing.2011.t
+	desc = court_ongoing.2014.desc
+	
+	theme = seduce_scheme
+	left_portrait = scope:target
+	widget = {
+		gui = "event_window_widget_scheme"
+		container = "custom_widgets_container"
+	}
+
+	trigger = {
+		exists = scope:scheme
+	}
+	
+	option = {
+		name = court_ongoing.2014.a
+		show_as_tooltip = {
+			scope:scheme = {
+				add_scheme_modifier = {
+					type = courting_charm_modifier
+				}
+			}
+		}
+	}
+}
+
+#Target: Failure. Kinda bad choice
+court_ongoing.2015 = {
+	type = character_event
+	title = court_ongoing.2011.t
+	desc = {
+		desc = court_ongoing.2015.desc_1
+		first_valid = {
+			triggered_desc = {
+				trigger = {
+					exists = scope:other_guest
+				}
+				desc = court_ongoing.2015.desc_2
+			}
+			desc = court_ongoing.2015.desc_no_other_guest
+		}
+	}
+	
+	theme = seduce_scheme
+	left_portrait = scope:owner
+	right_portrait = scope:other_guest
+
+	trigger = {
+		exists = scope:scheme
+	}
+
+	immediate = {
+		if = {
+			limit = {
+				exists = court_owner
+			}
+			court_owner = {
+				random_courtier_or_guest = {
+					limit = {
+						NOT = { this = scope:target }
+						NOT = { this = scope:owner }
+						is_available_adult = yes
+					}
+					save_scope_as = other_guest
+				}
+			}
+		}
+		scope:owner = {
+			trigger_event = court_ongoing.2016
+		}
+		hidden_effect = { seduce_ongoing_add_scheme_modifier_effect = { MILESTONE = 2 OUTCOME = failure } }
+	}
+	
+	option = {
+		name = court_ongoing.2015.a
+		if = {
+			limit = { exists = scope:other_guest }
+			add_opinion = {
+				target = scope:other_guest
+				modifier = kindness_opinion
+				opinion = 15
+			}
+		}
+	}	
+}
+
+#Owner: Failure
+court_ongoing.2016 = {
+	type = character_event
+	title = court_ongoing.2011.t
+	desc = {
+		desc = court_ongoing.2016.desc_1
+		first_valid = {
+			triggered_desc = {
+				trigger = {
+					exists = scope:other_guest
+				}
+				desc = court_ongoing.2016.desc_2
+			}
+			desc = court_ongoing.2016.desc_no_other_guest
+		}
+		desc = court_ongoing.2016.desc_3
+	}
+	
+	theme = seduce_scheme
+	left_portrait = {
+		character = scope:target
+		animation = boredom
+	}
+	right_portrait = scope:other_guest
+	widget = {
+		gui = "event_window_widget_scheme"
+		container = "custom_widgets_container"
+	}
+
+	trigger = {
+		exists = scope:scheme
+	}
+	
+	option = {
+		name = court_ongoing.2016.a
+		show_as_tooltip = {
+			seduce_ongoing_add_scheme_modifier_effect = { MILESTONE = 2 OUTCOME = failure }
+			if = {
+				limit = { exists = scope:other_guest }
+				add_opinion = {
+					target = scope:other_guest
+					modifier = kindness_opinion
+					opinion = 15
+				}
+			}
+		}
+	}
+}
+
+### END RIVER CHAIN
