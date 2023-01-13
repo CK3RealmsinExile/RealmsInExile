@@ -1,0 +1,383 @@
+﻿
+##################################################
+# Effects related to Song Battles
+##################################################
+
+##################################################
+# SETUP & CLEANUP EFFECTS
+
+configure_start_song_battle_effect = {
+	# DOCUMENTATION
+	## scope:sb_initiator
+		### Who started the board game? This is who the output/invalidation events will fire for.
+	## scope:sb_attacker
+		### The hostile party - in the event of a tie, the match is decided against them.
+	## scope:sb_defender
+		### The defending party - in the event of a tie, the match is decided in their favour.
+	## scope:sb_system = flag:XYZ
+		### These control both the relevant skills, counters, & some flavour adjacent to the game.
+		### chess
+		### pachisi
+		### hnefatafl
+		### tabula
+	## scope:locale = flag:XYZ
+		### These just trigger the event background of the same name. New ones can be added as needed, but should be added across all three events (round, victory, loss/song_battle.0001, song_battle.0031, song_battle.0041), as we can't add a scripted list.
+		### terrain_scope
+		### wilderness_scope
+		### battlefield
+		### temple
+		### council_chamber
+		### courtyard
+		### dungeon
+		### docks
+		### feast
+		### gallows
+		### garden
+		### market
+		### sitting_room
+		### bedchamber
+		### study
+		### physicians_study
+		### tavern
+		### throne_room
+		### army_camp
+		### random_nice_day
+		#### Selects either garden or sitting_room, depending on season.
+	## output event ID
+		### Which event fires after the game's completion?
+
+	# Sort parties.
+	$SB_INITIATOR$ = { save_scope_as = sb_initiator }
+	$SB_DEFENDER$ = { save_scope_as = sb_defender }
+	$SB_ATTACKER$ = { save_scope_as = sb_attacker }
+	# Make sure they're clean for setup.
+	hidden_effect = { remove_song_battle_variables_effect = yes}
+	# Set them both to busy for the single combat.
+	scope:sb_defender = {
+		set_variable = {
+			name = engaged_in_song_battle
+			value = yes
+		}
+	}
+	scope:sb_attacker = {
+		set_variable = {
+			name = engaged_in_song_battle
+			value = yes
+		}
+	}
+	## Sadly, we have no good justification for ripping your shirt off whilst playing board games.
+	# Set rules & system.
+	save_scope_value_as = {
+		name = sb_system
+		value = flag:$SYSTEM$
+	}
+	## Song Battle
+	### In song battles, our counter order is Diplomacy -> Learning -> Intrigue.
+
+	save_scope_value_as = {
+		name = sb_skill_a
+		value = flag:diplomacy
+	}
+	save_scope_value_as = {
+		name = sb_skill_b
+		value = flag:learning
+	}
+	save_scope_value_as = {
+		name = sb_skill_c
+		value = flag:intrigue
+	}
+	# Note where the fight is taking place, if we're using a specific location.
+	save_scope_value_as = {
+		name = sb_locale
+		value = flag:$LOCALE$
+	}
+	## Grab _scope backgrounds appropriately..
+	if = {
+		limit = { scope:sb_locale = flag:terrain_scope }
+		scope:sb_defender.location = { save_scope_as = background_terrain_scope }
+	}
+	else_if = {
+		limit = { scope:sb_locale = flag:wilderness_scope }
+		scope:sb_defender.location = { save_scope_as = background_wilderness_scope }
+	}
+	## Sort any random_ backgrounds if necessary.
+	else_if = {
+		limit = { scope:sb_locale = flag:random_nice_day }
+		random_list = {
+			# Indoors.
+			50 = {
+				trigger = {
+					exists = scope:sb_defender.location
+					is_nice_season_to_be_inside_trigger = { LOCATION = scope:sb_defender.location }
+				}
+				save_scope_value_as = {
+					name = sb_locale
+					value = flag:sitting_room
+				}
+			}
+			# Outdoors.
+			50 = {
+				trigger = {
+					exists = scope:sb_defender.location
+					is_nice_season_to_be_outside_trigger = { LOCATION = scope:sb_defender.location }
+				}
+				save_scope_value_as = {
+					name = sb_locale
+					value = flag:garden
+				}
+			}
+			# Fallback: occasionally characters fall into a bloody void between space and time, I guess, and when they do we need to stop trying to calculate the weather for non-Euclidian space.
+			50 = {
+				trigger = {
+					NOT = { exists = scope:sb_defender.location }
+				}
+				save_scope_value_as = {
+					name = sb_locale
+					# Because black holes are from space and space lives inside books.
+					value = flag:study
+				}
+			}
+		}
+	}
+	# Arrange aftermath.
+	save_scope_value_as = {
+		name = follow_up_event
+		value = event_id:$OUTPUT_EVENT$
+	}
+	save_scope_value_as = {
+		name = invalidation_event
+		value = event_id:$INVALIDATION_EVENT$
+	}
+	# Configure starting scopes'n'variables.
+	scope:sb_defender = {
+		# Set our current round.
+		set_variable = {
+			name = sb_current_round
+			value = 1
+		}
+		# Set up our initial scores.
+		set_variable = {
+			name = sb_current_score
+			value = 0
+		} 
+	}
+	scope:sb_attacker = {
+		# Set up our initial scores.
+		set_variable = {
+			name = sb_current_score
+			value = 0
+		}
+	}
+	# Finally, send the first event.
+	scope:sb_defender = { trigger_event = song_battle.0001 }
+}
+
+# Clean up all variables resulting from playing a board game.
+remove_song_battle_variables_effect = {
+	# Player-side variables.
+	remove_variable = sb_current_round
+	remove_variable = sb_current_score
+	remove_variable = sb_move_result
+	# If there are any wagering counties, clear the blockers on their being wagered.
+	if = {
+		limit = { exists = scope:sb_stake_land_recipient }
+		scope:sb_stake_land_recipient = { remove_variable = wagered_county }
+	}
+	if = {
+		limit = { exists = scope:sb_stake_land_actor }
+		scope:sb_stake_land_actor = { remove_variable = wagered_county }
+	}
+	# Remove any debug variables.
+	remove_variable = sb_gib_only_losing_locs
+	remove_variable = sb_gib_only_winning_locs
+	# Note, we don't remove var:engaged_in_song_battle here, as we run this effect at the start of games for clean-up also.
+}
+
+remove_engaged_in_song_battle_variables_effect = {
+	scope:sb_attacker = {
+		if = {
+			# Restrict to live characters to prevent errors.
+			limit = { is_alive = yes }
+			remove_variable = engaged_in_song_battle
+		}
+	}
+	scope:sb_defender = {
+		if = {
+			# Restrict to live characters to prevent errors.
+			limit = { is_alive = yes }
+			remove_variable = engaged_in_song_battle
+		}
+	}
+}
+
+# Clean all consequences of a single combat.
+remove_song_battle_info_effect = {
+	scope:sb_defender = {
+		# Only remove variables if they're alive, as otherwise we get errors.
+		if = {
+			limit = { is_alive = yes }
+			remove_song_battle_variables_effect = yes
+		}
+	}
+	scope:sb_attacker = {
+		# Only remove variables if they're alive, as otherwise we get errors.
+		if = {
+			limit = { is_alive = yes }
+			remove_song_battle_variables_effect = yes
+		}
+	}
+	remove_engaged_in_song_battle_variables_effect = yes
+}
+
+sb_fire_clean_up_and_invalidate_effect = {
+	remove_engaged_in_song_battle_variables_effect = yes
+	# We try to wing this at scope:sb_defender...
+	if = {
+		limit = {
+			scope:sb_defender = { is_alive = yes }
+		}
+		scope:sb_defender = {
+			trigger_event = { saved_event_id = scope:invalidation_event }
+		}
+	}
+	# ... then scope:sb_attacker...
+	else_if = {
+		limit = {
+			scope:sb_attacker = { is_alive = yes }
+		}
+		scope:sb_attacker = {
+			trigger_event = { saved_event_id = scope:invalidation_event }
+		}
+	}
+	# ... then scope:sb_initiator...
+	else_if = {
+		limit = {
+			scope:sb_initiator = { is_alive = yes }
+		}
+		scope:sb_initiator = {
+			trigger_event = { saved_event_id = scope:invalidation_event }
+		}
+	}
+	# ... then we give up, as somehow *everyone* involved in the board game has died simultaneously.
+}
+
+##################################################
+# INTERACTION-SPECIFIC EFFECTS
+
+challenge_to_2p_song_battle_interaction_lock_in_actor_stake_land_effect = {
+	scope:actor = {
+		save_temporary_scope_as = ordering_char_temp
+		ordered_held_title = {
+			limit = {
+				sb_stake_land_valid_neighbouring_county_to_trade_trigger = { NEIGHBOUR = scope:recipient }
+			}
+			order_by = sb_stake_land_evaluate_appropriate_county_ordering_value
+			save_scope_as = sb_stake_land_actor
+			set_variable = wagered_county
+		}
+	}
+}
+
+sb_stake_friendly_effect = {
+	$VICTOR$ = {
+		if = {
+			# Obscure opinion adds from players.
+			limit = { is_ai = yes }
+			add_opinion = {
+				target = $LOSER$
+				modifier = pleased_opinion
+				opinion = 25
+			}
+		}
+		add_stress = minor_stress_loss
+	}
+	$LOSER$ = {
+		if = {
+			# Obscure opinion adds from players.
+			limit = { is_ai = yes }
+			add_opinion = {
+				target = $VICTOR$
+				modifier = pleased_opinion
+				opinion = 10
+			}
+		}
+		add_stress = minor_stress_gain
+	}	
+}
+
+sb_stake_fame_effect = {
+	$VICTOR$ = { add_prestige = medium_prestige_gain }
+	$LOSER$ = { add_prestige = minor_prestige_loss }
+}
+
+sb_stake_fortune_effect = {
+	# A nice, simple, transfer of funds.
+	$LOSER$ = {
+		pay_short_term_gold = {
+			target = $VICTOR$
+			gold = scope:sb_stake_gold
+		}
+	}
+}
+
+sb_stake_titles_effect = {
+	create_title_and_vassal_change = {
+		type = granted
+		save_scope_as = change
+	}
+	if = {
+		limit = { $VICTOR$ = scope:actor }
+		scope:sb_stake_land_recipient = {
+			change_title_holder = {
+				holder = scope:actor
+				change = scope:change
+			}
+		}
+	}
+	else_if = {
+		limit = { $VICTOR$ = scope:recipient }
+		scope:sb_stake_land_actor = {
+			change_title_holder = {
+				holder = scope:recipient
+				change = scope:change
+			}
+		}
+	}
+	resolve_title_and_vassal_change = scope:change
+}
+
+##################################################
+# RESULT EFFECTS
+
+perk_interaction_0200_apply_effects_effect = {
+	# Stakes.
+	## Friendlies bet opinion & stress.
+	if = {
+		limit = { always = scope:song_battle_friendly }
+		sb_stake_friendly_effect = {
+			VICTOR = scope:sb_victor
+			LOSER = scope:sb_loser
+		}
+	}
+	## Fame bets prestige.
+	if = {
+		limit = { always = scope:song_battle_prestige }
+		sb_stake_fame_effect = {
+			VICTOR = scope:sb_victor
+			LOSER = scope:sb_loser
+		}
+	}
+	## Fortune bets gold.
+	if = {
+		limit = { always = scope:song_battle_gold }
+		sb_stake_fortune_effect = {
+			VICTOR = scope:sb_victor
+			LOSER = scope:sb_loser
+		}
+	}
+	## Land bets... land.
+	if = {
+		limit = { always = scope:song_battle_land }
+		sb_stake_titles_effect = { VICTOR = scope:sb_victor }
+	}
+}
