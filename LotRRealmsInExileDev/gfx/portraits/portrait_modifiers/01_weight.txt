@@ -1,6 +1,9 @@
 ﻿weight = {
 	usage = game
 
+	@overweight_multiplier = 0.5
+	@underweight_multiplier = -0.5
+
 	overweight = {
 		ignore_outfit_tags = yes
 		dna_modifiers = {
@@ -8,24 +11,25 @@
 				mode = modify
 				gene = gene_bs_body_type
 				value = {
-					value = current_weight_for_portrait # An absolute and normalized value derived from character body weight
-					multiply = 0.1 
+					value = scope:weight_for_portrait # An absolute and normalized value derived from character body weight
+					multiply = @overweight_multiplier
 				}
 			}
 		}
 		weight = {
 			base = 0
 			modifier = {
-				add = 20
-				current_weight > overweight_threshold
+				add = 100
+				scope:current_weight > overweight_threshold
 			}
 			modifier = {
                 add = -100
-				OR ={
-					has_character_flag = has_scripted_weight		
-					has_character_flag = has_scripted_appearance
-					is_elf = yes
-					is_maiar = yes
+				exists = this
+				OR = {
+					has_character_flag = has_scripted_weight
+					has_character_flag = has_scripted_appearance #LotR
+					is_elf = yes #LotR
+					is_maiar = yes #LotR
 				}
             }
 		}
@@ -37,10 +41,9 @@
 			morph = {
 				mode = modify
 				gene = gene_bs_body_type
-				# template = body_fat_head_fat_low
 				value = {
-					value = current_weight_for_portrait # An absolute and normalized value derived from character body weight
-					multiply = -0.5
+					value = scope:weight_for_portrait # An absolute and normalized value derived from character body weight
+					multiply = @underweight_multiplier
 				}
 			}
 		}
@@ -48,20 +51,65 @@
 			base = 0
 			modifier = {
 				add = 100
-				current_weight < underweight_threshold
+				scope:current_weight < underweight_threshold
 			}
 			modifier = {
                 add = -100
+				exists = this
 				OR = {
-					has_character_flag = has_scripted_appearance
 					has_character_flag = has_scripted_weight
-					is_elf = yes
-					is_maiar = yes
+					has_character_flag = has_scripted_appearance #LotR
+					is_elf = yes #LotR
+					is_maiar = yes #LotR
 				}
             }
 		}
 	}
+
+	ruler_designer_overweight = {
+		dna_modifiers = {
+			morph = {
+				mode = modify
+				gene = gene_bs_body_type
+				value = {
+					value = scope:weight_for_portrait # An absolute and normalized value derived from character body weight
+					multiply = @overweight_multiplier
+				}
+			}
+		}
+		weight = {
+			base = 0
+			modifier = {
+				add = 100
+				exists = scope:ruler_designer
+				scope:current_weight > overweight_threshold
+			}
+		}
+	}
+	ruler_designer_underweight = {
+		dna_modifiers = {
+			morph = {
+				mode = modify
+				gene = gene_bs_body_type
+				value = {
+					value = scope:weight_for_portrait # An absolute and normalized value derived from character body weight
+					multiply = @underweight_multiplier
+				}
+			}
+		}
+		weight = {
+			base = 0
+			modifier = {
+				add = 100
+				exists = scope:ruler_designer
+				scope:current_weight < underweight_threshold
+			}
+		}
+	}
 }
+
+@muscle_multiply = 1
+@muscle_max = 1.0
 
 muscularity = {
 
@@ -73,25 +121,37 @@ muscularity = {
 			morph = {
 				mode = modify
 				gene = gene_bs_body_shape
-				# template =
 				value = {
-					value = prowess_for_portrait # Value ranges from 0 to 100 so needs to be multiplied
-					multiply = 1.35
+					value = 0
+
+					if = { 
+						limit = { exists = scope:ruler_designer }
+						add = scope:prowess
+					}
+					else_if = {
+						limit = { exists = this }
+						add = prowess_for_portrait
+					}
+					else = {
+						add = scope:prowess
+					}
+
+					multiply = 4
+
 					max = 1.0
 				}
 			}
 		}
 		weight = {
 			base = 100
-			
 			modifier = {
-                add = -100
-				has_character_flag = has_scripted_appearance
-            }
-			modifier = {
-                add = -50
-				is_elf = yes
-            }
+				add = -100
+				OR = {
+					has_character_flag = has_scripted_appearance #LotR
+					is_elf = yes #LotR
+					is_maiar = yes #LotR
+				}
+			}
 		}
 	}
 }
@@ -112,13 +172,16 @@ pregnancy = {
 					if = {
 						# Overweight females should have less visible pregnancy, so we change the 100% pregnant value
 						limit = { current_weight > overweight_threshold }
-						value = current_weight_for_portrait # An absolute and normalized value derived from character body weight
+						value = scope:weight_for_portrait # An absolute and normalized value derived from character body weight
 						multiply = -1.0 
 						add = 1.5
 						max = 1.0
 					}
-					if = { #LotR
-						limit = { is_elf = no }
+					if = {
+						limit = {  
+							is_elf = no
+							NOT = { this = character:animation_test_female_pregnant }
+						}
 						multiply = {
 							add = pregnancy_days
 							# Only change every 10 days
@@ -130,9 +193,10 @@ pregnancy = {
 						}
 					}
 					else_if = {
-						limit = { 
+						limit = {
 							is_elf = yes
 							has_variable = year_became_pregnant
+							NOT = { this = character:animation_test_female_pregnant }
 						}
 						multiply = {
 							add = current_year
@@ -141,16 +205,16 @@ pregnancy = {
 							divide = 9
 							max = 1
 						}
-					}
+					}					
 				}
 			}
 		}
 		weight = {
 			base = 0
-			modifier = { #LotR
+			modifier = {
 				add = 100
 				OR = {
-					has_trait = pregnant
+					portrait_has_trait_trigger = { TRAIT = pregnant }
 					AND = {
 						is_female = yes
 						exists = var:year_became_pregnant
@@ -159,30 +223,6 @@ pregnancy = {
 					}
 				}
 			}			
-		}
-	}
-}
-
-height_by_prowess = {
-	height = {
-		ignore_outfit_tags = yes
-		dna_modifiers = {
-			morph = {
-				mode = modify
-				gene = gene_height
-				value = {
-					value = prowess_for_portrait # Value ranges from 0 to 100 so needs to be multiplied
-					multiply = 0.25
-					max = 1.0
-				}
-			}
-		}
-		weight = {
-			base = 100
-			modifier = {
-                add = -100
-				has_character_flag = has_scripted_appearance
-            }
 		}
 	}
 }
