@@ -89,6 +89,10 @@ khand.0100 = { # Khand: Introduction of "Presenting the Heir"
 				name = trial_wins
 				value = 0
 			}
+			set_variable = {
+				name = trials_had
+				value = 0
+			}
 		}
 		random_powerful_vassal = {
 			limit = {
@@ -104,18 +108,73 @@ khand.0100 = { # Khand: Introduction of "Presenting the Heir"
 
 	option = { # Proceed with the first trial
 		name = khand.0100.a
-		# scope:heir = { add_character_flag = has_been_introduced_as_heir }
+		scope:heir = { add_character_flag = has_been_introduced_as_heir }
 		trigger_event = {
 			on_action = introduce_the_heir_event_pool
-			days = 1
+			days = 10
 		}
 	}
 	option = { # Last chance to back out
 		name = khand.0100.b
+        remove_decision_cooldown = decision_introduce_the_heir
 	}
 }
 
-khand.0210 = { # Khand Challenge 1: Martial / Learning - Battlefield Planning
+khand.0101 = { # Maintenance - pick next challenge setter
+	hidden = yes
+
+	immediate = {
+		if = { #First try to use powerful vassals
+			limit = {
+				any_powerful_vassal = {
+					is_available_ai_adult = yes
+					NOT = { is_in_list = challenge_setter_list } #Check they haven't offered a challenge before
+				}
+			}
+			random_powerful_vassal = {
+				limit = {
+					is_available_ai_adult = yes
+					NOT = { is_in_list = challenge_setter_list } #Check they haven't offered a challenge before
+				}
+				add_to_list = challenge_setter_list
+				save_scope_as = challenge_setter
+			}
+		}
+		else_if = { #Then try to use normal vassals
+			limit = {
+				any_vassal = {
+					is_available_ai_adult = yes
+					NOT = { is_in_list = challenge_setter_list } #Check they haven't offered a challenge before
+				}
+			}
+			random_vassal = {
+				limit = {
+					is_available_ai_adult = yes
+					NOT = { is_in_list = challenge_setter_list } #Check they haven't offered a challenge before
+				}
+				add_to_list = challenge_setter_list
+				save_scope_as = challenge_setter
+			}
+		}
+		else = { #Use courtiers as last resort! (should almost certainly never trigger!
+			random_courtier = {
+				limit = {
+					is_available_ai_adult = yes
+					NOT = { is_in_list = challenge_setter_list } #Check they haven't offered a challenge before
+				}
+				add_to_list = challenge_setter_list
+				save_scope_as = challenge_setter
+			}
+		}
+		
+		trigger_event = {
+			on_action = introduce_the_heir_event_pool
+			days = 10
+		}
+	}
+}
+
+khand.0210 = { # Wargames - Martial / Learning - Battlefield Planning
 	title = khand.0210.t
 	desc = khand.0210.desc
 	theme = realm
@@ -129,13 +188,35 @@ khand.0210 = { # Khand Challenge 1: Martial / Learning - Battlefield Planning
 		animation = personality_bold
 	}
 
+	trigger = {
+		NOT = {
+			has_character_flag = khand_0210_done
+		}
+	}
+
+	weight_multiplier = {
+		base = 0.5
+		modifier = {
+			add = 5
+			scope:challenge_setter = { highest_skill = martial }
+		}
+	}
+
 	immediate = {
+		add_character_flag = {
+			flag = khand_0210_done
+			years = 1
+		}
 	}
 	
 	option = { # Martial
 		name = khand.0210.a
 		skill = martial
 		scope:heir = {
+			change_variable = { 
+				name = trials_had
+				add = 1
+			}
 			duel = {
 				skill = martial 
 				value = 10
@@ -177,12 +258,31 @@ khand.0210 = { # Khand Challenge 1: Martial / Learning - Battlefield Planning
 				}
 			}
 		}
+		if = {
+			limit = {
+				scope:heir = {
+					has_variable = trials_had
+					var:trials_had = 5
+				}
+			}
+			trigger_event = {
+				id = khand.0300
+				days = 10
+			}
+		}
+		else = {
+			trigger_event = khand.0101
+		}
 	}
 
 	option = { # Learning
 		name = khand.0210.b
 		skill = learning
 		scope:heir = {
+			change_variable = { 
+				name = trials_had
+				add = 1
+			}
 			duel = {
 				skill = learning 
 				value = 10
@@ -229,6 +329,21 @@ khand.0210 = { # Khand Challenge 1: Martial / Learning - Battlefield Planning
 				}
 			}
 		}
+		if = {
+			limit = {
+				scope:heir = {
+					has_variable = trials_had
+					var:trials_had = 5
+				}
+			}
+			trigger_event = {
+				id = khand.0300
+				days = 10
+			}
+		}
+		else = {
+			trigger_event = khand.0101
+		}
 	}
 
 	option = { # Bribe
@@ -258,32 +373,9 @@ khand.0210 = { # Khand Challenge 1: Martial / Learning - Battlefield Planning
 		trigger_event = khand.0211
 	}
 
-	after = {
-		# if = {
-		# 	limit = {					
-		# 		#scope:khand_decision = {
-		# 			any_in_list = {
-		# 				list = potential_vassal
-		# 				count < 1 
-		# 			}
-		# 		#}
-		# 	}
-		# 	# if no vassals left, I add them again
-		# 	every_vassal = {
-		# 		limit = {
-		# 			is_available_healthy_ai_adult = yes
-		# 		}
-		# 		add_to_list = potential_vassal
-		# 	}
-		# }
-		# trigger_event = {
-		# 	id = khand.0220
-		# 	days = 1
-		# }
-	}
 }
 
-khand.0211 = { # Khand Challenge 1: Martial / Learning - Battlefield Planning - Going Easy on Heir
+khand.0211 = { # Wargames - Martial / Learning - Battlefield Planning - Going Easy on Heir
 	title = khand.0211.t
 	desc = khand.0211.desc
 	theme = realm
@@ -296,14 +388,15 @@ khand.0211 = { # Khand Challenge 1: Martial / Learning - Battlefield Planning - 
 		character = scope:challenge_setter
 		animation = personality_bold
 	}
-
-	immediate = {
-	}
 	
 	option = { # Martial
 		name = khand.0211.a
 		skill = martial
 		scope:heir = {
+			change_variable = { 
+				name = trials_had
+				add = 1
+			}
 			duel = {
 				skill = martial 
 				value = 5
@@ -351,6 +444,10 @@ khand.0211 = { # Khand Challenge 1: Martial / Learning - Battlefield Planning - 
 		name = khand.0211.b
 		skill = learning
 		scope:heir = {
+			change_variable = { 
+				name = trials_had
+				add = 1
+			}
 			duel = {
 				skill = learning 
 				value = 5
@@ -360,8 +457,7 @@ khand.0211 = { # Khand Challenge 1: Martial / Learning - Battlefield Planning - 
 						multiplier = 5
 						min = -49
 					}
-					desc = khand.0210.b.duel_success
-					
+					desc = khand.0210.b.duel_success					
 					change_variable = { 
 						name = trial_wins
 						add = 1
@@ -401,629 +497,1485 @@ khand.0211 = { # Khand Challenge 1: Martial / Learning - Battlefield Planning - 
 
 	after = {
 		if = {
-			limit = {					
-				#scope:khand_decision = {
-					any_in_list = {
-						list = potential_vassal
-						count < 1 
-					}
-				#}
-			}
-			# if no vassals left, I add them again
-			every_vassal = {
-				limit = {
-					is_available_healthy_ai_adult = yes
+			limit = {
+				scope:heir = {
+					has_variable = trials_had
+					var:trials_had = 5
 				}
-				add_to_list = potential_vassal
+			}
+			trigger_event = {
+				id = khand.0300
+				days = 10
 			}
 		}
-		trigger_event = {
-			id = khand.0220
-			days = 1
+		else = {
+			trigger_event = khand.0101
 		}
 	}
 }
 
-khand.0220 = { # Khand: Challenge 2: Prowess
-	title = khand.0220.t
-	desc = khand.0220.desc
-	theme = southern_throne
-	left_portrait = {
-		character = root.player_heir
-		animation = personality_bold
-	}
-	immediate = {
-		#scope:khand_decision = {
-			
-			random_in_list = {
-				list = potential_vassal
-				limit = {
-					is_alive = yes
-				}
-				save_scope_as = next_vassal				
-				remove_from_list = potential_vassal
-			}
-		#}
-	}
-	right_portrait = {
-		character = scope:next_vassal
-		animation = personality_bold
-	}
-	
-	option = { # Next duel
-		name = khand.0220.a
-		custom_tooltip = khand.0220.a.desc
-		duel = {
-			skill = prowess 
-			value = medium_skill_rating
-			50 = { 
-				compare_modifier = {
-					value = scope:duel_value
-					multiplier = 1
-					min = -19
-				}
-				desc = khand.0220.duel_success
-				send_interface_toast = {
-					left_icon = root.primary_heir
-					title = khand.0220.success
-					
-					add_dread = medium_dread_gain
-					scope:khand_decision = {
-						change_variable = { 
-							name = trial_wins
-							add = 1
-						}
-					}
-					if = {
-						limit = {					
-							#scope:khand_decision = {
-								any_in_list = {
-									list = potential_vassal
-									count < 1 
-								}
-							#}
-						}
-						# if no vassals left, I add them again
-						every_vassal = {
-							limit = {
-								is_available_healthy_ai_adult = yes
-							}
-							add_to_list = potential_vassal
-						}
-					}
-					trigger_event = {
-						id = khand.0230
-						days = 1
-					}
-				}
-			}
-			100 = {
-				compare_modifier = {
-					value = scope:duel_value
-					multiplier = -1
-					min = -19
-				}
-				desc = khand.0220.duel_failure
-				send_interface_toast = {
-					left_icon = root.primary_heir
-					title = khand.0220.failure
-					
-					add_dread = medium_dread_loss
+khand.0220 = { # Litigation - Learning / Stewardship
+    title = khand.0220.t
+    desc = khand.0220.desc
+    theme = realm
 
-					if = {
-						limit = {					
-							#scope:khand_decision = {
-								any_in_list = {
-									list = potential_vassal
-									count < 1 
-								}
-							#}
-						}
-						# if no vassals left, I add them again
-						every_vassal = {
-							limit = {
-								is_available_healthy_ai_adult = yes
-							}
-							add_to_list = potential_vassal
-						}
-					}
-					trigger_event = {
-						id = khand.0230
-						days = 1
-					}
-				}
-			}
+    left_portrait = {
+        character = scope:heir
+        animation = personality_bold
+    }
+    right_portrait = {
+        character = scope:challenge_setter
+        animation = personality_forgiving
+    }
+
+    trigger = {
+        NOT = {
+            has_character_flag = khand_0220_done
+        }
+    }
+
+	weight_multiplier = {
+		base = 0.5
+		modifier = {
+			add = 5
+			scope:challenge_setter = { highest_skill = learning }
 		}
 	}
-	option = { # Cancel
-		name = khand.0999.a
-		trigger_event = {
-			id = khand.0999 # Finish with no results
-			days = 1
-		}
-	}
+
+    immediate = {
+        add_character_flag = {
+            flag = khand_0220_done
+            years = 1
+        }
+    }
+
+    option = { # Learning
+        name = khand.0220.a
+        skill = learning
+        scope:heir = {
+            change_variable = { 
+                name = trials_had
+                add = 1
+            }
+            duel = {
+                skill = learning 
+                value = 10
+                50 = { 
+                    compare_modifier = {
+                        value = scope:duel_value
+                        multiplier = 5
+                        min = -49
+                    }
+                    desc = khand.0220.a.duel_success
+                    change_variable = { 
+                        name = trial_wins
+                        add = 1
+                    }
+                    root = {
+                        send_interface_toast = {
+                            left_icon = scope:heir
+                            right_icon = scope:challenge_setter
+                            title = khand.0210.success
+                            custom_tooltip = khand.impressed_vassals
+                        }
+                    }
+                }
+                50 = {
+                    compare_modifier = {
+                        value = scope:duel_value
+                        multiplier = -5
+                        min = -49
+                    }
+                    desc = khand.0220.a.duel_failure
+                    root = {
+                        send_interface_toast = {
+                            left_icon = scope:heir
+                            right_icon = scope:challenge_setter
+                            title = khand.0210.failure
+                            custom_tooltip = khand.unimpressed_vassals
+                        }
+                    }
+                }
+            }
+        }
+        if = {
+            limit = {
+                scope:heir = {
+                    has_variable = trials_had
+                    var:trials_had = 5
+                }
+            }
+            trigger_event = {
+                id = khand.0300
+                days = 10
+            }
+        }
+        else = {
+            trigger_event = khand.0101
+        }
+    }
+
+    option = { # Stewardship
+        name = khand.0220.b
+        skill = stewardship
+        scope:heir = {
+            change_variable = { 
+                name = trials_had
+                add = 1
+            }
+            duel = {
+                skill = stewardship 
+                value = 10
+                50 = { 
+                    compare_modifier = {
+                        value = scope:duel_value
+                        multiplier = 5
+                        min = -49
+                    }
+                    desc = khand.0220.b.duel_success
+                    
+                    change_variable = { 
+                        name = trial_wins
+                        add = 1
+                    }
+                    root = {
+                        send_interface_toast = {
+                            left_icon = scope:heir
+                            right_icon = scope:challenge_setter
+                            title = khand.0210.success
+                            custom_tooltip = khand.impressed_vassals
+                        }
+                    }
+                }
+                50 = {
+                    compare_modifier = {
+                        value = scope:duel_value
+                        multiplier = -5
+                        min = -49
+                    }
+                    desc = khand.0220.b.duel_failure
+                    change_variable = { 
+                        name = trial_losses
+                        add = 1
+                    }
+                    root = {
+                        send_interface_toast = {
+                            left_icon = scope:heir
+                            right_icon = scope:challenge_setter
+                            title = khand.0210.failure
+                            custom_tooltip = khand.unimpressed_vassals
+                        }
+                    }
+                }
+            }
+        }
+        if = {
+            limit = {
+                scope:heir = {
+                    has_variable = trials_had
+                    var:trials_had = 5
+                }
+            }
+            trigger_event = {
+                id = khand.0300
+                days = 10
+            }
+        }
+        else = {
+            trigger_event = khand.0101
+        }
+    }
+
+    option = { # Bribe
+        name = khand.0220.c
+        custom_tooltip = introduce_the_heir.bribe_effect_desc
+        scope:challenge_setter = {
+            save_scope_as = recipient
+        }
+        pay_short_term_gold = {
+            gold = gift_value
+            target = scope:recipient
+        }
+        add_prestige = {
+            value = gift_value
+            multiply = -1
+        }
+        trigger_event = khand.0221
+    }
+
+    option = { # Hook
+        name = khand.0220.d
+        custom_tooltip = introduce_the_heir.hook_effect_desc
+        trigger = {
+            has_hook = scope:challenge_setter
+        }
+        use_hook = scope:challenge_setter
+        trigger_event = khand.0221
+    }
 }
 
-khand.0230 = { # Khand: Challenge 3: Diplomacy
+khand.0221 = { # Litigation - Learning / Stewardship - Going Easy on Heir
+    title = khand.0221.t
+    desc = khand.0221.desc
+    theme = realm
+
+    left_portrait = {
+        character = scope:heir
+        animation = personality_rational
+    }
+    right_portrait = {
+        character = scope:challenge_setter
+        animation = personality_bold
+    }
+    
+    option = { # Learning
+        name = khand.0221.a
+        skill = learning
+        scope:heir = {
+            change_variable = { 
+                name = trials_had
+                add = 1
+            }
+            duel = {
+                skill = learning 
+                value = 5
+                50 = { 
+                    compare_modifier = {
+                        value = scope:duel_value
+                        multiplier = 5
+                        min = -49
+                    }
+                    desc = khand.0220.a.duel_success
+                    change_variable = { 
+                        name = trial_wins
+                        add = 1
+                    }
+                    root = {
+                        send_interface_toast = {
+                            left_icon = scope:heir
+                            right_icon = scope:challenge_setter
+                            title = khand.0210.success
+                            custom_tooltip = khand.impressed_vassals
+                        }
+                    }
+                }
+                50 = {
+                    compare_modifier = {
+                        value = scope:duel_value
+                        multiplier = -5
+                        min = -49
+                    }
+                    desc = khand.0220.a.duel_failure
+                    root = {
+                        send_interface_toast = {
+                            left_icon = scope:heir
+                            right_icon = scope:challenge_setter
+                            title = khand.0210.failure
+                            custom_tooltip = khand.unimpressed_vassals
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    option = { # Stewardship
+        name = khand.0221.b
+        skill = stewardship
+        scope:heir = {
+            change_variable = { 
+                name = trials_had
+                add = 1
+            }
+            duel = {
+                skill = stewardship 
+                value = 5
+                50 = { 
+                    compare_modifier = {
+                        value = scope:duel_value
+                        multiplier = 5
+                        min = -49
+                    }
+                    desc = khand.0220.b.duel_success                    
+                    change_variable = { 
+                        name = trial_wins
+                        add = 1
+                    }
+                    root = {
+                        send_interface_toast = {
+                            left_icon = scope:heir
+                            right_icon = scope:challenge_setter
+                            title = khand.0210.success
+                            custom_tooltip = khand.impressed_vassals
+                        }
+                    }
+                }
+                50 = {
+                    compare_modifier = {
+                        value = scope:duel_value
+                        multiplier = -5
+                        min = -49
+                    }
+                    desc = khand.0220.b.duel_failure
+                    change_variable = { 
+                        name = trial_losses
+                        add = 1
+                    }
+                    root = {
+                        send_interface_toast = {
+                            left_icon = scope:heir
+                            right_icon = scope:challenge_setter
+                            title = khand.0210.failure
+                            custom_tooltip = khand.unimpressed_vassals
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    after = {
+        if = {
+            limit = {
+                scope:heir = {
+                    has_variable = trials_had
+                    var:trials_had = 5
+                }
+            }
+            trigger_event = {
+                id = khand.0300
+                days = 10
+            }
+        }
+        else = {
+            trigger_event = khand.0101
+        }
+    }
+}
+
+khand.0230 = { # Rhetoric - Diplomacy / Intrigue
 	title = khand.0230.t
 	desc = khand.0230.desc
-	theme = southern_throne
+	theme = realm
+
 	left_portrait = {
-		character = root.player_heir
+		character = scope:heir
 		animation = personality_bold
-	}
-	immediate = {
-		#scope:khand_decision = {
-			
-			random_in_list = {
-				list = potential_vassal
-				limit = {
-					is_alive = yes
-				}
-				save_scope_as = next_vassal				
-				remove_from_list = potential_vassal
-			}
-		#}
 	}
 	right_portrait = {
-		character = scope:next_vassal
-		animation = personality_bold
+		character = scope:challenge_setter
+		animation = personality_forgiving
 	}
-	
-	option = { # Next duel
+
+	trigger = {
+		NOT = {
+			has_character_flag = khand_0230_done
+		}
+	}
+
+	weight_multiplier = {
+		base = 0.5
+		modifier = {
+			add = 5
+			scope:challenge_setter = { highest_skill = diplomacy }
+		}
+	}
+
+	immediate = {
+		add_character_flag = {
+			flag = khand_0230_done
+			years = 1
+		}
+	}
+
+	option = { # Diplomacy
 		name = khand.0230.a
-		custom_tooltip = khand.0230.a.desc
-		duel = {
-			skill = diplomacy 
-			value = medium_skill_rating
-			50 = { 
-				compare_modifier = {
-					value = scope:duel_value
-					multiplier = 1
-					min = -19
+		skill = diplomacy
+		scope:heir = {
+			change_variable = { 
+				name = trials_had
+				add = 1
+			}
+			duel = {
+				skill = diplomacy 
+				value = 10
+				50 = { 
+					compare_modifier = {
+						value = scope:duel_value
+						multiplier = 5
+						min = -49
+					}
+					desc = khand.0230.a.duel_success
+					change_variable = { 
+						name = trial_wins
+						add = 1
+					}
+					root = {
+						send_interface_toast = {
+							left_icon = scope:heir
+							right_icon = scope:challenge_setter
+							title = khand.0210.success
+							custom_tooltip = khand.impressed_vassals
+						}
+					}
 				}
-				desc = khand.0230.duel_success
-				send_interface_toast = {
-					left_icon = root.primary_heir
-					title = khand.0230.success
-					
-					add_prestige = medium_prestige_gain
-
-					scope:khand_decision = {
-						change_variable = { 
-							name = trial_wins
-							add = 1
-						}
+				50 = {
+					compare_modifier = {
+						value = scope:duel_value
+						multiplier = -5
+						min = -49
 					}
-					if = {
-						limit = {					
-							#scope:khand_decision = {
-								any_in_list = {
-									list = potential_vassal
-									count < 1 
-								}
-							#}
+					desc = khand.0230.a.duel_failure
+					root = {
+						send_interface_toast = {
+							left_icon = scope:heir
+							right_icon = scope:challenge_setter
+							title = khand.0210.failure
+							custom_tooltip = khand.unimpressed_vassals
 						}
-						# if no vassals left, I add them again
-						every_vassal = {
-							limit = {
-								is_available_healthy_ai_adult = yes
-							}
-							add_to_list = potential_vassal
-						}
-					}
-					trigger_event = {
-						id = khand.0240
-						days = 1
 					}
 				}
 			}
-			100 = {
-				compare_modifier = {
-					value = scope:duel_value
-					multiplier = -1
-					min = -19
-				}
-				desc = khand.0230.duel_failure
-				send_interface_toast = {
-					left_icon = root.primary_heir
-					title = khand.0230.failure
-					
-					add_prestige = medium_prestige_loss
-					
-					if = {
-						limit = {					
-							#scope:khand_decision = {
-								any_in_list = {
-									list = potential_vassal
-									count < 1 
-								}
-							#}
-						}
-						# if no vassals left, I add them again
-						every_vassal = {
-							limit = {
-								is_available_healthy_ai_adult = yes
-							}
-							add_to_list = potential_vassal
-						}
-					}
-					trigger_event = {
-						id = khand.0240
-						days = 1
-					}
+		}
+		if = {
+			limit = {
+				scope:heir = {
+					has_variable = trials_had
+					var:trials_had = 5
 				}
 			}
+			trigger_event = {
+				id = khand.0300
+				days = 10
+			}
+		}
+		else = {
+			trigger_event = khand.0101
 		}
 	}
-	option = { # Cancel
-		name = khand.0999.a
-		trigger_event = {
-			id = khand.0999 # Finish with no results
-			days = 1
+
+	option = { # Intrigue
+		name = khand.0230.b
+		skill = intrigue
+		scope:heir = {
+			change_variable = { 
+				name = trials_had
+				add = 1
+			}
+			duel = {
+				skill = intrigue 
+				value = 10
+				50 = { 
+					compare_modifier = {
+						value = scope:duel_value
+						multiplier = 5
+						min = -49
+					}
+					desc = khand.0230.b.duel_success
+					
+					change_variable = { 
+						name = trial_wins
+						add = 1
+					}
+					root = {
+						send_interface_toast = {
+							left_icon = scope:heir
+							right_icon = scope:challenge_setter
+							title = khand.0210.success
+							custom_tooltip = khand.impressed_vassals
+						}
+					}
+				}
+				50 = {
+					compare_modifier = {
+						value = scope:duel_value
+						multiplier = -5
+						min = -49
+					}
+					desc = khand.0230.b.duel_failure
+					change_variable = { 
+						name = trial_losses
+						add = 1
+					}
+					root = {
+						send_interface_toast = {
+							left_icon = scope:heir
+							right_icon = scope:challenge_setter
+							title = khand.0210.failure
+							custom_tooltip = khand.unimpressed_vassals
+						}
+					}
+				}
+			}
 		}
+		if = {
+			limit = {
+				scope:heir = {
+					has_variable = trials_had
+					var:trials_had = 5
+				}
+			}
+			trigger_event = {
+				id = khand.0300
+				days = 10
+			}
+		}
+		else = {
+			trigger_event = khand.0101
+		}
+	}
+
+	option = { # Bribe
+		name = khand.0230.c
+		custom_tooltip = introduce_the_heir.bribe_effect_desc
+		scope:challenge_setter = {
+			save_scope_as = recipient
+		}
+		pay_short_term_gold = {
+			gold = gift_value
+			target = scope:recipient
+		}
+		add_prestige = {
+			value = gift_value
+			multiply = -1
+		}
+		trigger_event = khand.0231
+	}
+
+	option = { # Hook
+		name = khand.0230.d
+		custom_tooltip = introduce_the_heir.hook_effect_desc
+		trigger = {
+			has_hook = scope:challenge_setter
+		}
+		use_hook = scope:challenge_setter
+		trigger_event = khand.0231
 	}
 }
 
-khand.0240 = { # Khand: Challenge 4: Learning
-	title = khand.0240.t
-	desc = khand.0240.desc
-	theme = southern_throne
+khand.0231 = { # Rhetoric - Diplomacy / Intrigue - Going Easy on Heir
+	title = khand.0231.t
+	desc = khand.0231.desc
+	theme = realm
+
 	left_portrait = {
-		character = root.player_heir
-		animation = personality_bold
-	}
-	immediate = {
-		#scope:khand_decision = {
-			
-			random_in_list = {
-				list = potential_vassal
-				limit = {
-					is_alive = yes
-				}
-				save_scope_as = next_vassal				
-				remove_from_list = potential_vassal
-			}
-		#}
+		character = scope:heir
+		animation = personality_rational
 	}
 	right_portrait = {
-		character = scope:next_vassal
+		character = scope:challenge_setter
 		animation = personality_bold
 	}
 	
-	option = { # Next duel
-		name = khand.0240.a
-		custom_tooltip = khand.0240.a.desc
-		duel = {
-			skill = learning 
-			value = medium_skill_rating
-			50 = { 
-				compare_modifier = {
-					value = scope:duel_value
-					multiplier = 1
-					min = -19
-				}
-				desc = khand.0240.duel_success
-				send_interface_toast = {
-					left_icon = root.primary_heir
-					title = khand.0240.success
-					
-					
-					root.player_heir = {
-						add_character_modifier = {
-							modifier = connoisseur
-							years = 2
-						}
-					}
-
-					scope:khand_decision = {
-						change_variable = { 
-							name = trial_wins
-							add = 1
-						}
-					}
-
-					if = {
-						limit = {					
-							#scope:khand_decision = {
-								any_in_list = {
-									list = potential_vassal
-									count < 1 
-								}
-							#}
-						}
-						# if no vassals left, I add them again
-						every_vassal = {
-							limit = {
-								is_available_healthy_ai_adult = yes
-							}
-							add_to_list = potential_vassal
-						}
-					}
-					trigger_event = {
-						id = khand.0250
-						days = 1
-					}
-				}
+	option = { # Diplomacy
+		name = khand.0231.a
+		skill = diplomacy
+		scope:heir = {
+			change_variable = { 
+				name = trials_had
+				add = 1
 			}
-			100 = {
-				compare_modifier = {
-					value = scope:duel_value
-					multiplier = -1
-					min = -19
+			duel = {
+				skill = diplomacy 
+				value = 5
+				50 = { 
+					compare_modifier = {
+						value = scope:duel_value
+						multiplier = 5
+						min = -49
+					}
+					desc = khand.0230.a.duel_success
+					change_variable = { 
+						name = trial_wins
+						add = 1
+					}
+					root = {
+						send_interface_toast = {
+							left_icon = scope:heir
+							right_icon = scope:challenge_setter
+							title = khand.0210.success
+							custom_tooltip = khand.impressed_vassals
+						}
+					}
 				}
-				desc = khand.0240.duel_failure
-				send_interface_toast = {
-					left_icon = root.primary_heir
-					title = khand.0240.failure
-					
-					root.player_heir = {
-						add_character_modifier = {
-							modifier = ignorant
-							years = 2
-						}
+				50 = {
+					compare_modifier = {
+						value = scope:duel_value
+						multiplier = -5
+						min = -49
 					}
-					if = {
-						limit = {					
-							#scope:khand_decision = {
-								any_in_list = {
-									list = potential_vassal
-									count < 1 
-								}
-							#}
+					desc = khand.0230.a.duel_failure
+					root = {
+						send_interface_toast = {
+							left_icon = scope:heir
+							right_icon = scope:challenge_setter
+							title = khand.0210.failure
+							custom_tooltip = khand.unimpressed_vassals
 						}
-						# if no vassals left, I add them again
-						every_vassal = {
-							limit = {
-								is_available_healthy_ai_adult = yes
-							}
-							add_to_list = potential_vassal
-						}
-					}
-					trigger_event = {
-						id = khand.0250
-						days = 1
 					}
 				}
 			}
 		}
 	}
-	option = { # Cancel
-		name = khand.0999.a
-		trigger_event = {
-			id = khand.0999 # Finish with no results
-			days = 1
-		}
-	}
-}
 
-khand.0250 = { # Khand: Challenge 5: Intrigue
-	title = khand.0250.t
-	desc = khand.0250.desc
-	theme = southern_throne
-	left_portrait = {
-		character = root.player_heir
-		animation = personality_bold
-	}
-	immediate = {
-		#scope:khand_decision = {
-			
-			random_in_list = {
-				list = potential_vassal
-				limit = {
-					is_alive = yes
-				}
-				save_scope_as = next_vassal				
-				remove_from_list = potential_vassal
+	option = { # Intrigue
+		name = khand.0231.b
+		skill = intrigue
+		scope:heir = {
+			change_variable = { 
+				name = trials_had
+				add = 1
 			}
-		#}
-	}
-	right_portrait = {
-		character = scope:next_vassal
-		animation = personality_bold
-	}
-	
-	option = { # Next duel
-		name = khand.0250.a
-		custom_tooltip = khand.0250.a.desc
-		duel = {
-			skill = intrigue 
-			value = medium_skill_rating
-			50 = { 
-				compare_modifier = {
-					value = scope:duel_value
-					multiplier = 1
-					min = -19
-				}
-				desc = khand.0250.duel_success
-				send_interface_toast = {
-					left_icon = root.primary_heir
-					title = khand.0250.success
-					
-
-					root.player_heir = {
-						add_character_modifier = {
-							modifier = shadow_of_khand
-							years = 2
-						}
+			duel = {
+				skill = intrigue 
+				value = 5
+				50 = { 
+					compare_modifier = {
+						value = scope:duel_value
+						multiplier = 5
+						min = -49
 					}
-
-					scope:khand_decision = {
-						change_variable = { 
-							name = trial_wins
-							add = 1
-						}
+					desc = khand.0230.b.duel_success					
+					change_variable = { 
+						name = trial_wins
+						add = 1
 					}
-					if = {
-						limit = {					
-							#scope:khand_decision = {
-								any_in_list = {
-									list = potential_vassal
-									count < 1 
-								}
-							#}
+					root = {
+						send_interface_toast = {
+							left_icon = scope:heir
+							right_icon = scope:challenge_setter
+							title = khand.0210.success
+							custom_tooltip = khand.impressed_vassals
 						}
-						# if no vassals left, I add them again
-						every_vassal = {
-							limit = {
-								is_available_healthy_ai_adult = yes
-							}
-							add_to_list = potential_vassal
-						}
-					}
-					trigger_event = {
-						id = khand.0260
-						days = 1
 					}
 				}
-			}
-			100 = {
-				compare_modifier = {
-					value = scope:duel_value
-					multiplier = -1
-					min = -19
-				}
-				desc = khand.0250.duel_failure
-				send_interface_toast = {
-					left_icon = root.primary_heir
-					title = khand.0250.failure
-					
-					root.player_heir = {
-						random_list = {
-							15 = { add_trait = scarred }							
-							15 = { add_trait = one_eyed }
-							15 = { add_trait = one_legged }
-							15 = { add_trait = disfigured }
-							40 = { }
-						}
+				50 = {
+					compare_modifier = {
+						value = scope:duel_value
+						multiplier = -5
+						min = -49
 					}
-					if = {
-						limit = {					
-							#scope:khand_decision = {
-								any_in_list = {
-									list = potential_vassal
-									count < 1 
-								}
-							#}
-						}
-						# if no vassals left, I add them again
-						every_vassal = {
-							limit = {
-								is_available_healthy_ai_adult = yes
-							}
-							add_to_list = potential_vassal
-						}
+					desc = khand.0230.b.duel_failure
+					change_variable = { 
+						name = trial_losses
+						add = 1
 					}
-					trigger_event = {
-						id = khand.0260
-						days = 1
+					root = {
+						send_interface_toast = {
+							left_icon = scope:heir
+							right_icon = scope:challenge_setter
+							title = khand.0210.failure
+							custom_tooltip = khand.unimpressed_vassals
+						}
 					}
 				}
 			}
 		}
 	}
-	option = { # Cancel
-		name = khand.0999.a
-		trigger_event = {
-			id = khand.0999 # Finish with no results
-			days = 1
+
+	after = {
+		if = {
+			limit = {
+				scope:heir = {
+					has_variable = trials_had
+					var:trials_had = 5
+				}
+			}
+			trigger_event = {
+				id = khand.0300
+				days = 10
+			}
+		}
+		else = {
+			trigger_event = khand.0101
 		}
 	}
 }
 
-khand.0260 = { # Khand: Challenge 6: Stewardship
-	title = khand.0260.t
-	desc = khand.0260.desc
-	theme = southern_throne
-	left_portrait = {
-		character = root.player_heir
-		animation = personality_bold
-	}
-	immediate = {
-		#scope:khand_decision = {
-			
-			random_in_list = {
-				list = potential_vassal
-				limit = {
-					is_alive = yes
-				}
-				save_scope_as = next_vassal				
-				remove_from_list = potential_vassal
-			}
-		#}
-	}
-	right_portrait = {
-		character = scope:next_vassal
-		animation = personality_bold
-	}
-	
-	option = { # Next duel
-		name = khand.0260.a
-		custom_tooltip = khand.0260.a.desc
-		duel = {
-			skill = stewardship 
-			value = medium_skill_rating
-			50 = { 
-				compare_modifier = {
-					value = scope:duel_value
-					multiplier = 1
-					min = -19
-				}
-				desc = khand.0260.duel_success
-				send_interface_toast = {
-					left_icon = root.primary_heir
-					title = khand.0260.success
-					
-					add_gold = medium_gold_value
+khand.0240 = { # Dealmaking - Stewardship / Diplomacy
+    title = khand.0240.t
+    desc = khand.0240.desc
+    theme = realm
 
-					scope:khand_decision = {
-						change_variable = { 
-							name = trial_wins
-							add = 1
-						}
-					}
+    left_portrait = {
+        character = scope:heir
+        animation = personality_bold
+    }
+    right_portrait = {
+        character = scope:challenge_setter
+        animation = personality_forgiving
+    }
 
-					trigger_event = {
-						id = khand.0300
-						days = 1
-					}
-				}
-			}
-			100 = {
-				compare_modifier = {
-					value = scope:duel_value
-					multiplier = -1
-					min = -19
-				}
-				desc = khand.0260.duel_failure
-				send_interface_toast = {
-					left_icon = root.primary_heir
-					title = khand.0260.failure
-					
-					remove_short_term_gold = medium_gold_value
-					
-					trigger_event = {
-						id = khand.0300
-						days = 1
-					}
-				}
-			}
+    trigger = {
+        NOT = {
+            has_character_flag = khand_0240_done
+        }
+    }
+
+	weight_multiplier = {
+		base = 0.5
+		modifier = {
+			add = 5
+			scope:challenge_setter = { highest_skill = stewardship }
 		}
 	}
-	option = { # Cancel
-		name = khand.0999.a
-		trigger_event = {
-			id = khand.0999 # Finish with no results
-			days = 1
-		}
-	}
+
+    immediate = {
+        add_character_flag = {
+            flag = khand_0240_done
+            years = 1
+        }
+    }
+
+    option = { # Stewardship
+        name = khand.0240.a
+        skill = stewardship
+        scope:heir = {
+            change_variable = { 
+                name = trials_had
+                add = 1
+            }
+            duel = {
+                skill = stewardship 
+                value = 10
+                50 = { 
+                    compare_modifier = {
+                        value = scope:duel_value
+                        multiplier = 5
+                        min = -49
+                    }
+                    desc = khand.0240.a.duel_success
+                    change_variable = { 
+                        name = trial_wins
+                        add = 1
+                    }
+                    root = {
+                        send_interface_toast = {
+                            left_icon = scope:heir
+                            right_icon = scope:challenge_setter
+                            title = khand.0210.success
+                            custom_tooltip = khand.impressed_vassals
+                        }
+                    }
+                }
+                50 = {
+                    compare_modifier = {
+                        value = scope:duel_value
+                        multiplier = -5
+                        min = -49
+                    }
+                    desc = khand.0240.a.duel_failure
+                    root = {
+                        send_interface_toast = {
+                            left_icon = scope:heir
+                            right_icon = scope:challenge_setter
+                            title = khand.0210.failure
+                            custom_tooltip = khand.unimpressed_vassals
+                        }
+                    }
+                }
+            }
+        }
+        if = {
+            limit = {
+                scope:heir = {
+                    has_variable = trials_had
+                    var:trials_had = 5
+                }
+            }
+            trigger_event = {
+                id = khand.0300
+                days = 10
+            }
+        }
+        else = {
+            trigger_event = khand.0101
+        }
+    }
+
+    option = { # Diplomacy
+        name = khand.0240.b
+        skill = diplomacy
+        scope:heir = {
+            change_variable = { 
+                name = trials_had
+                add = 1
+            }
+            duel = {
+                skill = diplomacy 
+                value = 10
+                50 = { 
+                    compare_modifier = {
+                        value = scope:duel_value
+                        multiplier = 5
+                        min = -49
+                    }
+                    desc = khand.0240.b.duel_success
+                    
+                    change_variable = { 
+                        name = trial_wins
+                        add = 1
+                    }
+                    root = {
+                        send_interface_toast = {
+                            left_icon = scope:heir
+                            right_icon = scope:challenge_setter
+                            title = khand.0210.success
+                            custom_tooltip = khand.impressed_vassals
+                        }
+                    }
+                }
+                50 = {
+                    compare_modifier = {
+                        value = scope:duel_value
+                        multiplier = -5
+                        min = -49
+                    }
+                    desc = khand.0240.b.duel_failure
+                    change_variable = { 
+                        name = trial_losses
+                        add = 1
+                    }
+                    root = {
+                        send_interface_toast = {
+                            left_icon = scope:heir
+                            right_icon = scope:challenge_setter
+                            title = khand.0210.failure
+                            custom_tooltip = khand.unimpressed_vassals
+                        }
+                    }
+                }
+            }
+        }
+        if = {
+            limit = {
+                scope:heir = {
+                    has_variable = trials_had
+                    var:trials_had = 5
+                }
+            }
+            trigger_event = {
+                id = khand.0300
+                days = 10
+            }
+        }
+        else = {
+            trigger_event = khand.0101
+        }
+    }
+
+    option = { # Bribe
+        name = khand.0240.c
+        custom_tooltip = introduce_the_heir.bribe_effect_desc
+        scope:challenge_setter = {
+            save_scope_as = recipient
+        }
+        pay_short_term_gold = {
+            gold = gift_value
+            target = scope:recipient
+        }
+        add_prestige = {
+            value = gift_value
+            multiply = -1
+        }
+        trigger_event = khand.0241
+    }
+
+    option = { # Hook
+        name = khand.0240.d
+        custom_tooltip = introduce_the_heir.hook_effect_desc
+        trigger = {
+            has_hook = scope:challenge_setter
+        }
+        use_hook = scope:challenge_setter
+        trigger_event = khand.0241
+    }
 }
 
+khand.0241 = { # Dealmaking - Stewardship / Diplomacy - Going Easy on Heir
+    title = khand.0241.t
+    desc = khand.0241.desc
+    theme = realm
+
+    left_portrait = {
+        character = scope:heir
+        animation = personality_rational
+    }
+    right_portrait = {
+        character = scope:challenge_setter
+        animation = personality_bold
+    }
+    
+    option = { # Stewardship
+        name = khand.0241.a
+        skill = stewardship
+        scope:heir = {
+            change_variable = { 
+                name = trials_had
+                add = 1
+            }
+            duel = {
+                skill = stewardship 
+                value = 5
+                50 = { 
+                    compare_modifier = {
+                        value = scope:duel_value
+                        multiplier = 5
+                        min = -49
+                    }
+                    desc = khand.0240.a.duel_success
+                    change_variable = { 
+                        name = trial_wins
+                        add = 1
+                    }
+                    root = {
+                        send_interface_toast = {
+                            left_icon = scope:heir
+                            right_icon = scope:challenge_setter
+                            title = khand.0210.success
+                            custom_tooltip = khand.impressed_vassals
+                        }
+                    }
+                }
+                50 = {
+                    compare_modifier = {
+                        value = scope:duel_value
+                        multiplier = -5
+                        min = -49
+                    }
+                    desc = khand.0240.a.duel_failure
+                    root = {
+                        send_interface_toast = {
+                            left_icon = scope:heir
+                            right_icon = scope:challenge_setter
+                            title = khand.0210.failure
+                            custom_tooltip = khand.unimpressed_vassals
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    option = { # Diplomacy
+        name = khand.0241.b
+        skill = diplomacy
+        scope:heir = {
+            change_variable = { 
+                name = trials_had
+                add = 1
+            }
+            duel = {
+                skill = diplomacy 
+                value = 5
+                50 = { 
+                    compare_modifier = {
+                        value = scope:duel_value
+                        multiplier = 5
+                        min = -49
+                    }
+                    desc = khand.0240.b.duel_success                    
+                    change_variable = { 
+                        name = trial_wins
+                        add = 1
+                    }
+                    root = {
+                        send_interface_toast = {
+                            left_icon = scope:heir
+                            right_icon = scope:challenge_setter
+                            title = khand.0210.success
+                            custom_tooltip = khand.impressed_vassals
+                        }
+                    }
+                }
+                50 = {
+                    compare_modifier = {
+                        value = scope:duel_value
+                        multiplier = -5
+                        min = -49
+                    }
+                    desc = khand.0240.b.duel_failure
+                    change_variable = { 
+                        name = trial_losses
+                        add = 1
+                    }
+                    root = {
+                        send_interface_toast = {
+                            left_icon = scope:heir
+                            right_icon = scope:challenge_setter
+                            title = khand.0210.failure
+                            custom_tooltip = khand.unimpressed_vassals
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    after = {
+        if = {
+            limit = {
+                scope:heir = {
+                    has_variable = trials_had
+                    var:trials_had = 5
+                }
+            }
+            trigger_event = {
+                id = khand.0300
+                days = 10
+            }
+        }
+        else = {
+            trigger_event = khand.0101
+        }
+    }
+}
+
+khand.0250 = { # Guile - Intrigue / Martial
+    title = khand.0250.t
+    desc = khand.0250.desc
+    theme = realm
+
+    left_portrait = {
+        character = scope:heir
+        animation = personality_bold
+    }
+    right_portrait = {
+        character = scope:challenge_setter
+        animation = personality_forgiving
+    }
+
+    trigger = {
+        NOT = {
+            has_character_flag = khand_0250_done
+        }
+    }
+
+	weight_multiplier = {
+		base = 0.5
+		modifier = {
+			add = 5
+			scope:challenge_setter = { highest_skill = intrigue }
+		}
+	}
+
+    immediate = {
+        add_character_flag = {
+            flag = khand_0250_done
+            years = 1
+        }
+    }
+
+    option = { # Intrigue
+        name = khand.0250.a
+        skill = intrigue
+        scope:heir = {
+            change_variable = { 
+                name = trials_had
+                add = 1
+            }
+            duel = {
+                skill = intrigue 
+                value = 10
+                50 = { 
+                    compare_modifier = {
+                        value = scope:duel_value
+                        multiplier = 5
+                        min = -49
+                    }
+                    desc = khand.0250.a.duel_success
+                    change_variable = { 
+                        name = trial_wins
+                        add = 1
+                    }
+                    root = {
+                        send_interface_toast = {
+                            left_icon = scope:heir
+                            right_icon = scope:challenge_setter
+                            title = khand.0210.success
+                            custom_tooltip = khand.impressed_vassals
+                        }
+                    }
+                }
+                50 = {
+                    compare_modifier = {
+                        value = scope:duel_value
+                        multiplier = -5
+                        min = -49
+                    }
+                    desc = khand.0250.a.duel_failure
+                    root = {
+                        send_interface_toast = {
+                            left_icon = scope:heir
+                            right_icon = scope:challenge_setter
+                            title = khand.0210.failure
+                            custom_tooltip = khand.unimpressed_vassals
+                        }
+                    }
+                }
+            }
+        }
+        if = {
+            limit = {
+                scope:heir = {
+                    has_variable = trials_had
+                    var:trials_had = 5
+                }
+            }
+            trigger_event = {
+                id = khand.0300
+                days = 10
+            }
+        }
+        else = {
+            trigger_event = khand.0101
+        }
+    }
+
+    option = { # Martial
+        name = khand.0250.b
+        skill = martial
+        scope:heir = {
+            change_variable = { 
+                name = trials_had
+                add = 1
+            }
+            duel = {
+                skill = martial 
+                value = 10
+                50 = { 
+                    compare_modifier = {
+                        value = scope:duel_value
+                        multiplier = 5
+                        min = -49
+                    }
+                    desc = khand.0250.b.duel_success
+                    
+                    change_variable = { 
+                        name = trial_wins
+                        add = 1
+                    }
+                    root = {
+                        send_interface_toast = {
+                            left_icon = scope:heir
+                            right_icon = scope:challenge_setter
+                            title = khand.0210.success
+                            custom_tooltip = khand.impressed_vassals
+                        }
+                    }
+                }
+                50 = {
+                    compare_modifier = {
+                        value = scope:duel_value
+                        multiplier = -5
+                        min = -49
+                    }
+                    desc = khand.0250.b.duel_failure
+                    change_variable = { 
+                        name = trial_losses
+                        add = 1
+                    }
+                    root = {
+                        send_interface_toast = {
+                            left_icon = scope:heir
+                            right_icon = scope:challenge_setter
+                            title = khand.0210.failure
+                            custom_tooltip = khand.unimpressed_vassals
+                        }
+                    }
+                }
+            }
+        }
+        if = {
+            limit = {
+                scope:heir = {
+                    has_variable = trials_had
+                    var:trials_had = 5
+                }
+            }
+            trigger_event = {
+                id = khand.0300
+                days = 10
+            }
+        }
+        else = {
+            trigger_event = khand.0101
+        }
+    }
+
+    option = { # Bribe
+        name = khand.0250.c
+        custom_tooltip = introduce_the_heir.bribe_effect_desc
+        scope:challenge_setter = {
+            save_scope_as = recipient
+        }
+        pay_short_term_gold = {
+            gold = gift_value
+            target = scope:recipient
+        }
+        add_prestige = {
+            value = gift_value
+            multiply = -1
+        }
+        trigger_event = khand.0251
+    }
+
+    option = { # Hook
+        name = khand.0250.d
+        custom_tooltip = introduce_the_heir.hook_effect_desc
+        trigger = {
+            has_hook = scope:challenge_setter
+        }
+        use_hook = scope:challenge_setter
+        trigger_event = khand.0251
+    }
+}
+
+khand.0251 = { # Guile - Intrigue / Martial - Going Easy on Heir
+    title = khand.0251.t
+    desc = khand.0251.desc
+    theme = realm
+
+    left_portrait = {
+        character = scope:heir
+        animation = personality_rational
+    }
+    right_portrait = {
+        character = scope:challenge_setter
+        animation = personality_bold
+    }
+    
+    option = { # Intrigue
+        name = khand.0251.a
+        skill = intrigue
+        scope:heir = {
+            change_variable = { 
+                name = trials_had
+                add = 1
+            }
+            duel = {
+                skill = intrigue 
+                value = 5
+                50 = { 
+                    compare_modifier = {
+                        value = scope:duel_value
+                        multiplier = 5
+                        min = -49
+                    }
+                    desc = khand.0250.a.duel_success
+                    change_variable = { 
+                        name = trial_wins
+                        add = 1
+                    }
+                    root = {
+                        send_interface_toast = {
+                            left_icon = scope:heir
+                            right_icon = scope:challenge_setter
+                            title = khand.0210.success
+                            custom_tooltip = khand.impressed_vassals
+                        }
+                    }
+                }
+                50 = {
+                    compare_modifier = {
+                        value = scope:duel_value
+                        multiplier = -5
+                        min = -49
+                    }
+                    desc = khand.0250.a.duel_failure
+                    root = {
+                        send_interface_toast = {
+                            left_icon = scope:heir
+                            right_icon = scope:challenge_setter
+                            title = khand.0210.failure
+                            custom_tooltip = khand.unimpressed_vassals
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    option = { # Martial
+        name = khand.0251.b
+        skill = martial
+        scope:heir = {
+            change_variable = { 
+                name = trials_had
+                add = 1
+            }
+            duel = {
+                skill = martial 
+                value = 5
+                50 = { 
+                    compare_modifier = {
+                        value = scope:duel_value
+                        multiplier = 5
+                        min = -49
+                    }
+                    desc = khand.0250.b.duel_success                    
+                    change_variable = { 
+                        name = trial_wins
+                        add = 1
+                    }
+                    root = {
+                        send_interface_toast = {
+                            left_icon = scope:heir
+                            right_icon = scope:challenge_setter
+                            title = khand.0210.success
+                            custom_tooltip = khand.impressed_vassals
+                        }
+                    }
+                }
+                50 = {
+                    compare_modifier = {
+                        value = scope:duel_value
+                        multiplier = -5
+                        min = -49
+                    }
+                    desc = khand.0250.b.duel_failure
+                    change_variable = { 
+                        name = trial_losses
+                        add = 1
+                    }
+                    root = {
+                        send_interface_toast = {
+                            left_icon = scope:heir
+                            right_icon = scope:challenge_setter
+                            title = khand.0210.failure
+                            custom_tooltip = khand.unimpressed_vassals
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    after = {
+        if = {
+            limit = {
+                scope:heir = {
+                    has_variable = trials_had
+                    var:trials_had = 5
+                }
+            }
+            trigger_event = {
+                id = khand.0300
+                days = 10
+            }
+        }
+        else = {
+            trigger_event = khand.0101
+        }
+    }
+}
+
+khand.0260 = { # Single Combat - Prowess
+    title = khand.0260.t
+    desc = khand.0260.desc
+    theme = realm
+
+    left_portrait = {
+        character = scope:heir
+        animation = personality_bold
+    }
+    right_portrait = {
+        character = scope:challenge_setter
+        animation = personality_forgiving
+    }
+
+    trigger = {
+        NOT = {
+            has_character_flag = khand_0260_done
+        }
+    }
+
+	weight_multiplier = {
+		base = 0.5
+		modifier = {
+			add = 5
+			scope:challenge_setter = { highest_skill = prowess }
+		}
+	}
+
+    immediate = {
+        add_character_flag = {
+            flag = khand_0260_done
+            years = 1
+        }
+    }
+
+    option = { # Prowess
+        name = khand.0260.a
+        skill = prowess
+        scope:heir = {
+            change_variable = { 
+                name = trials_had
+                add = 1
+            }
+            duel = {
+                skill = prowess 
+                value = 10
+                50 = { 
+                    compare_modifier = {
+                        value = scope:duel_value
+                        multiplier = 5
+                        min = -49
+                    }
+                    desc = khand.0260.a.duel_success
+                    change_variable = { 
+                        name = trial_wins
+                        add = 1
+                    }
+                    root = {
+                        send_interface_toast = {
+                            left_icon = scope:heir
+                            right_icon = scope:challenge_setter
+                            title = khand.0210.success
+                            custom_tooltip = khand.impressed_vassals
+                        }
+                    }
+                }
+                50 = {
+                    compare_modifier = {
+                        value = scope:duel_value
+                        multiplier = -5
+                        min = -49
+                    }
+                    desc = khand.0260.a.duel_failure
+                    root = {
+                        send_interface_toast = {
+                            left_icon = scope:heir
+                            right_icon = scope:challenge_setter
+                            title = khand.0210.failure
+                            custom_tooltip = khand.unimpressed_vassals
+                        }
+                    }
+                }
+            }
+        }
+        if = {
+            limit = {
+                scope:heir = {
+                    has_variable = trials_had
+                    var:trials_had = 5
+                }
+            }
+            trigger_event = {
+                id = khand.0300
+                days = 10
+            }
+        }
+        else = {
+            trigger_event = khand.0101
+        }
+    }
+}
 
 khand.0300 = {  # Khand: Conclusion
 	title = khand.0300.t
 	desc = khand.0300.desc
-	theme = southern_throne
+	theme = realm
 	left_portrait = {
 		character = root
 		animation = personality_bold
@@ -1037,95 +1989,79 @@ khand.0300 = {  # Khand: Conclusion
 		name = khand.0300.a
 		if = {
 			limit = {
-				scope:khand_decision = {
+				scope:heir = {
 					var:trial_wins = 0
 				}
 			}
 			add_prestige = major_prestige_loss
 			root.player_heir = {
 				add_character_modifier = {
-					modifier = proven_unworthy_I
-					years = 10
+					modifier = khand_heir_0_successes
 				}
 			}
 		}
 		else_if = {
 			limit = {
-				scope:khand_decision = {
+				scope:heir = {
 					var:trial_wins = 1
 				}
 			}
 			add_prestige = medium_prestige_loss
 			root.player_heir = {
 				add_character_modifier = {
-					modifier = proven_unworthy_II
-					years = 10
+					modifier = khand_heir_1_successes
 				}
 			}
 		}
 		else_if = {
 			limit = {
-				scope:khand_decision = {
+				scope:heir = {
 					var:trial_wins = 2
 				}
 			}
 			add_prestige = minor_prestige_loss
 			root.player_heir = {
 				add_character_modifier = {
-					modifier = proven_unworthy_III
-					years = 10
+					modifier = khand_heir_2_successes
 				}
 			}
 		}
 		else_if = {
 			limit = {
-				scope:khand_decision = {
+				scope:heir = {
 					var:trial_wins = 3
 				}
 			}
 			add_prestige = minor_prestige_gain
 			root.player_heir = {
-				add_character_modifier = proven_worthy_I
+				add_character_modifier = khand_heir_3_successes
 			}
 		}
 		else_if = {
 			limit = {
-				scope:khand_decision = {
+				scope:heir = {
 					var:trial_wins = 4
 				}
 			}
 			add_prestige = medium_prestige_gain
 			root.player_heir = {
-				add_character_modifier = proven_worthy_II
+				add_character_modifier = khand_heir_4_successes
 			}
 		}
 		else_if = {
 			limit = {
-				scope:khand_decision = {
+				scope:heir = {
 					var:trial_wins = 5
 				}
 			}
 			
 			add_prestige = major_prestige_gain
 			root.player_heir = {
-				add_character_modifier = proven_worthy_III
-			}
-		}
-		else_if = {
-			limit = {
-				scope:khand_decision = {
-					var:trial_wins = 6
-				}
-			}
-			
-			add_prestige = massive_prestige_gain
-			root.player_heir = {
-				add_character_modifier = proven_worthy_IV
+				add_character_modifier = khand_heir_5_successes
 			}
 		}
 	}
 }
-
 
 khand.0999 = {  # Khand: Stop the trial before finishing
 	title = khand.0999.t
