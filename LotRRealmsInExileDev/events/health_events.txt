@@ -2782,6 +2782,177 @@ health.1011 = {
 	}
 }
 
+#You contract black breath
+health.1012 = {
+	type = character_event
+	title = health.1012.t
+	desc = {
+		desc = health.1012.desc
+		triggered_desc = {
+			trigger = {
+				court_physician_available_trigger = yes
+				liege_picks_treatment_trigger = no
+			}
+			desc = health.1012.court_physician.desc
+		}
+	}
+	theme = healthcare
+	left_portrait = {
+		character = root
+		animation = fear
+	}
+	right_portrait = {
+		trigger = { NOT = { root = scope:physician } }
+		character = scope:physician
+		triggered_animation = {
+			trigger = { scope:physician = { health_event_is_worried_trigger = { CHARACTER = scope:sick_character } } }
+			animation = worry
+		}
+		triggered_animation = {
+			trigger = { scope:physician = { ai_rationality >= 0 } } #Don't look rational if you're not
+			animation = personality_rational
+		}
+		animation = idle
+	}
+
+	trigger = {
+		can_contract_disease_trigger = { DISEASE = black_breath }
+	}
+
+	weight_multiplier = {
+		base = 1
+		
+		# LOTR: Elves, Maiar, etc. do not become ill.
+		modifier = { 
+			OR = { 
+				is_elf = yes
+				is_maiar = yes
+				is_istari = yes
+				is_nazgul = yes
+			}
+			factor = 0
+		}
+		# Dunedain and orcs get ill less often.
+		modifier = { 
+			OR = { 
+				is_dunedain = yes
+				is_orc = yes
+			}
+			factor = 0.5
+		}
+		modifier = {
+			health <= fine_health
+			factor = 1.1
+		}
+		modifier = {
+			health <= poor_health
+			factor = 1.1
+		}
+		modifier = {
+			is_adult = no
+			factor = 1.5
+		}
+#		modifier = {
+#			current_date < 1346.1.1
+#			factor = 0
+#		}
+	}
+
+	immediate = {
+		play_music_cue = "mx_cue_illness"
+		save_court_physician_as_effect = { SCOPE_NAME = physician }
+		contract_disease_effect = { DISEASE = black_breath TREATMENT_EVENT = no } #Adds the trait, sends event "health.2101" about contagious disease to liege/host/imprisoner, sends event "health.2201" to those who care
+	}
+
+	###NO COURT PHYSICIAN OPTIONS###
+	#Find physician
+	option = {
+		trigger = {
+			NOT = { exists = scope:physician }
+			is_landed = yes
+			is_imprisoned = no 
+		}
+		name = health.3101.e
+		find_court_physician_effect = yes
+		ai_chance = { base = 5 }
+	}
+
+	#OK
+	option = {
+		trigger = {
+			trigger_if = {
+				limit = { exists = scope:physician }
+				liege_picks_treatment_trigger = yes
+			}
+			trigger_else = {
+				always = yes
+			}
+		}
+		name = health.1011.a
+		ai_chance = { base = 1 }
+	}
+
+	###COURT PHYSICIAN OPTIONS###
+	#Safe treatment
+	option = {
+		trigger = {
+			exists = scope:physician
+			liege_picks_treatment_trigger = no
+		}
+		name = health.3101.a
+		safe_disease_treatment_effect = { PATIENT = root TREATMENT_PICKER = root }
+		ai_chance = { base = 10 }
+	}
+
+	#Risky treatment
+	option = {
+		trigger = {
+			exists = scope:physician
+			liege_picks_treatment_trigger = no
+		}
+		name = health.3101.b
+		risky_disease_treatment_effect = { PATIENT = root TREATMENT_PICKER = root }
+		ai_chance = { base = 1 }
+	}
+	
+	#Mystic treatment
+	option = {
+		trigger = {
+			court_physician_available_trigger = yes
+			liege_picks_treatment_trigger = no
+			scope:physician = { has_trait = lifestyle_mystic }
+		}
+		name = health.3101.c
+		mystic_disease_treatment_effect = { PATIENT = root TREATMENT_PICKER = root }
+		ai_chance = {
+			base = 0.5
+			modifier = {
+				add = -0.5
+				ai_zeal >= 0
+			}
+		}
+	}
+
+	#No treatment
+	option = {
+		trigger = {
+			exists = scope:physician
+			liege_picks_treatment_trigger = no
+		}
+		name = health.3101.d
+		no_disease_treatment_effect = yes
+		ai_chance = { base = 0 }
+	}
+
+	#You're going to rot away in prison most likely
+	option = {
+		trigger = {
+			is_imprisoned = yes 
+		}
+		name = health.3101.f
+	}
+}
+
 
 ###########################
 # DISEASE RECOVERY EVENTS # Mathilda Bjarnehed
@@ -3035,6 +3206,34 @@ health.1111 = {
 	option = {
 		name = health.1111.a
 		custom_tooltip = health.1111.a.tt
+	}
+}
+
+#Recover from black_breath
+health.1111 = {
+	type = character_event
+	title = health.1111.t
+	desc = health.1111.desc
+	theme = recovery
+	left_portrait = {
+		character = root
+		animation = personality_content
+	}
+
+	trigger = {
+		has_trait = black_breath
+	}
+
+
+	immediate = {
+		play_music_cue = "mx_cue_peace_ensues"
+		recover_from_disease_effect = { DISEASE = black_breath } #Removes the trait, sends event "health.2202" to those who care & liege/host/imprisoner, adds immunity flag
+		remove_disease_treatment_effect = yes
+	}
+
+	option = {
+		name = health.1112.a
+		custom_tooltip = health.1112.a.tt
 	}
 }
 
@@ -4428,6 +4627,10 @@ health.2201 = {
 				trigger = { scope:disease_type = flag:bubonic_plague }
 				desc = disease_bubonic_plague
 			}
+			triggered_desc = {
+				trigger = { scope:disease_type = flag:black_breath }
+				desc = disease_black_breath
+			}
 			desc = missing_illness
 		}
 		first_valid = {
@@ -4451,6 +4654,7 @@ health.2201 = {
 					OR = {
 						scope:disease_type = flag:cancer
 						scope:disease_type = flag:bubonic_plague
+						scope:disease_type = flag:black_breath
 					}
 				}
 				desc = health.2201.lethal_disease.desc
@@ -4549,6 +4753,10 @@ health.2201 = {
 			if = {
 				limit = { scope:disease_type = flag:bubonic_plague }
 				scope:sick_character = { add_trait_force_tooltip = bubonic_plague }
+			}
+			if = {
+				limit = { scope:disease_type = flag:black_breath }
+				scope:sick_character = { add_trait_force_tooltip = black_breath }
 			}
 		}
 
@@ -4765,6 +4973,10 @@ health.2202 = {
 				trigger = { scope:disease_type = flag:bubonic_plague }
 				desc = disease_bubonic_plague
 			}
+			triggered_desc = {
+				trigger = { scope:disease_type = flag:black_breath }
+				desc = disease_black_breath
+			}
 			desc = missing_illness
 		}
 	}
@@ -4820,6 +5032,10 @@ health.2202 = {
 			if = {
 				limit = { scope:disease_type = flag:bubonic_plague }
 				scope:sick_character = { remove_trait_force_tooltip = bubonic_plague }
+			}
+			if = {
+				limit = { scope:disease_type = flag:black_breath }
+				scope:sick_character = { remove_trait_force_tooltip = black_breath }
 			}
 		}
 	}
@@ -5579,6 +5795,10 @@ health.3101 = {
 				trigger = { scope:disease_type = flag:bubonic_plague }
 				desc = disease_bubonic_plague
 			}
+			triggered_desc = {
+				trigger = { scope:disease_type = flag:black_breath }
+				desc = disease_black_breath
+			}
 			desc = missing_illness
 		}
 		random_valid = {
@@ -5753,6 +5973,10 @@ health.3102 = {
 			triggered_desc = {
 				trigger = { scope:disease_type = flag:bubonic_plague }
 				desc = disease_bubonic_plague
+			}
+			triggered_desc = {
+				trigger = { scope:disease_type = flag:black_breath }
+				desc = disease_black_breath
 			}
 			desc = missing_illness
 		}
@@ -8379,6 +8603,7 @@ health.6001 = {
 						has_trait = cancer
 						has_trait = leper
 						has_trait = great_pox
+						has_trait = black_breath
 					}
 				}
 				desc = health.6001.desc_sickness
