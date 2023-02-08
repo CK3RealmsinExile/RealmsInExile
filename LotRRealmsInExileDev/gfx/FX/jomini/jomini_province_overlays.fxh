@@ -110,20 +110,24 @@ PixelShader =
 			Color.a = Color.a * ( 1.0f - AlternateColor.a ) + AlternateColor.a;
 		}
 
+		// MOD(lotr)
+		void LOTR_TryDiscardOverlayColor(inout float4 OverlayColor)
+		{
+			static const float3 DISCARDED_OVERLAY_COLOR     = float3(0.0f, 0.0f, 0.0f);
+			static const float3 DISCARDED_OVERLAY_TOLERANCE = 0.01f;
+
+			OverlayColor.a *= step(DISCARDED_OVERLAY_TOLERANCE, distance(OverlayColor.rgb, DISCARDED_OVERLAY_COLOR));
+		}
+		// END MOD
+
 		// This default implementation is using the primary province colors with the gradiant border system; it is highly customizeable through the GradientBorders constant buffer. 
 		// Typically, this function is used to draw gradient borders and/or uniform "province colors"
 		float4 CalcPrimaryProvinceOverlay( in float2 NormalizedCoordinate, in float DistanceFieldValue )
 		{
 			float4 PrimaryColor = BilinearColorSample( NormalizedCoordinate, IndirectionMapSize, InvIndirectionMapSize, ProvinceColorIndirectionTexture, ProvinceColorTexture );
 
-			// MOD(godherja)
-
-			// color for k_france is { 15 27 187 }
-			const float3 DISCARDED_COLOR = float3(0.0, 0.0, 0.0);
-
-			float KeepColorStepValue = step(0.01, distance(PrimaryColor.rgb, DISCARDED_COLOR));
-
-			PrimaryColor = lerp(float4(0.0, 0.0, 0.0, 0.0), PrimaryColor, KeepColorStepValue);
+			// MOD(lotr)
+			LOTR_TryDiscardOverlayColor(PrimaryColor);
 			// END MOD
 
 			float GradientAlpha = lerp( GB_GradientAlphaInside, GB_GradientAlphaOutside, RemapClamped( DistanceFieldValue, GB_EdgeWidth + GB_GradientWidth, GB_EdgeWidth, 0.0f, 1.0f ) );
