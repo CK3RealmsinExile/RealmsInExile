@@ -1,7 +1,10 @@
 Includes = {
 	"jomini/countrynames.fxh"
 	"jomini/jomini_fog.fxh"
-	"jomini/jomini_fog_of_war.fxh"
+	# MOD(godherja)
+	#"jomini/jomini_fog_of_war.fxh"
+	"gh_atmospheric.fxh"
+	# END MOD
 	# MOD(lotr)
 	"jomini/jomini_province_overlays.fxh"
 	# END MOD
@@ -93,7 +96,7 @@ PixelShader =
 			
 			MixedColor.a *= Transparency;
 
-			MixedColor.rgb = ApplyFogOfWar( MixedColor.rgb, Input.WorldSpacePos, FogOfWarAlpha );
+			MixedColor.rgb = GH_ApplyAtmosphericEffects( MixedColor.rgb, Input.WorldSpacePos, FogOfWarAlpha );
 			MixedColor.rgb = ApplyDistanceFog( MixedColor.rgb, Input.WorldSpacePos );
 			
 			return MixedColor;
