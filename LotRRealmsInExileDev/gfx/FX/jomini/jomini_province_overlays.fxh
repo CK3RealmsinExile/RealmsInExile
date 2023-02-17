@@ -111,12 +111,17 @@ PixelShader =
 		}
 
 		// MOD(lotr)
-		void LOTR_TryDiscardOverlayColor(inout float4 OverlayColor)
+		float LOTR_GetOverlayAlphaMultiplier(in float3 OverlayColor)
 		{
 			static const float3 DISCARDED_OVERLAY_COLOR     = float3(0.0f, 0.0f, 0.0f);
 			static const float3 DISCARDED_OVERLAY_TOLERANCE = 0.01f;
 
-			OverlayColor.a *= step(DISCARDED_OVERLAY_TOLERANCE, distance(OverlayColor.rgb, DISCARDED_OVERLAY_COLOR));
+			return step(DISCARDED_OVERLAY_TOLERANCE, distance(OverlayColor.rgb, DISCARDED_OVERLAY_COLOR));
+		}
+
+		void LOTR_TryDiscardOverlayColor(inout float4 OverlayColor)
+		{
+			OverlayColor.a *= LOTR_GetOverlayAlphaMultiplier(OverlayColor.rgb);
 		}
 		// END MOD
 
