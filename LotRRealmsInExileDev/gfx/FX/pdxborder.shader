@@ -146,7 +146,7 @@ BlendState BlendState
 RasterizerState RasterizerState
 {
 	# MOD(map-skybox)
-	DepthBias = -50000
+	DepthBias = -150000
 	SlopeScaleDepthBias = 0
 	# END MOD
 }
