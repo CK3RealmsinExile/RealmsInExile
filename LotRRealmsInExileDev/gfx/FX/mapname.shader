@@ -4,6 +4,7 @@ Includes = {
 	# MOD(godherja)
 	#"jomini/jomini_fog_of_war.fxh"
 	"gh_atmospheric.fxh"
+	"gh_camera_utils.fxh"
 	# END MOD
 	# MOD(lotr)
 	"jomini/jomini_province_overlays.fxh"
@@ -70,10 +71,13 @@ PixelShader =
 			// float4 TextColor = float4( 0, 0, 0, 1 );
 			// float4 OutlineColor = float4( 1, 1, 1, 1 );
 
-			float LOTR_OverlayAlphaMultiplier = LOTR_GetOverlayAlphaMultiplierAtWorldSpacePosXZ(Input.WorldSpacePos.xz);
+			float LOTR_OverlayAlphaMultiplier   = LOTR_GetOverlayAlphaMultiplierAtWorldSpacePosXZ(Input.WorldSpacePos.xz);
+			float GH_CameraPitchAlphaMultiplier = GH_GetDefaultCameraPitchAlphaMultiplier();
 
-			float4 TextColor = float4(0, 0, 0, LOTR_OverlayAlphaMultiplier);
-			float4 OutlineColor = float4(1, 1, 1, LOTR_OverlayAlphaMultiplier);
+			float LOTR_Alpha = LOTR_OverlayAlphaMultiplier*GH_CameraPitchAlphaMultiplier;
+
+			float4 TextColor = float4(0, 0, 0, LOTR_Alpha);
+			float4 OutlineColor = float4(1, 1, 1, LOTR_Alpha);
 			// END MOD
 
 			float Sample = PdxTex2D( FontAtlas, Input.TexCoord ).r;
@@ -117,16 +121,11 @@ BlendState BlendState
 RasterizerState RasterizerState
 {
 	frontccw = yes
-	# MOD(lotr)
-	DepthBias = -100000
-	# END MOD
 }
 
 DepthStencilState DepthStencilState
 {
-	# MOD(lotr)
-	DepthEnable = yes
-	# END MOD
+	DepthEnable = no
 	StencilEnable = yes
 	FrontStencilFunc = not_equal
 	StencilRef = 1

@@ -216,16 +216,6 @@ PixelShader =
 			
 			return Offset * ParallaxScale;
 		}
-
-		// MOD(godherja)
-		float GH_GetSurroundMapAlphaMultiplier()
-		{
-			static const float FULL_CAMERA_PITCH_COS = 0.7f;
-			static const float MAX_CAMERA_PITCH_COS  = 0.77f;
-
-			return 1.0f - smoothstep(FULL_CAMERA_PITCH_COS, MAX_CAMERA_PITCH_COS, GH_GetCameraPitchCos());
-		}
-		// END MOD
 	]]
 
 	MainCode PS_surroundmap
@@ -237,8 +227,8 @@ PixelShader =
 			PDX_MAIN
 			{
 				// MOD(godherja)
-				float GH_SurroundMapAlphaMultiplier = GH_GetSurroundMapAlphaMultiplier();
-				if (GH_SurroundMapAlphaMultiplier < 0.001f)
+				float GH_AlphaMultiplier = GH_GetDefaultCameraPitchAlphaMultiplier();
+				if (GH_AlphaMultiplier < 0.001f)
 					return float4(0.0f, 0.0f, 0.0f, 0.0f);
 				// END MOD
 
@@ -292,7 +282,7 @@ PixelShader =
 				Color *= vec3( Black.g * ( 1 - FlatMapLerp ) );
 
 				// MOD(godherja)
-				FinalAlpha *= GH_SurroundMapAlphaMultiplier;
+				FinalAlpha *= GH_AlphaMultiplier;
 				// END MOD
 
 				return float4( Color, saturate( FinalAlpha ) );
@@ -309,8 +299,8 @@ PixelShader =
 			PDX_MAIN
 			{
 				// MOD(godherja)
-				float GH_SurroundMapAlphaMultiplier = GH_GetSurroundMapAlphaMultiplier();
-				if (GH_SurroundMapAlphaMultiplier < 0.001f)
+				float GH_AlphaMultiplier = GH_GetDefaultCameraPitchAlphaMultiplier();
+				if (GH_AlphaMultiplier < 0.001f)
 					return float4(0.0f, 0.0f, 0.0f, 0.0f);
 				// END MOD
 
@@ -365,7 +355,7 @@ PixelShader =
 				Color *= vec3( Black.g * ( 1 - FlatMapLerp ) );
 
 				// MOD(godherja)
-				FinalAlpha *= GH_SurroundMapAlphaMultiplier;
+				FinalAlpha *= GH_AlphaMultiplier;
 				// END MOD
 
 				return float4( Color, saturate( FinalAlpha ) );
@@ -382,8 +372,8 @@ PixelShader =
 			PDX_MAIN
 			{
 				// MOD(godherja)
-				float GH_SurroundMapAlphaMultiplier = GH_GetSurroundMapAlphaMultiplier();
-				if (GH_SurroundMapAlphaMultiplier < 0.001f)
+				float GH_AlphaMultiplier = GH_GetDefaultCameraPitchAlphaMultiplier();
+				if (GH_AlphaMultiplier < 0.001f)
 					return float4(0.0f, 0.0f, 0.0f, 0.0f);
 				// END MOD
 
@@ -392,7 +382,7 @@ PixelShader =
 			
 				// MOD(godherja)
 				//return float4( ShadowColor, Mask * ( 1.0 - FlatMapLerp ) );
-				return float4( ShadowColor, Mask * ( 1.0 - FlatMapLerp ) * GH_SurroundMapAlphaMultiplier);
+				return float4( ShadowColor, Mask * ( 1.0 - FlatMapLerp ) * GH_AlphaMultiplier);
 				// END MOD
 			}
 		]]
