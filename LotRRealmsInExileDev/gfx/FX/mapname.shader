@@ -117,11 +117,16 @@ BlendState BlendState
 RasterizerState RasterizerState
 {
 	frontccw = yes
+	# MOD(lotr)
+	DepthBias = -100000
+	# END MOD
 }
 
 DepthStencilState DepthStencilState
 {
-	DepthEnable = no
+	# MOD(lotr)
+	DepthEnable = yes
+	# END MOD
 	StencilEnable = yes
 	FrontStencilFunc = not_equal
 	StencilRef = 1
