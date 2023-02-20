@@ -5,6 +5,9 @@ Includes = {
 	"jomini/jomini_fog.fxh"
 	"jomini/jomini_lighting.fxh"
 	"lowspec.fxh"
+	# MOD(godherja)
+	"gh_camera_utils.fxh"
+	# END MOD
 }
 
 
@@ -215,14 +218,12 @@ PixelShader =
 		}
 
 		// MOD(godherja)
-		bool GH_IsCameraTilted()
+		float GH_GetSurroundMapAlphaMultiplier()
 		{
-			static const float GH_MIN_CAMERA_PITCH_COS = 0.75f;
+			static const float FULL_CAMERA_PITCH_COS = 0.7f;
+			static const float MAX_CAMERA_PITCH_COS  = 0.77f;
 
-			float3 CameraLookAtDirXZ = float3(CameraLookAtDir.x, 0.0f, CameraLookAtDir.z);
-			float  CameraPitchCos    = dot(CameraLookAtDir, CameraLookAtDirXZ);
-
-			return CameraPitchCos > GH_MIN_CAMERA_PITCH_COS;
+			return 1.0f - smoothstep(FULL_CAMERA_PITCH_COS, MAX_CAMERA_PITCH_COS, GH_GetCameraPitchCos());
 		}
 		// END MOD
 	]]
@@ -236,7 +237,8 @@ PixelShader =
 			PDX_MAIN
 			{
 				// MOD(godherja)
-				if (GH_IsCameraTilted())
+				float GH_SurroundMapAlphaMultiplier = GH_GetSurroundMapAlphaMultiplier();
+				if (GH_SurroundMapAlphaMultiplier < 0.001f)
 					return float4(0.0f, 0.0f, 0.0f, 0.0f);
 				// END MOD
 
@@ -288,7 +290,11 @@ PixelShader =
 				BlackUV += float2( 0.125, 0.125);
 				float3 Black = PdxTex2D( BlackMask, BlackUV ).rgb;
 				Color *= vec3( Black.g * ( 1 - FlatMapLerp ) );
-				
+
+				// MOD(godherja)
+				FinalAlpha *= GH_SurroundMapAlphaMultiplier;
+				// END MOD
+
 				return float4( Color, saturate( FinalAlpha ) );
 			}
 		]]
@@ -303,7 +309,8 @@ PixelShader =
 			PDX_MAIN
 			{
 				// MOD(godherja)
-				if (GH_IsCameraTilted())
+				float GH_SurroundMapAlphaMultiplier = GH_GetSurroundMapAlphaMultiplier();
+				if (GH_SurroundMapAlphaMultiplier < 0.001f)
 					return float4(0.0f, 0.0f, 0.0f, 0.0f);
 				// END MOD
 
@@ -356,7 +363,11 @@ PixelShader =
 				BlackUV += float2( 0.125, 0.125);
 				float3 Black = PdxTex2D( BlackMask, BlackUV ).rgb;
 				Color *= vec3( Black.g * ( 1 - FlatMapLerp ) );
-				
+
+				// MOD(godherja)
+				FinalAlpha *= GH_SurroundMapAlphaMultiplier;
+				// END MOD
+
 				return float4( Color, saturate( FinalAlpha ) );
 			}
 		]]
@@ -371,14 +382,18 @@ PixelShader =
 			PDX_MAIN
 			{
 				// MOD(godherja)
-				if (GH_IsCameraTilted())
+				float GH_SurroundMapAlphaMultiplier = GH_GetSurroundMapAlphaMultiplier();
+				if (GH_SurroundMapAlphaMultiplier < 0.001f)
 					return float4(0.0f, 0.0f, 0.0f, 0.0f);
 				// END MOD
 
 				float2 UV = Input.uv;
 				float Mask = PdxTex2D( SurroundMask, UV ).r;
 			
-				return float4( ShadowColor, Mask * ( 1.0 - FlatMapLerp ) );
+				// MOD(godherja)
+				//return float4( ShadowColor, Mask * ( 1.0 - FlatMapLerp ) );
+				return float4( ShadowColor, Mask * ( 1.0 - FlatMapLerp ) * GH_SurroundMapAlphaMultiplier);
+				// END MOD
 			}
 		]]
 	}
