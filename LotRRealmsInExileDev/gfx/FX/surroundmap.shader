@@ -213,6 +213,18 @@ PixelShader =
 			
 			return Offset * ParallaxScale;
 		}
+
+		// MOD(godherja)
+		bool GH_IsCameraTilted()
+		{
+			static const float GH_MIN_CAMERA_PITCH_COS = 0.75f;
+
+			float3 CameraLookAtDirXZ = float3(CameraLookAtDir.x, 0.0f, CameraLookAtDir.z);
+			float  CameraPitchCos    = dot(CameraLookAtDir, CameraLookAtDirXZ);
+
+			return CameraPitchCos > GH_MIN_CAMERA_PITCH_COS;
+		}
+		// END MOD
 	]]
 
 	MainCode PS_surroundmap
@@ -223,6 +235,11 @@ PixelShader =
 		[[
 			PDX_MAIN
 			{
+				// MOD(godherja)
+				if (GH_IsCameraTilted())
+					return float4(0.0f, 0.0f, 0.0f, 0.0f);
+				// END MOD
+
 				float2 UV = Input.uv;
 
 				float3 SurroundMaskChannels = PdxTex2D( SurroundMask, UV ).rgb;
@@ -285,6 +302,11 @@ PixelShader =
 		[[
 			PDX_MAIN
 			{
+				// MOD(godherja)
+				if (GH_IsCameraTilted())
+					return float4(0.0f, 0.0f, 0.0f, 0.0f);
+				// END MOD
+
 				float2 UV = Input.uv;
 				
 				float3 SurroundMaskChannels = PdxTex2D( SurroundMask, UV ).rgb;
@@ -348,6 +370,11 @@ PixelShader =
 		[[			
 			PDX_MAIN
 			{
+				// MOD(godherja)
+				if (GH_IsCameraTilted())
+					return float4(0.0f, 0.0f, 0.0f, 0.0f);
+				// END MOD
+
 				float2 UV = Input.uv;
 				float Mask = PdxTex2D( SurroundMask, UV ).r;
 			
@@ -384,27 +411,18 @@ BlendState BlendState
 	BlendEnable = yes
 	SourceBlend = "src_alpha"
 	DestBlend = "inv_src_alpha"
-	# MOD(map-skybox)
-	BlendOp = "REV_SUBTRACT"
-	# END MOD
 	WriteMask = "RED|GREEN|BLUE"
 }
 
 DepthStencilState DepthStencilState
 {
-	# MOD(map-skybox)
-	DepthEnable = yes
-	# END MOD
+	DepthEnable = no
 	DepthWriteEnable = no
 }
 
 RasterizerState RasterizerState
 {
 	frontccw = yes
-	# MOD(map-skybox)
-	DepthBias = -20000
-	SlopeScaleDepthBias = 50
-	# END MOD
 }
 
 
