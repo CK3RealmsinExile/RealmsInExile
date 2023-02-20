@@ -72,11 +72,11 @@ PixelShader =
 				Water.rgb = FlatMapLerp > 0.0f ? lerp( Water.rgb, PdxTex2D( FlatMapTexture, Input.UV01 ).rgb, FlatMapLerp ) : Water.rgb;
 
 				// MOD(map-skybox)
-				// if (Input.WorldSpacePos.x < 0.0 || Input.WorldSpacePos.x >= WorldExtents.x ||
-				//	 Input.WorldSpacePos.z < 0.0 || Input.WorldSpacePos.z >= WorldExtents.y)
-				//{
-				//	Water.a = 1.0f;
-				//}
+				if (Input.WorldSpacePos.x < 0.0 || Input.WorldSpacePos.x >= WorldExtents.x ||
+					 Input.WorldSpacePos.z < 0.0 || Input.WorldSpacePos.z >= WorldExtents.y)
+				{
+					Water.a = 1.0f;
+				}
 				// END MOD
 
 				return Water;
