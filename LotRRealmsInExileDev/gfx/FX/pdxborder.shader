@@ -143,44 +143,27 @@ BlendState BlendState
 }
 
 # MOD(lotr)
-#RasterizerState RasterizerState
-#{
-#	# MOD(map-skybox)
-#	DepthBias = -20000
-#	SlopeScaleDepthBias = 0
-#	# END MOD
-#}
-#
-#DepthStencilState DepthStencilState
-#{
-#	# MOD(map-skybox)
-#	DepthEnable = yes
-#	DepthWriteEnable = no
-#	# END MOD
-#	StencilEnable = yes
-#	# MOD(map-skybox)
-#	FrontStencilFunc = greater_equal
-#	# END MOD
-#	StencilRef = 1
-#}
-# END MOD
-
-# TODO: Remove the following blocks and uncomment the section above when integrating map skybox.
 RasterizerState RasterizerState
 {
-	#DepthBias = -50
-	DepthBias = -10000
-	SlopeScaleDepthBias = -2
+	# MOD(map-skybox)
+	DepthBias = -150000
+	SlopeScaleDepthBias = 0
+	# END MOD
 }
 
 DepthStencilState DepthStencilState
 {
-	DepthEnable = no
+	# MOD(map-skybox)
+	DepthEnable = yes
+	DepthWriteEnable = no
+	# END MOD
 	StencilEnable = yes
-	FrontStencilFunc = not_equal
+	# MOD(map-skybox)
+	FrontStencilFunc = greater_equal
+	# END MOD
 	StencilRef = 1
 }
-# END TODO
+# END MOD
 
 Effect PdxBorder
 {

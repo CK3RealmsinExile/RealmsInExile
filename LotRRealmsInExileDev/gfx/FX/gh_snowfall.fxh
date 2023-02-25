@@ -2,6 +2,7 @@ Includes = {
 	"cw/camera.fxh"
 	"cw/pdxterrain.fxh"
 	"dynamic_masks.fxh"
+	"gh_camera_utils.fxh"
 }
 
 PixelShader = {
@@ -67,17 +68,6 @@ PixelShader = {
 		#else
 			#define GH_UNROLL_EXACT(ITERATIONS_COUNT)
 		#endif
-
-		//
-		// Service
-		//
-
-		float GH_GetCameraPitchCos()
-		{
-			float3 CameraLookAtDirXZ = float3(CameraLookAtDir.x, 0.0f, CameraLookAtDir.z);
-
-			return dot(CameraLookAtDir, CameraLookAtDirXZ);
-		}
 
 		//
 		// Interface
