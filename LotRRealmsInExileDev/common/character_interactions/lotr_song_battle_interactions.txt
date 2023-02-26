@@ -1,858 +1,858 @@
-﻿##################################################
-# Challenge to Song Battles
-# by Brice Underhill
-##################################################
+﻿# ##################################################
+# # Challenge to Song Battles
+# # by Brice Underhill
+# ##################################################
 
-#	Challenge someone to a song battle, perhaps with a small wager.
-challenge_to_2p_song_battle_interaction = {
-	interface_priority = 30
-	icon = icon_contract_modification_single
-	category = interaction_category_friendly
-	desc = challenge_to_2p_song_battle_interaction_desc
-	common_interaction = yes
+# #	Challenge someone to a song battle, perhaps with a small wager.
+# challenge_to_2p_song_battle_interaction = {
+# 	interface_priority = 30
+# 	icon = icon_contract_modification_single
+# 	category = interaction_category_friendly
+# 	desc = challenge_to_2p_song_battle_interaction_desc
+# 	common_interaction = yes
 
-	greeting = positive
-	notification_text = CHALLENGE_TO_2P_SONG_BATTLE_INTERACTION_NOTIFICATION
-	popup_on_receive = yes
-	ai_maybe = yes
+# 	greeting = positive
+# 	notification_text = CHALLENGE_TO_2P_SONG_BATTLE_INTERACTION_NOTIFICATION
+# 	popup_on_receive = yes
+# 	ai_maybe = yes
 
-	cooldown = { years = 5 }
-	cooldown_against_recipient = { years = 15 }
+# 	cooldown = { years = 5 }
+# 	cooldown_against_recipient = { years = 15 }
 
 
- 	is_shown = {
-		NOT = { scope:actor = { has_culture = culture:wastelands } } #LotR
- 		scope:actor = {
- 			# Actor needs to either an Elf or a magic practitioner
- 			can_start_song_battle_eligibility_checks_trigger = yes
- 			# Plus be able to start & continue such a game generally.
- 			can_start_song_battle_trigger = yes
- 			# ... no, I'm sorry, you can't battle yourself.
- 			NOT = { this = scope:recipient }
- 		}
- 	}
+#  	is_shown = {
+# 		NOT = { scope:actor = { has_culture = culture:wastelands } } #LotR
+#  		scope:actor = {
+#  			# Actor needs to either an Elf or a magic practitioner
+#  			can_start_song_battle_eligibility_checks_trigger = yes
+#  			# Plus be able to start & continue such a game generally.
+#  			can_start_song_battle_trigger = yes
+#  			# ... no, I'm sorry, you can't battle yourself.
+#  			NOT = { this = scope:recipient }
+#  		}
+#  	}
 
-	is_valid_showing_failures_only = {
-		# Both characters must be available (adults or old-enough children)
-		scope:actor = { 
-			is_available_adult = yes
-			can_start_song_battle_eligibility_checks_trigger = yes
-		}
-		scope:recipient = { 
-			is_available_adult = yes
-			can_start_song_battle_eligibility_checks_trigger = yes
-		}
-		# Neither of you can be currently engaged in a song battle.
-		scope:recipient = {
-			custom_description = {
-				text = recipient_banned_from_song_battles
-				can_start_song_battle_is_scope_banned_checks_trigger = no
-			}
-		}
-	}
+# 	is_valid_showing_failures_only = {
+# 		# Both characters must be available (adults or old-enough children)
+# 		scope:actor = { 
+# 			is_available_adult = yes
+# 			can_start_song_battle_eligibility_checks_trigger = yes
+# 		}
+# 		scope:recipient = { 
+# 			is_available_adult = yes
+# 			can_start_song_battle_eligibility_checks_trigger = yes
+# 		}
+# 		# Neither of you can be currently engaged in a song battle.
+# 		scope:recipient = {
+# 			custom_description = {
+# 				text = recipient_banned_from_song_battles
+# 				can_start_song_battle_is_scope_banned_checks_trigger = no
+# 			}
+# 		}
+# 	}
 
-	on_send = {
-		debug_log = song_battle_invite_sent
-		debug_log_scopes = yes
+# 	on_send = {
+# 		debug_log = song_battle_invite_sent
+# 		debug_log_scopes = yes
 
-		# We want to set this up in advance to stop scope:actor from giving away a county for opinion that they've already wagered.
-		if = {
-			limit = { always = scope:song_battle_land }
-			challenge_to_2p_song_battle_interaction_lock_in_actor_stake_land_effect = yes
-		}
-	}
+# 		# We want to set this up in advance to stop scope:actor from giving away a county for opinion that they've already wagered.
+# 		if = {
+# 			limit = { always = scope:song_battle_land }
+# 			challenge_to_2p_song_battle_interaction_lock_in_actor_stake_land_effect = yes
+# 		}
+# 	}
 
-	on_accept = {
-		# Save gold & land stakes.
-		if = {
-			limit = { always = scope:song_battle_gold }
-			save_scope_value_as = {
-				name = sb_stake_gold
-				value = challenge_to_song_battle_gold_change_value
-			}
-		}
-		if = {
-			limit = { always = scope:song_battle_land }
-			# We check scope:actor's county in the on_send block to stop them sneakily giving the county away after they've staked it.
-			show_as_tooltip = { challenge_to_2p_song_battle_interaction_lock_in_actor_stake_land_effect = yes }
-			scope:recipient = {
-				save_temporary_scope_as = ordering_char_temp
-				ordered_held_title = {
-					limit = {
-						sb_stake_land_valid_neighbouring_county_to_trade_trigger = { NEIGHBOUR = scope:actor }
-					}
-					order_by = sb_stake_land_evaluate_appropriate_county_ordering_value
-					save_scope_as = sb_stake_land_recipient
-					set_variable = wagered_county
-				}
-			}
-		}
-		# Proceed with general set-up & preamble.
-		scope:actor = {
-			# Log scope:actor as having taken the interaction for the purposes of invalidation
-			add_character_flag = taken_challenge_to_song_battle_interaction
-			# Fire the actual first event for scope:actor.
-			## Sort some placeholder scopes so the UI doesn't freak out.
-			## Song Battle
-			configure_start_song_battle_effect = {
-				SB_INITIATOR = scope:actor
-				SB_ATTACKER = scope:actor
-				SB_DEFENDER = scope:recipient
-				LOCALE = random_nice_day
-				OUTPUT_EVENT = song_battle.0100
-				INVALIDATION_EVENT = song_battle.0021
-			}
-		}
-		# Notify that the game will start immediately.
-		custom_tooltip = challenge_to_2p_song_battle_interaction.accept.game_commences.tt
-		# Stakes.
-		## Friendlies bet opinion & stress.
-		if = {
-			limit = { always = scope:song_battle_friendly }
-			show_as_tooltip = {
-				random_list = {
-					# You win.
-					50 = {
-						show_chance = no
-						desc = sb_interaction.winner.actor
-						sb_stake_friendly_effect = {
-							VICTOR = scope:actor
-							LOSER = scope:recipient
-						}
-					}
-					# You lose.
-					50 = {
-						show_chance = no
-						desc = sb_interaction.winner.recipient
-						sb_stake_friendly_effect = {
-							VICTOR = scope:recipient
-							LOSER = scope:actor
-						}
-					}
-				}
-			}
-		}
-		## Prestige bets capital.
-		if = {
-			limit = { always = scope:song_battle_prestige }
-			show_as_tooltip = {
-				random_list = {
-					# You win.
-					50 = {
-						show_chance = no
-						desc = sb_interaction.winner.actor
-						sb_stake_fame_effect = {
-							VICTOR = scope:actor
-							LOSER = scope:recipient
-						}
-					}
-					# You lose.
-					50 = {
-						show_chance = no
-						desc = sb_interaction.winner.recipient
-						sb_stake_fame_effect = {
-							VICTOR = scope:recipient
-							LOSER = scope:actor
-						}
-					}
-				}
-			}
-		}
-		## Gold bets capital.
-		if = {
-			limit = { always = scope:song_battle_gold }
-			show_as_tooltip = {
-				random_list = {
-					# You win.
-					50 = {
-						show_chance = no
-						desc = sb_interaction.winner.actor
-						sb_stake_fortune_effect = {
-							VICTOR = scope:actor
-							LOSER = scope:recipient
-						}
-					}
-					# You lose.
-					50 = {
-						show_chance = no
-						desc = sb_interaction.winner.recipient
-						sb_stake_fortune_effect = {
-							VICTOR = scope:recipient
-							LOSER = scope:actor
-						}
-					}
-				}
-			}
-		}
-		## Land bets a neighbouring title.
-		if = {
-			limit = { always = scope:song_battle_land }
-			show_as_tooltip = {
-				random_list = {
-					# You win.
-					50 = {
-						show_chance = no
-						desc = sb_interaction.winner.actor
-						sb_stake_titles_effect = { VICTOR = scope:actor }
-					}
-					# You lose.
-					50 = {
-						show_chance = no
-						desc = sb_interaction.winner.recipient
-						sb_stake_titles_effect = { VICTOR = scope:recipient }
-					}
-				}
-			}
-		}
-	}
+# 	on_accept = {
+# 		# Save gold & land stakes.
+# 		if = {
+# 			limit = { always = scope:song_battle_gold }
+# 			save_scope_value_as = {
+# 				name = sb_stake_gold
+# 				value = challenge_to_song_battle_gold_change_value
+# 			}
+# 		}
+# 		if = {
+# 			limit = { always = scope:song_battle_land }
+# 			# We check scope:actor's county in the on_send block to stop them sneakily giving the county away after they've staked it.
+# 			show_as_tooltip = { challenge_to_2p_song_battle_interaction_lock_in_actor_stake_land_effect = yes }
+# 			scope:recipient = {
+# 				save_temporary_scope_as = ordering_char_temp
+# 				ordered_held_title = {
+# 					limit = {
+# 						sb_stake_land_valid_neighbouring_county_to_trade_trigger = { NEIGHBOUR = scope:actor }
+# 					}
+# 					order_by = sb_stake_land_evaluate_appropriate_county_ordering_value
+# 					save_scope_as = sb_stake_land_recipient
+# 					set_variable = wagered_county
+# 				}
+# 			}
+# 		}
+# 		# Proceed with general set-up & preamble.
+# 		scope:actor = {
+# 			# Log scope:actor as having taken the interaction for the purposes of invalidation
+# 			add_character_flag = taken_challenge_to_song_battle_interaction
+# 			# Fire the actual first event for scope:actor.
+# 			## Sort some placeholder scopes so the UI doesn't freak out.
+# 			## Song Battle
+# 			configure_start_song_battle_effect = {
+# 				SB_INITIATOR = scope:actor
+# 				SB_ATTACKER = scope:actor
+# 				SB_DEFENDER = scope:recipient
+# 				LOCALE = random_nice_day
+# 				OUTPUT_EVENT = song_battle.0100
+# 				INVALIDATION_EVENT = song_battle.0021
+# 			}
+# 		}
+# 		# Notify that the game will start immediately.
+# 		custom_tooltip = challenge_to_2p_song_battle_interaction.accept.game_commences.tt
+# 		# Stakes.
+# 		## Friendlies bet opinion & stress.
+# 		if = {
+# 			limit = { always = scope:song_battle_friendly }
+# 			show_as_tooltip = {
+# 				random_list = {
+# 					# You win.
+# 					50 = {
+# 						show_chance = no
+# 						desc = sb_interaction.winner.actor
+# 						sb_stake_friendly_effect = {
+# 							VICTOR = scope:actor
+# 							LOSER = scope:recipient
+# 						}
+# 					}
+# 					# You lose.
+# 					50 = {
+# 						show_chance = no
+# 						desc = sb_interaction.winner.recipient
+# 						sb_stake_friendly_effect = {
+# 							VICTOR = scope:recipient
+# 							LOSER = scope:actor
+# 						}
+# 					}
+# 				}
+# 			}
+# 		}
+# 		## Prestige bets capital.
+# 		if = {
+# 			limit = { always = scope:song_battle_prestige }
+# 			show_as_tooltip = {
+# 				random_list = {
+# 					# You win.
+# 					50 = {
+# 						show_chance = no
+# 						desc = sb_interaction.winner.actor
+# 						sb_stake_fame_effect = {
+# 							VICTOR = scope:actor
+# 							LOSER = scope:recipient
+# 						}
+# 					}
+# 					# You lose.
+# 					50 = {
+# 						show_chance = no
+# 						desc = sb_interaction.winner.recipient
+# 						sb_stake_fame_effect = {
+# 							VICTOR = scope:recipient
+# 							LOSER = scope:actor
+# 						}
+# 					}
+# 				}
+# 			}
+# 		}
+# 		## Gold bets capital.
+# 		if = {
+# 			limit = { always = scope:song_battle_gold }
+# 			show_as_tooltip = {
+# 				random_list = {
+# 					# You win.
+# 					50 = {
+# 						show_chance = no
+# 						desc = sb_interaction.winner.actor
+# 						sb_stake_fortune_effect = {
+# 							VICTOR = scope:actor
+# 							LOSER = scope:recipient
+# 						}
+# 					}
+# 					# You lose.
+# 					50 = {
+# 						show_chance = no
+# 						desc = sb_interaction.winner.recipient
+# 						sb_stake_fortune_effect = {
+# 							VICTOR = scope:recipient
+# 							LOSER = scope:actor
+# 						}
+# 					}
+# 				}
+# 			}
+# 		}
+# 		## Land bets a neighbouring title.
+# 		if = {
+# 			limit = { always = scope:song_battle_land }
+# 			show_as_tooltip = {
+# 				random_list = {
+# 					# You win.
+# 					50 = {
+# 						show_chance = no
+# 						desc = sb_interaction.winner.actor
+# 						sb_stake_titles_effect = { VICTOR = scope:actor }
+# 					}
+# 					# You lose.
+# 					50 = {
+# 						show_chance = no
+# 						desc = sb_interaction.winner.recipient
+# 						sb_stake_titles_effect = { VICTOR = scope:recipient }
+# 					}
+# 				}
+# 			}
+# 		}
+# 	}
 
-	on_decline = {
-		# Scope:actor is a little put out.
-		scope:actor = {
-			send_interface_toast = {
-				title = challenge_to_2p_song_battle_interaction.decline.actor.tt
-				left_icon = scope:recipient
-				add_stress = minor_stress_gain
-			}
-		}
-		# Scope:actor loses opinion of scope:recipient.
-		scope:recipient = {
-			send_interface_toast = {
-				title = challenge_to_2p_song_battle_interaction.decline.recipient.tt
-				left_icon = scope:actor
-				reverse_add_opinion = {
-					target = scope:actor
-					modifier = unfriendly_opinion
-					opinion = -20
-				}
-			}
-		}
+# 	on_decline = {
+# 		# Scope:actor is a little put out.
+# 		scope:actor = {
+# 			send_interface_toast = {
+# 				title = challenge_to_2p_song_battle_interaction.decline.actor.tt
+# 				left_icon = scope:recipient
+# 				add_stress = minor_stress_gain
+# 			}
+# 		}
+# 		# Scope:actor loses opinion of scope:recipient.
+# 		scope:recipient = {
+# 			send_interface_toast = {
+# 				title = challenge_to_2p_song_battle_interaction.decline.recipient.tt
+# 				left_icon = scope:actor
+# 				reverse_add_opinion = {
+# 					target = scope:actor
+# 					modifier = unfriendly_opinion
+# 					opinion = -20
+# 				}
+# 			}
+# 		}
 
-		# Failsafe: Ensure that all set variables are removed
-		hidden_effect = {
-			if = {
-				limit = { exists = scope:sb_stake_land_recipient }
-				scope:sb_stake_land_recipient = { remove_variable = wagered_county }
-			}
-			if = {
-				limit = { exists = scope:sb_stake_land_actor }
-				scope:sb_stake_land_actor = { remove_variable = wagered_county }
-			}
-		}
-	}
+# 		# Failsafe: Ensure that all set variables are removed
+# 		hidden_effect = {
+# 			if = {
+# 				limit = { exists = scope:sb_stake_land_recipient }
+# 				scope:sb_stake_land_recipient = { remove_variable = wagered_county }
+# 			}
+# 			if = {
+# 				limit = { exists = scope:sb_stake_land_actor }
+# 				scope:sb_stake_land_actor = { remove_variable = wagered_county }
+# 			}
+# 		}
+# 	}
 
-	# Wagers
-	## A friendly match
-	send_option = {
-		flag = song_battle_friendly
-		localization = "SONG_BATTLE_FRIENDLY"
-		is_valid = { # Evil characters do not engage in friendly contests
-			custom_tooltip = {
-				scope:actor = {
-					is_available_adult = yes 
-					faith_is_evil = no
-				}
-				text = friendly_actor_evil
-			}
-			custom_tooltip = {
-				scope:recipient = {
-					is_available_adult = yes 
-					faith_is_evil = no
-				}
-				text = friendly_recipient_evil
-			}
-		}
-	}
-	## Bet prestige
-	send_option = {
-		flag = song_battle_prestige
-		localization = "SONG_BATTLE_PRESTIGE"
-		is_valid = { # Children should not be able to gamble with fame, but gold and land are fine
-			scope:actor = { is_available_adult = yes }
-			scope:recipient = { is_available_adult = yes }
-		}
-	}
-	## Bet gold
-	send_option = {
-		is_valid = {
-			custom_tooltip = {
-				scope:actor = { gold > minor_gold_value }
-				text = bet_gold_actor_not_enough_gold
-			}
-			custom_tooltip = {
-				scope:recipient = { gold > minor_gold_value }
-				text = bet_gold_recipient_not_enough_gold
-			}
-		}
-		flag = song_battle_gold
-		localization = "SONG_BATTLE_GOLD"
-	}
-	## Bet land
-	send_option = {
-		# But you need to have bordering land for it to work.
-		is_valid = {
-			scope:actor = { is_ai = no }
-			custom_tooltip = {
-				text = challenge_to_2p_song_battle_interaction.need_bordering_non_capital_domains.tt
-				scope:actor = {
-					any_held_title = {
-						sb_stake_land_valid_neighbouring_county_to_trade_trigger = { NEIGHBOUR = scope:recipient }
-					}
-				}
-				scope:recipient = {
-					any_held_title = {
-						sb_stake_land_valid_neighbouring_county_to_trade_trigger = { NEIGHBOUR = scope:actor }
-					}
-				}
-			}
-		}
-		flag = song_battle_land
-		localization = "SONG_BATTLE_LAND"
-	}
+# 	# Wagers
+# 	## A friendly match
+# 	send_option = {
+# 		flag = song_battle_friendly
+# 		localization = "SONG_BATTLE_FRIENDLY"
+# 		is_valid = { # Evil characters do not engage in friendly contests
+# 			custom_tooltip = {
+# 				scope:actor = {
+# 					is_available_adult = yes 
+# 					faith_is_evil = no
+# 				}
+# 				text = friendly_actor_evil
+# 			}
+# 			custom_tooltip = {
+# 				scope:recipient = {
+# 					is_available_adult = yes 
+# 					faith_is_evil = no
+# 				}
+# 				text = friendly_recipient_evil
+# 			}
+# 		}
+# 	}
+# 	## Bet prestige
+# 	send_option = {
+# 		flag = song_battle_prestige
+# 		localization = "SONG_BATTLE_PRESTIGE"
+# 		is_valid = { # Children should not be able to gamble with fame, but gold and land are fine
+# 			scope:actor = { is_available_adult = yes }
+# 			scope:recipient = { is_available_adult = yes }
+# 		}
+# 	}
+# 	## Bet gold
+# 	send_option = {
+# 		is_valid = {
+# 			custom_tooltip = {
+# 				scope:actor = { gold > minor_gold_value }
+# 				text = bet_gold_actor_not_enough_gold
+# 			}
+# 			custom_tooltip = {
+# 				scope:recipient = { gold > minor_gold_value }
+# 				text = bet_gold_recipient_not_enough_gold
+# 			}
+# 		}
+# 		flag = song_battle_gold
+# 		localization = "SONG_BATTLE_GOLD"
+# 	}
+# 	## Bet land
+# 	send_option = {
+# 		# But you need to have bordering land for it to work.
+# 		is_valid = {
+# 			scope:actor = { is_ai = no }
+# 			custom_tooltip = {
+# 				text = challenge_to_2p_song_battle_interaction.need_bordering_non_capital_domains.tt
+# 				scope:actor = {
+# 					any_held_title = {
+# 						sb_stake_land_valid_neighbouring_county_to_trade_trigger = { NEIGHBOUR = scope:recipient }
+# 					}
+# 				}
+# 				scope:recipient = {
+# 					any_held_title = {
+# 						sb_stake_land_valid_neighbouring_county_to_trade_trigger = { NEIGHBOUR = scope:actor }
+# 					}
+# 				}
+# 			}
+# 		}
+# 		flag = song_battle_land
+# 		localization = "SONG_BATTLE_LAND"
+# 	}
 
-	# AI
-	## Standard Acceptance stuff
-	ai_accept = {
-		# Try to make it 0 for most interactions
-		base = 0
+# 	# AI
+# 	## Standard Acceptance stuff
+# 	ai_accept = {
+# 		# Try to make it 0 for most interactions
+# 		base = 0
 
-		# Weight up for personality values.
-		## Shy characters may not generally be sociable, but they're usually down for board games.
-		ai_value_modifier = {
-			who = scope:recipient
-			trigger = { has_trait = shy }
-			ai_boldness = {
-				if = {
-					limit = {
-						scope:recipient = {
-							NOT = { ai_boldness = 0 }
-						}
-					}
-					value = 1
-				}
-			}
-			ai_sociability = {
-				if = {
-					limit = {
-						scope:recipient = {
-							NOT = { ai_honor = 0 }
-						}
-					}
-					value = -0.5
-				}
-			}
-		}
-		## Otherwise, calc as normal.
-		ai_value_modifier = {
-			who = scope:recipient
-			trigger = {
-				NOT = { has_trait = shy }
-			}
-			ai_boldness = {
-				if = {
-					limit = {
-						scope:recipient = {
-							NOT = { ai_boldness = 0 }
-						}
-					}
-					value = 1
-				}
-			}
-			ai_sociability = {
-				if = {
-					limit = {
-						scope:recipient = {
-							NOT = { ai_honor = 0 }
-						}
-					}
-					value = 0.5
-				}
-			}
-		}
-		# Weight up for opinion.
-		opinion_modifier = {
-			who = scope:recipient
-			opinion_target = scope:actor
-			multiplier = 0.5
-			desc = AI_OPINION_REASON
-		}
-		# Weight up for estimated skill.
-		modifier = {
-			add = {
-				add = scope:recipient.diplomacy
-				add = scope:recipient.intrigue
-				add = scope:recipient.learning
-				# 
-			}
-			desc = SB_OPINION_OWN_SKILL_ASSESSMENT
-		}
-		# Specific wager preferences.
-		## Friendlies: for folks who want a calm game with nothing more at stake than peace of mind.
-		modifier = {
-			add = 20
-			always = scope:song_battle_friendly
-			# Exempt characters with traits that dislike low stakes.
-			scope:recipient = {
-				NOR = {
-					has_trait = callous
-					has_trait = greedy
-					has_trait = arrogant
-				}
-			}
-			desc = SB_OPINION_STAKES_ARE_LOW
-		}
-		### Gregarious loves.
-		modifier = {
-			add = 40
-			scope:recipient = { has_trait = gregarious }
-			always = scope:song_battle_friendly
-			desc = SB_OPINION_FRIENDLY_TRAIT_GREGARIOUS
-		}
-		### Humble loves.
-		modifier = {
-			add = 40
-			scope:recipient = { has_trait = humble }
-			always = scope:song_battle_friendly
-			desc = SB_OPINION_FRIENDLY_TRAIT_HUMBLE
-		}
-		### Shy likes.
-		modifier = {
-			add = 20
-			scope:recipient = { has_trait = shy }
-			always = scope:song_battle_friendly
-			desc = SB_OPINION_FRIENDLY_TRAIT_SHY
-		}
-		### Compassionate likes.
-		modifier = {
-			add = 20
-			scope:recipient = { has_trait = compassionate }
-			always = scope:song_battle_friendly
-			desc = SB_OPINION_FRIENDLY_TRAIT_COMPASSIONATE
-		}
-		### Callous dislikes.
-		modifier = {
-			add = -20
-			scope:recipient = { has_trait = callous }
-			always = scope:song_battle_friendly
-			desc = SB_OPINION_FRIENDLY_TRAIT_CALLOUS
-		}
-		### Greedy hates.
-		modifier = {
-			add = -40
-			scope:recipient = { has_trait = greedy }
-			always = scope:song_battle_friendly
-			desc = SB_OPINION_FRIENDLY_TRAIT_GREEDY
-		}
-		### Arrogant hates.
-		modifier = {
-			add = -40
-			scope:recipient = { has_trait = arrogant }
-			always = scope:song_battle_friendly
-			desc = SB_OPINION_FRIENDLY_TRAIT_ARROGANT
-		}
-		## Prestige: want a little more drama in your life without breaking the bank? Gamble your reputation!
-		### Brave loves.
-		modifier = {
-			add = 40
-			scope:recipient = { has_trait = brave }
-			always = scope:song_battle_prestige
-			desc = SB_OPINION_PRESTIGE_TRAIT_BRAVE
-		}
-		### Arrogant loves.
-		modifier = {
-			add = 40
-			scope:recipient = { has_trait = arrogant }
-			always = scope:song_battle_prestige
-			desc = SB_OPINION_PRESTIGE_TRAIT_ARROGANT
-		}
-		### Gregarious likes.
-		modifier = {
-			add = 20
-			scope:recipient = { has_trait = gregarious }
-			always = scope:song_battle_prestige
-			desc = SB_OPINION_PRESTIGE_TRAIT_GREGARIOUS
-		}
-		### Ambitious likes.
-		modifier = {
-			add = 20
-			scope:recipient = { has_trait = ambitious }
-			always = scope:song_battle_prestige
-			desc = SB_OPINION_PRESTIGE_TRAIT_AMBITIOUS
-		}
-		### Content dislikes.
-		modifier = {
-			add = -20
-			scope:recipient = { has_trait = content }
-			always = scope:song_battle_prestige
-			desc = SB_OPINION_PRESTIGE_TRAIT_CONTENT
-		}
-		### Shy dislikes.
-		modifier = {
-			add = -20
-			scope:recipient = { has_trait = shy }
-			always = scope:song_battle_prestige
-			desc = SB_OPINION_PRESTIGE_TRAIT_SHY
-		}
-		### Humble hates.
-		modifier = {
-			add = -40
-			scope:recipient = { has_trait = humble }
-			always = scope:song_battle_prestige
-			desc = SB_OPINION_PRESTIGE_TRAIT_HUMBLE
-		}
-		### Craven hates.
-		modifier = {
-			add = -40
-			scope:recipient = { has_trait = craven }
-			always = scope:song_battle_prestige
-			desc = SB_OPINION_PRESTIGE_TRAIT_CRAVEN
-		}
-		## Gold: what is life without risk? Play it bold or don't play at all!
-		### Profligate adores.
-		modifier = {
-			add = 60
-			scope:recipient = { has_trait = profligate }
-			always = scope:song_battle_gold
-			desc = SB_OPINION_GOLD_TRAIT_PROFLIGATE
-		}
-		### Greedy loves.
-		modifier = {
-			add = 40
-			scope:recipient = { has_trait = greedy }
-			always = scope:song_battle_gold
-			desc = SB_OPINION_GOLD_TRAIT_GREEDY
-		}
-		### Ambitious likes.
-		modifier = {
-			add = 20
-			scope:recipient = { has_trait = ambitious }
-			always = scope:song_battle_gold
-			desc = SB_OPINION_GOLD_TRAIT_AMBITIOUS
-		}
-		### Generous likes - I mean, from their perspective, what does the money matter?
-		modifier = {
-			add = 20
-			scope:recipient = { has_trait = generous }
-			always = scope:song_battle_gold
-			desc = SB_OPINION_GOLD_TRAIT_GENEROUS
-		}
-		### Lazy likes.
-		modifier = {
-			add = 20
-			scope:recipient = { has_trait = lazy }
-			always = scope:song_battle_gold
-			desc = SB_OPINION_GOLD_TRAIT_LAZY
-		}
-		### Diligent hates.
-		modifier = {
-			add = -40
-			scope:recipient = { has_trait = diligent }
-			always = scope:song_battle_gold
-			desc = SB_OPINION_GOLD_TRAIT_DILIGENT
-		}
-		## Land: you need to stop buying new board games, Jesse. You're way too into them.
-		### Profligate adores.
-		modifier = {
-			add = 60
-			scope:recipient = { has_trait = profligate }
-			always = scope:song_battle_land
-			desc = SB_OPINION_LAND_TRAIT_PROFLIGATE
-		}
-		### Arbitrary loves.
-		modifier = {
-			add = 40
-			scope:recipient = { has_trait = arbitrary }
-			always = scope:song_battle_land
-			desc = SB_OPINION_LAND_TRAIT_ARBITRARY
-		}
-		### Ambitious likes.
-		modifier = {
-			add = 20
-			scope:recipient = { has_trait = ambitious }
-			always = scope:song_battle_land
-			desc = SB_OPINION_LAND_TRAIT_AMBITIOUS
-		}
-		### Brave likes.
-		modifier = {
-			add = 20
-			scope:recipient = { has_trait = brave }
-			always = scope:song_battle_land
-			desc = SB_OPINION_LAND_TRAIT_BRAVE
-		}
-		### Craven dislikes.
-		modifier = {
-			add = -20
-			scope:recipient = { has_trait = craven }
-			always = scope:song_battle_land
-			desc = SB_OPINION_LAND_TRAIT_CRAVEN
-		}
-		### Content dislikes.
-		modifier = {
-			add = -20
-			scope:recipient = { has_trait = content }
-			always = scope:song_battle_land
-			desc = SB_OPINION_LAND_TRAIT_CONTENT
-		}
-		### Just loathes - this is *categorically* not how the feudal system, or really any form of loyalty, is supposed to work.
-		modifier = {
-			add = -60
-			scope:recipient = { has_trait = just }
-			always = scope:song_battle_land
-			desc = SB_OPINION_LAND_TRAIT_JUST
-		}
-		### Greedy deliberately left off; they don't want to risk their own stuff but they *do* want to nab everyone else's.
-		# Relationships
-		## Mildly positive relationships like to play against each other.
-		modifier = {
-			add = 20
-			scope:recipient = {
-				has_any_mild_good_relationship_with_character_trigger = { CHARACTER = scope:actor }
-			}
-			desc = SB_OPINION_RELATIONSHIP_GOOD_MILD
-		}
-		## Positive relationships like to play against each other.
-		modifier = {
-			add = 40
-			scope:recipient = {
-				has_any_only_moderate_good_relationship_with_character_trigger = { CHARACTER = scope:actor }
-			}
-			desc = SB_OPINION_RELATIONSHIP_GOOD_MODERATE
-		}
-		## Really positive relationships love to play against each other.
-		modifier = {
-			add = 60
-			scope:recipient = {
-				has_any_best_good_relationship_with_character_trigger = { CHARACTER = scope:actor }
-			}
-			desc = SB_OPINION_RELATIONSHIP_GOOD_MAJOR
-		}
-		## Negative relationships dislike playing each other...
-		### ... either mildly...
-		modifier = {
-			add = -20
-			scope:recipient = {
-				has_any_mild_bad_relationship_with_character_trigger = { CHARACTER = scope:actor }
-				NOT = {
-					can_start_song_battle_eligibility_checks_trigger = yes
-				}
-			}
-			desc = SB_OPINION_RELATIONSHIP_BAD_MILD
-		}
-		### ... moderately...
-		modifier = {
-			add = -40
-			scope:recipient = {
-				has_any_only_moderate_bad_relationship_with_character_trigger = { CHARACTER = scope:actor }
-				NOT = {
-					can_start_song_battle_eligibility_checks_trigger = yes
-				}
-			}
-			desc = SB_OPINION_RELATIONSHIP_BAD_MODERATE
-		}
-		### ... or majorly...
-		modifier = {
-			add = -60
-			scope:recipient = {
-				has_any_worst_bad_relationship_with_character_trigger = { CHARACTER = scope:actor }
-				NOT = {
-					can_start_song_battle_eligibility_checks_trigger = yes
-				}
-			}
-			desc = SB_OPINION_RELATIONSHIP_BAD_MAJOR
-		}
-		## ... unless they take their board games far too seriously, in which case, they're always down...
-		### ... either mildly...
-		modifier = {
-			add = 20
-			scope:recipient = {
-				has_any_mild_bad_relationship_with_character_trigger = { CHARACTER = scope:actor }
-				can_start_song_battle_eligibility_checks_trigger = yes
-			}
-			desc = SB_OPINION_RELATIONSHIP_BAD_SRSGMR_MILD
-		}
-		### ... moderately...
-		modifier = {
-			add = 40
-			scope:recipient = {
-				has_any_only_moderate_bad_relationship_with_character_trigger = { CHARACTER = scope:actor }
-				can_start_song_battle_eligibility_checks_trigger = yes
-			}
-			desc = SB_OPINION_RELATIONSHIP_BAD_SRSGMR_MODERATE
-		}
-		### ... or majorly.
-		modifier = {
-			add = 60
-			scope:recipient = {
-				has_any_worst_bad_relationship_with_character_trigger = { CHARACTER = scope:actor }
-				can_start_song_battle_eligibility_checks_trigger = yes
-			}
-			desc = SB_OPINION_RELATIONSHIP_BAD_SRSGMR_MAJOR
-		}
-		# Apply tier differences.
-		## King -> Baron.
-		modifier = {
-			desc = AI_REFUSAL_RANK_DIFFERENCE
-			scope:actor = {
-				tier_difference = {
-					target = scope:recipient
-					value >= 4
-				}
-			}
-			add = 15
-		}
-		## Duke -> Baron.
-		modifier = {
-			desc = AI_REFUSAL_RANK_DIFFERENCE
-			scope:actor = {
-				tier_difference = {
-					target = scope:recipient
-					value = 3
-				}
-			}
-			add = 10
-		}
-		## Count -> Baron.
-		modifier = {
-			desc = AI_REFUSAL_RANK_DIFFERENCE
-			scope:actor = {
-				tier_difference = {
-					target = scope:recipient
-					value = 2
-				}
-			}
-			add = 5
-		}
-		## King <- Baron.
-		modifier = {
-			desc = AI_REFUSAL_RANK_DIFFERENCE
-			scope:actor = {
-				tier_difference = {
-					target = scope:recipient
-					value = -2
-				}
-			}
-			add = -10
-		}
-		## Duke <- Baron.
-		modifier = {
-			desc = AI_REFUSAL_RANK_DIFFERENCE
-			scope:actor = {
-				tier_difference = {
-					target = scope:recipient
-					value = -3
-				}
-			}
-			add = -20
-		}
-		## Count <- Baron.
-		modifier = {
-			desc = AI_REFUSAL_RANK_DIFFERENCE
-			scope:actor = {
-				tier_difference = {
-					target = scope:recipient
-					value <= -4
-				}
-			}
-			add = -30
-		}
-	}
-	## Performance-enhancement	
-	ai_potential = {
-		is_adult = yes
-		OR = {
-			is_elf = yes
-			is_istari = yes
-			is_nazgul = yes
-			#has_trait = sorcerer_1
-			#has_trait = sorcerer_2
-			#has_trait = sorcerer_3
-			any_character_artifact = {
-				has_variable = ring_of_power
-			}
-		}
-		is_imprisoned = no
-	}
-	ai_target_quick_trigger = { adult = yes } # AI will only challenge adults
-	ai_targets = { ai_recipients = scripted_relations }
-	ai_targets = {
-		ai_recipients = family
-		max = 10
-	}
-	ai_targets = {
-		ai_recipients = neighboring_rulers
-		ai_recipients = peer_vassals
-	}
-	## Frequency
-	ai_frequency = 84
-	ai_will_do = {
-		base = -50
+# 		# Weight up for personality values.
+# 		## Shy characters may not generally be sociable, but they're usually down for board games.
+# 		ai_value_modifier = {
+# 			who = scope:recipient
+# 			trigger = { has_trait = shy }
+# 			ai_boldness = {
+# 				if = {
+# 					limit = {
+# 						scope:recipient = {
+# 							NOT = { ai_boldness = 0 }
+# 						}
+# 					}
+# 					value = 1
+# 				}
+# 			}
+# 			ai_sociability = {
+# 				if = {
+# 					limit = {
+# 						scope:recipient = {
+# 							NOT = { ai_honor = 0 }
+# 						}
+# 					}
+# 					value = -0.5
+# 				}
+# 			}
+# 		}
+# 		## Otherwise, calc as normal.
+# 		ai_value_modifier = {
+# 			who = scope:recipient
+# 			trigger = {
+# 				NOT = { has_trait = shy }
+# 			}
+# 			ai_boldness = {
+# 				if = {
+# 					limit = {
+# 						scope:recipient = {
+# 							NOT = { ai_boldness = 0 }
+# 						}
+# 					}
+# 					value = 1
+# 				}
+# 			}
+# 			ai_sociability = {
+# 				if = {
+# 					limit = {
+# 						scope:recipient = {
+# 							NOT = { ai_honor = 0 }
+# 						}
+# 					}
+# 					value = 0.5
+# 				}
+# 			}
+# 		}
+# 		# Weight up for opinion.
+# 		opinion_modifier = {
+# 			who = scope:recipient
+# 			opinion_target = scope:actor
+# 			multiplier = 0.5
+# 			desc = AI_OPINION_REASON
+# 		}
+# 		# Weight up for estimated skill.
+# 		modifier = {
+# 			add = {
+# 				add = scope:recipient.diplomacy
+# 				add = scope:recipient.intrigue
+# 				add = scope:recipient.learning
+# 				# 
+# 			}
+# 			desc = SB_OPINION_OWN_SKILL_ASSESSMENT
+# 		}
+# 		# Specific wager preferences.
+# 		## Friendlies: for folks who want a calm game with nothing more at stake than peace of mind.
+# 		modifier = {
+# 			add = 20
+# 			always = scope:song_battle_friendly
+# 			# Exempt characters with traits that dislike low stakes.
+# 			scope:recipient = {
+# 				NOR = {
+# 					has_trait = callous
+# 					has_trait = greedy
+# 					has_trait = arrogant
+# 				}
+# 			}
+# 			desc = SB_OPINION_STAKES_ARE_LOW
+# 		}
+# 		### Gregarious loves.
+# 		modifier = {
+# 			add = 40
+# 			scope:recipient = { has_trait = gregarious }
+# 			always = scope:song_battle_friendly
+# 			desc = SB_OPINION_FRIENDLY_TRAIT_GREGARIOUS
+# 		}
+# 		### Humble loves.
+# 		modifier = {
+# 			add = 40
+# 			scope:recipient = { has_trait = humble }
+# 			always = scope:song_battle_friendly
+# 			desc = SB_OPINION_FRIENDLY_TRAIT_HUMBLE
+# 		}
+# 		### Shy likes.
+# 		modifier = {
+# 			add = 20
+# 			scope:recipient = { has_trait = shy }
+# 			always = scope:song_battle_friendly
+# 			desc = SB_OPINION_FRIENDLY_TRAIT_SHY
+# 		}
+# 		### Compassionate likes.
+# 		modifier = {
+# 			add = 20
+# 			scope:recipient = { has_trait = compassionate }
+# 			always = scope:song_battle_friendly
+# 			desc = SB_OPINION_FRIENDLY_TRAIT_COMPASSIONATE
+# 		}
+# 		### Callous dislikes.
+# 		modifier = {
+# 			add = -20
+# 			scope:recipient = { has_trait = callous }
+# 			always = scope:song_battle_friendly
+# 			desc = SB_OPINION_FRIENDLY_TRAIT_CALLOUS
+# 		}
+# 		### Greedy hates.
+# 		modifier = {
+# 			add = -40
+# 			scope:recipient = { has_trait = greedy }
+# 			always = scope:song_battle_friendly
+# 			desc = SB_OPINION_FRIENDLY_TRAIT_GREEDY
+# 		}
+# 		### Arrogant hates.
+# 		modifier = {
+# 			add = -40
+# 			scope:recipient = { has_trait = arrogant }
+# 			always = scope:song_battle_friendly
+# 			desc = SB_OPINION_FRIENDLY_TRAIT_ARROGANT
+# 		}
+# 		## Prestige: want a little more drama in your life without breaking the bank? Gamble your reputation!
+# 		### Brave loves.
+# 		modifier = {
+# 			add = 40
+# 			scope:recipient = { has_trait = brave }
+# 			always = scope:song_battle_prestige
+# 			desc = SB_OPINION_PRESTIGE_TRAIT_BRAVE
+# 		}
+# 		### Arrogant loves.
+# 		modifier = {
+# 			add = 40
+# 			scope:recipient = { has_trait = arrogant }
+# 			always = scope:song_battle_prestige
+# 			desc = SB_OPINION_PRESTIGE_TRAIT_ARROGANT
+# 		}
+# 		### Gregarious likes.
+# 		modifier = {
+# 			add = 20
+# 			scope:recipient = { has_trait = gregarious }
+# 			always = scope:song_battle_prestige
+# 			desc = SB_OPINION_PRESTIGE_TRAIT_GREGARIOUS
+# 		}
+# 		### Ambitious likes.
+# 		modifier = {
+# 			add = 20
+# 			scope:recipient = { has_trait = ambitious }
+# 			always = scope:song_battle_prestige
+# 			desc = SB_OPINION_PRESTIGE_TRAIT_AMBITIOUS
+# 		}
+# 		### Content dislikes.
+# 		modifier = {
+# 			add = -20
+# 			scope:recipient = { has_trait = content }
+# 			always = scope:song_battle_prestige
+# 			desc = SB_OPINION_PRESTIGE_TRAIT_CONTENT
+# 		}
+# 		### Shy dislikes.
+# 		modifier = {
+# 			add = -20
+# 			scope:recipient = { has_trait = shy }
+# 			always = scope:song_battle_prestige
+# 			desc = SB_OPINION_PRESTIGE_TRAIT_SHY
+# 		}
+# 		### Humble hates.
+# 		modifier = {
+# 			add = -40
+# 			scope:recipient = { has_trait = humble }
+# 			always = scope:song_battle_prestige
+# 			desc = SB_OPINION_PRESTIGE_TRAIT_HUMBLE
+# 		}
+# 		### Craven hates.
+# 		modifier = {
+# 			add = -40
+# 			scope:recipient = { has_trait = craven }
+# 			always = scope:song_battle_prestige
+# 			desc = SB_OPINION_PRESTIGE_TRAIT_CRAVEN
+# 		}
+# 		## Gold: what is life without risk? Play it bold or don't play at all!
+# 		### Profligate adores.
+# 		modifier = {
+# 			add = 60
+# 			scope:recipient = { has_trait = profligate }
+# 			always = scope:song_battle_gold
+# 			desc = SB_OPINION_GOLD_TRAIT_PROFLIGATE
+# 		}
+# 		### Greedy loves.
+# 		modifier = {
+# 			add = 40
+# 			scope:recipient = { has_trait = greedy }
+# 			always = scope:song_battle_gold
+# 			desc = SB_OPINION_GOLD_TRAIT_GREEDY
+# 		}
+# 		### Ambitious likes.
+# 		modifier = {
+# 			add = 20
+# 			scope:recipient = { has_trait = ambitious }
+# 			always = scope:song_battle_gold
+# 			desc = SB_OPINION_GOLD_TRAIT_AMBITIOUS
+# 		}
+# 		### Generous likes - I mean, from their perspective, what does the money matter?
+# 		modifier = {
+# 			add = 20
+# 			scope:recipient = { has_trait = generous }
+# 			always = scope:song_battle_gold
+# 			desc = SB_OPINION_GOLD_TRAIT_GENEROUS
+# 		}
+# 		### Lazy likes.
+# 		modifier = {
+# 			add = 20
+# 			scope:recipient = { has_trait = lazy }
+# 			always = scope:song_battle_gold
+# 			desc = SB_OPINION_GOLD_TRAIT_LAZY
+# 		}
+# 		### Diligent hates.
+# 		modifier = {
+# 			add = -40
+# 			scope:recipient = { has_trait = diligent }
+# 			always = scope:song_battle_gold
+# 			desc = SB_OPINION_GOLD_TRAIT_DILIGENT
+# 		}
+# 		## Land: you need to stop buying new board games, Jesse. You're way too into them.
+# 		### Profligate adores.
+# 		modifier = {
+# 			add = 60
+# 			scope:recipient = { has_trait = profligate }
+# 			always = scope:song_battle_land
+# 			desc = SB_OPINION_LAND_TRAIT_PROFLIGATE
+# 		}
+# 		### Arbitrary loves.
+# 		modifier = {
+# 			add = 40
+# 			scope:recipient = { has_trait = arbitrary }
+# 			always = scope:song_battle_land
+# 			desc = SB_OPINION_LAND_TRAIT_ARBITRARY
+# 		}
+# 		### Ambitious likes.
+# 		modifier = {
+# 			add = 20
+# 			scope:recipient = { has_trait = ambitious }
+# 			always = scope:song_battle_land
+# 			desc = SB_OPINION_LAND_TRAIT_AMBITIOUS
+# 		}
+# 		### Brave likes.
+# 		modifier = {
+# 			add = 20
+# 			scope:recipient = { has_trait = brave }
+# 			always = scope:song_battle_land
+# 			desc = SB_OPINION_LAND_TRAIT_BRAVE
+# 		}
+# 		### Craven dislikes.
+# 		modifier = {
+# 			add = -20
+# 			scope:recipient = { has_trait = craven }
+# 			always = scope:song_battle_land
+# 			desc = SB_OPINION_LAND_TRAIT_CRAVEN
+# 		}
+# 		### Content dislikes.
+# 		modifier = {
+# 			add = -20
+# 			scope:recipient = { has_trait = content }
+# 			always = scope:song_battle_land
+# 			desc = SB_OPINION_LAND_TRAIT_CONTENT
+# 		}
+# 		### Just loathes - this is *categorically* not how the feudal system, or really any form of loyalty, is supposed to work.
+# 		modifier = {
+# 			add = -60
+# 			scope:recipient = { has_trait = just }
+# 			always = scope:song_battle_land
+# 			desc = SB_OPINION_LAND_TRAIT_JUST
+# 		}
+# 		### Greedy deliberately left off; they don't want to risk their own stuff but they *do* want to nab everyone else's.
+# 		# Relationships
+# 		## Mildly positive relationships like to play against each other.
+# 		modifier = {
+# 			add = 20
+# 			scope:recipient = {
+# 				has_any_mild_good_relationship_with_character_trigger = { CHARACTER = scope:actor }
+# 			}
+# 			desc = SB_OPINION_RELATIONSHIP_GOOD_MILD
+# 		}
+# 		## Positive relationships like to play against each other.
+# 		modifier = {
+# 			add = 40
+# 			scope:recipient = {
+# 				has_any_only_moderate_good_relationship_with_character_trigger = { CHARACTER = scope:actor }
+# 			}
+# 			desc = SB_OPINION_RELATIONSHIP_GOOD_MODERATE
+# 		}
+# 		## Really positive relationships love to play against each other.
+# 		modifier = {
+# 			add = 60
+# 			scope:recipient = {
+# 				has_any_best_good_relationship_with_character_trigger = { CHARACTER = scope:actor }
+# 			}
+# 			desc = SB_OPINION_RELATIONSHIP_GOOD_MAJOR
+# 		}
+# 		## Negative relationships dislike playing each other...
+# 		### ... either mildly...
+# 		modifier = {
+# 			add = -20
+# 			scope:recipient = {
+# 				has_any_mild_bad_relationship_with_character_trigger = { CHARACTER = scope:actor }
+# 				NOT = {
+# 					can_start_song_battle_eligibility_checks_trigger = yes
+# 				}
+# 			}
+# 			desc = SB_OPINION_RELATIONSHIP_BAD_MILD
+# 		}
+# 		### ... moderately...
+# 		modifier = {
+# 			add = -40
+# 			scope:recipient = {
+# 				has_any_only_moderate_bad_relationship_with_character_trigger = { CHARACTER = scope:actor }
+# 				NOT = {
+# 					can_start_song_battle_eligibility_checks_trigger = yes
+# 				}
+# 			}
+# 			desc = SB_OPINION_RELATIONSHIP_BAD_MODERATE
+# 		}
+# 		### ... or majorly...
+# 		modifier = {
+# 			add = -60
+# 			scope:recipient = {
+# 				has_any_worst_bad_relationship_with_character_trigger = { CHARACTER = scope:actor }
+# 				NOT = {
+# 					can_start_song_battle_eligibility_checks_trigger = yes
+# 				}
+# 			}
+# 			desc = SB_OPINION_RELATIONSHIP_BAD_MAJOR
+# 		}
+# 		## ... unless they take their board games far too seriously, in which case, they're always down...
+# 		### ... either mildly...
+# 		modifier = {
+# 			add = 20
+# 			scope:recipient = {
+# 				has_any_mild_bad_relationship_with_character_trigger = { CHARACTER = scope:actor }
+# 				can_start_song_battle_eligibility_checks_trigger = yes
+# 			}
+# 			desc = SB_OPINION_RELATIONSHIP_BAD_SRSGMR_MILD
+# 		}
+# 		### ... moderately...
+# 		modifier = {
+# 			add = 40
+# 			scope:recipient = {
+# 				has_any_only_moderate_bad_relationship_with_character_trigger = { CHARACTER = scope:actor }
+# 				can_start_song_battle_eligibility_checks_trigger = yes
+# 			}
+# 			desc = SB_OPINION_RELATIONSHIP_BAD_SRSGMR_MODERATE
+# 		}
+# 		### ... or majorly.
+# 		modifier = {
+# 			add = 60
+# 			scope:recipient = {
+# 				has_any_worst_bad_relationship_with_character_trigger = { CHARACTER = scope:actor }
+# 				can_start_song_battle_eligibility_checks_trigger = yes
+# 			}
+# 			desc = SB_OPINION_RELATIONSHIP_BAD_SRSGMR_MAJOR
+# 		}
+# 		# Apply tier differences.
+# 		## King -> Baron.
+# 		modifier = {
+# 			desc = AI_REFUSAL_RANK_DIFFERENCE
+# 			scope:actor = {
+# 				tier_difference = {
+# 					target = scope:recipient
+# 					value >= 4
+# 				}
+# 			}
+# 			add = 15
+# 		}
+# 		## Duke -> Baron.
+# 		modifier = {
+# 			desc = AI_REFUSAL_RANK_DIFFERENCE
+# 			scope:actor = {
+# 				tier_difference = {
+# 					target = scope:recipient
+# 					value = 3
+# 				}
+# 			}
+# 			add = 10
+# 		}
+# 		## Count -> Baron.
+# 		modifier = {
+# 			desc = AI_REFUSAL_RANK_DIFFERENCE
+# 			scope:actor = {
+# 				tier_difference = {
+# 					target = scope:recipient
+# 					value = 2
+# 				}
+# 			}
+# 			add = 5
+# 		}
+# 		## King <- Baron.
+# 		modifier = {
+# 			desc = AI_REFUSAL_RANK_DIFFERENCE
+# 			scope:actor = {
+# 				tier_difference = {
+# 					target = scope:recipient
+# 					value = -2
+# 				}
+# 			}
+# 			add = -10
+# 		}
+# 		## Duke <- Baron.
+# 		modifier = {
+# 			desc = AI_REFUSAL_RANK_DIFFERENCE
+# 			scope:actor = {
+# 				tier_difference = {
+# 					target = scope:recipient
+# 					value = -3
+# 				}
+# 			}
+# 			add = -20
+# 		}
+# 		## Count <- Baron.
+# 		modifier = {
+# 			desc = AI_REFUSAL_RANK_DIFFERENCE
+# 			scope:actor = {
+# 				tier_difference = {
+# 					target = scope:recipient
+# 					value <= -4
+# 				}
+# 			}
+# 			add = -30
+# 		}
+# 	}
+# 	## Performance-enhancement	
+# 	ai_potential = {
+# 		is_adult = yes
+# 		OR = {
+# 			is_elf = yes
+# 			is_istari = yes
+# 			is_nazgul = yes
+# 			#has_trait = sorcerer_1
+# 			#has_trait = sorcerer_2
+# 			#has_trait = sorcerer_3
+# 			any_character_artifact = {
+# 				has_variable = ring_of_power
+# 			}
+# 		}
+# 		is_imprisoned = no
+# 	}
+# 	ai_target_quick_trigger = { adult = yes } # AI will only challenge adults
+# 	ai_targets = { ai_recipients = scripted_relations }
+# 	ai_targets = {
+# 		ai_recipients = family
+# 		max = 10
+# 	}
+# 	ai_targets = {
+# 		ai_recipients = neighboring_rulers
+# 		ai_recipients = peer_vassals
+# 	}
+# 	## Frequency
+# 	ai_frequency = 84
+# 	ai_will_do = {
+# 		base = -50
 
-		# Boardgame nerds like to challenge people they dislike...
-		opinion_modifier = {
-			opinion_target = scope:recipient
-			trigger = { 
-				can_start_song_battle_eligibility_checks_trigger = yes
-				opinion = {
-					target = scope:recipient
-					value < 0
-				}
-			}
+# 		# Boardgame nerds like to challenge people they dislike...
+# 		opinion_modifier = {
+# 			opinion_target = scope:recipient
+# 			trigger = { 
+# 				can_start_song_battle_eligibility_checks_trigger = yes
+# 				opinion = {
+# 					target = scope:recipient
+# 					value < 0
+# 				}
+# 			}
 			
-			multiplier = -1
-		}
+# 			multiplier = -1
+# 		}
 
-		# ...but they ALSO like to play with people they like
-		opinion_modifier = {
-			opinion_target = scope:recipient
-			trigger = {
-				can_start_song_battle_eligibility_checks_trigger = yes
-				opinion = {
-					target = scope:recipient
-					value > 0
-				}
-			}
-		}
+# 		# ...but they ALSO like to play with people they like
+# 		opinion_modifier = {
+# 			opinion_target = scope:recipient
+# 			trigger = {
+# 				can_start_song_battle_eligibility_checks_trigger = yes
+# 				opinion = {
+# 					target = scope:recipient
+# 					value > 0
+# 				}
+# 			}
+# 		}
 
-		# If you are my rival and my culture likes to play board games, I'll see you as a good opponent.
-		modifier = {
-			add = 50
-			scope:actor = {
-				has_relation_rival = scope:recipient
-				can_start_song_battle_eligibility_checks_trigger = yes
-			}
-		}
+# 		# If you are my rival and my culture likes to play board games, I'll see you as a good opponent.
+# 		modifier = {
+# 			add = 50
+# 			scope:actor = {
+# 				has_relation_rival = scope:recipient
+# 				can_start_song_battle_eligibility_checks_trigger = yes
+# 			}
+# 		}
 
-		# Aaaaand boredom.
-		modifier = {
-			add = 10
-			scope:actor.days_of_continuous_peace >= 365
-		}
-		modifier = {
-			add = 10
-			scope:actor.days_of_continuous_peace >= 730
-		}
-		modifier = {
-			add = 10
-			scope:actor.days_of_continuous_peace >= 1095
-		}
-		modifier = {
-			add = 10
-			scope:actor.days_of_continuous_peace >= 1460
-		}
-		modifier = {
-			add = 10
-			scope:actor.days_of_continuous_peace >= 1825
-		}
-		# Plus if scope:actor isn't at all interesting to scope:recipient, then tell them to just sit quietly.
-		modifier = {
-			factor = 0
-			scope:recipient = {
-				NOR = {
-					is_of_major_or_minor_interest_trigger = { CHARACTER = scope:actor }
-					highest_held_title_tier >= tier_duchy
-					sub_realm_size >= 4
-				}
-			}
-		}
-	}
-}
+# 		# Aaaaand boredom.
+# 		modifier = {
+# 			add = 10
+# 			scope:actor.days_of_continuous_peace >= 365
+# 		}
+# 		modifier = {
+# 			add = 10
+# 			scope:actor.days_of_continuous_peace >= 730
+# 		}
+# 		modifier = {
+# 			add = 10
+# 			scope:actor.days_of_continuous_peace >= 1095
+# 		}
+# 		modifier = {
+# 			add = 10
+# 			scope:actor.days_of_continuous_peace >= 1460
+# 		}
+# 		modifier = {
+# 			add = 10
+# 			scope:actor.days_of_continuous_peace >= 1825
+# 		}
+# 		# Plus if scope:actor isn't at all interesting to scope:recipient, then tell them to just sit quietly.
+# 		modifier = {
+# 			factor = 0
+# 			scope:recipient = {
+# 				NOR = {
+# 					is_of_major_or_minor_interest_trigger = { CHARACTER = scope:actor }
+# 					highest_held_title_tier >= tier_duchy
+# 					sub_realm_size >= 4
+# 				}
+# 			}
+# 		}
+# 	}
+# }
