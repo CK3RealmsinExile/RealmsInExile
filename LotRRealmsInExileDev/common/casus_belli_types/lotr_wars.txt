@@ -3496,10 +3496,11 @@ elven_homelands_duchy_conquest_cb = {
 vanquish_darkness_county_cb = {
 	group = conquest
 
+	defender_faith_can_join = yes
+
 	combine_into_one = yes
 	should_show_war_goal_subview = yes
 	mutually_exclusive_titles = { always = yes }
-	#ticking_war_score_targets_entire_realm = yes
 
 	allowed_for_character = {
 		is_elf = yes
@@ -3545,12 +3546,54 @@ vanquish_darkness_county_cb = {
 		}
 	}
 	
-	target_titles = all ###neighbor_land_or_water?
-	target_title_tier = county
+	target_titles = neighbor_land_or_water
+	target_title_tier = all
+	target_de_jure_regions_above = yes
 	ignore_effect = change_title_holder
 
-	ai_score_mult = { ##### THINK ABOUT THIS
-		value = viking_conquest_ai_score_value
+	ai_score_mult = {
+		value = 1
+		# Increase odds if the character is a vassal with Ghazi Contract
+		add = {
+			if = {
+				limit = {
+					scope:attacker = {
+						is_independent_ruler = no
+						vassal_contract_has_flag = vassal_contract_cheaper_religious_war
+					}
+				}
+				add = 1
+			}
+		}
+		# Holy War are limited to connected neighbour to limit big empire expansions over weak realms.
+		add = {
+			if = {
+				limit = {  religious_war_vassals_constraints = yes }
+				add = -1000
+			}
+		}
+
+		# AI in struggles act insularly for wars that don't have a familial or legal basis.
+		multiply = struggle_wars_prioritise_struggle_targets_value
+
+		# LotR - Sauron and Nazgul should not target eachother
+		add = {
+			if = {
+				limit = {
+					OR = {
+						AND = {
+							scope:attacker = { is_sauron = yes }
+							scope:defender = { has_trait = nazgul }
+						}
+						AND = {
+							scope:defender = { is_sauron = yes }
+							scope:attacker = { has_trait = nazgul }
+						}
+					}
+				}
+				add = -1000
+			}
+		}
 
 		# LotR - Non-Evil faith characters leave poor Radagast alone! 
 		add = {
@@ -3577,10 +3620,22 @@ vanquish_darkness_county_cb = {
 		multiply = elf_target_ai_score_value
 	}
 
-	valid_to_start = { ##### THINK ABOUT THIS
+	valid_to_start = {
 		scope:target = {
-			neighboring_county_or_viking_conquest_trigger = { CHARACTER = root }
+			tier = tier_county
 		}
+		# Filter for struggles
+		trigger_if = {
+			limit = {
+				scope:defender = {
+					any_character_struggle = {
+						involvement = involved
+					}
+				}
+			}
+			are_holy_wars_disabled_in_struggle_phase_trigger = yes
+		}
+		are_holy_wars_disabled_by_struggle_conciliation_trigger = no # Disabled against other involved faiths in FP2 Conciliation ending
 	}
 
 	should_invalidate = {
@@ -3674,6 +3729,10 @@ vanquish_darkness_county_cb = {
 			}
 			change_title_holder = {
 				holder = scope:new_holder
+				change = scope:change
+			}
+			change_title_holder = { #Does nothing but highlight provinces in war dec window
+				holder = scope:attacker
 				change = scope:change
 			}
 			resolve_title_and_vassal_change = scope:change
@@ -3966,13 +4025,54 @@ vanquish_darkness_duchy_cb = {
 		}
 	}
 	
-	target_titles = all ###neighbor_land_or_water?
-	target_title_tier = duchy
+	target_titles = neighbor_land_or_water
+	target_title_tier = all
 	target_de_jure_regions_above = yes
 	ignore_effect = change_title_holder
 
-	ai_score_mult = { ##### THINK ABOUT THIS
-		value = viking_conquest_ai_score_value
+	ai_score_mult = {
+		value = 1
+		# Increase odds if the character is a vassal with Ghazi Contract
+		add = {
+			if = {
+				limit = {
+					scope:attacker = {
+						is_independent_ruler = no
+						vassal_contract_has_flag = vassal_contract_cheaper_religious_war
+					}
+				}
+				add = 1
+			}
+		}
+		# Holy War are limited to connected neighbour to limit big empire expansions over weak realms.
+		add = {
+			if = {
+				limit = {  religious_war_vassals_constraints = yes }
+				add = -1000
+			}
+		}
+
+		# AI in struggles act insularly for wars that don't have a familial or legal basis.
+		multiply = struggle_wars_prioritise_struggle_targets_value
+
+		# LotR - Sauron and Nazgul should not target eachother
+		add = {
+			if = {
+				limit = {
+					OR = {
+						AND = {
+							scope:attacker = { is_sauron = yes }
+							scope:defender = { has_trait = nazgul }
+						}
+						AND = {
+							scope:defender = { is_sauron = yes }
+							scope:attacker = { has_trait = nazgul }
+						}
+					}
+				}
+				add = -1000
+			}
+		}
 
 		# LotR - Non-Evil faith characters leave poor Radagast alone! 
 		add = {
@@ -3999,9 +4099,21 @@ vanquish_darkness_duchy_cb = {
 		multiply = elf_target_ai_score_value
 	}
 
-	valid_to_start = { ##### THINK ABOUT THIS
+	valid_to_start = {
 		scope:target = {
-			neighboring_county_or_viking_conquest_trigger = { CHARACTER = root }
+			tier = tier_duchy
+		}
+		# Filter for struggles
+		trigger_if = {
+			limit = {
+				scope:defender = {
+					any_character_struggle = {
+						involvement = involved
+					}
+				}
+			}
+			are_holy_wars_disabled_in_struggle_phase_trigger = yes
+			are_holy_wars_disabled_by_struggle_conciliation_trigger = no # Disabled against other involved faiths in FP2 Conciliation ending
 		}
 	}
 
@@ -4119,6 +4231,10 @@ vanquish_darkness_duchy_cb = {
 				}
 				change_title_holder = {
 					holder = scope:new_holder
+					change = scope:change
+				}
+				change_title_holder = { #Does nothing but highlight provinces in war dec window
+					holder = scope:attacker
 					change = scope:change
 				}
 				hidden_effect = { change_county_control = 60 } #Give them some control to help them out
@@ -4353,6 +4469,7 @@ vanquish_darkness_duchy_cb = {
 	interface_priority = 79
 
 	is_holy_war = yes
+	defender_faith_can_join = yes
 
 	use_de_jure_wargoal_only = yes
 
