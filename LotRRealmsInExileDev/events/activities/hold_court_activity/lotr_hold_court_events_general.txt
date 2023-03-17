@@ -105,6 +105,19 @@
 	#}
 #}
 
+############################
+# A Drunken Sommelier 0001 #
+############################
+
+scripted_trigger hold_court_lotr_0001_valid_sommelier = {
+	is_available_ai_adult = yes
+	has_court_event_flag = no
+	NOR = { 
+		has_trait = temperate
+		has_trait = inappetetic
+	}
+}
+
 hold_court_lotr.0001 = {
 	type = court_event
 	title = hold_court_lotr.0001.t
@@ -138,27 +151,204 @@ hold_court_lotr.0001 = {
 		outfit_tags = { military_outfit }
 		hide_info = yes
 	}
+	
+	trigger = {
+		is_elf = yes
+		NOT = { has_character_flag = had_event_hold_court_lotr_0001 }
+		any_courtier_or_guest = { 
+			hold_court_lotr_0001_valid_sommelier = yes
+		}
+		exists = title:k_dorwinion.holder
+		title:k_dorwinion.holder = {
+			is_within_diplo_range = { CHARACTER = root }
+		}
+	}
 
 	weight_multiplier = {
 		base = 1
-		
-		# Court weightings: plug in a court type that should see this event more often.
-		ep1_weight_up_for_court_type_modifier = { COURT_TYPE = court_diplomatic }
 	}
-
+	
 	immediate = {
-		# As with portraits, we do our general character setup stuff in this event.
-		random_courtier_or_guest = { save_scope_as = character_a }
-		random_courtier_or_guest = {
-			limit = {
-				NOT = { this = scope:character_a }
-			}
-			save_scope_as = character_b
+		add_character_flag = {
+			flag = had_event_hold_court_lotr_0001
+			years = 10
 		}
+
+		random_courtier_or_guest = {
+			limit = { hold_court_lotr_0001_valid_sommelier = yes }
+
+			weight = {
+				base = 0.5
+				compare_modifier = {
+					value = ai_greed
+					multiplier = 0.01 # At 100 greed, x3 as likely to be picked. At -50 greed, 0% chance of being picked.
+				}
+				compare_modifier = {
+					value = ai_honor
+					multiplier = -0.01 # At 50 honor, 0% chance to be picked. At -100 honor, x3 as likely to be picked.
+				}
+			}
+			save_scope_as = sommelier
+			court_event_character_flag_effect = yes
+		}
+		
+		if = {
+			limit = {
+				employs_court_position = cupbearer_court_position
+				any_court_position_holder = {
+					type = cupbearer_court_position
+				}
+			}
+			random_court_position_holder = {
+				type = cupbearer_court_position
+				save_scope_as = current_cupbearer
+			}
+		}
+		
+		if = {
+			limit = {
+				employs_court_position = court_jester_court_position
+				any_court_position_holder = {
+					type = court_jester_court_position
+		            has_court_event_flag = no		
+					is_landed = no
+					is_available_ai_adult = yes
+				}
+			}
+			random_court_position_holder = {
+				type = court_jester_court_position
+				limit = {
+		            has_court_event_flag = no
+		            is_landed = no	
+					is_available_ai_adult = yes
+				}
+				save_scope_as = current_jester
+			}
+		}
+
+		hidden_effect = {
+			create_character = {
+				template = new_warrior_character
+				dynasty = none
+				location = root.capital_province
+				culture = root.capital_county.culture
+				faith = root.capital_county.faith
+				gender_female_chance = root_soldier_female_chance
+				save_scope_as = guard
+			}
+		}
+		# Trigger next event in chain.
+		hold_court_queue_next_event_effect = yes
 	}
 
 	# Court events, as with all events, require at least one option to display.
 	option = {
-		name = hold_court.0001.a
+		name = hold_court_lotr.0001.a
+		trigger = {
+			scope:sommelier = { can_be_employed_as = cupbearer_court_position }
+			can_employ_court_position_type = cupbearer_court_position
+		}
+		
+		if = {
+			limit = {
+				exists = scope:current_cupbearer
+			}
+			revoke_court_position = {
+				recipient = scope:current_cupbearer
+				court_position = cupbearer_court_position
+			}
+		}
+		appoint_court_position = {
+			recipient = scope:sommelier
+			court_position = cupbearer_court_position
+		}
+		scope:sommelier = {
+			add_opinion = {
+				target = root
+				modifier = grateful_opinion
+				opinion = 50
+			}
+		}
+		stress_impact = {
+			sadistic = major_stress_gain
+			wrathful = medium_stress_gain
+			paranoid = medium_stress_gain
+		}
+		
+		ai_chance = {
+			base = 50
+			ai_value_modifier = {
+				ai_compassion = 0.5
+				ai_rationality = 0.5
+			}
+		}
+	}
+	
+	option = {
+		name = hold_court_lotr.0001.b
+		
+		if = {
+			limit = { exists = scope:current_jester }
+			replace_court_position = {
+				recipient = scope:sommelier
+				holder = scope:current_jester
+				court_position = court_jester_court_position
+			}
+		}
+		else = {
+			appoint_court_position = {
+				recipient = scope:sommelier
+				court_position = court_jester_court_position
+			}
+		}
+		
+		stress_impact = {
+ 			compassionate = medium_stress_impact_gain
+ 			humble = medium_stress_impact_gain
+ 		}
+		
+		ai_chance = {
+			base = 50
+			ai_value_modifier = {
+				ai_boldness = 0.5
+				ai_compassion = 0.25
+			}
+			modifier = {	#Weight down for stress.
+				add = -15
+				has_trait = compassionate
+			}
+			modifier = {	#Weight down for stress.
+				add = -15
+				has_trait = humble
+			}
+		}
+	}
+	
+	option = {
+		name = hold_court_lotr.0001.c
+	
+		remove_courtier_or_guest = {
+			character = scope:sommelier
+		}
+		stress_impact = {
+ 			compassionate = medium_stress_impact_gain
+ 			just = medium_stress_impact_gain
+ 		}
+		
+		ai_chance = {
+			base = 50
+			ai_value_modifier = {
+				ai_boldness = 0.5
+				ai_compassion = 0.25
+			}
+			modifier = {	#Weight down for stress.
+				add = -15
+				has_trait = compassionate
+			}
+			modifier = {	#Weight down for stress.
+				add = -15
+				has_trait = just
+			}
+		}
 	}
 }
