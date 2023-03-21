@@ -348,7 +348,6 @@ hold_court_lotr.0002 = {
 				trait = adventurer
 				trait = stubborn
 				trait = brave
-				trait = paranoid
 				gender_female_chance = root_soldier_female_chance
 				save_scope_as = adventurer
 			}
@@ -657,6 +656,343 @@ hold_court_lotr.0003 = {
 			ai_value_modifier = {
 				ai_greed = 0.5
 				ai_compassion = -0.5
+			}
+		}
+	}
+}
+
+########################
+# An Lost Friend 00043 #
+########################
+
+scripted_trigger hold_court_lotr_0004_grieving_elf = {
+	basic_is_available_ai = yes
+	is_elf = yes
+	any_memory = {
+		has_memory_type = friend_died
+		exists = memory_participant:dead_relation
+		memory_participant:dead_relation = { is_human = yes }
+	}
+}
+
+hold_court_lotr.0004 = {
+	type = court_event
+	title = hold_court_lotr.0004.t
+	desc = hold_court_lotr.0004.desc
+	theme = court
+	lower_left_portrait = scope:dead_friend
+
+	court_scene = {
+		button_position_character = scope:grieving_elf
+		court_event_force_open = yes
+		show_timeout_info = no
+		should_pause_time = yes
+		roles = {
+			scope:human_vassal = {
+				group = petitioners_group
+				animation = grief
+			}
+		}
+	}
+	widget = {
+		gui = "event_window_widget_event_chain_progress"
+		container = "custom_widgets_container"
+		controller = event_chain_progress
+	}
+	
+	trigger = {
+		is_elf = yes
+		NOT = { has_character_flag = had_event_hold_court_lotr_0004 }
+	}
+
+	weight_multiplier = {
+		base = 1
+	}
+	
+	immediate = {
+		add_character_flag = {
+			flag = had_event_hold_court_lotr_0004
+			years = 10
+		}
+
+		if = {
+			limit = {
+				any_vassal_or_below = { hold_court_lotr_0004_grieving_elf = yes }
+			}
+			random_vassal_or_below = {
+				limit = { hold_court_lotr_0004_grieving_elf = yes }
+				save_scope_as = grieving_elf
+				random_memory = {
+					limit = {
+						has_memory_type = friend_died
+						exists = memory_participant:dead_relation
+						memory_participant:dead_relation = { is_human = yes }
+					}
+					save_scope_as = dead_friend_memory
+					memory_participant:dead_relation = { save_scope_as = dead_friend }
+				}
+			}
+		}
+		else_if = {
+			limit = {
+				any_courtier_or_guest = { hold_court_lotr_0004_grieving_elf = yes }
+			}
+			random_courtier_or_guest = {
+				limit = { hold_court_lotr_0004_grieving_elf = yes }
+				save_scope_as = grieving_elf
+				random_memory = {
+					limit = {
+						has_memory_type = friend_died
+						exists = memory_participant:dead_relation
+						memory_participant:dead_relation = { is_human = yes }
+					}
+					save_scope_as = dead_friend_memory
+					memory_participant:dead_relation = { save_scope_as = dead_friend }
+				}
+			}
+		}
+		else = { # If no_one has lost a friend, give them one and kill them
+			if = { #Pick a human vassal for friend's culture and faith
+				limit = { 
+					any_vassal_or_below = {
+						is_human = yes
+						faith_is_good = yes
+					}
+				}
+				random_vassal_or_below = {
+					limit = {
+						is_human = yes
+						faith_is_good = yes
+					}
+					save_scope_as = dead_friend_template
+				}
+			}
+			else_if = { #If none, pick a human neighbour for friend's culture and faith
+				limit = {
+					any_neighboring_and_across_water_top_liege_realm_owner = {
+						is_human = yes
+						faith_is_good = yes
+					}
+				}
+				random_neighboring_and_across_water_top_liege_realm_owner = {
+					limit = {
+						is_human = yes
+						faith_is_good = yes
+					}
+					save_scope_as = dead_friend_template
+				}
+			}
+			else = { #If all your neighbours are evil, or non-humans, just pick a random one
+				random_ruler = {
+					limit = {
+						is_human = yes
+						faith_is_good = yes
+					}
+					save_scope_as = dead_friend_template
+				}
+			}
+			
+			create_character = {
+				template = new_warrior_character
+				dynasty = none
+				location = root.capital_province
+				culture = scope:dead_friend_template.culture
+				faith = scope:dead_friend_template.faith
+				age = 65
+				gender_female_chance = 50
+				save_scope_as = dead_friend
+			}
+				
+			random_courtier_or_guest = {
+				limit = { 
+					basic_is_available_ai = yes
+					NOR = { 
+						is_close_or_extended_family_of = root
+						is_consort_of = root
+					}
+				}
+				set_relation_friend = scope:dead_friend
+				save_scope_as = grieving_elf
+			}
+			
+			scope:dead_friend = {
+				death = { death_reason = death_old_age }	
+			}
+		}
+		
+		scope:grieving_elf = { add_trait = depressed_1 }
+		
+		hold_court_queue_next_event_effect = yes
+	}
+
+	option = { #Let's stay away from humans
+		name = hold_court_lotr.0004.a
+		
+		if = {
+			limit = {
+				any_vassal = {
+					is_human = yes
+				}
+			}
+			every_vassal = {
+				custom = custom.is_human
+				limit = {
+					is_human
+				}
+				reverse_add_opinion = {
+					modifier = disappointed_opinion
+					target = root
+					opinion = -10
+				}
+			}
+		}
+		
+		change_current_court_grandeur = minor_court_grandeur_loss
+		
+		
+		stress_impact = {
+ 			gregarious = medium_stress_impact_gain
+			compassionate = medium_stress_impact_gain
+			shy = medium_stress_impact_loss
+			reclusive = medium_stress_impact_loss
+			irritable = medium_stress_impact_loss
+			arrogant = medium_stress_impact_loss
+			callous = medium_stress_impact_loss
+ 		}
+		
+		ai_chance = {
+			base = 50
+			ai_value_modifier = {
+				ai_compassion = -0.5
+				ai_energy = -0.5
+			}
+			modifier = {	#Weight down for stress.
+				add = -35
+				has_trait = compassionate
+			}
+			modifier = {	#Weight down for stress.
+				add = -15
+				has_trait = gregarious
+			}
+			modifier = {	#Weight down for stress.
+				add = 15
+				has_trait = shy
+			}
+			modifier = {	#Weight down for stress.
+				add = 15
+				has_trait = reclusive
+			}
+			modifier = {	#Weight down for stress.
+				add = 15
+				has_trait = irritable
+			}
+			modifier = {	#Weight down for stress.
+				add = 15
+				has_trait = arrogant
+			}
+			modifier = {	#Weight down for stress.
+				add = 30
+				has_trait = callous
+			}
+		}
+	}
+	
+	option = { #We have to live with the loss of our friends
+		name = hold_court_lotr.0004.b
+		custom_tooltip =  hold_court_lotr.0004.c.tooltip
+		duel = {
+			skill = diplomacy
+			target = scope:inspiration_owner
+			30 = {
+				desc = hold_court_lotr.0004.b.success
+				compare_modifier = {
+					value = scope:duel_value
+					multiplier = 0.2
+				}
+				send_interface_toast = {
+					title = hold_court_lotr.0004.b.success
+					left_icon = scope:grieving_elf
+				}
+			}
+			20 = {
+				desc = hold_court_lotr.0004.b.failure
+				compare_modifier = {
+					value = scope:duel_value
+					multiplier = -0.2
+				}
+				send_interface_toast = {
+					title = hold_court_lotr.0004.b.failure
+					left_icon = scope:grieving_elf
+				}
+			}
+		}
+	
+	
+		change_current_court_grandeur = minor_court_grandeur_gain
+		
+		stress_impact = {
+ 			gregarious = medium_stress_impact_loss
+			compassionate = medium_stress_impact_loss
+			shy = medium_stress_impact_gain
+			reclusive = medium_stress_impact_gain
+			irritable = medium_stress_impact_gain
+			arrogant = medium_stress_impact_gain
+			callous = medium_stress_impact_gain
+ 		}
+		
+		ai_chance = {
+			base = 50
+			ai_value_modifier = {
+				ai_compassion = 0.5
+				ai_energy = 0.5
+			}
+			modifier = {	#Weight down for stress.
+				add = 35
+				has_trait = compassionate
+			}
+			modifier = {	#Weight down for stress.
+				add = 15
+				has_trait = gregarious
+			}
+			modifier = {	#Weight down for stress.
+				add = -15
+				has_trait = shy
+			}
+			modifier = {	#Weight down for stress.
+				add = -15
+				has_trait = reclusive
+			}
+			modifier = {	#Weight down for stress.
+				add = -15
+				has_trait = irritable
+			}
+			modifier = {	#Weight down for stress.
+				add = -15
+				has_trait = arrogant
+			}
+			modifier = {	#Weight down for stress.
+				add = -30
+				has_trait = callous
+			}
+		}
+	}
+	
+	option = { Go to Valinor
+		name = hold_court_lotr.0004.c
+		
+		trigger = {
+			is_ai = no
+		}
+		
+		scope:grieving_elf = {
+			depose = yes
+			every_claim = {
+				root = { remove_claim = prev }
+			}
+			add_trait = sailed_west
+			custom_tooltip = {
+				text = sail_to_valinor
+				set_employer = title:k_tirion.holder
 			}
 		}
 	}
