@@ -1792,6 +1792,14 @@ Effect standard_selection_mapobject
 	PixelShader = "PS_noop"
 }
 
+# MOD(lotr)
+Effect snap_to_terrain_selection_mapobject
+{
+	VertexShader = "VS_standard"
+	PixelShader = "PS_noop"
+}
+# END MOD
+
 Effect snap_to_terrain_atlas_selection_mapobject
 {
 	VertexShader = "VS_standard"
@@ -1893,6 +1901,14 @@ Effect snap_to_terrain
 	VertexShader = "VS_standard"
 	PixelShader = "PS_noop"
 }
+
+# MOD(lotr)
+Effect snap_to_terrain_mapobject
+{
+	VertexShader = "VS_standard"
+	PixelShader = "PS_noop"
+}
+# END MOD
 
 Effect snap_to_terrain_atlas
 {
