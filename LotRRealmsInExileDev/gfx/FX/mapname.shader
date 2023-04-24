@@ -1,5 +1,3 @@
-### Code to not render title names over black province colouring
-
 Includes = {
 	"jomini/countrynames.fxh"
 	"jomini/jomini_fog.fxh"
@@ -73,7 +71,8 @@ PixelShader =
 			// float4 TextColor = float4( 0, 0, 0, 1 );
 			// float4 OutlineColor = float4( 1, 1, 1, 1 );
 
-			float LOTR_OverlayAlphaMultiplier   = LOTR_GetOverlayAlphaMultiplierAtWorldSpacePosXZ(Input.WorldSpacePos.xz);
+			//float LOTR_OverlayAlphaMultiplier   = LOTR_GetOverlayAlphaMultiplierAtWorldSpacePosXZ(Input.WorldSpacePos.xz);
+			float LOTR_OverlayAlphaMultiplier   = 1.0f; // Replace with the previous line to hide map names over black map overlay
 			float GH_CameraPitchAlphaMultiplier = GH_GetDefaultCameraPitchAlphaMultiplier();
 
 			float LOTR_Alpha = LOTR_OverlayAlphaMultiplier*GH_CameraPitchAlphaMultiplier;
