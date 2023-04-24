@@ -1,5 +1,3 @@
-### Code to not render title names over black province colouring
-
 Includes = {
 	"jomini/countrynames.fxh"
 	"jomini/jomini_fog.fxh"
