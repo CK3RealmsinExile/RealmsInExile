@@ -2,6 +2,7 @@ Includes = {
 	"cw/camera.fxh"
 	"cw/pdxterrain.fxh"
 	"dynamic_masks.fxh"
+	"gh_utils.fxh"
 	"gh_camera_utils.fxh"
 }
 
@@ -58,16 +59,6 @@ PixelShader = {
 		static const float GH_SNOWFALL_VERTICAL_SPEED_MULTIPLIER = GH_SNOWFALL_VERTICAL_SPEED/(GH_SNOWFALL_CEILING_Y - GH_SNOWFALL_FLOOR_Y);
 
 		static const float GH_SNOWFALL_LAYER_RELATIVE_TIME_SHIFT_STEP = 1.0f/float(GH_SNOWFALL_LAYERS_COUNT);
-
-		//
-		// Macros
-		//
-
-		#ifndef PDX_OPENGL
-			#define GH_UNROLL_EXACT(ITERATIONS_COUNT) [unroll(ITERATIONS_COUNT)]
-		#else
-			#define GH_UNROLL_EXACT(ITERATIONS_COUNT)
-		#endif
 
 		//
 		// Interface
