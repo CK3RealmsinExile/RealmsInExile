@@ -1,68 +1,89 @@
 includes = {
 	"jomini/texture_decals_base.fxh"
 	"jomini/portrait_user_data.fxh"
+	# MOD(godherja)
+	"standardfuncsgfx.fxh"
+	"gh_portrait_decals_shared.fxh"
+	#"gh_portrait_effects.fxh"
+	#"gh_constants.fxh"
+	"gh_utils.fxh"
+	# END MOD
 }
 
 PixelShader =
 {
-	TextureSampler DecalDiffuseArray
-	{
-		Ref = JominiPortraitDecalDiffuseArray
-		MagFilter = "Linear"
-		MinFilter = "Linear"
-		MipFilter = "Linear"
-		SampleModeU = "Clamp"
-		SampleModeV = "Clamp"
-		type = "2darray"
-	}
+	# MOD(godherja)
+	# The following definitions were moved into gh_portrait_decal_data.fxh,
+	# since Godherja needs them to be shared between pixel and vertex shaders across several files.
+	# That file needs to be kept in sync with vanilla as new patches come out.
 
-	TextureSampler DecalNormalArray
-	{
-		Ref = JominiPortraitDecalNormalArray
-		MagFilter = "Linear"
-		MinFilter = "Linear"
-		MipFilter = "Linear"
-		SampleModeU = "Clamp"
-		SampleModeV = "Clamp"
-		type = "2darray"
-	}
+	#TextureSampler DecalDiffuseArray
+	#{
+	#	Ref = JominiPortraitDecalDiffuseArray
+	#	MagFilter = "Linear"
+	#	MinFilter = "Linear"
+	#	MipFilter = "Linear"
+	#	SampleModeU = "Clamp"
+	#	SampleModeV = "Clamp"
+	#	type = "2darray"
+	#}
 
-	TextureSampler DecalPropertiesArray
-	{
-		Ref = JominiPortraitDecalPropertiesArray
-		MagFilter = "Linear"
-		MinFilter = "Linear"
-		MipFilter = "Linear"
-		SampleModeU = "Clamp"
-		SampleModeV = "Clamp"
-		type = "2darray"
-	}
+	#TextureSampler DecalNormalArray
+	#{
+	#	Ref = JominiPortraitDecalNormalArray
+	#	MagFilter = "Linear"
+	#	MinFilter = "Linear"
+	#	MipFilter = "Linear"
+	#	SampleModeU = "Clamp"
+	#	SampleModeV = "Clamp"
+	#	type = "2darray"
+	#}
 
-	BufferTexture DecalDataBuffer
-	{
-		Ref = JominiPortraitDecalData
-		type = uint
-	}
+	#TextureSampler DecalPropertiesArray
+	#{
+	#	Ref = JominiPortraitDecalPropertiesArray
+	#	MagFilter = "Linear"
+	#	MinFilter = "Linear"
+	#	MipFilter = "Linear"
+	#	SampleModeU = "Clamp"
+	#	SampleModeV = "Clamp"
+	#	type = "2darray"
+	#}
+
+	#BufferTexture DecalDataBuffer
+	#{
+	#	Ref = JominiPortraitDecalData
+	#	type = uint
+	#}
+	# END MOD
 
 	Code
 	[[		
-		struct DecalData
-		{
-			uint _DiffuseIndex;
-			uint _NormalIndex;
-			uint _PropertiesIndex;
-			uint _BodyPartIndex;
+		// MOD(godherja)
 
-			uint _DiffuseBlendMode;
-			uint _NormalBlendMode;
-			uint _PropertiesBlendMode;
-			float _Weight;
+		// This definition was commented out here and extracted into gh_portrait_decal_data.fxh
+		// because custom Godherja code from gh_portrait_effects.fxh also depends on it.
+		// Any vanilla patches' changes to this definition need to be merged into gh_portrait_decal_data.fxh as well.
 
-			uint2 _AtlasPos;
-			float2 _UVOffset;
+		// struct DecalData
+		// {
+		// 	uint _DiffuseIndex;
+		// 	uint _NormalIndex;
+		// 	uint _PropertiesIndex;
+		// 	uint _BodyPartIndex;
 
-			uint _AtlasSize;
-		};
+		// 	uint _DiffuseBlendMode;
+		// 	uint _NormalBlendMode;
+		// 	uint _PropertiesBlendMode;
+		// 	float _Weight;
+
+		// 	uint2 _AtlasPos;
+		// 	float2 _UVOffset;
+
+		// 	uint _AtlasSize;
+		// };
+
+		// END MOD
 
 		DecalData GetDecalData( int Index, uint MaxValue )
 		{
@@ -93,7 +114,31 @@ PixelShader =
 			return Data;
 		}
 
-		void AddDecals( inout float3 Diffuse, inout float3 Normals, inout float4 Properties, float2 UV, uint InstanceIndex, int From, int To )
+		// MOD(godherja)
+
+		bool GH_MustApplyDecalPulseEffect(DecalData Data)
+		{
+			GH_SMarkerTexels MarkerTexels = GH_ExtractMarkerTexels(Data._DiffuseIndex);
+
+			return GH_CheckMarkerTexels(MarkerTexels, GH_MARKER_TOP_LEFT_DECAL, GH_MARKER_TOP_RIGHT_DECAL_PULSE);
+		}
+
+		void GH_TryApplyDecalPulseEffect(inout float3 Color, in float2 UV, in DecalData Data)
+		{
+			if (!GH_MustApplyDecalPulseEffect(Data))
+				return;
+
+			float PulsePhase    = pow(sin(1.25f*GlobalTime + 20.0f*UV.y - 7.5f*UV.x), 3.0f);
+			float PulseAnimTerm = 0.64f + 0.36f*PulsePhase;
+
+			Color *= PulseAnimTerm;
+		}
+		// END MOD
+
+		// MOD(godherja)
+		//void AddDecals( inout float3 Diffuse, inout float3 Normals, inout float4 Properties, float2 UV, uint InstanceIndex, int From, int To )
+		void AddDecals( inout float3 Diffuse, inout float3 Normals, inout float4 Properties, inout float3 Emissive, float2 UV, uint InstanceIndex, int From, int To )
+		// END MOD
 		{
 			// Body part index is scripted on the mesh asset and should match ECharacterPortraitPart
 			uint BodyPartIndex = GetBodyPartIndex( InstanceIndex );
@@ -121,16 +166,36 @@ PixelShader =
 					{
 						float2 DecalUV = ( UV - Data._UVOffset ) + ( Data._AtlasPos * AtlasFactor );
 
+						// MOD(godherja)
+						float4 DiffuseSample  = float4(0.0f, 0.0f, 0.0f, 0.0f);
+						float  OriginalWeight = Weight;
+						// END MOD
+
 						if ( Data._DiffuseIndex < MAX_VALUE )
 						{
-							float4 DiffuseSample = PdxTex2D( DecalDiffuseArray, float3( DecalUV, Data._DiffuseIndex ) );
+							// MOD(godherja)
+							//float4 DiffuseSample = PdxTex2D( DecalDiffuseArray, float3( DecalUV, Data._DiffuseIndex ) );
+							DiffuseSample = PdxTex2D( DecalDiffuseArray, float3( DecalUV, Data._DiffuseIndex ) );
+							// END MOD
 							Weight = DiffuseSample.a * Weight;
 							Diffuse = BlendDecal( Data._DiffuseBlendMode, float4( Diffuse, 0.0f ), DiffuseSample, Weight ).rgb;
 						}
 
 						if ( Data._NormalIndex < MAX_VALUE )
 						{
-							float3 NormalSample = UnpackDecalNormal( PdxTex2D( DecalNormalArray, float3( DecalUV, Data._NormalIndex ) ), Weight );
+							// MOD(godherja)
+							//float3 NormalSample = UnpackDecalNormal( PdxTex2D( DecalNormalArray, float3( DecalUV, Data._NormalIndex ) ), Weight );
+							float4 RawNormalSample = PdxTex2D( DecalNormalArray, float3( DecalUV, Data._NormalIndex ) );
+							float3 NormalSample    = UnpackDecalNormal(RawNormalSample, Weight );
+
+							float  Emission       = RawNormalSample.b;
+							float3 EmissiveSample = Emission*DiffuseSample.a*DiffuseSample.rgb;
+
+							GH_TryApplyDecalPulseEffect(EmissiveSample, UV, Data);
+
+							Emissive = BlendDecal(BLEND_MODE_ADDITIVE, float4( Emissive, 0.0f ), float4(EmissiveSample, 0.0f), OriginalWeight).rgb;
+							// END MOD
+
 							Normals = BlendDecal( Data._NormalBlendMode, float4( Normals, 0.0f ), float4( NormalSample, 0.0f ), Weight ).xyz;
 						}
 
