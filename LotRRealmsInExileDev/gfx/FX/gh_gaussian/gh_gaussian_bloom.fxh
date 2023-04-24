@@ -18,7 +18,7 @@ PixelShader
 		// At 0.0f bloom is effectively disabled,
 		// higher values produce more pronounced shine/glow but
 		// also make shine flickering on smaller details more noticeable.
-		static const float GH_BLOOM_STRENGTH = 0.5f;
+		static const float GH_BLOOM_STRENGTH = 0.65f;
 
 		//
 		// Service
