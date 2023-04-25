@@ -1664,7 +1664,10 @@ Effect court_usercolor
 	VertexShader = "VS_standard"
 	PixelShader = "PS_court"
 
-	Defines = { "USER_COLOR" }
+	# MOD(godherja)
+	#Defines = { "USER_COLOR" }
+	Defines = { "USER_COLOR" "GH_EMISSION_DISABLED" }
+	# END MOD
 }
 
 Effect court_usercolor_coa
@@ -1672,7 +1675,10 @@ Effect court_usercolor_coa
 	VertexShader = "VS_standard"
 	PixelShader = "PS_court"
 
-	Defines = { "USER_COLOR" "COA" }
+	# MOD(godherja)
+	#Defines = { "USER_COLOR" "COA" }
+	Defines = { "USER_COLOR" "COA" "GH_EMISSION_DISABLED" }
+	# END MOD
 }
 
 Effect courtShadow
