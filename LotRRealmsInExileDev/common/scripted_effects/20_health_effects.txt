@@ -1144,7 +1144,14 @@ increase_wounds_no_death_effect = {
 			epilepsy_brain_trauma_risk_effect = { CHANCE = 5 }
 		}
 	}
-	flag:$REASON$ = {} #to stop the game from complaining about unused character flags
+
+	# To stop the game from complaining about unused character flags since we only specifically check
+	# the treatment reason for risk of further or infection
+	if = {
+		limit = {
+			exists = flag:$REASON$
+		}
+	}
 }
 
 #increase_wounds_effect
@@ -1376,32 +1383,34 @@ physician_rank_up_tooltip_effect = {
 				if = {
 					limit = { var:physician_level_up = flag:physician }
 					if = {
-						limit = { has_trait = physician_1 }
-						add_trait_force_tooltip = physician_1
+						limit = {
+							has_trait_xp = {
+								trait = lifestyle_physician
+								value > 5
+							}
 					}
-					else_if = {
-						limit = { has_trait = physician_2 }
-						add_trait_force_tooltip = physician_2
+						add_trait_xp = {
+							trait = lifestyle_physician
+							value = 10
 					}
-					else_if = {
-						limit = { has_trait = physician_3 }
-						add_trait_force_tooltip = physician_3
 					}
+					else = { add_trait_force_tooltip = lifestyle_physician }
 				}
 				else_if = {
 					limit = { var:physician_level_up = flag:mystic }
 					if = {
-						limit = { has_trait = mystic_1 }
-						add_trait_force_tooltip = mystic_1
+						limit = {
+							has_trait_xp = {
+								trait = lifestyle_mystic
+								value > 5
+							}
 					}
-					else_if = {
-						limit = { has_trait = mystic_2 }
-						add_trait_force_tooltip = mystic_2
+						add_trait_xp = {
+							trait = lifestyle_mystic
+							value = 10
+						}
 					}
-					else_if = {
-						limit = { has_trait = mystic_3 }
-						add_trait_force_tooltip = mystic_3
-					}
+					else = { add_trait_force_tooltip = lifestyle_mystic }
 				}
 			}
 		}
@@ -1412,8 +1421,14 @@ physician_rank_up_tooltip_effect = {
 physician_level_up_chance_effect = {
 	if = {
 		limit = {
-			NOT = { has_trait = physician_3 }
 			is_alive = yes
+			NAND = {
+				has_trait = lifestyle_physician
+				has_trait_xp = {
+					trait = lifestyle_physician
+					value >= 100
+				}
+			}
 		}
 		random = {
 			chance = $CHANCE$
@@ -1445,7 +1460,13 @@ physician_level_up_chance_effect = {
 mystic_level_up_chance_effect = {
 	if = {
 		limit = {
-			NOT = { has_trait = mystic_3 }
+			NAND = {	
+				has_trait = lifestyle_mystic
+				has_trait_xp = {
+					trait = lifestyle_mystic
+					value >= 100
+				}
+			}
 			is_alive = yes
 		}
 		random = {
@@ -1514,6 +1535,13 @@ safe_disease_treatment_effect = {
 
 			if = {
 				limit = {
+					NOT = { exists = scope:sick_character }
+				}
+				save_scope_as = sick_character
+			} #If a sick character was not already saved we save the patient as Sick Character here
+
+			if = {
+				limit = {
 					exists = scope:physician
 					court_physician_available_trigger = yes
 				}
@@ -1522,14 +1550,34 @@ safe_disease_treatment_effect = {
 				scope:physician = {
 					random_list = {
 						90 = {  #physician
-							trigger = { NOT = { has_trait = physician_3 } }
+							trigger = {
+								NAND = {
+									has_trait = lifestyle_physician
+									has_trait_xp = {
+										trait = lifestyle_physician
+										value >= 100
+									}
+								}
+							}
 							physician_level_up_chance_effect = { CHANCE = 10 }
 						}
 						10 = { #Mystic
 							trigger = {
 								NOR = {
-									has_trait = mystic_3
-									has_trait = physician_3 #Because then this would be the only option which is weird
+									AND = {
+										has_trait = lifestyle_mystic
+										has_trait_xp = {
+											trait = lifestyle_mystic
+											value >= 100
+										}
+									}
+									AND = { #Because then this would be the only option which is weird
+										has_trait = lifestyle_physician
+										has_trait_xp = {
+											trait = lifestyle_physician
+											value >= 100
+										}
+									}
 								}
 								OR = {
 									NAND = { #Either, this is my first rank up
@@ -1660,20 +1708,26 @@ risky_disease_treatment_effect = {
 							factor = 10
 						}
 						modifier = {
-							scope:physician = { has_trait = physician_1 }
+							scope:physician = { has_trait = lifestyle_physician }
 							factor = 2
 						}
 						modifier = {
-							scope:physician = { has_trait = physician_2 }
+							scope:physician = {
+								has_trait = lifestyle_physician
+								has_trait_xp = {
+									trait = lifestyle_physician
+									value >= 50
+								}
+							}
 							factor = 5
 						}
 						modifier = {
-							scope:physician = { has_trait = physician_3 }
-							factor = 10
-						}
-						modifier = {
 							scope:physician = {
-								dynasty = dynasty:dynasty_elros
+								has_trait = lifestyle_physician
+								has_trait_xp = {
+									trait = lifestyle_physician
+									value >= 100
+								}
 							}
 							factor = 5
 						}
@@ -1718,16 +1772,28 @@ risky_disease_treatment_effect = {
 						random_list = {
 							1 = {
 								modifier = {
-									scope:physician = { has_trait = physician_1 }
+									scope:physician = { has_trait = lifestyle_physician }
 									factor = 2
 								}
 								modifier = {
-									scope:physician = { has_trait = physician_2 }
-									factor = 3.5
+									scope:physician = {
+										has_trait = lifestyle_physician
+										has_trait_xp = {
+											trait = lifestyle_physician
+											value >= 50
+										}
+									}
+									factor = 2
 								}
 								modifier = {
-									scope:physician = { has_trait = physician_3 }
-									factor = 5
+									scope:physician = {
+										has_trait = lifestyle_physician
+										has_trait_xp = {
+											trait = lifestyle_physician
+											value >= 100
+										}
+									}
+									factor = 2
 								}
 								#Elrosionath bonus
 								modifier = {
@@ -1941,25 +2007,6 @@ mystic_disease_treatment_effect = {
 						}
 						factor = 10
 					}
-					modifier = {
-						scope:physician = { has_trait = mystic_1 }
-						factor = 2
-					}
-					modifier = {
-						scope:physician = { has_trait = mystic_2 }
-						factor = 5
-					}
-					modifier = {
-						scope:physician = { has_trait = mystic_3 }
-						factor = 10
-					}
-					# Liege Perk bonus
-					modifier = {
-						scope:physician.liege = {
-							has_perk = anatomical_studies_perk
-						}
-						factor = 2
-					}
 					#Elrosionath bonus
 					modifier = {
 						or = {
@@ -2013,19 +2060,63 @@ mystic_disease_treatment_effect = {
 						}
 						factor = 30
 					}
+					modifier = {
+						scope:physician = { has_trait = lifestyle_mystic }
+						factor = 2
+					}
+					modifier = {
+						scope:physician = {
+							has_trait = lifestyle_mystic
+							has_trait_xp = {
+								trait = lifestyle_mystic
+								value >= 50
+							}
+						}
+						factor = 5
+					}
+					modifier = {
+						scope:physician = {
+							has_trait = lifestyle_mystic
+							has_trait_xp = {
+								trait = lifestyle_mystic
+								value >= 50
+							}
+						}
+						factor = 5
+					}
+					# Liege Perk bonus
+					modifier = {
+						scope:physician.liege = {
+							has_perk = anatomical_studies_perk
+						}
+						factor = 2
+					}
+					
 					#Critical or normal success?
 					random_list = {
 						1 = {
 							modifier = {
-								scope:physician = { has_trait = physician_1 }
+								scope:physician = { has_trait = lifestyle_physician }
 								factor = 1.5
 							}
 							modifier = {
-								scope:physician = { has_trait = physician_2 }
+								scope:physician = {
+									has_trait = lifestyle_physician
+									has_trait_xp = {
+										trait = lifestyle_physician
+										value >= 50
+									}
+								}
 								factor = 2
 							}
 							modifier = {
-								scope:physician = { has_trait = physician_3 }
+								scope:physician = {
+									has_trait = lifestyle_physician
+									has_trait_xp = {
+										trait = lifestyle_physician
+										value >= 50
+									}
+								}
 								factor = 3
 							}
 							modifier = {
@@ -2178,7 +2269,13 @@ safe_wound_treatment_effect = {
 			scope:physician = {
 				if = {
 					limit = {
-						NOT = { has_trait = physician_3 }
+						NAND = {
+							has_trait = lifestyle_physician
+							has_trait_xp = {
+								trait = lifestyle_physician
+								value >= 100
+							}
+						}
 					}
 					physician_level_up_chance_effect = { CHANCE = 10 }
 				}
@@ -2214,16 +2311,28 @@ safe_wound_treatment_effect = {
 						factor = 10
 					}
 					modifier = {
-						scope:physician = { has_trait = physician_1 }
+						scope:physician = { has_trait = lifestyle_physician }
 						factor = 2
 					}
 					modifier = {
-						scope:physician = { has_trait = physician_2 }
-						factor = 5
+						scope:physician = {
+							has_trait = lifestyle_physician
+							has_trait_xp = {
+								trait = lifestyle_physician
+								value >= 50
+							}
+						}
+						factor = 2
 					}
 					modifier = {
-						scope:physician = { has_trait = physician_3 }
-						factor = 10
+						scope:physician = {
+							has_trait = lifestyle_physician
+							has_trait_xp = {
+								trait = lifestyle_physician
+								value >= 100
+							}
+						}
+						factor = 4
 					}
 					if = {
 						limit = {
@@ -2305,16 +2414,28 @@ risky_wound_treatment_effect = {
 						factor = 10
 					}
 					modifier = {
-						scope:physician = { has_trait = physician_1 }
+						scope:physician = { has_trait = lifestyle_physician }
 						factor = 2
 					}
 					modifier = {
-						scope:physician = { has_trait = physician_2 }
-						factor = 5
+						scope:physician = {
+							has_trait = lifestyle_physician
+							has_trait_xp = {
+								trait = lifestyle_physician
+								value >= 50
+							}
+						}
+						factor = 2
 					}
 					modifier = {
-						scope:physician = { has_trait = physician_3 }
-						factor = 10
+						scope:physician = {
+							has_trait = lifestyle_physician
+							has_trait_xp = {
+								trait = lifestyle_physician
+								value >= 100
+							}
+						}
+						factor = 4
 					}
 
 					modifier = { #Gangrene! Lower chance of success
@@ -2326,16 +2447,28 @@ risky_wound_treatment_effect = {
 					random_list = {
 						1 = {
 							modifier = {
-								scope:physician = { has_trait = physician_1 }
+								scope:physician = { has_trait = lifestyle_physician }
 								factor = 2
 							}
 							modifier = {
-								scope:physician = { has_trait = physician_2 }
-								factor = 3.5
+								scope:physician = {
+									has_trait = lifestyle_physician
+									has_trait_xp = {
+										trait = lifestyle_physician
+										value >= 50
+									}
+								}
+								factor = 2
 							}
 							modifier = {
-								scope:physician = { has_trait = physician_3 }
-								factor = 5
+								scope:physician = {
+									has_trait = lifestyle_physician
+									has_trait_xp = {
+										trait = lifestyle_physician
+										value >= 100
+									}
+								}
+								factor = 2
 							}
 							modifier = {
 								has_character_modifier = infected_wound_modifier

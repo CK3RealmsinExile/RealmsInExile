@@ -39,22 +39,56 @@ PixelShader =
 #define BLEND_MODE_REPLACE 1
 #define BLEND_MODE_HARD_LIGHT 2
 #define BLEND_MODE_MULTIPLY 3
+#define BLEND_MODE_OVERLAY_SRGB 4
+#define BLEND_MODE_HARD_LIGHT_SRGB 5
 // Special handling of normal Overlay blend mode (in shader only)
-#define BLEND_MODE_OVERLAY_NORMAL 4
+#define BLEND_MODE_OVERLAY_NORMAL 6
 
 // MOD(godherja)
 // Additional blend modes by Buck (EK2)
-#define BLEND_MODE_SCREEN 5
-#define BLEND_MODE_ADDITIVE 6
+#define BLEND_MODE_SCREEN 7
+#define BLEND_MODE_ADDITIVE 8
 // END MOD
 
 		float OverlayDecal( float Target, float Blend ) {
 			return float( Target > 0.5f ) * ( 1.0f - ( 2.0f * ( 1.0f - Target ) * ( 1.0f - Blend ) ) ) + float( Target <= 0.5f ) * ( 2.0f * Target * Blend );
 		}
 		
+		float OverlayDecalSrgb( float Base, float Blend )
+		{
+			float MidPoint = ToLinear( 0.5 );
+			
+			if( Base < MidPoint ) 
+			{
+				//Multiply
+				return Remap( Base, 0.0, MidPoint, 0.0, 1.0 ) * Blend;				
+			}
+			else
+			{
+				//Screen
+				float InvBase = 1.0 - pow( Remap( Base, MidPoint, 1.0, 0.0, 1.0 ), RemapClamped(Blend, 0.0, MidPoint, 2.0, 1.0 ) );				
+				return 1.0f - InvBase * ( 1.0f - Blend );
+			}
+		}
+		
 		float HardLightDecal( float Target, float Blend )
 		{
 			return float( Blend > 0.5f ) * ( 1.0f - ( 2.0f * ( 1.0f - Target ) * ( 1.0f - Blend ) ) ) + float( Blend <= 0.5f ) * ( 2.0f * Target * Blend );
+		}
+		
+		float HardLightDecalSrgb( float Base, float Blend )
+		{
+			float MidPoint = ToLinear( 0.5 );
+			if( Blend < MidPoint ) 
+			{
+				//Multiply
+				return Base * Remap( Blend, 0.0, MidPoint, 0.0, 1.0 );
+			}
+			else
+			{
+				//Screen
+				return 1.0f - (1.0f - Base) * Remap( Blend, MidPoint, 1.0, 1.0, 0.0 );
+			}
 		}
 		
 		float4 BlendDecal( uint BlendMode, float4 Target, float4 Blend, float Weight )
@@ -65,6 +99,10 @@ PixelShader =
 			{
 				Result = float4( OverlayDecal( Target.r, Blend.r ), OverlayDecal( Target.g, Blend.g ), OverlayDecal( Target.b, Blend.b ), OverlayDecal( Target.a, Blend.a ) );
 			}
+			else if ( BlendMode == BLEND_MODE_OVERLAY_SRGB )
+			{			
+				Result = float4( OverlayDecalSrgb( Target.r, Blend.r ), OverlayDecalSrgb( Target.g, Blend.g ), OverlayDecalSrgb( Target.b, Blend.b ), OverlayDecalSrgb( Target.a, Blend.a ) );
+			}
 			else if ( BlendMode == BLEND_MODE_REPLACE )
 			{
 				Result = Blend;
@@ -72,6 +110,10 @@ PixelShader =
 			else if ( BlendMode == BLEND_MODE_HARD_LIGHT )
 			{
 				Result = float4( HardLightDecal( Target.r, Blend.r ), HardLightDecal( Target.g, Blend.g ), HardLightDecal( Target.b, Blend.b ), HardLightDecal( Target.a, Blend.a ) );
+			}
+			else if ( BlendMode == BLEND_MODE_HARD_LIGHT_SRGB )
+			{
+				Result = float4( HardLightDecalSrgb( Target.r, Blend.r ), HardLightDecalSrgb( Target.g, Blend.g ), HardLightDecalSrgb( Target.b, Blend.b ), HardLightDecalSrgb( Target.a, Blend.a ) );
 			}
 			else if ( BlendMode == BLEND_MODE_MULTIPLY )
 			{

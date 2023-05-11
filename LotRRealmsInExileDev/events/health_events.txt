@@ -96,7 +96,7 @@ health.0001 = {
 		else_if = {
 			limit = { NOT = { has_trait = scarred } }
 			random = {
-				chance = 10
+				chance = 40
 				add_character_flag = will_get_scar
 			}
 		}
@@ -377,6 +377,11 @@ health.0102 = {
 		}
 	}
 	theme = healthcare
+
+	override_background = {
+		trigger = { is_travelling = yes }
+		reference = terrain
+	}
 	left_portrait = {
 		character = root
 		animation = severelywounded
@@ -409,6 +414,7 @@ health.0102 = {
 		trigger = {
 			NOT = { exists = scope:physician }
 			is_landed = yes
+			is_travelling = no
 		}
 		name = health.3101.e
 		find_court_physician_effect = yes
@@ -487,6 +493,10 @@ health.0104 = {
 		}
 	}
 	theme = healthcare
+	override_background = {
+		trigger = { is_travelling = yes }
+		reference = terrain
+	}
 	left_portrait = {
 		character = root
 		animation = severelywounded
@@ -654,6 +664,10 @@ health.0202 = {
 		}
 	}
 	theme = healthcare
+	override_background = {
+		trigger = { is_travelling = yes }
+		reference = terrain
+	}
 	left_portrait = {
 		character = root
 		triggered_animation = {
@@ -836,6 +850,10 @@ health.0204 = {
 	}
 	
 	theme = healthcare
+	override_background = {
+		trigger = { is_travelling = yes }
+		reference = terrain
+	}
 	left_portrait = {
 		character = root
 		animation = sick
@@ -979,9 +997,42 @@ health.0204 = {
 #You become ill
 health.1001 = {
 	type = character_event
-	title = health.1001.t
+	title = {
+		first_valid = {
+			triggered_desc = {
+				trigger = {
+					involved_activity ?= { has_activity_type = activity_pilgrimage }
+				}
+				desc = pilgrimage.0041.t
+			}
+			triggered_desc = {
+				trigger = { is_travelling = yes }
+				desc = health.travel.t
+			}
+			desc = health.1001.t
+		}
+	}
 	desc = {
+		first_valid = {
+			triggered_desc = {
+				trigger = {
+					involved_activity ?= { has_activity_type = activity_pilgrimage }
+				}
+				desc = pilgrimage.0041.desc
+			}
+			triggered_desc = {
+				trigger = {
+					trigger_if = {
+						limit = { exists = involved_activity }
+						NOT = {
+							involved_activity = { has_activity_type = activity_pilgrimage }
+						}
+					}
+					trigger_else = { always = yes }
+				}
 		desc = health.1001.desc
+			}
+		}
 		triggered_desc = {
 			trigger = {
 				court_physician_available_trigger = yes
@@ -991,11 +1042,25 @@ health.1001 = {
 		}
 	}
 	theme = healthcare
+	override_background = {
+		trigger = { is_travelling = yes }
+		reference = terrain_travel
+	}
 	left_portrait = {
 		character = root
 		animation = sick
 	}
 	right_portrait = {
+		trigger = {
+			trigger_if = {
+				limit = { is_travelling = yes }
+				current_travel_plan = {
+					any_entourage_character = {
+						has_court_position = court_physician_court_position
+					}
+				}
+			}
+		}
 		character = scope:physician
 		triggered_animation = {
 			trigger = { scope:physician = { health_event_is_worried_trigger = { CHARACTER = root } } }
@@ -1008,11 +1073,17 @@ health.1001 = {
 		animation = idle
 	}
 
-
 	trigger = {
+		trigger_if = {
+			limit = {
+				NOT = {
+					involved_activity ?= { has_activity_type = activity_pilgrimage }
+				}
+			}
 		can_contract_disease_trigger = { DISEASE = ill }
 	}
-	
+		trigger_else = { always = yes }
+	}
 
 	weight_multiplier = {
 		base = 1
@@ -1076,11 +1147,12 @@ health.1001 = {
 		save_court_physician_as_effect = { SCOPE_NAME = physician }
 		contract_disease_effect = { DISEASE = ill TREATMENT_EVENT = no } #Adds the trait, sends event "health.2201" to those who care if health is brought too low
 	}
-
 	###NO COURT PHYSICIAN OPTIONS###
 	#Find physician
 	option = {
 		trigger = {
+			# can't hire a court physician while you're traveling
+			is_travelling = no
 			NOT = { exists = scope:physician }
 			is_landed = yes
 		}
@@ -1088,13 +1160,16 @@ health.1001 = {
 		find_court_physician_effect = yes
 		ai_chance = { base = 5 }
 	}
-
 	#OK
 	option = {
 		trigger = {
 			trigger_if = {
 				limit = { exists = scope:physician }
 				liege_picks_treatment_trigger = yes
+			}
+			trigger_else_if = {
+				limit = { is_travelling = yes }
+				always = no
 			}
 			trigger_else = {
 				always = yes
@@ -1103,36 +1178,73 @@ health.1001 = {
 		name = health.1001.a
 		ai_chance = { base = 1 }
 	}
-
+	### TRAVEL- GO HOME
+	option = {
+		name = health.travel.option.home
+		name = {
+			trigger = {
+				involved_activity ?= { has_activity_type = activity_pilgrimage }
+			}
+			text = pilgrimage.0041.b
+		}
+		flavor = health.travel.option.home.flavor 
+		trigger = {
+			is_travelling = yes
+			current_travel_plan ={
+				travel_plan_owner = root
+				can_cancel = yes 
+			}
+			involved_activity ?= {
+				NOR = {
+					has_activity_type = activity_tour
+					is_required_special_guest = root
+				}
+			}
+		}
+		#Go back home, damnit
+		if = {
+			limit = { 
+				involved_activity ?= { has_activity_type = activity_pilgrimage }
+			}
+			#Removed in the on_travel_plan_complete on_action
+			set_variable = {
+				name = pilgrimage_invalidated_illness
+				value = involved_activity.activity_location
+			}
+		}
+		current_travel_plan = { cancel_travel_plan = yes }
+		ai_chance = { base = 1 }
+	}
 	###COURT PHYSICIAN OPTIONS###
 	#Safe treatment
 	option = {
 		trigger = {
 			exists = scope:physician
 			liege_picks_treatment_trigger = no
+			court_physician_available_when_traveling_trigger = yes
 		}
 		name = health.3101.a
 		safe_disease_treatment_effect = { PATIENT = root TREATMENT_PICKER = root }
 		ai_chance = { base = 10 }
 	}
-
 	#Risky treatment
 	option = {
 		trigger = {
 			exists = scope:physician
 			liege_picks_treatment_trigger = no
+			court_physician_available_when_traveling_trigger = yes
 		}
 		name = health.3101.b
 		risky_disease_treatment_effect = { PATIENT = root TREATMENT_PICKER = root }
 		ai_chance = { base = 1 }
 	}
-	
 	#Mystic treatment
 	option = {
 		trigger = {
 			court_physician_available_trigger = yes
 			liege_picks_treatment_trigger = no
 			scope:physician = { has_trait = lifestyle_mystic }
+			court_physician_available_when_traveling_trigger = yes
 		}
 		name = health.3101.c
 		mystic_disease_treatment_effect = { PATIENT = root TREATMENT_PICKER = root }
@@ -1144,25 +1256,56 @@ health.1001 = {
 			}
 		}
 	}
-
 	#No treatment
 	option = {
+		name = {
+			text = {
+				first_valid = {
+					triggered_desc = {
 		trigger = {
+							involved_activity ?= { has_activity_type = activity_pilgrimage }
+						}
+						desc = pilgrimage.0041.a
+					}
+					triggered_desc = {
+						trigger = { is_travelling = yes }
+						desc = health.travel.option.continue
+					}
+					desc = health.3101.d
+				}
+			}
+		}
+		if = {
+			limit = {
+				involved_activity ?= { has_activity_type = activity_pilgrimage }
+			}
+			custom_tooltip = pilgrimage.0041.a.tt
+		}
+		if = {
+			limit = {
 			exists = scope:physician
 			liege_picks_treatment_trigger = no
+				court_physician_available_when_traveling_trigger = yes
 		}
-		name = health.3101.d
 		no_disease_treatment_effect = yes
+		}
 		ai_chance = { base = 0 }
 	}
-
 }
 
 
 #You become pneumonic
 health.1002 = {
 	type = character_event
-	title = health.1002.t
+	title = {
+		first_valid = {
+			triggered_desc = {
+				trigger = { is_travelling = yes }
+				desc = health.travel.t
+			}
+			desc = health.1002.t
+		}
+	}
 	desc = {
 		desc = health.1002.desc
 		triggered_desc = {
@@ -1175,12 +1318,26 @@ health.1002 = {
 	}
 	
 	theme = healthcare
+	override_background = {
+		trigger = { is_travelling = yes }
+		reference = terrain
+	}
 	left_portrait = {
 		character = root
 		animation = sick
 	}
 	right_portrait = {
 		character = scope:physician
+		trigger = {
+			trigger_if = {
+				limit = { is_travelling = yes }
+				current_travel_plan = {
+					any_entourage_character = {
+						has_court_position = court_physician_court_position
+					}
+				}
+			}
+		}
 		triggered_animation = {
 			trigger = { scope:physician = { health_event_is_worried_trigger = { CHARACTER = root } } }
 			animation = worry
@@ -1190,6 +1347,11 @@ health.1002 = {
 			animation = personality_rational
 		}
 		animation = idle
+	}
+
+	override_background = {
+		trigger = { is_travelling = yes }
+		reference = terrain_travel
 	}
 
 	trigger = {
@@ -1229,6 +1391,7 @@ health.1002 = {
 		trigger = {
 			NOT = { exists = scope:physician }
 			is_landed = yes
+			is_travelling = no 
 		}
 		name = health.3101.e
 		find_court_physician_effect = yes
@@ -1249,13 +1412,33 @@ health.1002 = {
 		name = health.1002.a
 		ai_chance = { base = 1 }
 	}
-
+	### TRAVEL- GO HOME
+	option = {
+		name = health.travel.option.home
+		flavor = health.travel.option.home.flavor
+		trigger = {
+			is_travelling = yes
+			current_travel_plan ={
+				travel_plan_owner = root
+				can_cancel = yes 
+			}
+			involved_activity ?= {
+				NOR = {
+					has_activity_type = activity_tour
+					is_required_special_guest = root
+				}
+			}
+		}
+		current_travel_plan = { cancel_travel_plan = yes }
+		ai_chance = { base = 1 }
+	}
 	###COURT PHYSICIAN OPTIONS###
 	#Safe treatment
 	option = {
 		trigger = {
 			exists = scope:physician
 			liege_picks_treatment_trigger = no
+			court_physician_available_when_traveling_trigger = yes
 		}
 		name = health.3101.a
 		safe_disease_treatment_effect = { PATIENT = root TREATMENT_PICKER = root }
@@ -1267,6 +1450,7 @@ health.1002 = {
 		trigger = {
 			exists = scope:physician
 			liege_picks_treatment_trigger = no
+			court_physician_available_when_traveling_trigger = yes
 		}
 		name = health.3101.b
 		risky_disease_treatment_effect = { PATIENT = root TREATMENT_PICKER = root }
@@ -1293,22 +1477,42 @@ health.1002 = {
 
 	#No treatment
 	option = {
-		trigger = {
+		name = {
+			text = {
+				first_valid = {
+					triggered_desc = {
+						trigger = { is_travelling = yes }
+						desc = health.travel.option.continue
+					}
+					desc = health.3101.d
+				}
+			}
+		}
+		if = {
+			limit = {
 			exists = scope:physician
 			liege_picks_treatment_trigger = no
+				court_physician_available_when_traveling_trigger = yes
 		}
-		name = health.3101.d
 		no_disease_treatment_effect = yes
+		}
 		ai_chance = { base = 0 }
 	}
-
 }
 
 
 #You become gout-ridden
 health.1003 = {
 	type = character_event
-	title = health.1003.t
+	title = {
+		first_valid = {
+			triggered_desc = {
+				trigger = { is_travelling = yes }
+				desc = health.travel.t
+			}
+			desc = health.1003.t
+		}
+	}
 	desc = {
 		first_valid = {
 			triggered_desc = {
@@ -1319,6 +1523,7 @@ health.1003 = {
 						has_royal_court = yes
 						amenity_level = { type = court_food_quality value >= 3 }
 					}
+					is_travelling = no
 				}
 				desc = health.1003.court_amenities_gout.desc
 			}
@@ -1334,11 +1539,25 @@ health.1003 = {
 		}
 	}
 	theme = healthcare
+	override_background = {
+		trigger = { is_travelling = yes }
+		reference = terrain
+	}
 	left_portrait = {
 		character = root
 		animation = sick
 	}
 	right_portrait = {
+		trigger = {
+			trigger_if = {
+				limit = { is_travelling = yes }
+				current_travel_plan = {
+					any_entourage_character = {
+						has_court_position = court_physician_court_position
+					}
+				}
+			}
+		}
 		character = scope:physician
 		triggered_animation = {
 			trigger = { scope:physician = { health_event_is_worried_trigger = { CHARACTER = root } } }
@@ -1349,6 +1568,11 @@ health.1003 = {
 			animation = personality_rational
 		}
 		animation = idle
+	}
+
+	override_background = {
+		trigger = { is_travelling = yes }
+		reference = terrain_travel
 	}
 
 	trigger = {
@@ -1457,13 +1681,33 @@ health.1003 = {
 		name = health.1003.a
 		ai_chance = { base = 1 }
 	}
-
+	### TRAVEL- GO HOME
+	option = {
+		name = health.travel.option.home
+		flavor = health.travel.option.home.flavor
+		trigger = {
+			is_travelling = yes
+			current_travel_plan ={
+				travel_plan_owner = root
+				can_cancel = yes 
+			}
+			involved_activity ?= {
+				NOR = {
+					has_activity_type = activity_tour
+					is_required_special_guest = root
+				}
+			}
+		}
+		current_travel_plan = { cancel_travel_plan = yes }
+		ai_chance = { base = 1 }
+	}
 	###COURT PHYSICIAN OPTIONS###
 	#Safe treatment
 	option = {
 		trigger = {
 			exists = scope:physician
 			liege_picks_treatment_trigger = no
+			court_physician_available_when_traveling_trigger = yes
 		}
 		name = health.3101.a
 		safe_disease_treatment_effect = { PATIENT = root TREATMENT_PICKER = root }
@@ -1475,6 +1719,7 @@ health.1003 = {
 		trigger = {
 			exists = scope:physician
 			liege_picks_treatment_trigger = no
+			court_physician_available_when_traveling_trigger = yes
 		}
 		name = health.3101.b
 		risky_disease_treatment_effect = { PATIENT = root TREATMENT_PICKER = root }
@@ -1501,12 +1746,25 @@ health.1003 = {
 
 	#No treatment
 	option = {
-		trigger = {
+		name = {
+			text = {
+				first_valid = {
+					triggered_desc = {
+						trigger = { is_travelling = yes }
+						desc = health.travel.option.continue
+					}
+					desc = health.3101.d
+				}
+			}
+		}
+		if = {
+			limit = {
 			exists = scope:physician
 			liege_picks_treatment_trigger = no
+				court_physician_available_when_traveling_trigger = yes
 		}
-		name = health.3101.d
 		no_disease_treatment_effect = yes
+		}
 		ai_chance = { base = 0 }
 	}
 }
@@ -1515,7 +1773,15 @@ health.1003 = {
 #You become leper
 health.1004 = {
 	type = character_event
-	title = health.1004.t
+	title = {
+		first_valid = {
+			triggered_desc = {
+				trigger = { is_travelling = yes }
+				desc = health.travel.t
+			}
+			desc = health.1004.t
+		}
+	}
 	desc = {
 		desc = health.1004.desc
 		triggered_desc = {
@@ -1527,11 +1793,25 @@ health.1004 = {
 		}
 	}
 	theme = healthcare
+	override_background = {
+		trigger = { is_travelling = yes }
+		reference = terrain
+	}
 	left_portrait = {
 		character = root
 		animation = shame
 	}
 	right_portrait = {
+		trigger = {
+			trigger_if = {
+				limit = { is_travelling = yes }
+				current_travel_plan = {
+					any_entourage_character = {
+						has_court_position = court_physician_court_position
+					}
+				}
+			}
+		}
 		character = scope:physician
 		triggered_animation = {
 			trigger = { scope:physician = { health_event_is_worried_trigger = { CHARACTER = root } } }
@@ -1542,6 +1822,11 @@ health.1004 = {
 			animation = personality_rational
 		}
 		animation = idle
+	}
+
+	override_background = {
+		trigger = { is_travelling = yes }
+		reference = terrain_travel
 	}
 
 	trigger = {
@@ -1560,6 +1845,7 @@ health.1004 = {
 		trigger = {
 			NOT = { exists = scope:physician }
 			is_landed = yes
+			is_travelling = no
 		}
 		name = health.3101.e
 		find_court_physician_effect = yes
@@ -1580,13 +1866,33 @@ health.1004 = {
 		name = health.1004.a
 		ai_chance = { base = 1 }
 	}
-
+	### TRAVEL- GO HOME
+	option = {
+		name = health.travel.option.home
+		flavor = health.travel.option.home.flavor
+		trigger = {
+			is_travelling = yes
+			current_travel_plan ={
+				travel_plan_owner = root
+				can_cancel = yes 
+			}
+			involved_activity ?= {
+				NOR = {
+					has_activity_type = activity_tour
+					is_required_special_guest = root
+				}
+			}
+		}
+		current_travel_plan = { cancel_travel_plan = yes }
+		ai_chance = { base = 1 }
+	}
 	###COURT PHYSICIAN OPTIONS###
 	#Safe treatment
 	option = {
 		trigger = {
 			exists = scope:physician
 			liege_picks_treatment_trigger = no
+			court_physician_available_when_traveling_trigger = yes
 		}
 		name = health.3101.a
 		safe_disease_treatment_effect = { PATIENT = root TREATMENT_PICKER = root }
@@ -1598,6 +1904,7 @@ health.1004 = {
 		trigger = {
 			exists = scope:physician
 			liege_picks_treatment_trigger = no
+			court_physician_available_when_traveling_trigger = yes
 		}
 		name = health.3101.b
 		risky_disease_treatment_effect = { PATIENT = root TREATMENT_PICKER = root }
@@ -1624,12 +1931,25 @@ health.1004 = {
 
 	#No treatment
 	option = {
-		trigger = {
+		name = {
+			text = {
+				first_valid = {
+					triggered_desc = {
+						trigger = { is_travelling = yes }
+						desc = health.travel.option.continue
+					}
+					desc = health.3101.d
+				}
+			}
+		}
+		if = {
+			limit = {
 			exists = scope:physician
 			liege_picks_treatment_trigger = no
+				court_physician_available_when_traveling_trigger = yes
 		}
-		name = health.3101.d
 		no_disease_treatment_effect = yes
+		}
 		ai_chance = { base = 0 }
 	}
 }
@@ -1638,7 +1958,15 @@ health.1004 = {
 #You contract typhus
 health.1005 = {
 	type = character_event
-	title = health.1005.t
+	title = {
+		first_valid = {
+			triggered_desc = {
+				trigger = { is_travelling = yes }
+				desc = health.travel.t
+			}
+			desc = health.1005.t
+		}
+	}
 	desc = {
 		desc = health.1005.desc
 		triggered_desc = {
@@ -1651,11 +1979,25 @@ health.1005 = {
 	}
 	
 	theme = healthcare
+	override_background = {
+		trigger = { is_travelling = yes }
+		reference = terrain
+	}
 	left_portrait = {
 		character = root
 		animation = sick
 	}
 	right_portrait = {
+		trigger = {
+			trigger_if = {
+				limit = { is_travelling = yes }
+				current_travel_plan = {
+					any_entourage_character = {
+						has_court_position = court_physician_court_position
+					}
+				}
+			}
+		}
 		character = scope:physician
 		triggered_animation = {
 			trigger = { scope:physician = { health_event_is_worried_trigger = { CHARACTER = root } } }
@@ -1666,6 +2008,11 @@ health.1005 = {
 			animation = personality_rational
 		}
 		animation = idle
+	}
+
+	override_background = {
+		trigger = { is_travelling = yes }
+		reference = terrain_travel
 	}
 
 	trigger = {
@@ -1702,6 +2049,7 @@ health.1005 = {
 		trigger = {
 			NOT = { exists = scope:physician }
 			is_landed = yes
+			is_travelling = no
 		}
 		name = health.3101.e
 		find_court_physician_effect = yes
@@ -1722,13 +2070,33 @@ health.1005 = {
 		name = health.1005.a
 		ai_chance = { base = 1 }
 	}
-
+	### TRAVEL- GO HOME
+	option = {
+		name = health.travel.option.home
+		flavor = health.travel.option.home.flavor
+		trigger = {
+			is_travelling = yes
+			current_travel_plan ={
+				travel_plan_owner = root
+				can_cancel = yes 
+			}
+			involved_activity ?= {
+				NOR = {
+					has_activity_type = activity_tour
+					is_required_special_guest = root
+				}
+			}
+		}
+		current_travel_plan = { cancel_travel_plan = yes }
+		ai_chance = { base = 1 }
+	}
 	###COURT PHYSICIAN OPTIONS###
 	#Safe treatment
 	option = {
 		trigger = {
 			exists = scope:physician
 			liege_picks_treatment_trigger = no
+			court_physician_available_when_traveling_trigger = yes
 		}
 		name = health.3101.a
 		safe_disease_treatment_effect = { PATIENT = root TREATMENT_PICKER = root }
@@ -1740,6 +2108,7 @@ health.1005 = {
 		trigger = {
 			exists = scope:physician
 			liege_picks_treatment_trigger = no
+			court_physician_available_when_traveling_trigger = yes
 		}
 		name = health.3101.b
 		risky_disease_treatment_effect = { PATIENT = root TREATMENT_PICKER = root }
@@ -1766,22 +2135,42 @@ health.1005 = {
 
 	#No treatment
 	option = {
-		trigger = {
+		name = {
+			text = {
+				first_valid = {
+					triggered_desc = {
+						trigger = { is_travelling = yes }
+						desc = health.travel.option.continue
+					}
+					desc = health.3101.d
+				}
+			}
+		}
+		if = {
+			limit = {
 			exists = scope:physician
 			liege_picks_treatment_trigger = no
+				court_physician_available_when_traveling_trigger = yes
 		}
-		name = health.3101.d
 		no_disease_treatment_effect = yes
+		}
 		ai_chance = { base = 0 }
 	}
-
 }
 
 
 #You contract consumption
 health.1006 = {
 	type = character_event
-	title = health.1006.t
+	title = {
+		first_valid = {
+			triggered_desc = {
+				trigger = { is_travelling = yes }
+				desc = health.travel.t
+			}
+			desc = health.1006.t
+		}
+	}
 	desc = {
 		desc = health.1006.desc
 		triggered_desc = {
@@ -1794,11 +2183,25 @@ health.1006 = {
 	}
 	
 	theme = healthcare
+	override_background = {
+		trigger = { is_travelling = yes }
+		reference = terrain
+	}
 	left_portrait = {
 		character = root
 		animation = sick
 	}
 	right_portrait = {
+		trigger = {
+			trigger_if = {
+				limit = { is_travelling = yes }
+				current_travel_plan = {
+					any_entourage_character = {
+						has_court_position = court_physician_court_position
+					}
+				}
+			}
+		}
 		character = scope:physician
 		triggered_animation = {
 			trigger = { scope:physician = { health_event_is_worried_trigger = { CHARACTER = root } } }
@@ -1809,6 +2212,11 @@ health.1006 = {
 			animation = personality_rational
 		}
 		animation = idle
+	}
+
+	override_background = {
+		trigger = { is_travelling = yes }
+		reference = terrain_travel
 	}
 
 	trigger = {
@@ -1844,6 +2252,7 @@ health.1006 = {
 		trigger = {
 			NOT = { exists = scope:physician }
 			is_landed = yes
+			is_travelling = no
 		}
 		name = health.3101.e
 		find_court_physician_effect = yes
@@ -1864,13 +2273,33 @@ health.1006 = {
 		name = health.1006.a
 		ai_chance = { base = 1 }
 	}
-
+	### TRAVEL- GO HOME
+	option = {
+		name = health.travel.option.home
+		flavor = health.travel.option.home.flavor
+		trigger = {
+			is_travelling = yes
+			current_travel_plan ={
+				travel_plan_owner = root
+				can_cancel = yes 
+			}
+			involved_activity ?= {
+				NOR = {
+					has_activity_type = activity_tour
+					is_required_special_guest = root
+				}
+			}
+		}
+		current_travel_plan = { cancel_travel_plan = yes }
+		ai_chance = { base = 1 }
+	}
 	###COURT PHYSICIAN OPTIONS###
 	#Safe treatment
 	option = {
 		trigger = {
 			exists = scope:physician
 			liege_picks_treatment_trigger = no
+			court_physician_available_when_traveling_trigger = yes
 		}
 		name = health.3101.a
 		safe_disease_treatment_effect = { PATIENT = root TREATMENT_PICKER = root }
@@ -1882,6 +2311,7 @@ health.1006 = {
 		trigger = {
 			exists = scope:physician
 			liege_picks_treatment_trigger = no
+			court_physician_available_when_traveling_trigger = yes
 		}
 		name = health.3101.b
 		risky_disease_treatment_effect = { PATIENT = root TREATMENT_PICKER = root }
@@ -1908,22 +2338,42 @@ health.1006 = {
 
 	#No treatment
 	option = {
-		trigger = {
+		name = {
+			text = {
+				first_valid = {
+					triggered_desc = {
+						trigger = { is_travelling = yes }
+						desc = health.travel.option.continue
+					}
+					desc = health.3101.d
+				}
+			}
+		}
+		if = {
+			limit = {
 			exists = scope:physician
 			liege_picks_treatment_trigger = no
+				court_physician_available_when_traveling_trigger = yes
 		}
-		name = health.3101.d
 		no_disease_treatment_effect = yes
+		}
 		ai_chance = { base = 0 }
 	}
-
 }
 
 
 #You develop cancer
 health.1007 = {
 	type = character_event
-	title = health.1007.t
+	title = {
+		first_valid = {
+			triggered_desc = {
+				trigger = { is_travelling = yes }
+				desc = health.travel.t
+			}
+			desc = health.1007.t
+		}
+	}
 	desc = {
 		desc = health.1007.desc
 		triggered_desc = {
@@ -1935,11 +2385,25 @@ health.1007 = {
 		}
 	}
 	theme = healthcare
+	override_background = {
+		trigger = { is_travelling = yes }
+		reference = terrain
+	}
 	left_portrait = {
 		character = root
 		animation = sick
 	}
 	right_portrait = {
+		trigger = {
+			trigger_if = {
+				limit = { is_travelling = yes }
+				current_travel_plan = {
+					any_entourage_character = {
+						has_court_position = court_physician_court_position
+					}
+				}
+			}
+		}
 		character = scope:physician
 		triggered_animation = {
 			trigger = { scope:physician = { health_event_is_worried_trigger = { CHARACTER = root } } }
@@ -1950,6 +2414,11 @@ health.1007 = {
 			animation = personality_rational
 		}
 		animation = idle
+	}
+
+	override_background = {
+		trigger = { is_travelling = yes }
+		reference = terrain_travel
 	}
 
 	trigger = {
@@ -2008,6 +2477,7 @@ health.1007 = {
 		trigger = {
 			NOT = { exists = scope:physician }
 			is_landed = yes
+			is_travelling = no 
 		}
 		name = health.3101.e
 		find_court_physician_effect = yes
@@ -2028,13 +2498,33 @@ health.1007 = {
 		name = health.1007.a
 		ai_chance = { base = 1 }
 	}
-
+	### TRAVEL- GO HOME
+	option = {
+		name = health.travel.option.home
+		flavor = health.travel.option.home.flavor
+		trigger = {
+			is_travelling = yes
+			current_travel_plan ={
+				travel_plan_owner = root
+				can_cancel = yes 
+			}
+			involved_activity ?= {
+				NOR = {
+					has_activity_type = activity_tour
+					is_required_special_guest = root
+				}
+			}
+		}
+		current_travel_plan = { cancel_travel_plan = yes }
+		ai_chance = { base = 1 }
+	}
 	###COURT PHYSICIAN OPTIONS###
 	#Safe treatment
 	option = {
 		trigger = {
 			exists = scope:physician
 			liege_picks_treatment_trigger = no
+			court_physician_available_when_traveling_trigger = yes
 		}
 		name = health.3101.a
 		safe_disease_treatment_effect = { PATIENT = root TREATMENT_PICKER = root }
@@ -2046,6 +2536,7 @@ health.1007 = {
 		trigger = {
 			exists = scope:physician
 			liege_picks_treatment_trigger = no
+			court_physician_available_when_traveling_trigger = yes
 		}
 		name = health.3101.b
 		risky_disease_treatment_effect = { PATIENT = root TREATMENT_PICKER = root }
@@ -2072,29 +2563,59 @@ health.1007 = {
 
 	#No treatment
 	option = {
-		trigger = {
+		name = {
+			text = {
+				first_valid = {
+					triggered_desc = {
+						trigger = { is_travelling = yes }
+						desc = health.travel.option.continue
+					}
+					desc = health.3101.d
+				}
+			}
+		}
+		if = {
+			limit = {
 			exists = scope:physician
 			liege_picks_treatment_trigger = no
+				court_physician_available_when_traveling_trigger = yes
 		}
-		name = health.3101.d
 		no_disease_treatment_effect = yes
+		}
 		ai_chance = { base = 0 }
 	}
-
 }
 
 
 #You contract lover's pox
 health.1008 = {
 	type = character_event
-	title = health.1008.t
+	title = {
+		first_valid = {
+			triggered_desc = {
+				trigger = { is_travelling = yes }
+				desc = health.travel.t
+			}
+			desc = health.1008.t
+		}
+	}
 	desc = health.1008.desc
 	theme = healthcare
+	override_background = {
+		trigger = { is_travelling = yes }
+		reference = terrain
+	}
+
 	left_portrait = {
 		character = root
 		animation = anger
 	}
 	right_portrait = scope:infecting_partner
+
+	override_background = {
+		trigger = { is_travelling = yes }
+		reference = terrain_travel
+	}
 
 	trigger = {
 		can_contract_disease_trigger = { DISEASE = lovers_pox }
@@ -2160,6 +2681,34 @@ health.1008 = {
 			trigger = { NOT = { exists = scope:infecting_partner } }
 			text = health.1008.no_partner.a
 		}
+	}
+	### TRAVEL- GO HOME
+	option = {
+		name = health.travel.option.home
+		flavor = health.travel.option.home.flavor
+		trigger = {
+			is_travelling = yes
+			current_travel_plan ={
+				travel_plan_owner = root
+				can_cancel = yes 
+			}
+			involved_activity ?= {
+				NOR = {
+					has_activity_type = activity_tour
+					is_required_special_guest = root
+				}
+			}
+		}
+		current_travel_plan = { cancel_travel_plan = yes }
+		ai_chance = { base = 1 }
+	}
+	### TRAVEL - TRUDGE ON
+	option = {
+		name = health.travel.option.continue
+		trigger = {
+			is_travelling = yes
+		}
+		ai_chance = { base = 1 }
 	}
 }
 
@@ -2228,14 +2777,31 @@ health.1009 = {
 #You contract great pox (hidden as lover's pox)
 health.1012 = {
 	type = character_event
-	title = health.1008.t
+	title = {
+		first_valid = {
+			triggered_desc = {
+				trigger = { is_travelling = yes }
+				desc = health.travel.t
+			}
+			desc = health.1008.t
+		}
+	}
 	desc = health.1008.desc
 	theme = healthcare
+	override_background = {
+		trigger = { is_travelling = yes }
+		reference = terrain
+	}
 	left_portrait = {
 		character = root
 		animation = anger
 	}
 	right_portrait = scope:infecting_partner
+
+	override_background = {
+		trigger = { is_travelling = yes }
+		reference = terrain_travel
+	}
 
 	trigger = {
 		can_contract_disease_trigger = { DISEASE = great_pox }
@@ -2269,12 +2835,48 @@ health.1012 = {
 			}
 		}
 	}
+	### TRAVEL- GO HOME
+	option = {
+		name = health.travel.option.home
+		flavor = health.travel.option.home.flavor
+		trigger = {
+			is_travelling = yes
+			current_travel_plan ={
+				travel_plan_owner = root
+				can_cancel = yes 
+			}
+			involved_activity ?= {
+				NOR = {
+					has_activity_type = activity_tour
+					is_required_special_guest = root
+				}
+			}
+		}
+		current_travel_plan = { cancel_travel_plan = yes }
+		ai_chance = { base = 1 }
+	}
+	### TRAVEL - TRUDGE ON
+	option = {
+		name = health.travel.option.continue
+		trigger = {
+			is_travelling = yes
+		}
+		ai_chance = { base = 1 }
+	}
 }
 
 #"Lover's pox" progresses to Great Pox
 health.1013 = {
 	type = character_event
-	title = health.1013.t
+	title = {
+		first_valid = {
+			triggered_desc = {
+				trigger = { is_travelling = yes }
+				desc = health.travel.t
+			}
+			desc = health.1013.t
+		}
+	}
 	desc = {
 		desc = health.1013.desc
 		triggered_desc = {
@@ -2287,11 +2889,25 @@ health.1013 = {
 	}
 	
 	theme = healthcare
+	override_background = {
+		trigger = { is_travelling = yes }
+		reference = terrain
+	}
 	left_portrait = {
 		character = root
 		animation = sick
 	}
 	right_portrait = {
+		trigger = {
+			trigger_if = {
+				limit = { is_travelling = yes }
+				current_travel_plan = {
+					any_entourage_character = {
+						has_court_position = court_physician_court_position
+					}
+				}
+			}
+		}
 		character = scope:physician
 		triggered_animation = {
 			trigger = { scope:physician = { health_event_is_worried_trigger = { CHARACTER = root } } }
@@ -2302,6 +2918,11 @@ health.1013 = {
 			animation = personality_rational
 		}
 		animation = idle
+	}
+	
+	override_background = {
+		trigger = { is_travelling = yes }
+		reference = terrain_travel
 	}
 	
 	trigger = {
@@ -2328,6 +2949,7 @@ health.1013 = {
 		trigger = {
 			NOT = { exists = scope:physician }
 			is_landed = yes
+			is_travelling = no
 		}
 		name = health.3101.e
 		find_court_physician_effect = yes
@@ -2355,13 +2977,33 @@ health.1013 = {
 		}
 		ai_chance = { base = 1 }
 	}
-
+	### TRAVEL- GO HOME
+	option = {
+		name = health.travel.option.home
+		flavor = health.travel.option.home.flavor
+		trigger = {
+			is_travelling = yes
+			current_travel_plan ={
+				travel_plan_owner = root
+				can_cancel = yes 
+			}
+			involved_activity ?= {
+				NOR = {
+					has_activity_type = activity_tour
+					is_required_special_guest = root
+				}
+			}
+		}
+		current_travel_plan = { cancel_travel_plan = yes }
+		ai_chance = { base = 1 }
+	}
 	###COURT PHYSICIAN OPTIONS###
 	#Safe treatment
 	option = {
 		trigger = {
 			exists = scope:physician
 			liege_picks_treatment_trigger = no
+			court_physician_available_when_traveling_trigger = yes
 		}
 		name = health.3101.a
 		safe_disease_treatment_effect = { PATIENT = root TREATMENT_PICKER = root }
@@ -2373,6 +3015,7 @@ health.1013 = {
 		trigger = {
 			exists = scope:physician
 			liege_picks_treatment_trigger = no
+			court_physician_available_when_traveling_trigger = yes
 		}
 		name = health.3101.b
 		risky_disease_treatment_effect = { PATIENT = root TREATMENT_PICKER = root }
@@ -2399,12 +3042,25 @@ health.1013 = {
 
 	#No treatment
 	option = {
-		trigger = {
+		name = {
+			text = {
+				first_valid = {
+					triggered_desc = {
+						trigger = { is_travelling = yes }
+						desc = health.travel.option.continue
+					}
+					desc = health.3101.d
+				}
+			}
+		}
+		if = {
+			limit = {
 			exists = scope:physician
 			liege_picks_treatment_trigger = no
+				court_physician_available_when_traveling_trigger = yes
 		}
-		name = health.3101.d
 		no_disease_treatment_effect = yes
+		}
 		ai_chance = { base = 0 }
 	}
 }	
@@ -2438,7 +3094,15 @@ health.1014 = {
 #You contract smallpox
 health.1010 = {
 	type = character_event
-	title = health.1010.t
+	title = {
+		first_valid = {
+			triggered_desc = {
+				trigger = { is_travelling = yes }
+				desc = health.travel.t
+			}
+			desc = health.1010.t
+		}
+	}
 	desc = {
 		desc = health.1010.desc
 		first_valid = {
@@ -2454,11 +3118,25 @@ health.1010 = {
 	}
 	
 	theme = healthcare
+	override_background = {
+		trigger = { is_travelling = yes }
+		reference = terrain
+	}
 	left_portrait = {
 		character = root
 		animation = sick
 	}
 	right_portrait = {
+		trigger = {
+			trigger_if = {
+				limit = { is_travelling = yes }
+				current_travel_plan = {
+					any_entourage_character = {
+						has_court_position = court_physician_court_position
+					}
+				}
+			}
+		}
 		character = scope:physician
 		triggered_animation = {
 			trigger = { scope:physician = { health_event_is_worried_trigger = { CHARACTER = root } } }
@@ -2469,6 +3147,11 @@ health.1010 = {
 			animation = personality_rational
 		}
 		animation = idle
+	}
+
+	override_background = {
+		trigger = { is_travelling = yes }
+		reference = terrain_travel
 	}
 
 	trigger = {
@@ -2512,6 +3195,7 @@ health.1010 = {
 		trigger = {
 			court_physician_available_trigger = no
 			is_ruler = yes
+			is_travelling = no 
 		}
 		name = health.3101.e
 		find_court_physician_effect = yes
@@ -2532,13 +3216,33 @@ health.1010 = {
 		name = health.1010.a
 		ai_chance = { base = 1 }
 	}
-
+	### TRAVEL- GO HOME
+	option = {
+		name = health.travel.option.home
+		flavor = health.travel.option.home.flavor
+		trigger = {
+			is_travelling = yes
+			current_travel_plan ={
+				travel_plan_owner = root
+				can_cancel = yes 
+			}
+			involved_activity ?= {
+				NOR = {
+					has_activity_type = activity_tour
+					is_required_special_guest = root
+				}
+			}
+		}
+		current_travel_plan = { cancel_travel_plan = yes }
+		ai_chance = { base = 1 }
+	}
 	###COURT PHYSICIAN OPTIONS###
 	#Safe treatment
 	option = {
 		trigger = {
 			exists = scope:physician
 			liege_picks_treatment_trigger = no
+			court_physician_available_when_traveling_trigger = yes
 		}
 		name = health.3101.a
 		safe_disease_treatment_effect = { PATIENT = root TREATMENT_PICKER = root }
@@ -2550,6 +3254,7 @@ health.1010 = {
 		trigger = {
 			exists = scope:physician
 			liege_picks_treatment_trigger = no
+			court_physician_available_when_traveling_trigger = yes
 		}
 		name = health.3101.b
 		risky_disease_treatment_effect = { PATIENT = root TREATMENT_PICKER = root }
@@ -2576,12 +3281,25 @@ health.1010 = {
 
 	#No treatment
 	option = {
-		trigger = {
+		name = {
+			text = {
+				first_valid = {
+					triggered_desc = {
+						trigger = { is_travelling = yes }
+						desc = health.travel.option.continue
+					}
+					desc = health.3101.d
+				}
+			}
+		}
+		if = {
+			limit = {
 			exists = scope:physician
 			liege_picks_treatment_trigger = no
+				court_physician_available_when_traveling_trigger = yes
 		}
-		name = health.3101.d
 		no_disease_treatment_effect = yes
+		}
 		ai_chance = { base = 0 }
 	}
 }
@@ -2589,7 +3307,15 @@ health.1010 = {
 #You contract bubonic plague
 health.1011 = {
 	type = character_event
-	title = health.1011.t
+	title = {
+		first_valid = {
+			triggered_desc = {
+				trigger = { is_travelling = yes }
+				desc = health.travel.t
+			}
+			desc = health.1011.t
+		}
+	}
 	desc = {
 		desc = health.1011.desc
 		triggered_desc = {
@@ -2601,12 +3327,26 @@ health.1011 = {
 		}
 	}
 	theme = healthcare
+	override_background = {
+		trigger = { is_travelling = yes }
+		reference = terrain
+	}
 	left_portrait = {
 		character = root
 		animation = fear
 	}
 	right_portrait = {
-		trigger = { NOT = { root = scope:physician } }
+		trigger = {
+			NOT = { root = scope:physician }
+			trigger_if = {
+				limit = { is_travelling = yes }
+				current_travel_plan = {
+					any_entourage_character = {
+						has_court_position = court_physician_court_position
+					}
+				}
+			}
+		}
 		character = scope:physician
 		triggered_animation = {
 			trigger = { scope:physician = { health_event_is_worried_trigger = { CHARACTER = scope:sick_character } } }
@@ -2617,6 +3357,11 @@ health.1011 = {
 			animation = personality_rational
 		}
 		animation = idle
+	}
+
+	override_background = {
+		trigger = { is_travelling = yes }
+		reference = terrain_travel
 	}
 
 	trigger = {
@@ -2665,6 +3410,7 @@ health.1011 = {
 			NOT = { exists = scope:physician }
 			is_landed = yes
 			is_imprisoned = no 
+			is_travelling = no 
 		}
 		name = health.3101.e
 		find_court_physician_effect = yes
@@ -2685,13 +3431,33 @@ health.1011 = {
 		name = health.1011.a
 		ai_chance = { base = 1 }
 	}
-
+	### TRAVEL- GO HOME
+	option = {
+		name = health.travel.option.home
+		flavor = health.travel.option.home.flavor 
+		trigger = {
+			is_travelling = yes
+			current_travel_plan ={
+				travel_plan_owner = root
+				can_cancel = yes 
+			}
+			involved_activity ?= {
+				NOR = {
+					has_activity_type = activity_tour
+					is_required_special_guest = root
+				}
+			}
+		}
+		current_travel_plan = { cancel_travel_plan = yes }
+		ai_chance = { base = 1 }
+	}
 	###COURT PHYSICIAN OPTIONS###
 	#Safe treatment
 	option = {
 		trigger = {
 			exists = scope:physician
 			liege_picks_treatment_trigger = no
+			court_physician_available_when_traveling_trigger = yes
 		}
 		name = health.3101.a
 		safe_disease_treatment_effect = { PATIENT = root TREATMENT_PICKER = root }
@@ -2703,6 +3469,7 @@ health.1011 = {
 		trigger = {
 			exists = scope:physician
 			liege_picks_treatment_trigger = no
+			court_physician_available_when_traveling_trigger = yes
 		}
 		name = health.3101.b
 		risky_disease_treatment_effect = { PATIENT = root TREATMENT_PICKER = root }
@@ -2729,12 +3496,25 @@ health.1011 = {
 
 	#No treatment
 	option = {
-		trigger = {
+		name = {
+			text = {
+				first_valid = {
+					triggered_desc = {
+						trigger = { is_travelling = yes }
+						desc = health.travel.option.continue
+					}
+					desc = health.3101.d
+				}
+			}
+		}
+		if = {
+			limit = {
 			exists = scope:physician
 			liege_picks_treatment_trigger = no
+				court_physician_available_when_traveling_trigger = yes
 		}
-		name = health.3101.d
 		no_disease_treatment_effect = yes
+		}
 		ai_chance = { base = 0 }
 	}
 
@@ -2747,142 +3527,6 @@ health.1011 = {
 	}
 }
 
-#You contract black breath
-health.1015 = {
-	type = character_event
-	title = health.1015.t
-	desc = {
-		desc = health.1015.desc
-		triggered_desc = {
-			trigger = {
-				court_physician_available_trigger = yes
-				liege_picks_treatment_trigger = no
-			}
-			desc = health.1015.court_physician.desc
-		}
-	}
-	theme = healthcare
-	left_portrait = {
-		character = root
-		animation = fear
-	}
-	right_portrait = {
-		trigger = { NOT = { root = scope:physician } }
-		character = scope:physician
-		triggered_animation = {
-			trigger = { scope:physician = { health_event_is_worried_trigger = { CHARACTER = scope:sick_character } } }
-			animation = worry
-		}
-		triggered_animation = {
-			trigger = { scope:physician = { ai_rationality >= 0 } } #Don't look rational if you're not
-			animation = personality_rational
-		}
-		animation = idle
-	}
-
-	trigger = {
-		NOR = { 
-			is_elf = yes 
-			is_maiar = yes 
-			is_istari = yes 
-			is_nazgul = yes
-		}
-	}
-
-	immediate = {
-		play_music_cue = "mx_cue_illness"
-		save_court_physician_as_effect = { SCOPE_NAME = physician }
-		contract_disease_effect = { DISEASE = black_breath TREATMENT_EVENT = no } #Adds the trait, sends event "health.2101" about contagious disease to liege/host/imprisoner, sends event "health.2201" to those who care
-	}
-
-	###NO COURT PHYSICIAN OPTIONS###
-	#Find physician
-	option = {
-		trigger = {
-			NOT = { exists = scope:physician }
-			is_landed = yes
-			is_imprisoned = no 
-		}
-		name = health.3101.e
-		find_court_physician_effect = yes
-		ai_chance = { base = 5 }
-	}
-
-	#OK
-	option = {
-		trigger = {
-			trigger_if = {
-				limit = { exists = scope:physician }
-				liege_picks_treatment_trigger = yes
-			}
-			trigger_else = {
-				always = yes
-			}
-		}
-		name = health.1015.a
-		ai_chance = { base = 1 }
-	}
-
-	###COURT PHYSICIAN OPTIONS###
-	#Safe treatment
-	option = {
-		trigger = {
-			exists = scope:physician
-			liege_picks_treatment_trigger = no
-		}
-		name = health.3101.a
-		safe_disease_treatment_effect = { PATIENT = root TREATMENT_PICKER = root }
-		ai_chance = { base = 10 }
-	}
-
-	#Risky treatment
-	option = {
-		trigger = {
-			exists = scope:physician
-			liege_picks_treatment_trigger = no
-		}
-		name = health.3101.b
-		risky_disease_treatment_effect = { PATIENT = root TREATMENT_PICKER = root }
-		ai_chance = { base = 1 }
-	}
-	
-	#Mystic treatment
-	option = {
-		trigger = {
-			court_physician_available_trigger = yes
-			liege_picks_treatment_trigger = no
-			scope:physician = { has_trait = lifestyle_mystic }
-		}
-		name = health.3101.c
-		mystic_disease_treatment_effect = { PATIENT = root TREATMENT_PICKER = root }
-		ai_chance = {
-			base = 0.5
-			modifier = {
-				add = -0.5
-				ai_zeal >= 0
-			}
-		}
-	}
-
-	#No treatment
-	option = {
-		trigger = {
-			exists = scope:physician
-			liege_picks_treatment_trigger = no
-		}
-		name = health.3101.d
-		no_disease_treatment_effect = yes
-		ai_chance = { base = 0 }
-	}
-
-	#You're going to rot away in prison most likely
-	option = {
-		trigger = {
-			is_imprisoned = yes 
-		}
-		name = health.3101.f
-	}
-}
 
 
 ###########################
@@ -2896,7 +3540,20 @@ health.1101 = {
 	title = health.1101.t
 	desc = health.1101.desc
 	theme = recovery
-	override_background = { event_background = bedchamber }
+	override_background = {
+		#Were we outdoors when we got sick?
+		trigger = { 
+			exists = involved_activity
+			involved_activity = {
+				OR = {
+					has_activity_type = activity_pilgrimage
+					has_activity_type = activity_tour
+				}
+			}
+		}
+		reference = army_camp
+	}
+	override_background = { reference = bedchamber }
 	left_portrait = {
 		character = root
 		animation = personality_content
@@ -2905,7 +3562,6 @@ health.1101 = {
 	trigger = {
 		has_trait = ill
 	}
-
 
 	immediate = {
 		play_music_cue = "mx_cue_peace_ensues"
@@ -3517,6 +4173,10 @@ health.2001 = {
 		}
 	}
 	theme = seduction
+	override_background = {
+		trigger = { is_travelling = yes }
+		reference = terrain_travel
+	}
 	override_icon = {
 		trigger = { has_relation_soulmate = scope:std_partner }
 		reference = "gfx/interface/icons/event_types/type_love.dds"
@@ -3526,7 +4186,7 @@ health.2001 = {
 		reference = "gfx/interface/icons/event_types/type_marriage.dds"
 	}
 	override_background = {
-		event_background = bedchamber
+		reference = bedchamber
 	}
 	left_portrait = {
 		character = scope:std_partner
@@ -4071,6 +4731,10 @@ health.2101 = {
 		}
 	}
 	theme = healthcare
+	override_background = {
+		trigger = { scope:sick_character ?= { is_travelling = yes } exists = scope:background_terrain_scope }
+		reference = terrain_scope
+	}
 	left_portrait = {
 		character = scope:sick_character
 		animation = sick
@@ -4096,6 +4760,7 @@ health.2101 = {
 				save_court_physician_as_effect = { SCOPE_NAME = physician }
 			}
 		}
+		scope:sick_character.location ?= { save_scope_as = background_terrain_scope }
 	}
 
 	###NO COURT PHYSICIAN OPTIONS###
@@ -4610,6 +5275,10 @@ health.2201 = {
 		}
 	}
 	theme = healthcare
+	override_background = {
+		trigger = { scope:sick_character ?= { is_travelling = yes } exists = scope:background_terrain_scope }
+		reference = terrain_scope
+	}
 	left_portrait = {
 		character = scope:sick_character
 		animation = sick
@@ -4691,6 +5360,7 @@ health.2201 = {
 		}
 
 		save_court_physician_as_effect = { SCOPE_NAME = physician }
+		scope:sick_character.location ?= { save_scope_as = background_terrain_scope }
 	}
 
 	###COURT PHYSICIAN OPTIONS###
@@ -5061,7 +5731,13 @@ scripted_trigger health_3001_high_skill_physician_trigger = {
 			root = { highest_held_title_tier <= tier_duchy }
 			NOR = {
 				learning > high_skill_rating
-				has_trait = physician_3
+				AND = {
+					has_trait = lifestyle_physician
+					has_trait_xp = {
+						trait = lifestyle_physician
+						value >= 100
+					}
+				}
 				has_trait = lifestyle_mystic
 			}
 			learning >= mediocre_skill_rating #Will be pushed up to medium by adding physician traits
@@ -5117,7 +5793,13 @@ scripted_trigger health_3001_mystic_physician_trigger = {
 			root = { highest_held_title_tier <= tier_duchy }
 			NOR = {
 				learning > high_skill_rating
-				has_trait = mystic_3
+				AND = {
+					has_trait = lifestyle_mystic
+					has_trait_xp = {
+						trait = lifestyle_mystic
+						value >= 100
+					}
+				}
 				has_trait = lifestyle_physician
 			}
 			learning >= mediocre_skill_rating #Will be pushed up to medium by adding mystic traits
@@ -5195,8 +5877,19 @@ health.3001 = {
 
 						save_scope_as = excellent_skill_option
 						if = {
-							limit = { NOT = { has_trait = lifestyle_physician } }
-							add_trait = physician_2
+							limit = {
+								NOT = { has_trait = lifestyle_physician }
+							}
+							add_trait = lifestyle_physician
+							add_trait_xp = {
+				                trait = lifestyle_physician
+				                value = {
+				                    integer_range = {
+				                        min = medium_lifestyle_random_xp_low
+				                        max = medium_lifestyle_random_xp_high
+				                    }
+				                }
+				            }
 						}
 
 						#Backup generation
@@ -5230,7 +5923,16 @@ health.3001 = {
 								save_scope_as = excellent_skill_option
 							}
 							scope:excellent_skill_option = {
-								add_trait = physician_2
+								add_trait = lifestyle_physician
+								add_trait_xp = {
+			               			trait = lifestyle_physician
+					                value = {
+					                    integer_range = {
+					                        min = medium_lifestyle_random_xp_low
+					                        max = medium_lifestyle_random_xp_high
+					                    }
+					                }
+					            }
 							}
 						}
 					}				
@@ -5330,7 +6032,6 @@ health.3001 = {
 										learning < medium_skill_rating
 									}
 								}
-								NOT = { has_trait = physician_3 }
 							}
 							physician_lifestyle_rank_up_effect = yes
 						}
@@ -5389,7 +6090,13 @@ health.3001 = {
 										learning < medium_skill_rating
 									}
 								}
-								NOT = { has_trait = mystic_3 }
+								NAND = {
+									has_trait = lifestyle_mystic
+									has_trait_xp = {
+										trait = lifestyle_mystic
+										value >= 100
+									}
+								}
 							}
 							ai_mystic_lifestyle_rank_up_effect = yes
 						}
@@ -5493,6 +6200,7 @@ health.3001 = {
 		trait = scholar
 		skill = learning
 
+		custom_tooltip = health.3001.e.aptitude
 		pay_short_term_gold = {
 			target = scope:excellent_skill_option
 			gold = high_skill_court_physician_cost
@@ -5521,6 +6229,7 @@ health.3001 = {
 		}
 		name = health.3001.a
 		
+		custom_tooltip = health.3001.a.aptitude
 		pay_short_term_gold = {
 			target = scope:high_skill_option
 			gold = high_skill_court_physician_cost
@@ -5548,6 +6257,7 @@ health.3001 = {
 		}
 		name = health.3001.b
 		
+		custom_tooltip = health.3001.b.aptitude
 		if = {
 			limit = {
 				OR = {
@@ -5580,6 +6290,7 @@ health.3001 = {
 		}
 		name = health.3001.c
 		
+		custom_tooltip = health.3001.c.aptitude
 		pay_short_term_gold = {
 			target = scope:mystic_option
 			gold = low_skill_court_physician_cost
@@ -6080,6 +6791,10 @@ health.3101 = {
 		desc = health.3101.end.desc
 	}
 	theme = healthcare
+	override_background = {
+		trigger = { scope:physician ?= { is_travelling = yes } exists = scope:background_terrain_scope }
+		reference = terrain_scope
+	}
 	left_portrait = {
 		character = scope:physician
 		triggered_animation = {
@@ -6111,6 +6826,7 @@ health.3101 = {
 			save_court_physician_as_effect = { SCOPE_NAME = physician }
 			set_worst_disease_effect = yes
 		}
+		scope:physician.location ?= { save_scope_as = background_terrain_scope }
 	}
 
 	#Safe
@@ -6264,6 +6980,10 @@ health.3102 = {
 		desc = health.3101.end.desc
 	}
 	theme = healthcare
+	override_background = {
+		trigger = { scope:sick_character ?= { is_travelling = yes } exists = scope:background_terrain_scope }
+		reference = terrain_scope
+	}
 	left_portrait = {
 		character = scope:sick_character
 		animation = sick
@@ -6302,6 +7022,7 @@ health.3102 = {
 			save_court_physician_as_effect = { SCOPE_NAME = physician }
 			scope:sick_character = { set_worst_disease_effect = yes }
 		}
+		scope:sick_character.location ?= { save_scope_as = background_terrain_scope }
 	}
 
 	#Safe
@@ -6409,6 +7130,10 @@ health.3103 = {
 		desc = health.3103.end.desc
 	}	
 	theme = healthcare
+	override_background = {
+		trigger = { scope:physician ?= { is_travelling = yes } exists = scope:background_terrain_scope }
+		reference = terrain_scope
+	}
 	left_portrait = {
 		character = scope:physician
 		triggered_animation = {
@@ -6432,6 +7157,7 @@ health.3103 = {
 
 		#Message for close relatives
 		inform_liege_about_disease_treatment_effect = { TREATMENT = safe OUTCOME = success }
+		scope:physician.location ?= { save_scope_as = background_terrain_scope }
 	}
 
 	option = {
@@ -6486,6 +7212,10 @@ health.3104 = {
 		desc = health.3104.end.desc
 	}	
 	theme = healthcare
+	override_background = {
+		trigger = { scope:physician ?= { is_travelling = yes } exists = scope:background_terrain_scope }
+		reference = terrain_scope
+	}
 	left_portrait = {
 		character = scope:physician
 		triggered_animation = {
@@ -6503,6 +7233,7 @@ health.3104 = {
 
 		#Message for close relatives
 		inform_liege_about_disease_treatment_effect = { TREATMENT = safe OUTCOME = failure }
+		scope:physician.location ?= { save_scope_as = background_terrain_scope }
 	}
 
 	#Ok...
@@ -6673,6 +7404,10 @@ health.3105 = {
 	}
 	
 	theme = healthcare
+	override_background = {
+		trigger = { scope:physician ?= { is_travelling = yes } exists = scope:background_terrain_scope }
+		reference = terrain_scope
+	}
 	left_portrait = {
 		character = scope:physician
 		triggered_animation = {
@@ -6696,6 +7431,7 @@ health.3105 = {
 
 		#Message for close relatives
 		inform_liege_about_disease_treatment_effect = { TREATMENT = risky OUTCOME = critical_success }
+		scope:physician.location ?= { save_scope_as = background_terrain_scope }
 	}
 
 	#I am healed!
@@ -6785,6 +7521,10 @@ health.3106 = {
 	}	
 	
 	theme = healthcare
+	override_background = {
+		trigger = { scope:physician ?= { is_travelling = yes } exists = scope:background_terrain_scope }
+		reference = terrain_scope
+	}
 	left_portrait = {
 		character = scope:physician
 		triggered_animation = {
@@ -6802,6 +7542,7 @@ health.3106 = {
 
 		#Message for close relatives
 		inform_liege_about_disease_treatment_effect = { TREATMENT = risky OUTCOME = success }
+		scope:physician.location ?= { save_scope_as = background_terrain_scope }
 	}
 
 	#I feel better!
@@ -6896,6 +7637,10 @@ health.3107 = {
 		}
 	}	
 	theme = healthcare
+	override_background = {
+		trigger = { scope:physician ?= { is_travelling = yes } exists = scope:background_terrain_scope }
+		reference = terrain_scope
+	}
 	override_icon = {
 		trigger = { has_character_flag = die_risky_treatment }
 		reference = "gfx/interface/icons/event_types/type_illness.dds"
@@ -6928,6 +7673,7 @@ health.3107 = {
 
 		#Set my opinion here (if forgive/chastise, it is later downgraded to non-crime opinion)
 		hidden_effect = { add_failed_treatment_of_me_opinions_effect = yes }
+		scope:physician.location ?= { save_scope_as = background_terrain_scope }
 	}
 
 	#I'm dying
@@ -7106,6 +7852,10 @@ health.3108 = {
 	}	
 	
 	theme = healthcare
+	override_background = {
+		trigger = { scope:physician ?= { is_travelling = yes } exists = scope:background_terrain_scope }
+		reference = terrain_scope
+	}
 	left_portrait = {
 		character = scope:physician
 		triggered_animation = {
@@ -7127,6 +7877,7 @@ health.3108 = {
 
 		#Message for close relatives
 		inform_liege_about_disease_treatment_effect = { TREATMENT = mystic OUTCOME = critical_success }
+		scope:physician.location ?= { save_scope_as = background_terrain_scope }
 	}
 
 	#I am healed!
@@ -7203,6 +7954,10 @@ health.3109 = {
 	}	
 	
 	theme = healthcare
+	override_background = {
+		trigger = { scope:physician ?= { is_travelling = yes } exists = scope:background_terrain_scope }
+		reference = terrain_scope
+	}
 	left_portrait = {
 		character = scope:physician
 		triggered_animation = {
@@ -7218,6 +7973,7 @@ health.3109 = {
 
 		#Message for close relatives
 		inform_liege_about_disease_treatment_effect = { TREATMENT = mystic OUTCOME = success }
+		scope:physician.location ?= { save_scope_as = background_terrain_scope }
 	}
 
 	#I am healed!
@@ -7294,6 +8050,10 @@ health.3110 = {
 		desc = health.3110.end.desc
 	}	
 	theme = healthcare
+	override_background = {
+		trigger = { scope:physician ?= { is_travelling = yes } exists = scope:background_terrain_scope }
+		reference = terrain_scope
+	}
 	left_portrait = {
 		character = scope:physician
 		triggered_animation = {
@@ -7314,6 +8074,7 @@ health.3110 = {
 
 		#Message for close relatives, or punishment event if relative is your liege
 		inform_liege_about_disease_treatment_effect = { TREATMENT = mystic OUTCOME = failure }
+		scope:physician.location ?= { save_scope_as = background_terrain_scope }
 	}
 
 	#Chastise
@@ -7437,6 +8198,10 @@ health.3200 = {
 		}
 	}
 	theme = healthcare
+	override_background = {
+		trigger = { scope:sick_character ?= { is_travelling = yes } exists = scope:background_terrain_scope }
+		reference = terrain_scope
+	}
 	override_icon = {
 		trigger = { scope:outcome = flag:death }
 		reference = "gfx/interface/icons/event_types/type_illness.dds"
@@ -7459,6 +8224,7 @@ health.3200 = {
 
 
 	immediate = {
+		scope:sick_character.location ?= { save_scope_as = background_terrain_scope }
 		if = {
 			limit = { NOT = { scope:outcome = flag:death } }
 			if = {
@@ -7604,6 +8370,10 @@ health.3201 = {
 		}
 	}	
 	theme = healthcare
+	override_background = {
+		trigger = { scope:sick_character ?= { is_travelling = yes } exists = scope:background_terrain_scope }
+		reference = terrain_scope
+	}
 	left_portrait = {
 		character = scope:sick_character
 		animation = stress
@@ -7621,6 +8391,7 @@ health.3201 = {
 	}
 	
 	immediate = {
+		scope:sick_character.location ?= { save_scope_as = background_terrain_scope }
 		disease_treatment_result_tooltip_effect = { TREATMENT = risky OUTCOME = failure }
 	}
 
@@ -7815,6 +8586,10 @@ health.4000 = {
 		}
 	}
 	theme = healthcare
+	override_background = {
+		trigger = { scope:sick_character ?= { is_travelling = yes } exists = scope:background_terrain_scope }
+		reference = terrain_scope
+	}
 	left_portrait = {
 		character = scope:sick_character
 		triggered_animation = {
@@ -7842,6 +8617,7 @@ health.4000 = {
 	}
 
 	immediate = {
+		scope:sick_character.location ?= { save_scope_as = background_terrain_scope }
 		show_as_tooltip = {
 			if = {
 				limit = {
@@ -8057,6 +8833,10 @@ health.4001 = {
 	}
 	
 	theme = healthcare
+	override_background = {
+		trigger = { is_travelling = yes }
+		reference = terrain
+	}
 	left_portrait = {
 		character = scope:sick_character
 		triggered_animation = {
@@ -8190,6 +8970,10 @@ health.4002 = {
 		desc = health.3101.end.desc
 	}
 	theme = healthcare
+	override_background = {
+		trigger = { scope:sick_character ?= { is_travelling = yes } exists = scope:background_terrain_scope }
+		reference = terrain_scope
+	}
 	left_portrait = {
 		character = scope:sick_character
 		triggered_animation = {
@@ -8228,6 +9012,7 @@ health.4002 = {
 	}
 
 	immediate = {
+		scope:sick_character.location ?= { save_scope_as = background_terrain_scope }
 		hidden_effect = {
 			save_court_physician_as_effect = { SCOPE_NAME = physician }
 			#Are wounds infected? Gangrene??
@@ -8305,6 +9090,10 @@ health.4101 = {
 		desc = health.4101.desc_end
 	}
 	theme = healthcare
+	override_background = {
+		trigger = { scope:physician ?= { is_travelling = yes } exists = scope:background_terrain_scope }
+		reference = terrain_scope
+	}
 	left_portrait = {
 		character = scope:physician
 		triggered_animation = {
@@ -8315,6 +9104,7 @@ health.4101 = {
 	}
 
 	immediate = {
+		scope:physician.location ?= { save_scope_as = background_terrain_scope }
 		#Currently no message to liege because liege never picks wound treatment and safe success is not noteworthy
 
 		#Adds modifiers, sends return visit event in 1 years, shows a tooltip if physician ranked up
@@ -8350,6 +9140,10 @@ health.4102 = {
 	}
 	
 	theme = healthcare
+	override_background = {
+		trigger = { scope:physician ?= { is_travelling = yes } exists = scope:background_terrain_scope }
+		reference = terrain_scope
+	}
 	left_portrait = {
 		character = scope:physician
 		triggered_animation = {
@@ -8362,6 +9156,7 @@ health.4102 = {
 	}
 
 	immediate = {
+		scope:physician.location ?= { save_scope_as = background_terrain_scope }
 		#Currently no message to liege because liege never picks wound treatment and safe failure is not noteworthy
 
 		#Adds modifiers, sends return visit event in 1 year, shows a tooltip if physician ranked up
@@ -8494,6 +9289,10 @@ health.4103 = {
 	}
 	
 	theme = healthcare
+	override_background = {
+		trigger = { scope:physician ?= { is_travelling = yes } exists = scope:background_terrain_scope }
+		reference = terrain_scope
+	}
 	left_portrait = {
 		character = scope:physician
 		triggered_animation = {
@@ -8506,6 +9305,7 @@ health.4103 = {
 	}
 
 	immediate = {
+		scope:physician.location ?= { save_scope_as = background_terrain_scope }
 		#Removes traits, removes body part if the treatment strategy demands it, shows a tooltip if physician ranked up
 		wound_treatment_results_effect = { TREATMENT = risky OUTCOME = critical_success }
 
@@ -8566,6 +9366,10 @@ health.4104 = {
 		desc = health.4104.end.desc
 	}
 	theme = healthcare
+	override_background = {
+		trigger = { scope:physician ?= { is_travelling = yes } exists = scope:background_terrain_scope }
+		reference = terrain_scope
+	}
 	left_portrait = {
 		character = scope:physician
 		triggered_animation = {
@@ -8578,6 +9382,7 @@ health.4104 = {
 	}
 
 	immediate = {
+		scope:physician.location ?= { save_scope_as = background_terrain_scope }
 		#Adds modifiers, removes body part if the treatment strategy demands it, sends return visit event in 1 years, shows a tooltip if physician ranked up
 		wound_treatment_results_effect = { TREATMENT = risky OUTCOME = success }
 
@@ -8638,6 +9443,10 @@ health.4105 = {
 		desc = health.4105.end.desc
 	}
 	theme = healthcare
+	override_background = {
+		trigger = { scope:physician ?= { is_travelling = yes } exists = scope:background_terrain_scope }
+		reference = terrain_scope
+	}
 	left_portrait = {
 		character = scope:physician
 		triggered_animation = {
@@ -8650,6 +9459,7 @@ health.4105 = {
 	}
 
 	immediate = {
+		scope:physician.location ?= { save_scope_as = background_terrain_scope }
 		#Adds modifiers, removes body part if the treatment strategy demands it, sends return visit event in 1 years (unless died), shows a tooltip if physician ranked up
 		wound_treatment_results_effect = { TREATMENT = risky OUTCOME = failure }
 
@@ -8878,7 +9688,7 @@ health.6001 = {
 	option = { #Fall
 		name = {
 			trigger = {
-				has_government = tribal_government
+				government_has_flag = government_is_tribal
 			}
 			text = health.6001.a_tribal
 		}
@@ -10402,7 +11212,10 @@ health.7100 = {
 	theme = physical_health
 
 	trigger = {
+		OR = {
 		has_trait = infirm 
+			has_trait = incapable
+		}
 		NOR = {
 			has_trait = depressed 
 			has_character_flag = had_event_health_7100 

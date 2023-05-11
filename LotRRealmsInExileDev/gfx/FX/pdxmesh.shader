@@ -478,8 +478,15 @@ PixelShader =
 					float3 Color = CalculateSunLighting( MaterialProps, LightingProps, EnvironmentMap );
 				#endif
 				
-				#ifndef UNDERWATER
+				// MOD(godherja)
+				// #if !defined( UNDERWATER ) && !defined( NO_FOG )
+				//	Color = ApplyFogOfWar( Color, Input.WorldSpacePos, FogOfWarAlpha );
+				#if !defined( UNDERWATER )
 					Color = GH_ApplyAtmosphericEffects( Color, Input.WorldSpacePos, FogOfWarAlpha );
+				#endif
+
+				#if !defined( NO_FOG )
+				// END MOD
 					Color = ApplyDistanceFog( Color, Input.WorldSpacePos );
 				#endif
 				
@@ -541,6 +548,18 @@ RasterizerState ShadowRasterizerState
 RasterizerState SelectionRasterizerState
 {
 	DepthBias = -20000
+	SlopeScaleDepthBias = 2
+}
+
+RasterizerState TravelArrowMarkerRasterizerState
+{
+	DepthBias = -60000
+	SlopeScaleDepthBias = 2
+}
+
+RasterizerState TravelArrowMarkerShadowRasterizerState
+{
+	DepthBias = 40000
 	SlopeScaleDepthBias = 2
 }
 
@@ -797,6 +816,23 @@ Effect selection_markerShadow
 	
 	Defines = { "PDX_MESH_SNAP_VERTICES_TO_TERRAIN" }
 	RasterizerState = ShadowRasterizerState
+}
+
+Effect travel_arrow_marker
+{
+	VertexShader = "VS_standard"
+	PixelShader = "PS_standard"
+	BlendState = "alpha_blend"
+	DepthStencilState = "depth_no_write"
+	RasterizerState = TravelArrowMarkerRasterizerState
+	Defines = { "NO_FOG" }
+}
+Effect travel_arrow_markerShadow
+{
+	VertexShader = "VertexPdxMeshStandardShadow"
+	PixelShader = "PixelPdxMeshAlphaBlendShadow"
+	RasterizerState = TravelArrowMarkerShadowRasterizerState
+	Defines = { "NO_FOG" }
 }
 
 Effect material_test

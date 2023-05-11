@@ -9,11 +9,11 @@ at_war_with_any_coreligionist_trigger = {
 			OR = {
 				primary_attacker = {
 					is_at_war_with = root
-					faith = root
+					faith = root.faith
 				}
 				primary_defender = {
 					is_at_war_with = root
-					faith = root
+					faith = root.faith
 				}
 			}
 		}
@@ -26,11 +26,11 @@ at_war_with_any_non_coreligionist_trigger = {
 			OR = {
 				primary_attacker = {
 					is_at_war_with = root
-					NOT = { faith = root }
+					NOT = { faith = root.faith }
 				}
 				primary_defender = {
 					is_at_war_with = root
-					NOT = { faith = root }
+					NOT = { faith = root.faith }
 				}
 			}
 		}
@@ -45,11 +45,11 @@ at_war_only_with_coreligionists_trigger = {
 				OR = {
 					primary_attacker = {
 						is_at_war_with = root
-						NOT = { faith = root }
+						NOT = { faith = root.faith }
 					}
 					primary_defender = {
 						is_at_war_with = root
-						NOT = { faith = root }
+						NOT = { faith = root.faith }
 					}
 				}
 			}
@@ -169,10 +169,16 @@ can_potentially_call_ally_trigger = {
 	custom_description = {
 		text = cannot_call_vassal_to_war
 		$JOINER$ = {
+			trigger_if = {
+				limit = {
+					# Diarchs can join against other vassals.
+					NOT = { this ?= $WARRIOR$.diarch }
+				}
 			NOT = {
 				target_is_liege_or_above = $WARRIOR$
 			}
 		}
+	}
 	}
 
 	# Can never call your liege to your own wars (they protect you only from foreign invaders, by being the war target instead of you)
@@ -229,8 +235,8 @@ any_liege_or_above_is_participant_trigger = {
 
 can_use_conquest_cbs_trigger = {
 	OR = {
-		has_government = tribal_government
-		has_government = clan_government
+		government_has_flag = government_is_tribal
+		government_has_flag = government_is_clan
 		faith = { has_doctrine_parameter = conquest_cb_enabled }
 		culture = { has_cultural_parameter = can_use_conquest_cbs }
 	}
@@ -239,6 +245,7 @@ can_use_conquest_cbs_trigger = {
 can_be_warrior_trigger = {
 	is_adult = yes
 	is_imprisoned = no
+	NOT = { has_trait = incapable }
 	OR = {
 		can_be_combatant_based_on_gender_trigger = { ARMY_OWNER = $ARMY_OWNER$ }
 		AND = {
@@ -249,7 +256,6 @@ can_be_warrior_trigger = {
 		}
 	}
 	NOT = {
-		has_trait = incapable
 		has_trait = sauron_ringless # Sauron is without the one ring
 	}
 }
@@ -264,44 +270,33 @@ can_be_knight_trigger = {
 		prowess >= 12
 	}
 	can_be_warrior_trigger = { ARMY_OWNER = $ARMY_OWNER$ }
+	trigger_if = {
+		limit = {
+			OR = {
+				has_trait = devoted
+				is_clergy = yes
+			}
+		}
 	OR = {
+			faith = { has_doctrine_parameter = clergy_can_fight }
+			culture = { has_cultural_parameter = culture_clergy_can_fight }
 		AND = {
 			$ARMY_OWNER$.culture = {
 				has_cultural_parameter = high_prowess_ignores_knight_restrictions
 			}
 			prowess >= 10
 		}
-		NOR = {
-			AND = {
-				has_trait = devoted
-				OR = {
-					faith = {
-						NOT = {
-							has_doctrine_parameter = clergy_can_fight
-						}
-					}
-					culture = {
-						NOT = {
-							has_cultural_parameter = culture_clergy_can_fight
-						}
-					}
 				}
 			}
+	OR = {
 			AND = {
-				is_clergy = yes
-				OR = {
-					faith = {
-						NOT = {
-							has_doctrine_parameter = clergy_can_fight
+			$ARMY_OWNER$.culture = {
+				has_cultural_parameter = high_prowess_ignores_knight_restrictions
 						}
+			prowess >= 10
 					}
-					culture = {
+		has_trait = order_member # Order Members will fight for their faith even if their faith says no
 						NOT = {
-							has_cultural_parameter = culture_clergy_can_fight
-						}
-					}
-				}
-			}
 			has_trait = blind
 		}
 	}
@@ -311,37 +306,30 @@ can_be_knight_trigger = {
 can_be_commander_basic_trigger = {
 	is_alive = yes
 	is_adult = yes
+
 	NOR = {
 		has_trait = incapable
 		has_trait = sauron_ringless # Sauron is without the one ring
 		AND = {
+			OR = {
 			has_trait = devoted
-			faith = {
-				NOT = {
-					has_doctrine_parameter = clergy_can_fight
-				}
-			}
-		}
-		AND = {
 			is_clergy = yes
-			faith = {
-				NOT = {
-					has_doctrine_parameter = clergy_can_fight
 				}
+			NOR = {
+				has_trait = order_member # Order Members will fight for their faith even if their faith says no
+				faith = { has_doctrine_parameter = clergy_can_fight }
+				culture = { has_cultural_parameter = culture_clergy_can_fight }
 			}
 		}
 	}
+
 	OR = { # You can always lead your own armies
 		this = $ARMY_OWNER$
 		can_be_combatant_based_on_gender_trigger = { ARMY_OWNER = $ARMY_OWNER$ }
 	}
 	
 	trigger_if = {
-		limit = {
-			$ARMY_OWNER$ = {
-				is_ai = yes
-			}
-		}
+		limit = { $ARMY_OWNER$ = { is_ai = yes } }
 		is_ai = yes
 	}
 }
@@ -349,7 +337,19 @@ can_be_commander_basic_trigger = {
 can_be_commander_now_trigger = {
 	can_be_commander_basic_trigger = { ARMY_OWNER = $ARMY_OWNER$ }
 	is_imprisoned = no
-	is_in_an_activity = no
+	custom_description = {
+		text = ALREADY_IN_ACTIVITY
+		NOR = {
+			exists = involved_activity
+			has_variable = homage_liege_scope
+			has_character_flag = meditation_character_flag
+			has_character_flag = petition_liege_character_flag
+			has_character_flag = holding_court_character_flag
+			has_character_flag = being_visited_on_tour
+		}
+	}
+	# Must not be currently coming from or going somewhere
+	is_travelling = no
 }
 
 get_valid_commander_list_trigger = {
@@ -515,8 +515,15 @@ can_join_war_liege_vassal_check_trigger = {
 		
 		# actor is defender, attackers do not include recipient's liege or vassals
 		trigger_if = {
-			limit = { $WARRIOR$ = { is_defender_in_war = scope:target } }
+			limit = {
+				$WARRIOR$ = { is_defender_in_war = scope:target }
+			}
 			$JOINER$ = {
+				trigger_if = {
+					limit = {
+						# Diarchs can join against other vassals.
+						NOT = { this ?= $WARRIOR$.diarch }
+					}
 				NOR = {
 					any_liege_or_above = {
 						is_attacker_in_war = scope:target
@@ -527,10 +534,13 @@ can_join_war_liege_vassal_check_trigger = {
 				}
 			}
 		}
+		}
 		
 		# actor is attacker, defenders do not include recipient's liege or vassals
 		trigger_else_if = {
-			limit = { $WARRIOR$ = { is_attacker_in_war = scope:target } }
+			limit = {
+				$WARRIOR$ = { is_attacker_in_war = scope:target }
+			}
 			$JOINER$ = {
 				NOR = {
 					any_liege_or_above = {
@@ -821,7 +831,7 @@ feudal_clan_tribal_conquest_constraints = {
 		}
 	}
 	scope:attacker = {
-		NOT = { has_government = tribal_government } 
+		NOT = { government_has_flag = government_is_tribal }
 		gold < 200
 		any_sub_realm_county = {
 			any_county_province = {
