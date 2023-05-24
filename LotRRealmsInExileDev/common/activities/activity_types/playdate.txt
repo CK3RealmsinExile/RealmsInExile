@@ -1,0 +1,821 @@
+﻿activity_playdate = {
+
+	is_shown = {
+		highest_held_title_tier > tier_barony
+		trigger_if = {
+			limit = {
+				highest_held_title_tier = tier_county
+			}
+			is_independent_ruler = no
+		}
+		is_landed = yes
+		trigger_if = {
+			limit = {
+				is_ai = yes
+			}
+			is_at_war = no
+		}
+		is_adult = no
+	}
+
+	can_start_showing_failures_only = {
+		is_available = yes
+		age >= 4
+	}
+
+	is_valid = {
+		scope:host = {
+			is_imprisoned = no
+			is_landed = yes
+			NOT = { is_incapable = yes }
+		}
+		# If no one shows up
+		trigger_if = {
+			limit = {
+				is_current_phase_active = yes
+			}
+			has_attending_activity_guests = yes
+		}
+	}
+
+	on_invalidated = {
+
+		if = { # host is imprisoned
+			limit = {
+				scope:host = { is_imprisoned = yes }
+			}
+			#Host has been imprisoned
+			every_attending_character = {
+				limit = {
+					NOT = { this = scope:host }
+				}
+				trigger_event = playdate.0022
+			}
+			scope:host = {
+				trigger_event = playdate.0021
+			}
+		}
+		# Host becomes unlanded
+		if = {
+			limit = {
+				scope:host = { is_landed = no }
+			}
+			scope:activity = {
+				activity_type = { save_scope_as = activity_type }
+			}
+			every_attending_character = {
+				trigger_event = activity_system.0320
+			}
+		}
+		if = {
+			limit = {
+				scope:host = { is_incapable = yes }
+			}
+			scope:activity = {
+				activity_type = { save_scope_as = activity_type }
+			}
+			scope:host = {
+				trigger_event = activity_system.0330
+			}
+			every_attending_character = {
+				limit = { NOT = { this = scope:host } }
+				trigger_event = activity_system.0331
+			}
+		}
+		if = { # No one shows up
+			limit = {
+				has_attending_activity_guests = no
+			}
+			scope:host = {
+				trigger_event = playdate.2003
+			}
+		}
+	}
+
+	is_location_valid = {
+		exists = province_owner
+		province_owner.top_liege = scope:host.top_liege
+	}
+
+
+	on_host_death = {
+		every_attending_character = {
+			trigger_event = playdate.0020
+		}
+	}
+
+	province_filter = capital
+	ai_province_filter = capital
+
+	max_province_icons = 5
+
+	cost = {
+		gold = {
+			add = {
+				value = standard_playdate_activity_cost
+				desc = hunt_base_cost
+			}
+		}
+	}
+
+	ui_predicted_cost = {
+		gold = {
+			# Base Cost
+			value = standard_playdate_activity_cost
+			# Make it a multiple of 5 (rounded up)
+			divide = 5 
+			ceiling = yes 
+			multiply = 5
+		}
+	}
+
+	cooldown = { days = standard_playdate_cooldown_time }
+
+	###################
+	# PHASES
+	###################
+
+	phases = {
+		playdate_phase = {
+			is_predefined = yes
+
+			on_phase_active = {
+				if = {
+					limit = { this = scope:host }
+					scope:activity = { progress_activity_phase_after = { months = 3 } }
+					trigger_event = playdate.2001
+				}
+				else = {
+					trigger_event = playdate.2501
+				}
+			}
+
+			on_monthly_pulse = {
+				# Fires for every attendee
+				trigger_event = {
+					on_action = playdate_event_selection
+					days = { 1 3 }
+				}
+			}
+
+			on_end = {
+				# Send each character back home
+				#set_location_to_default = yes
+				# Send the parents an interface notification that their child has returned from the playdate
+				if = {
+					limit = {
+						NOT = { this = scope:host }
+						is_ai = yes
+						is_landed = no
+						save_temporary_scope_as = child_scope_check
+						any_parent = {
+							is_ai = no
+							any_courtier = {
+								this = scope:child_scope_check
+							}
+						}
+					}
+					save_scope_as = child_scope
+					random_parent = {
+						limit = {
+							is_ai = no
+							any_courtier = {
+								this = scope:child_scope
+							}
+						}
+						send_interface_message = {
+							type = event_generic_good_text
+							title = child_return_from_playdate_title
+							desc = child_return_from_playdate_desc
+
+							left_icon = scope:child_scope
+							right_icon = scope:host
+						}
+					}
+				}
+
+				# Fire conclusion events
+				if = {
+					limit = { this = scope:host }
+					scope:activity = {
+						add_activity_log_entry = {
+							key = playdate_conc_reward
+							score = 100 
+							show_in_conclusion = yes
+							character = root 
+							root = { add_prestige = medium_prestige_gain }
+							every_attending_character = {
+								limit = { NOT = { this = root } }
+								custom = every_guest_scope_tt
+								add_opinion = {
+									target = root
+									modifier = hosted_successful_playdate_opinion
+								}
+							}
+						}
+					}
+					trigger_event = playdate.9001
+				}
+				else = {
+					trigger_event = playdate.9002
+				}
+			}
+		}
+	}
+
+	wait_time_before_start = { days = 7 }
+	max_guest_arrival_delay_time = { months = 8 }
+	
+	
+	###################
+	# ACTIVITY-SPECIFIC PULSES
+	###################
+	
+	pulse_actions = {
+		entries = {
+			apa_won_at_dice apa_good_manners apa_visited_friends_chapel apa_mentor_taught_me apa_read_a_book apa_joked_together apa_rescued_kid apa_shared_food apa_broke_toy apa_found_gold_stash apa_learned_from_kid apa_sang_nice_song apa_practiced_with_swords apa_studied_ledger apa_had_charming_convo
+		}
+		chance_of_no_event = 10
+	}
+
+
+	###################
+	# AI VALUES
+	###################
+
+	# desc is only shown in debug AI watch window
+	ai_will_do = {
+		value = 50
+		
+		if = {
+			limit = {
+				OR = {
+					has_trait = shy
+					has_trait = reclusive
+					has_trait = depressed_1
+					has_trait = depressed_genetic
+				}
+			}
+			add = -30
+		}
+		
+		if = {
+			limit = {
+				has_trait = lazy
+			}
+			add = -10
+		}
+		
+		if = {
+			limit = {
+				has_trait = gregarious
+			}
+			add = 50
+		}
+		
+		#Can you actually afford this?
+		if = {
+			limit = {
+				NOT = { can_make_expensive_purchase_trigger = { PRICE = activity_minor_gold_value } }
+			}
+			add = -75
+		}
+	}
+
+	ai_check_interval = 60
+
+	ai_will_select_province = {
+		value = 10
+		if = {
+			limit = {
+				this = scope:host.capital_province
+			}
+			add = {
+				value = 30
+				desc = "Capital Province preferred"
+			}
+		}
+	}
+
+	###################
+	# GUEST HANDLING
+	###################
+
+	max_guests = 30
+
+	guest_invite_rules = {
+		defaults = {
+			2 = activity_invite_rule_liege
+			2 = activity_invite_rule_siblings
+			2 = activity_invite_rule_vassals
+			1 = activity_invite_rule_friends
+			1 = activity_invite_rule_crushes
+			1 = activity_invite_rule_personal_scheme_targets
+			2 = activity_invite_rule_powerful_vassals_children
+			2 = activity_invite_rule_fellow_vassals
+			3 = activity_invite_rule_fellow_vassals_children
+			
+		}
+		rules = {
+			# MP 
+			6 = activity_invite_mp
+			3 = activity_invite_rule_vassals_children
+		}
+	}
+
+	can_be_activity_guest = {
+		is_available_for_child_activity_trigger = yes
+		in_diplomatic_range = scope:host
+	}
+
+	host_intents = {
+		default = reduce_stress_intent
+		intents = { reduce_stress_intent }
+	}
+
+	guest_intents = {
+		default = reduce_stress_intent
+		intents = { reduce_stress_intent }
+	}
+
+	guest_join_chance = {
+		base = 10
+		base_activity_modifier = yes
+
+		# Scripted Modifiers
+		activity_guest_shared_ai_accept_modifier = yes
+	}
+
+	###################
+	# GRAPHICS
+	###################
+
+	# Travel
+	background = { # Bridge
+		trigger = {
+			NOT = { scope:host.location = scope:activity.activity_location }
+			scope:host.location = {
+				is_riverside_province = yes
+				geographical_region = world_europe
+				OR = {
+					terrain = farmlands
+					terrain = plains
+					terrain = mountains
+					terrain = hills
+				}
+			}
+		}
+		texture = "gfx/interface/illustrations/event_scenes/ep2_travel_bridge.dds"
+		environment = "environment_travel_bridge"
+		ambience = "event:/SFX/Events/Backgrounds/mountains_day"
+	}
+	
+	background = { # Farmland, settled
+		trigger = {
+			NOT = { scope:host.location = scope:activity.activity_location }
+			scope:host.location = {
+				terrain = farmlands
+				exists = province_owner
+			}
+		}
+		texture = "gfx/interface/illustrations/event_scenes/ep2_travel_farm.dds"
+		environment = "environment_travel_farmlands"
+		ambience = "event:/SFX/Events/Backgrounds/fields_farms_day"
+	}
+	background = { # Farmland, unsettled
+		trigger = {
+			NOT = { scope:host.location = scope:activity.activity_location }
+			scope:host.location = {
+				terrain = farmlands
+				NOT = { exists = province_owner }
+			}
+		}
+		texture = "gfx/interface/illustrations/event_scenes/farms.dds"
+		environment = "environment_event_farms"
+		ambience = "event:/SFX/Events/Backgrounds/fields_farms_day"
+	}
+
+	background = { #Desert, settled
+		trigger = {
+			NOT = { scope:host.location = scope:activity.activity_location }
+			scope:host.location = {
+				graphical_wilderness_desert_trigger = yes
+				exists = province_owner
+			}
+		}
+		texture = "gfx/interface/illustrations/event_scenes/ep2_travel_desert.dds"
+		environment = "environment_travel_desert"
+		ambience = "event:/SFX/Events/Backgrounds/desert_day"
+	}
+	background = { #Desert, unsettled
+		trigger = {
+			NOT = { scope:host.location = scope:activity.activity_location }
+			scope:host.location = {
+				graphical_wilderness_desert_trigger = yes
+				NOT = { exists = province_owner }
+			}
+		}
+		texture = "gfx/interface/illustrations/event_scenes/desert.dds"
+		environment = "environment_event_bp1_desert"
+		ambience = "event:/SFX/Events/Backgrounds/desert_day"
+	}
+
+	background = { #forest snowy
+		trigger = {
+			NOT = { scope:host.location = scope:activity.activity_location }
+			scope:host.location ?= { hunt_snowy_forest_trigger = yes }
+		}
+		texture = "gfx/interface/illustrations/event_scenes/ep2_hunt_snowy_forest.dds"
+		environment = "environment_hunt_snowy_forest"
+		ambience = "event:/SFX/Events/Backgrounds/mountains_day"
+	}
+
+	background = { #forest_pine
+		trigger = {
+			NOT = { scope:host.location = scope:activity.activity_location }
+			scope:host.location = {
+				graphical_wilderness_forest_pine_trigger = yes
+			}
+		}
+		texture = "gfx/interface/illustrations/event_scenes/forest_pine.dds"
+		environment = "environment_event_forest_pine"
+		ambience = "event:/SFX/Events/Backgrounds/coniferous_forest_day"
+	}
+
+	background = { #forest
+		trigger = {
+			NOT = { scope:host.location = scope:activity.activity_location }
+			scope:host.location = {
+				graphical_wilderness_forest_trigger = yes
+			}
+		}
+		texture = "gfx/interface/illustrations/event_scenes/forest.dds"
+		environment = "environment_event_forest"
+		ambience = "event:/SFX/Events/Backgrounds/deciduous_forest_day"
+	}
+
+	background = { #mountains, settled
+		trigger = {
+			NOT = { scope:host.location = scope:activity.activity_location }
+			scope:host.location = {
+				graphical_wilderness_mountains_trigger = yes
+				exists = province_owner
+			}
+		}
+		texture = "gfx/interface/illustrations/event_scenes/ep2_travel_mountains.dds"
+		environment = "environment_travel_mountain_settlement"
+		ambience = "event:/SFX/Events/Backgrounds/mountains_day"
+	}
+	background = { #mountains, unsettled
+		trigger = {
+			NOT = { scope:host.location = scope:activity.activity_location }
+			scope:host.location = {
+				graphical_wilderness_mountains_trigger = yes
+				NOT = { exists = province_owner }
+			}
+		}
+		texture = "gfx/interface/illustrations/event_scenes/mountains.dds"
+		environment = "environment_event_mountains"
+		ambience = "event:/SFX/Events/Backgrounds/mountains_day"
+	}
+
+	background = { #steppe, settled
+		trigger = {
+			NOT = { scope:host.location = scope:activity.activity_location }
+			scope:host.location = {
+				graphical_wilderness_steppe_trigger = yes
+				exists = province_owner
+			}
+		}
+		texture = "gfx/interface/illustrations/event_scenes/ep2_travel_steppe.dds"
+		environment = "environment_travel_steppe_settlement"
+		ambience = "event:/SFX/Events/Backgrounds/steppe_day"
+	}
+	background = { #steppe, unsettled
+		trigger = {
+			NOT = { scope:host.location = scope:activity.activity_location }
+			scope:host.location = {
+				graphical_wilderness_steppe_trigger = yes
+				NOT = { exists = province_owner }
+			}
+		}
+		texture = "gfx/interface/illustrations/event_scenes/steppe.dds"
+		environment = "environment_event_steppe"
+		ambience = "event:/SFX/Events/Backgrounds/steppe_day"
+	}
+
+	background = { #drylands (formerly desert)
+		trigger = {
+			NOT = { scope:host.location = scope:activity.activity_location }
+			scope:host.location = {
+				graphical_drylands_trigger = yes
+			}
+		}
+		texture = "gfx/interface/illustrations/event_scenes/drylands.dds"
+		environment = "environment_event_desert"
+		ambience = "event:/SFX/Events/Backgrounds/desert_day"
+	}
+
+	background = { #wetlands
+		trigger = {
+			NOT = { scope:host.location = scope:activity.activity_location }
+			scope:host.location = {
+				graphical_wilderness_wetlands_trigger = yes
+			}
+		}
+		texture = "gfx/interface/illustrations/event_scenes/bp1_wetlands.dds"
+		environment = "environment_event_bp1_wetlands" 
+		ambience = "event:/SFX/Events/Backgrounds/deciduous_forest_day"
+	}
+
+	background = { #jungle
+		trigger = {
+			NOT = { scope:host.location = scope:activity.activity_location }
+			scope:host.location = {
+				graphical_wilderness_jungle_trigger = yes
+			}
+		}
+		texture = "gfx/interface/illustrations/event_scenes/bp1_jungle.dds"
+		environment = "environment_event_bp1_jungle"
+		ambience = "event:/SFX/Events/Backgrounds/deciduous_forest_day"
+	}
+
+	background = { #plains, settled
+		trigger = {
+			NOT = { scope:host.location = scope:activity.activity_location }
+			scope:host.location = {
+				graphical_plains_trigger = yes
+				exists = province_owner
+			}
+		}
+		texture = "gfx/interface/illustrations/event_scenes/ep2_travel_hills.dds"
+		environment = "environment_travel_hills_settlement"
+		ambience = "event:/SFX/Events/Backgrounds/fields_farms_day"
+	}
+	background = { #plains, unsettled
+		trigger = {
+			NOT = { scope:host.location = scope:activity.activity_location }
+			scope:host.location = {
+				graphical_plains_trigger = yes
+				NOT = { exists = province_owner }
+			}
+		}
+		texture = "gfx/interface/illustrations/event_scenes/bp1_plains.dds"
+		environment = "environment_event_bp1_plains"
+		ambience = "event:/SFX/Events/Backgrounds/fields_farms_day"
+	}
+
+	background = { #hills, settled
+		trigger = {
+			NOT = { scope:host.location = scope:activity.activity_location }
+			scope:host.location = {
+				graphical_hills_trigger = yes
+				exists = province_owner
+			}
+		}
+		texture = "gfx/interface/illustrations/event_scenes/ep2_travel_hills.dds"
+		environment = "environment_travel_hills_settlement"
+		ambience = "event:/SFX/Events/Backgrounds/fields_farms_day"
+	}
+	background = { #hills, unsettled
+		trigger = {
+			NOT = { scope:host.location = scope:activity.activity_location }
+			scope:host.location = {
+				graphical_hills_trigger = yes
+				NOT = { exists = province_owner }
+			}
+		}
+		texture = "gfx/interface/illustrations/event_scenes/bp1_hills.dds"
+		environment = "environment_event_bp1_hills"
+		ambience = "event:/SFX/Events/Backgrounds/fields_farms_day"
+	}
+
+	background = { #sea
+		trigger = {
+			NOT = { scope:host.location = scope:activity.activity_location }
+			scope:host.location = {
+				is_sea_province = yes
+			}
+		}
+		texture = "gfx/interface/illustrations/event_scenes/fp1_ocean.dds"
+		environment = "environment_event_fp1_ocean"
+		ambience = "event:/DLC/FP1/SFX/Events/event_ocean_longship"
+	}
+	# End Travel
+	
+	background = {
+		trigger = {
+			activity_location = {
+				OR = {
+					geographical_region = world_middle_east
+					geographical_region = world_africa
+				}
+			}
+		}
+		texture = "gfx/interface/illustrations/activity_backgrounds/bp1_garden_mena_day.dds"
+		environment = "environment_event_fp2_garden" 
+		ambience = "event:/DLC/FP2/SFX/Events/garden"
+	}
+	background = {
+		trigger = {
+			activity_location = {
+				OR = {
+					geographical_region = world_europe_west_iberia
+					culture = { has_building_gfx = iberian_building_gfx }
+				}
+			}
+		}
+		texture = "gfx/interface/illustrations/activity_backgrounds/fp2_garden.dds"
+		environment = "environment_event_fp2_garden" 
+		ambience = "event:/DLC/FP2/SFX/Events/garden"
+	}
+	background = {
+		texture = "gfx/interface/illustrations/activity_backgrounds/garden.dds"
+		environment = "environment_event_garden" 
+		ambience = "event:/DLC/FP2/SFX/Events/garden"
+	}
+
+	window_characters = {
+
+		guest = {
+			camera = camera_body
+			
+			effect = {
+				if = {
+					limit = {
+						scope:host.location = scope:activity.activity_location
+						scope:player ?= {
+							NOT = {
+								this = scope:host
+							}
+						}
+					}
+					scope:player ?= { add_to_list = characters }
+				}
+				else = {
+					if = {
+						limit = {
+							scope:host.location = scope:activity.activity_location
+						}
+						every_attending_character = {
+							limit = {
+								location = scope:activity.activity_location
+								NOT = {
+									this = scope:host
+								}
+							}
+							add_to_list = characters
+						}
+					}
+				}
+			}
+			
+			scripted_animation = {
+				triggered_animation = {
+					trigger = {
+						always = yes
+					}
+					animation = { idle throne_room_cheer_2 }
+				}
+			}
+		}
+
+		guest = {
+			camera = camera_body
+			
+			effect = {
+				if = {
+					limit = {
+						scope:host.location = scope:activity.activity_location
+					}
+					every_attending_character = {
+						limit = {
+							location = scope:activity.activity_location
+							NOT = {
+								this = scope:host
+							}
+						}
+						add_to_list = characters
+					}
+				}
+			}
+
+			scripted_animation = {
+				triggered_animation = {
+					trigger = {
+						always = yes
+					}
+					animation = { idle laugh }
+				}
+			}
+		}
+		
+		host = {
+			camera = camera_body
+			
+			effect = {
+				if = {
+					limit = {
+						scope:host.location = scope:activity.activity_location
+					}
+					scope:host = {
+						add_to_list = characters
+					}
+				}
+			}
+
+			scripted_animation = idle
+		}
+		
+		travel_host = {
+			camera = camera_body
+			
+			effect = {
+				if = {
+					limit = {
+						NOT = {
+							scope:host.location = scope:activity.activity_location
+						}
+					}
+					scope:host = {
+						add_to_list = characters
+					}
+				}
+			}
+
+			scripted_animation = {
+				triggered_animation = {
+					trigger = {
+						scope:character.location = { is_sea_province = yes }
+					}
+					animation = { idle }
+				}
+				triggered_animation = {
+					trigger = { scope:character = { has_trait = impatient } }
+					animation = { jockey_gallop }
+				}
+				animation = jockey_walk
+			}
+		}
+
+		guest = {
+			camera = camera_body
+			
+			effect = {
+				if = {
+					limit = {
+						scope:host.location = scope:activity.activity_location
+					}
+					every_attending_character = {
+						limit = {
+							location = scope:activity.activity_location
+							NOT = {
+								this = scope:host
+							}
+						}
+						add_to_list = characters
+					}
+				}
+			}
+
+			scripted_animation = {
+				triggered_animation = {
+					trigger = {
+						always = yes
+					}
+					animation = { idle thinking throne_room_cheer_1 }
+				}
+			}
+		}
+
+		guest = {
+			camera = camera_body
+			
+			effect = {
+				if = {
+					limit = {
+						scope:host.location = scope:activity.activity_location
+					}
+					every_attending_character = {
+						limit = {
+							location = scope:activity.activity_location
+							NOT = {
+								this = scope:host
+							}
+						}
+						add_to_list = characters
+					}
+				}
+			}
+
+			scripted_animation = {
+				triggered_animation = {
+					trigger = {
+						always = yes
+					}
+					animation = { idle happiness }
+				}
+			}
+		}
+	}
+}
