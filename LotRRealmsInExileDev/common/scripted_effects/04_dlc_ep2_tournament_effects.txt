@@ -180,6 +180,62 @@ tournament_clear_contest_variables_effect = {
 	remove_character_flag = success_pivotal_flag
 	remove_character_flag = neutral_pivotal_flag
 	remove_character_flag = failure_pivotal_flag
+	if = {
+		limit = { exists = var:contest_qualified_match_wrestling }
+		remove_variable = contest_qualified_match_wrestling
+	}
+	if = {
+		limit = { exists = var:contest_semi_finalist_match_wrestling }
+		remove_variable = contest_semi_finalist_match_wrestling
+	}
+	if = {
+		limit = { exists = var:contest_finalist_match_wrestling }
+		remove_variable = contest_finalist_match_wrestling
+	}
+	if = {
+		limit = { exists = var:contest_qualified_match_duel }
+		remove_variable = contest_qualified_match_duel
+	}
+	if = {
+		limit = { exists = var:contest_semi_finalist_match_duel }
+		remove_variable = contest_semi_finalist_match_duel
+	}
+	if = {
+		limit = { exists = var:contest_finalist_match_duel }
+		remove_variable = contest_finalist_match_duel
+	}
+	if = {
+		limit = { exists = var:contest_qualified_match_joust }
+		remove_variable = contest_qualified_match_joust
+	}
+	if = {
+		limit = { exists = var:contest_semi_finalist_match_joust }
+		remove_variable = contest_semi_finalist_match_joust
+	}
+	if = {
+		limit = { exists = var:contest_finalist_match_joust }
+		remove_variable = contest_finalist_match_joust
+	}
+	if = {
+		limit = { exists = var:contest_qualified_match_board_game }
+		remove_variable = contest_qualified_match_board_game
+	}
+	if = {
+		limit = { exists = var:contest_semi_finalist_match_board_game }
+		remove_variable = contest_semi_finalist_match_board_game
+	}
+	if = {
+		limit = { exists = var:contest_finalist_match_board_game }
+		remove_variable = contest_finalist_match_board_game
+	}
+	if = {
+		limit = { exists = var:last_versus_match }
+		remove_variable = last_versus_match
+	}
+	if = {
+		limit = { exists = var:next_versus_match }
+		remove_variable = next_versus_match
+	}
 }
 
 # Clean tournament only modifiers
@@ -430,6 +486,35 @@ tournament_contest_team_composition_effect = {
 				}
 			}
 		}
+		# Captains
+		random_guest_subset = {
+			name = team_alpha
+			weight = {
+				base = 1
+				tournament_team_captain_modifier = yes
+			}
+			save_scope_as = alpha_captain
+			scope:activity = {
+				add_to_guest_subset = {
+					name = team_alpha_captain
+					target = scope:alpha_captain
+				}
+			}
+		}
+		random_guest_subset = {
+			name = team_beta
+			weight = {
+				base = 1
+				tournament_team_captain_modifier = yes
+			}
+			save_scope_as = beta_captain
+			scope:activity = {
+				add_to_guest_subset = {
+					name = team_beta_captain
+					target = scope:beta_captain
+				}
+			}
+		}
 		# Update shared PtV values
 		tournament_contest_update_team_ptv_effect = yes
 		# Qualification ping
@@ -600,6 +685,68 @@ tournament_contest_update_team_ptv_effect = {
 	}
 }
 
+tournament_contest_winner_captain_effect = {
+	if = { # Original captain
+		limit = {
+			any_guest_subset = {
+				name = team_$WINNER$_captain
+				phase = tournament_phase_$CONTEST$
+				is_alive = yes
+			}
+		}
+		random_guest_subset = {
+			name = team_$WINNER$_captain
+			phase = tournament_phase_$CONTEST$
+			save_scope_as = contest_winner
+		}
+	}
+	else = { # New captain
+		random_guest_subset = {
+			name = winner
+			phase = tournament_phase_$CONTEST$
+			limit = { is_alive = yes }
+			weight = {
+				base = 1
+				tournament_team_captain_modifier = yes
+			}
+			save_scope_as = contest_winner
+		}
+	}
+	scope:activity = {
+		set_variable = {
+			name = melee_winner
+			value = scope:contest_winner
+		}
+	}
+	# Save losing captain
+	if = {
+		limit = {
+			any_guest_subset = {
+				name = team_$LOSER$_captain
+				phase = tournament_phase_$CONTEST$
+				is_alive = yes
+			}
+		}
+		random_guest_subset = {
+			name = team_$LOSER$_captain
+			phase = tournament_phase_$CONTEST$
+			save_scope_as = second_place
+		}
+	}
+	else = {
+		random_guest_subset = {
+			name = second_place
+			phase = tournament_phase_$CONTEST$
+			limit = { is_alive = yes }
+			weight = {
+				base = 1
+				tournament_team_captain_modifier = yes
+			}
+			save_scope_as = second_place
+		}
+	}
+}
+
 # Determine winning team based on relative strength and event score - on_end
 tournament_contest_team_winner_effect = {
 	# Achievement.
@@ -652,6 +799,12 @@ tournament_contest_team_winner_effect = {
 						}
 					}
 				}
+				# Save winning and losing captain
+				tournament_contest_winner_captain_effect = {
+					WINNER = alpha
+					LOSER = beta
+					CONTEST = melee
+				}
 			}
 			# BETA WINS
 			1 = {
@@ -696,27 +849,19 @@ tournament_contest_team_winner_effect = {
 						}
 					}
 				}
+				# Save winning and losing captain
+				tournament_contest_winner_captain_effect = {
+					WINNER = beta
+					LOSER = alpha
+					CONTEST = melee
 			}
 		}
-		# Save winning representative
-		ordered_guest_subset = {
-			name = winner
-			phase = tournament_phase_$CONTEST$
-			order_by = highest_held_title_tier
-			save_scope_as = contest_winner
-		}
-		# Save losing representative
-		ordered_guest_subset = {
-			name = second_place
-			phase = tournament_phase_$CONTEST$
-			order_by = highest_held_title_tier
-			save_scope_as = second_place
 		}
 		# Rewards
 		tournament_contest_team_rewards_effect = { CONTEST = $CONTEST$ }
 		# Add log entry
 		add_activity_log_entry = {
-			key = tournament_contest_team_winner_log
+			key = tournament_$CONTEST$_team_winner_log
 			tags = { winner contest }
 			score = 80
 			show_in_conclusion = yes
@@ -1396,15 +1541,21 @@ tournament_contest_race_winner_effect = {
 			phase = tournament_phase_$CONTEST$
 		}
 		# Save podium placements for reference
+		if = {
+			limit = { exists = scope:second_place }
 		add_to_guest_subset = {
 			name = second_place
 			target = scope:second_place
 			phase = tournament_phase_$CONTEST$
 		}
+		}
+		if = {
+			limit = { exists = scope:third_place }
 		add_to_guest_subset = {
 			name = third_place
 			target = scope:third_place
 			phase = tournament_phase_$CONTEST$
+		}
 		}
 		# Rewards
 		tournament_contest_rewards_effect = { CONTEST = $CONTEST$ }
@@ -2714,6 +2865,7 @@ tournament_contest_versus_replace_qualifier_effect = {
 					set_variable = {
 						name = contest_qualified_match_$CONTEST$
 						value = scope:old_contestant.var:contest_qualified_match_$CONTEST$
+						years = 1
 					}
 				}
 				scope:old_contestant = { remove_variable = contest_qualified_match_$CONTEST$ }
@@ -2738,6 +2890,7 @@ tournament_contest_versus_replace_qualifier_effect = {
 					set_variable = {
 						name = contest_semi_finalist_match_$CONTEST$
 						value = scope:old_contestant.var:contest_qualified_match_$CONTEST$
+						years = 1
 					}
 				}
 				scope:old_contestant = { remove_variable = contest_semi_finalist_match_$CONTEST$ }
@@ -2762,6 +2915,7 @@ tournament_contest_versus_replace_qualifier_effect = {
 					set_variable = {
 						name = contest_finalist_match_$CONTEST$
 						value = scope:old_contestant.var:contest_qualified_match_$CONTEST$
+						years = 1
 					}
 				}
 				scope:old_contestant = { remove_variable = contest_finalist_match_$CONTEST$ }
@@ -3528,28 +3682,26 @@ tournament_contest_generate_prize_effect = {
 			value = {
 				value = 0
 				# Activity prize options
-				if = {
+				if = { # Common only
 					limit = { has_activity_option = { category = tournament_option_prizes option = tournament_prizes_bad } }
-					add = { 15 54 }
+					add = { 1 24 }
 				}
-				else_if = {
+				else_if = { # Common or Masterwork - often Masterwork
 					limit = { has_activity_option = { category = tournament_option_prizes option = tournament_prizes_normal } }
-					add = { 55 79 }
+					add = { 15 64 }
 				}
-				else_if = {
+				else_if = { # Masterwork or Famed - often Masterwork
 					limit = { has_activity_option = { category = tournament_option_prizes option = tournament_prizes_good } }
-					add = { 80 110 }
+					add = { 35 89 }
 				}
-				# Creep over time
-				if = {
-					limit = { activity_host.culture = { has_cultural_era_or_later = culture_era_high_medieval } }
-					multiply = 1.25
+				else_if = { # Masterwork, Famed, or Illustrious - often Famed
+					limit = { has_activity_option = { category = tournament_option_prizes option = tournament_prizes_very_good } }
+					add = { 60 105 }
 				}
-				else_if = {
-					limit = { activity_host.culture = { has_cultural_era_or_later = culture_era_late_medieval } }
-					multiply = 1.5
+				else_if = { # Famed or Illustrious - 50/50 split
+					limit = { has_activity_option = { category = tournament_option_prizes option = tournament_prizes_splendid } }
+					add = { 69 111 }
 				}
-				min = 25
 			}
 		}
 		save_scope_value_as = {
@@ -3557,28 +3709,26 @@ tournament_contest_generate_prize_effect = {
 			value = {
 				value = 0
 				# Activity prize options
-				if = {
+				if = { # Common only
 					limit = { has_activity_option = { category = tournament_option_prizes option = tournament_prizes_bad } }
-					add = { 15 54 }
+					add = { 1 24 }
 				}
-				else_if = {
+				else_if = { # Common or Masterwork - often Masterwork
 					limit = { has_activity_option = { category = tournament_option_prizes option = tournament_prizes_normal } }
-					add = { 55 79 }
+					add = { 15 64 }
 				}
-				else_if = {
+				else_if = { # Masterwork or Famed - often Masterwork
 					limit = { has_activity_option = { category = tournament_option_prizes option = tournament_prizes_good } }
-					add = { 80 110 }
+					add = { 35 89 }
 				}
-				# Creep over time
-				if = {
-					limit = { activity_host.culture = { has_cultural_era_or_later = culture_era_high_medieval } }
-					multiply = 1.25
+				else_if = { # Masterwork, Famed, or Illustrious - often Famed
+					limit = { has_activity_option = { category = tournament_option_prizes option = tournament_prizes_very_good } }
+					add = { 60 105 }
 				}
-				else_if = {
-					limit = { activity_host.culture = { has_cultural_era_or_later = culture_era_late_medieval } }
-					multiply = 1.5
+				else_if = { # Famed or Illustrious - 50/50 split
+					limit = { has_activity_option = { category = tournament_option_prizes option = tournament_prizes_splendid } }
+					add = { 69 111 }
 				}
-				min = 25
 			}
 		}
 	}
@@ -4452,6 +4602,21 @@ tournament_contest_team_rewards_effect = {
 				}
 			}
 			add_to_list = contest_winners
+		}
+		random_guest_subset = {
+			name = winner 
+			phase = tournament_phase_$CONTEST$
+			limit = {
+				scope:activity.var:melee_winner ?= this
+				is_alive = yes
+			}
+			alternative_limit = { is_alive = yes } 
+			weight = {
+				base = 1
+				tournament_team_captain_modifier = yes
+			}
+			save_scope_as = contest_winner
+			custom_tooltip = contest_winner_ceremony_tt
 		}
 		# Losers
 		every_guest_subset = {
@@ -5485,10 +5650,15 @@ tournament_horse_race_fetch_horse_effect = {
 					## FETCH
 					300 = {
 						random_list = {
+							100 = {
+								trigger = { is_landed = yes }
+								random_list = {
 							25 = { set_variable = { name = contest_horse_race_name value = flag:capital_name } }
 							25 = { set_variable = { name = contest_horse_race_name value = flag:capital_empire } }
 							25 = { set_variable = { name = contest_horse_race_name value = flag:capital_pride } }
 							25 = { set_variable = { name = contest_horse_race_name value = flag:capital_county } }
+								}
+							}
 							25 = { set_variable = { name = contest_horse_race_name value = flag:culture_knight } }
 							25 = { set_variable = { name = contest_horse_race_name value = flag:culture_lightning } }
 							25 = { set_variable = { name = contest_horse_race_name value = flag:culture_thunder } }
@@ -5994,7 +6164,7 @@ disburse_xp_and_liege_prestige_effect = {
 					if = { # Recital
 						limit = {
 							scope:activity = {
-								any_guest_subset = { name = qualified phase = tournament_phase_board_game this = root }
+								any_guest_subset = { name = qualified phase = tournament_phase_recital this = root }
 							}
 						}
 						if = {
@@ -6058,6 +6228,13 @@ disburse_xp_and_liege_prestige_effect = {
 					OR = {
 						root.court_position:champion_court_position ?= scope:horse_race_winner
 						scope:horse_race_winner = { is_knight_of = root }
+					}
+				}
+				AND = {
+					exists = scope:melee_winner
+					OR = {
+						root.court_position:champion_court_position ?= scope:melee_winner
+						scope:melee_winner = { is_knight_of = root }
 					}
 				}
 			}
@@ -6139,6 +6316,17 @@ disburse_xp_and_liege_prestige_effect = {
 				else_if = {
 					limit = { scope:horse_race_winner = { is_knight_of = root } }
 					add = minor_prestige_value
+				}
+			}
+			else_if = {
+				limit = { exists = scope:melee_winner }
+				if = {
+					limit = { root.court_position:champion_court_position ?= scope:melee_winner }
+					add = minor_prestige_value
+				}
+				else_if = {
+					limit = { scope:melee_winner = { is_knight_of = root } }
+					add = miniscule_prestige_value
 				}
 			}
 		}
@@ -7023,6 +7211,18 @@ tournament_contest_end_portrait_effect = {
 	else_if = {
 		limit = {
 			OR = {
+				scope:contest_winner ?= this
+				involved_activity = {
+					any_guest_subset_current_phase = { name = winner this = root }
+				}
+			}
+			exists = scope:second_place
+		}
+		scope:second_place = { save_scope_as = contest_portrait }
+	}
+	else_if = {
+		limit = {
+			OR = {
 				scope:contest_loser ?= this
 				NOT = {
 					involved_activity = {
@@ -7259,9 +7459,14 @@ tournament_add_as_spectator_effect = {
 
 tournament_choose_jockey_effect = {
 	save_scope_as = chosen_jockey
+	if = {
+		limit = {
+			NOT = { is_participant_in_activity = scope:activity }
+		}
 	hidden_effect = { add_to_activity = scope:activity }
 	scope:activity = {
 		add_to_guest_subset = { name = spectator target = scope:chosen_jockey }
+	}
 	}
 	every_in_list = {
 		list = potential_jockeys
@@ -7448,10 +7653,18 @@ tournament_save_contest_winner_scopes_effect = {
 			limit = {
 				any_guest_subset = { name = winner phase = tournament_phase_melee }
 			}
-			ordered_guest_subset = {
-				order_by = highest_held_title_tier
+			random_guest_subset = {
 				name = winner
 				phase = tournament_phase_melee 
+				limit = {
+					scope:activity.var:melee_winner ?= this
+					is_alive = yes
+				}
+				alternative_limit = { is_alive = yes } 
+				weight = {
+					base = 1
+					tournament_team_captain_modifier = yes
+				}
 				save_scope_as = melee_winner
 			}
 			set_variable = {
@@ -7588,6 +7801,10 @@ tournament_disburse_contest_prize_effect = {
 		limit = { exists = scope:horse_race_winner }
 		tournament_contest_generate_prize_effect = { CONTEST = horse_race }
 	}
+	if = {
+		limit = { exists = scope:melee_winner }
+		tournament_contest_generate_prize_effect = { CONTEST = melee }
+	}
 }
 
 # Show tooltips for prize awards
@@ -7645,6 +7862,14 @@ tournament_disburse_contest_prize_tooltip_effect = {
 		show_as_tooltip = {
 			scope:horse_race_prize = {
 				set_owner = { target = scope:horse_race_winner }
+			}
+		}
+	}
+	if = {
+		limit = { exists = scope:melee_prize }
+		show_as_tooltip = {
+			scope:melee_prize = {
+				set_owner = { target = scope:melee_winner }
 			}
 		}
 	}
@@ -7904,7 +8129,7 @@ tournament_pivotal_duel_single_skill_effect = {
 					add_character_flag = success_pivotal_flag
 				}
 			}
-			10 = {
+			50 = {
 				trigger = { scope:no_change_chance = yes }
 				scope:contestant = { add_character_flag = neutral_pivotal_flag }
 			}
