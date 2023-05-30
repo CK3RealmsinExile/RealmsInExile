@@ -601,6 +601,126 @@ arrange_marriage_interaction = {
 		marriage_ai_accept_modifier = yes
 	}
 
+	# If you want the AI to set these options then it needs to be hooked into the code as well
+	send_option = {
+		flag = grand_wedding_promise
+		localization = GRAND_WEDDING_PROMISE
+
+		is_shown = {
+			scope:actor = { #Can organize a Grand Wedding
+				highest_held_title_tier > tier_barony
+				is_landed = yes
+				trigger_if = {
+					limit = {
+						is_ai = yes
+					}
+					is_at_war = no
+				}
+				# DLC locked
+				has_dlc_feature = tours_and_tournaments
+				has_dlc_feature = advanced_activities
+			}
+		}
+
+		current_description = {
+			desc = "GRAND_WEDDING_PROMISE_INFO"
+		}
+
+		is_valid = {
+			scope:actor = {
+				gold >= real_wedding_cost_actor_scope
+				is_available = yes
+				custom_tooltip = {
+					text = grand_wedding_already_promised_tt
+					NOR = {
+						has_variable = promised_grand_wedding_marriage_countdown
+						has_variable = grand_wedding_promise_pending
+					}
+				}
+			}
+			trigger_if = {
+				limit = {
+					exists = scope:secondary_actor
+				}
+				custom_tooltip = {
+					text = grand_wedding_only_dominant_side
+					trigger_if = {
+						limit = {
+							scope:secondary_actor ?= {
+								is_female = yes
+							}
+						}
+						OR = {
+							scope:secondary_actor ?= { matrilinear_betrothal = yes }
+							scope:matrilineal = yes
+						}
+					}
+					trigger_else = {
+						NOR = {
+							scope:secondary_actor ?= { matrilinear_betrothal = yes }
+							scope:matrilineal = yes
+						}
+					}
+				}
+				custom_tooltip = {
+					text = grand_wedding_only_family
+					scope:secondary_actor ?= {
+						is_close_or_extended_family_of = scope:actor
+					}
+				}
+				# Cannot promise grand weddings with regents due to regency and travel limitations
+				custom_tooltip = {
+					text = grand_wedding_secondary_regent
+					NOT = {
+						scope:secondary_actor.liege = {
+							diarch = scope:secondary_actor
+							has_active_diarchy = yes
+						}
+					}
+				}
+			}
+			# Safety check because players shouldn't be spouse_2
+			trigger_if = {
+				limit = {
+					has_multiple_players = yes
+				}
+				custom_tooltip = {
+					text = grand_wedding_mp_ai
+					trigger_if = {
+						limit = {
+							OR = {
+								scope:actor = { is_ai = no }
+								scope:secondary_actor ?= { is_ai = no }
+							}
+						}
+						scope:secondary_recipient ?= {
+							is_ai = yes
+						}
+					}
+				}
+			}
+			trigger_if = {
+				limit = {
+					exists = scope:secondary_recipient.liege
+					scope:secondary_recipient.liege = {
+						diarch = scope:secondary_recipient
+						has_active_diarchy = yes
+					}
+				}
+				# Cannot promise grand weddings with regents due to regency and travel limitations
+				custom_tooltip = {
+					text = grand_wedding_secondary_regent
+					NOT = {
+						scope:secondary_recipient.liege = {
+							diarch = scope:secondary_recipient
+							has_active_diarchy = yes
+						}
+					}
+				}
+			}
+		}
+	}
+
 	send_option = {
 		flag = matrilineal
 		localization = MATRILINEAL_OFFER
@@ -628,12 +748,17 @@ arrange_marriage_interaction = {
 				limit = {
 					exists = scope:secondary_actor
 				}
+				OR = {
+					NOT = {
+						exists = scope:secondary_recipient
+					}
 				scope:secondary_actor = {
 					NOT = {
 						betrothed = scope:secondary_recipient
 					}
 				}
 			}
+		}
 		}
 		starts_enabled = {
 			trigger_if = {
@@ -1054,7 +1179,7 @@ marry_off_interaction = {
 		localization = "MATRILINEAL_OFFER"
 		starts_enabled = {
 			scope:actor = {
-				OR= {
+				OR = {
 					faith = {
 						has_doctrine = doctrine_gender_female_dominated
 					}
@@ -3912,13 +4037,17 @@ divorce_character_dynast_request_interaction = {
 				target = scope:actor
 			}
 		}
+		if = {
+			limit = {
+				NOT = { scope:recipient = scope:actor }
+			}
 		scope:recipient = {
 			trigger_event = marriage_interaction.0030
 
 			add_opinion = {
 				modifier = forced_divorce_opinion
 				target = scope:actor
-			}
+				}
 		}
 	}
 	
