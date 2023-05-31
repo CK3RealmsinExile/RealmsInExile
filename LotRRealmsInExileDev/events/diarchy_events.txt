@@ -296,13 +296,15 @@ diarchy.0021 = {
 	trigger = {
 		# Don't fire the event if we've had it once this diarchy already.
 		NOT = { has_character_flag = has_had_diarch_intro_event_flag }
+		exists = liege
+		liege = { has_active_diarchy = yes }
 	}
 
 	immediate = {
 		play_music_cue = "mx_cue_positive_effect"
 		# Sort scopes.
 		save_scope_as = diarch
-		liege = {
+		liege ?= {
 			# Grab the liege for general ease.
 			save_scope_as = liege
 			# But also for backgrounds.
@@ -559,6 +561,44 @@ diarchy.0113 = {
 # Landless diarchs accrue hooks.
 diarchy.0121 = {
 	hidden = yes
+
+	trigger = {
+		liege ?= {
+			any_vassal = {
+				save_temporary_scope_as = char_temp
+				# No players.
+				is_ai = yes
+				# Avoid anyone we've already got a hook on.
+				NOR = {
+					has_character_flag = landless_diarch_tried_to_ensnare_for_hook
+					root = {
+						any_hooked_character = { this = scope:char_temp }
+					}
+				}
+				# Is a landed ruler.
+				# Either a duke with at least two counties or a count - don't even consider trying it on with kings.
+				is_landed = yes
+				OR = {
+					AND = {
+						highest_held_title_tier <= tier_duchy
+						domain_size >= 2
+					}
+					highest_held_title_tier <= tier_county
+				}
+				# Plus avoid anyone we wouldn't want to target regardless.
+				NOR = {
+					should_avoid_hostile_action_against_due_to_personal_relations_trigger = {
+						ACTOR = root
+						RECIPIENT = scope:char_temp
+					}
+					should_avoid_hostile_action_against_due_to_liege_relations_trigger = {
+						ACTOR = root
+						RECIPIENT = scope:char_temp
+					}
+				}
+			}
+		}
+	}	
 
 	immediate = {
 		# We don't want to give a manipulation hook during the first mandate event...
@@ -7089,6 +7129,7 @@ scripted_trigger diarchy_2241_valid_exploitable_vassal_trigger = {
 		has_character_modifier = mandate_baronial_troops_trained_modifier
 		has_character_modifier = mandate_baronial_troops_half_trained_modifier
 	}
+	NOT = { is_diarch = yes }
 }
 
 scripted_effect diarchy_2241_successful_swing_resolve_effect = {
