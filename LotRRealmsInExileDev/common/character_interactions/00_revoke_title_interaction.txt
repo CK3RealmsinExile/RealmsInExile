@@ -56,6 +56,8 @@
 	}
 	
 	is_valid_showing_failures_only = {
+		title_revocation_standard_valid_showing_failures_only_trigger = yes
+		# Plus make sure there's a legal right to revoke.
 		scope:actor = {
 			NOR =  {
 				is_at_war_with = scope:recipient
@@ -106,6 +108,10 @@
 			is_busy_in_events_localised = yes
 			NOT = { has_strong_hook = scope:actor }
 		}
+		custom_tooltip = {
+			text = cannot_take_overt_hostile_actions_against_diarch.tt
+			NOT = { scope:recipient ?= scope:actor.diarch }
+		}
 	}
 
 	can_send = {
@@ -139,19 +145,7 @@
 	}
 		
 	can_be_picked_title = {
-		scope:target = {
-			is_contested = no
-			NOT = {
-				recent_history = {
-					type = granted
-					years = 1
-				}
-			}
-			custom_description = {
-				text = "character_interactions_not_rel_head_title"
-				is_head_of_faith = no
-			}
-		}
+		scope:target = { title_revocation_standard_can_pick_title_trigger = yes }
 	}
 
 	#Use hook
@@ -171,6 +165,11 @@
 
 	send_options_exclusive = no
 
+	cost = {
+		# Usually, this action is free, but during certain diarchies, we want it to cost.
+		prestige = liege_diarchy_surcharge_interaction_revoke_title_interaction_value
+	}
+
 	on_send = {
 		scope:actor = {
 			add_character_flag = {
@@ -187,8 +186,6 @@
 	}
 
 	on_accept = {
-		revoke_title_interaction_effect = yes
-
 		save_scope_value_as = {
 			name = revoke_title_interaction
 			value = yes
@@ -197,30 +194,13 @@
 		scope:actor = {
 			trigger_event = char_interaction.0199
 		}
+		revoke_title_interaction_effect = yes
 
 		if = {
 			limit = {
 				scope:actor = { has_character_flag = flag_hostile_actions_disabled_delay }
 			}
 			scope:actor = { remove_character_flag = flag_hostile_actions_disabled_delay }
-		}
-
-		# For revoking titles of character's imprisoned abroard who have lost a revocation war
-		hidden_effect = {
-			scope:actor = {
-				if = {
-					limit = {
-						has_opinion_modifier = {
-							target = scope:recipient
-							modifier = foreign_prison_revocation_opinion
-						}
-					}
-					remove_opinion = {
-						target = scope:recipient
-						modifier = foreign_prison_revocation_opinion
-					}
-				}
-			}
 		}
 	}
 
@@ -286,12 +266,6 @@
 					scope:recipient = {
 						is_imprisoned = yes
 						NOT = { is_imprisoned_by = scope:actor }
-					}
-					scope:actor = {
-						has_opinion_modifier = {
-							target = scope:recipient
-							modifier = foreign_prison_revocation_opinion
-						}
 					}
 				}
 			}
@@ -480,7 +454,7 @@
 
 	ai_potential = {
 		has_realm_law_flag = title_revocation_allowed
-		primary_title.tier > tier_county
+		primary_title.tier >= tier_county
 	}
 
 	ai_will_do = {
@@ -865,14 +839,27 @@
 			scope:actor = {
 				is_at_war = yes
 			}
+			NOR = {
 			scope:recipient = {
+					is_imprisoned_by = scope:actor
+				}
+				scope:recipient = {
+					highest_held_title_tier = tier_barony
+				}
+			}
+		}
+
+		modifier = { # Avoid triggering Tyranny wars mid-grand activity
+			factor = 0
+			scope:actor = {
+				has_ongoing_grand_activity_trigger = yes
+			}
 				NOR = {
 					scope:recipient = {
 						is_imprisoned_by = scope:actor
 					}
 					scope:recipient = {
 						highest_held_title_tier = tier_barony
-					}
 				}
 			}
 		}
