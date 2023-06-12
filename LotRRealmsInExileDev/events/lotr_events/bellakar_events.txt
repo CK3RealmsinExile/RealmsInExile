@@ -122,11 +122,6 @@ bellakar.0200 = { # Starting event in Uniting Faithful realms chain - Bellakar s
 	}
 
 	after = {
-		trigger_event = {
-			id = bellakar.0202
-			days = { 15 30 }
-		}
-
 		scope:high_king_of_gondor = { 
 			trigger_event = {
 				id = gondor.2901 
@@ -216,13 +211,18 @@ bellakar.0202 = { # bellakar is given a choice on joining Gondor or not
 
 		trigger_event = {
 			id = bellakar.0204
-			days = { 15 30 }
+			days = { 45 90 }
 		}
 
-		scope:king_of_felaya = {
-			trigger_event = {
-				id = bellakar.0206
-				days = { 15 30 }
+		if = { # scope:king_of_felaya.top_liege.primary_title 
+			limit = {
+				scope:king_of_felaya.top_liege.primary_title = title:e_bellakar
+			}
+			scope:king_of_felaya = {
+				trigger_event = {
+					id = bellakar.0206
+					days = { 5 10 }
+				}
 			}
 		}
 	}
@@ -261,7 +261,7 @@ bellakar.0203 = { #### Gondor has refused its claim on Bellakar ####
 	}
 }
 
-bellakar.0204 = { # Felaya gets a chance to submit to gondor
+bellakar.0204 = { # Bellakar Title Merges
 	title = bellakar.0204.t
 	desc = bellakar.0204.desc
 	theme = stewardship_duty_focus
@@ -399,7 +399,7 @@ bellakar.0205 = { # Felaya gets a chance to submit to gondor
 	}
 }
 
-bellakar.0206 = { # Felaya gets a chance to submit to gondor
+bellakar.0206 = { # Felaya gets a chance to break away from Gondor or stay as lower tiered vassal to Bellakar
 	title = bellakar.0206.t
 	desc = bellakar.0206.desc
 	theme = stewardship_duty_focus
@@ -412,18 +412,146 @@ bellakar.0206 = { # Felaya gets a chance to submit to gondor
 	}
 
 	right_portrait = {
-		character = scope:high_king_of_gondor
+		character = scope:high_king_of_bellakar
 		animation = personality_honorable	
 	}
 
-	immediate = { title:e_gondor.holder = { save_scope_as = high_king_of_gondor } }
-
-	option = {
-		name = bellakar.0206.a
+	immediate = {
+		title:e_bellakar.holder = { save_scope_as = high_king_of_bellakar } 
+		title:k_felaya.holder = { save_scope_as = king_of_felaya }
+		
+		scope:king_of_felaya = {
+			every_vassal_or_below = {
+				limit = {
+					any_held_title = {
+						tier >= tier_county
+					}
+				}
+				add_to_list = vassals_in_felaya
+			}
+		}
 	}
 
-	option = {
+	option = { # - becomes duke
+		name = bellakar.0206.a
+
+		every_in_list = {
+			list = vassals_in_felaya
+			limit = {
+				any_held_title = {
+					tier = tier_duchy
+				}
+			}
+			destroy_title = this.primary_title
+		}
+
+		title:k_felaya = {
+			every_in_de_jure_hierarchy = {
+				limit = { tier = tier_duchy }
+				add_to_list = de_jure_titles_felaya
+			}
+		}
+
+		hidden_effect = {
+			every_in_list = {
+				list = de_jure_titles_felaya
+				set_de_jure_liege_title = title:k_nilulonde
+			}
+		}
+
+		add_to_variable_list = {
+			name = event_option_a_felaya_x_bellakar_x_gondor
+			target = flag:option_a
+		}
+
+		ai_chance = {
+			base = 50
+		}
+	}
+
+	option = { # - breaks away
 		name = bellakar.0206.b
+
+		create_title_and_vassal_change = {
+			type = independency
+			save_scope_as = independence_change
+			add_claim_on_loss = yes
+		}
+		becomes_independent = {
+			change = scope:independence_change
+		}
+		resolve_title_and_vassal_change = scope:independence_change
+
+		title:k_felaya = {
+			set_de_jure_liege_title = title:e_gondor
+		}
+		scope:king_of_felaya = {
+			get_title = title:k_felaya
+		}
+
+		scope:high_king_of_bellakar = {
+			add_pressed_claim = title:k_felaya
+		}
+		
+		ai_chance = {
+			base = 50
+		}
+	}
+
+	after = {
+		if = {
+			limit = {
+				is_target_in_variable_list = {
+					name = event_option_a_felaya_x_bellakar_x_gondor
+					target = flag:option_a
+				}
+				scope:king_of_felaya = {
+					any_held_title = {
+						NOT = { tier = tier_duchy } 
+					}
+				}	
+			}
+			scope:king_of_felaya = {
+				destroy_title = scope:king_of_felaya.primary_title
+				get_title = title:d_felaya
+			}
+			create_title_and_vassal_change = {
+				type = swear_fealty
+				save_scope_as = change
+				add_claim_on_loss = no
+			}
+			every_in_list = {
+				list = vassals_in_felaya
+
+				this = {
+					change_liege = {
+						liege = scope:king_of_felaya
+						change = scope:change
+					}
+				}	
+			}
+			resolve_title_and_vassal_change = scope:change
+		} else_if = {
+			limit = { 
+				is_target_in_variable_list = {
+					name = event_option_a_felaya_x_bellakar_x_gondor
+					target = flag:option_a
+				}	
+				scope:king_of_felaya = { any_held_title = { tier = tier_duchy } }	
+			}
+			scope:king_of_felaya = {
+				destroy_title = scope:king_of_felaya.primary_title
+				get_title = title:d_felaya
+			}
+		}
+		if = {
+			limit = {
+				scope:king_of_felaya = {
+					has_title = title:d_felaya
+				}
+			}
+			set_primary_title_to = title:d_felaya
+		}
 	}
 }
 
