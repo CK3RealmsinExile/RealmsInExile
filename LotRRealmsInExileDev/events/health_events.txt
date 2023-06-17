@@ -5722,69 +5722,55 @@ scripted_trigger health_3001_physician_basic_requirements_trigger = {
 	is_imprisoned = no
 	is_alive = yes # Because apparently there can be dead characters in the pool (remove when fixed)
 	is_claimant = no # We don't want recruiting physicians to be a cheap way of getting claimants
+	learning >= low_skill_rating
 }
 
 scripted_trigger health_3001_excellent_skill_physician_trigger = {
 	health_3001_physician_basic_requirements_trigger = yes
-	learning >= high_skill_rating
+	learning >= high_skill_rating # 15
 }
 
 scripted_trigger health_3001_high_skill_physician_trigger = {
 	health_3001_physician_basic_requirements_trigger = yes	
-	OR = {
 		#Empire/kingdom
-		AND = {
+	trigger_if = {
+		limit = {
 			root = { highest_held_title_tier >= tier_kingdom }
-			learning >= decent_skill_rating #Will be pushed up to high by adding physician traits
-			NAND = {
-				has_trait = lifestyle_mystic
-				NOT = { has_trait = lifestyle_physician }
 			}
+		learning <= very_high_skill_rating # 18
+		learning >= decent_skill_rating # 12
 		}
 		#Duchy/county
-		AND = {
-			root = { highest_held_title_tier <= tier_duchy }
-			NOR = {
-				learning > high_skill_rating
-				AND = {
-					has_trait = lifestyle_physician
-					has_trait_xp = {
-						trait = lifestyle_physician
-						value >= 100
-					}
-				}
-				has_trait = lifestyle_mystic
-			}
-			learning >= mediocre_skill_rating #Will be pushed up to medium by adding physician traits
-		}
+	trigger_else = {
+		learning <= high_skill_rating  # 15
+		learning >= medium_skill_rating  # 10
 	}
 }
 
 scripted_trigger health_3001_low_skill_physician_trigger = {
 	health_3001_physician_basic_requirements_trigger = yes
-	NOR = {
-		has_trait = lifestyle_mystic
-		has_trait = lifestyle_physician
-	}
-	OR = {
+	# Save mystics for mystic option
+	NOT = { has_trait = lifestyle_mystic }
 		#Empire/kingdom
-		AND = {
+	trigger_if = {
+		limit = {
 			root = { highest_held_title_tier >= tier_kingdom }
 			learning < decent_skill_rating
 			learning >= mediocre_skill_rating
 		}
-		#Duchy/county
-		AND = {
-			root = { highest_held_title_tier <= tier_duchy }
-			learning < medium_skill_rating
-			learning >= low_skill_rating
+		learning <= decent_skill_rating # 12
+		learning >= mediocre_skill_rating # 8
 		}
+	#Duchy/county
+	trigger_else = {
+		learning <= medium_skill_rating # 10
+		learning >= low_skill_rating # 5
 	}
 }
 
 scripted_trigger health_3001_low_skill_physician_light_trigger = {
 	health_3001_physician_basic_requirements_trigger = yes
-	learning > low_skill_rating
+	learning >= medium_skill_rating # 10
 }
 
 scripted_trigger health_3001_mystic_physician_trigger = {
@@ -5795,19 +5781,20 @@ scripted_trigger health_3001_mystic_physician_trigger = {
 	has_trait = lifestyle_mystic
 	OR = {
 		#Empire/kingdom
-		AND = {
+	trigger_if = {
+		limit = {
 			root = { highest_held_title_tier >= tier_kingdom }
-			learning >= decent_skill_rating #Will be pushed up to high by adding mystic traits
+		}
+		learning >= decent_skill_rating # 12
 			NAND = {
 				has_trait = lifestyle_physician
 				NOT = { has_trait = lifestyle_mystic }
 			}
 		}
 		#Duchy/county
-		AND = {
-			root = { highest_held_title_tier <= tier_duchy }
+	trigger_else = {
 			NOR = {
-				learning > high_skill_rating
+			learning > high_skill_rating # 15
 				AND = {
 					has_trait = lifestyle_mystic
 					has_trait_xp = {
@@ -5817,9 +5804,9 @@ scripted_trigger health_3001_mystic_physician_trigger = {
 				}
 				has_trait = lifestyle_physician
 			}
-			learning >= mediocre_skill_rating #Will be pushed up to medium by adding mystic traits
-		}
+		learning >= mediocre_skill_rating # 8
 	}
+}
 }
 
 #Ruler picking court physician
@@ -5874,10 +5861,13 @@ health.3001 = {
 						limit = {
 							health_3001_excellent_skill_physician_trigger = yes
 							has_trait = lifestyle_physician
+							has_trait = lifestyle_herbalist
 						}
 						alternative_limit = {
 							health_3001_excellent_skill_physician_trigger = yes
+							has_trait = lifestyle_physician
 						}
+						alternative_limit = { health_3001_excellent_skill_physician_trigger = yes }
 						weight = {
 							base = 1
 							modifier = {
@@ -5885,12 +5875,16 @@ health.3001 = {
 								factor = 10
 							}
 							modifier = {
-								same_race = { TARGET = root }
-								factor = 100
+								has_trait = lifestyle_mystic
+								factor = 10
+							}
+							modifier = {
+								has_trait = lifestyle_herbalist
+								factor = 10
 							}
 						}
-
 						save_scope_as = excellent_skill_option
+						# Good doctor trait
 						if = {
 							limit = {
 								NOT = { has_trait = lifestyle_physician }
@@ -5916,55 +5910,62 @@ health.3001 = {
 				                }
 				            }
 						}
-
-						#Backup generation
+					}
+					#Backup excellent generation
 						if = {
 							limit = { NOT = { exists = scope:excellent_skill_option } }
-
 							create_character = {
 								location = root.capital_province
-								dynasty = none
-								gender_female_chance = 50
-								template_character = root
-								random_culture = {
-									root.culture = {
-										trigger = {
-											root_culture_allowed = yes
-										}
-									}
-									culture:isengard_dunlending = {
-										trigger = {
-											isengard_dunlending_trigger = yes
-										}
-									}
-									culture:black_numenorean = {
-										trigger = {
-											black_numenorean_trigger = yes
-										}
-									}
-								}
-								random_traits = yes
-								age = { 18 50 }
-								learning = {
-									min_template_high_skill
-									max_template_high_skill
-								}
+								template = physician_excellent_character_template
 								save_scope_as = excellent_skill_option
-								after_creation = {
+							}
+						}
+
+					# Ensure some medical knowledge
+					scope:excellent_skill_option ?= {
+						if = {
+							limit = {
+								NOT = { has_trait = lifestyle_physician }
+							}
 								add_trait = lifestyle_physician
 								add_trait_xp = {
 			               			trait = lifestyle_physician
 					                value = {
-					                    integer_range = {
-					                        min = medium_lifestyle_random_xp_low
-					                        max = medium_lifestyle_random_xp_high
-					                    }
-					                }
-					            }
+									medium_lifestyle_random_xp_high
+									100
+								}
 							}
 						}
-					}				
-				}
+						else_if = {
+							limit = {
+								has_trait_xp = {
+									trait = lifestyle_physician
+									value <= 55
+								}
+							}
+							add_trait_xp = {
+								trait = lifestyle_physician
+								value = {
+									medium_lifestyle_random_xp_low
+									45
+								}
+							}
+						}
+						# Bonus herbalist trait chance
+						random = {
+							chance = 66
+							modifier = {
+								culture = { has_cultural_parameter = herbalist_traits_more_common }
+								factor = 2
+							}
+							if = {
+								limit = {
+									NOT = { has_trait = lifestyle_herbalist }
+								}
+								add_trait = lifestyle_herbalist
+							}
+						}				
+					}
 				}
 
 				#HIGH-SKILL CHARACTER
@@ -5972,21 +5973,25 @@ health.3001 = {
 					province = capital_province
 					limit = {
 						health_3001_high_skill_physician_trigger = yes
-						trigger_if = {
-							limit = {
-								exists = scope:excellent_skill_option
-							}
-							NOT = { this = scope:excellent_skill_option }
+						has_trait = lifestyle_physician
+						NOT = { scope:excellent_skill_option ?= this }
 						}
+					alternative_limit = {
+						health_3001_high_skill_physician_trigger = yes
+						NOT = { scope:excellent_skill_option ?= this }
 					}
 					weight = {
 						base = 1
 						modifier = {
-							has_trait = lifestyle_mystic
-							factor = 100
+							faith = root.faith
+							factor = 10
 						}
 						modifier = {
-							faith = root.faith
+							has_trait = lifestyle_mystic
+							factor = 10
+						}
+						modifier = {
+							has_trait = lifestyle_herbalist
 							factor = 10
 						}
 						modifier = {
@@ -5997,64 +6002,58 @@ health.3001 = {
 					save_scope_as = high_skill_option
 				}
 
-				#Backup generation
+				#Backup high generation
 				if = {
 					limit = { NOT = { exists = scope:high_skill_option } }
 					create_character = {
 						location = root.capital_province
-						dynasty = none
-						gender_female_chance = 50
-						template_character = root
-						random_culture = {
-							root.culture = {
-								trigger = {
-									root_culture_allowed = yes
-								}
-							}
-							culture:isengard_dunlending = {
-								trigger = {
-									isengard_dunlending_trigger = yes
-								}
-							}
-							culture:isengard_urukhai = {
-								trigger = {
-									isengard_urukhai_trigger = yes
-								}
-							}
-							culture:morlughai = {
-								trigger = {
-									morlughai_trigger = yes
-								}
-							}
-							culture:black_numenorean = {
-								trigger = {
-									black_numenorean_trigger = yes
-								}
-							}
-							culture:pust = {
-								trigger = {
-									pust_trigger = yes
-								}
-							}
-						}
-						random_traits = yes
-						age = { 18 50 }
-						learning = {
-							min_template_decent_skill
-							max_template_decent_skill
-						}
+						template = physician_high_character_template
 						save_scope_as = high_skill_option
-						after_creation = {
+					}
+				}
+
+				# Ensure some medical knowledge
+				scope:high_skill_option ?= {
+					if = {
+						limit = {
+							NOT = { has_trait = lifestyle_physician }
+						}
 							add_trait = lifestyle_physician
 							add_trait_xp = {
 								trait = lifestyle_physician
 								value = {
-									integer_range = {
-										min = small_lifestyle_random_xp_low
-										max = small_lifestyle_random_xp_high
+								medium_lifestyle_random_xp_low
+								medium_lifestyle_random_xp_high
+							}
+						}
+					}
+					else_if = {
+						limit = {
+							has_trait_xp = {
+								trait = lifestyle_physician
+								value <= 30
 									}
 								}
+						add_trait_xp = {
+							trait = lifestyle_physician
+							value = {
+								small_lifestyle_random_xp_low
+								small_lifestyle_random_xp_high
 							}
+						}
+					}
+			# Bonus herbalist trait chance
+					random = {
+						chance = 33
+						modifier = {
+							culture = { has_cultural_parameter = herbalist_traits_more_common }
+							factor = 2
+						}
+						if = {
+							limit = {
+								NOT = { has_trait = lifestyle_herbalist }
+							}
+							add_trait = lifestyle_herbalist
 						}
 					}
 				}
@@ -6063,19 +6062,41 @@ health.3001 = {
 				random_pool_character = {
 					province = root.capital_province
 					limit = { 
-						health_3001_mystic_physician_trigger = yes 
-						trigger_if = {
-							limit = {
-								exists = scope:excellent_skill_option
+						health_3001_low_skill_physician_trigger = yes
+						has_trait = lifestyle_physician
+						NOT = { scope:excellent_skill_option ?= this }
+						NOT = { scope:high_skill_option ?= this }
 							}
-							NOT = { this = scope:excellent_skill_option }
+					alternative_limit = {
+						health_3001_low_skill_physician_trigger = yes
+						NOT = { scope:excellent_skill_option ?= this }
+						NOT = { scope:high_skill_option ?= this }
 						}
-						trigger_if = {
-							limit = {
-								exists = scope:high_skill_option
+					weight = {
+						base = 1
+						modifier = {
+							faith = root.faith
+							factor = 10
+						}
+					}
+					save_scope_as = low_skill_option
 							}
-							NOT = { this = scope:high_skill_option }
+
+				#MYSTIC CHARACTER (optional, only if available in pool)
+				random_pool_character = {
+					province = root.capital_province
+					limit = { 
+						health_3001_mystic_physician_trigger = yes
+						has_trait = lifestyle_physician
+						NOT = { scope:excellent_skill_option ?= this }
+						NOT = { scope:high_skill_option ?= this }
+						NOT = { scope:low_skill_option ?= this }
 						}
+					alternative_limit = { 
+						health_3001_mystic_physician_trigger = yes
+						NOT = { scope:excellent_skill_option ?= this }
+						NOT = { scope:high_skill_option ?= this }
+						NOT = { scope:low_skill_option ?= this }
 					}
 					weight = {
 						base = 1
@@ -6088,34 +6109,31 @@ health.3001 = {
 							factor = 10
 						}
 						modifier = {
-							same_race = { TARGET = root }
-							factor = 100
-						}
+							culture = { has_cultural_parameter = mystic_trait_gives_bonuses }
+							factor = 10
 					}
-					save_scope_as = mystic_option
 				}
-
+					save_scope_as = mystic_option
 				#Set mystic trait if skill is too low
-				if = {
-					limit = { exists = scope:mystic_option }
-					scope:mystic_option = {
 						while = {
 							limit = {
-								OR = {
-									AND = {
-										root.highest_held_title_tier >= tier_kingdom
-										learning < high_skill_rating
+							#Empire/kingdom
+							trigger_if = {
+								limit = {
+									root = { highest_held_title_tier >= tier_kingdom }
 									}
-									AND = {
-										root.highest_held_title_tier <= tier_duchy
-										learning < medium_skill_rating
+								has_trait = lifestyle_mystic
+								has_trait_xp = {
+									trait = lifestyle_mystic
+									value <= 60
 									}
 								}
-								NAND = {
+							#Duchy/county
+							trigger_else = {
 									has_trait = lifestyle_mystic
 									has_trait_xp = {
 										trait = lifestyle_mystic
-										value >= 100
+									value <= 30
 									}
 								}
 							}
@@ -6123,45 +6141,6 @@ health.3001 = {
 						}
 					}
 				}
-
-				#Low-medium skill character
-				random_pool_character = {
-					province = root.capital_province
-					limit = { 
-						health_3001_low_skill_physician_trigger = yes 
-						trigger_if = {
-							limit = {
-								exists = scope:excellent_skill_option
-							}
-							NOT = { this = scope:excellent_skill_option }
-						}
-						trigger_if = {
-							limit = {
-								exists = scope:high_skill_option
-							}
-							NOT = { this = scope:high_skill_option }
-						}
-						trigger_if = {
-							limit = {
-								exists = scope:mystic_option
-							}
-							NOT = { this = scope:mystic_option }
-						}
-					}
-					weight = {
-						base = 1
-						modifier = {
-							faith = root.faith
-							factor = 10
-						}
-						modifier = {
-							same_race = { TARGET = root }
-							factor = 100
-						}
-					}
-					save_scope_as = low_skill_option
-				}
-			}
 			else = { #Ai get someone simple
 				random_pool_character = {
 					province = root.capital_province
@@ -6177,39 +6156,62 @@ health.3001 = {
 				}
 			}
 			
-			#Backup generation
+			#Backup low generation
 			if = {
 				limit = { NOT = { exists = scope:low_skill_option } }
-
 				create_character = {
 					location = root.capital_province
-					dynasty = none
-					gender_female_chance = 50
-					template_character = root
-					random_culture = {
-						root.culture = {
-							trigger = {
-								root_culture_allowed = yes
-							}
-						}
-						culture:isengard_dunlending = {
-							trigger = {
-								isengard_dunlending_trigger = yes
-							}
-						}
-						culture:black_numenorean = {
-							trigger = {
-								black_numenorean_trigger = yes
-							}
-						}
-					}
-					random_traits = yes
-					age = { 18 50 }
-					learning = {
-						min_template_average_skill
-						max_template_average_skill
-					}
+					template = physician_low_character_template
 					save_scope_as = low_skill_option
+				}
+			}
+
+			# Ensure some medical knowledge
+			scope:low_skill_option ?= {
+				if = {
+					limit = {
+						NOT = { has_trait = lifestyle_physician }
+					}
+					random = {
+						chance = 50
+						add_trait = lifestyle_physician
+						add_trait_xp = {
+							trait = lifestyle_physician
+							value = {
+								small_lifestyle_random_xp_low
+								small_lifestyle_random_xp_high
+							}
+						}
+					}
+				}
+				else_if = {
+					limit = {
+						has_trait_xp = {
+							trait = lifestyle_physician
+							value <= 5
+						}
+					}
+					add_trait_xp = {
+						trait = lifestyle_physician
+						value = {
+							small_lifestyle_random_xp_low
+							small_lifestyle_random_xp_high
+						}
+					}
+				}
+				# Bonus herbalist trait chance
+				random = {
+					chance = 10
+					modifier = {
+						culture = { has_cultural_parameter = herbalist_traits_more_common }
+						factor = 2
+					}
+					if = {
+						limit = {
+							NOT = { has_trait = lifestyle_herbalist }
+						}
+						add_trait = lifestyle_herbalist
+					}
 				}
 			}
 		}
