@@ -3386,56 +3386,39 @@ hunt_complete_remove_sightings_effect = { # Remove sightings
 	scope:activity = {
 		if = {
 			limit = {
-				has_activity_option = { category = special_type option = hunt_type_standard }
-				activity_location.county = {
-					has_county_modifier = hunt_sighting_standard_modifier
-					var:sighting_owner ?= scope:host
+				activity_location.county.var:sighting_owner ?= scope:host
+				OR = {
+					# Standard/dangerous
+					AND = {
+						has_activity_option = { category = special_type option = hunt_type_standard }
+						activity_location.county = {
+							OR = {
+								has_county_modifier = hunt_sighting_standard_modifier
+								has_county_modifier = hunt_sighting_dangerous_modifier
+							}
+						}
+					}
+					# Falconry
+					AND = {
+						has_activity_option = { category = special_type option = hunt_type_falconry }
+						activity_location.county = { has_county_modifier = hunt_sighting_falconry_modifier }
+					}
 				}
 			}
-			activity_location.county = { remove_county_modifier = hunt_sighting_standard_modifier }
-			activity_location.county = { remove_variable = sighting_owner }
-			activity_location.county = { remove_variable = animal_type }
-		}
-		else_if = {
-			limit = {
-				has_activity_option = { category = special_type option = hunt_type_standard }
-				hunt_animal_type_dangerous_trigger = { VAR = var:animal_type }
-				activity_location.county = {
-					has_county_modifier = hunt_sighting_dangerous_modifier
-					var:sighting_owner ?= scope:host
-				}
-			}
-			activity_location.county = { remove_county_modifier = hunt_sighting_dangerous_modifier }
-			activity_location.county = { remove_variable = sighting_owner }
-			activity_location.county = { remove_variable = animal_type }
-		}
-		else_if = {
-			limit = {
-				has_activity_option = { category = special_type option = hunt_type_falconry }
-				activity_location.county = {
-					has_county_modifier = hunt_sighting_falconry_modifier
-					var:sighting_owner ?= scope:host
-				}
-			}
-			activity_location.county = { remove_county_modifier = hunt_sighting_falconry_modifier }
-			activity_location.county = { remove_variable = sighting_owner }
-			activity_location.county = { remove_variable = animal_type }
+			# Remove sighting and trackers
+			activity_location.county = { hunt_remove_sighting_effect = yes }
 		}
 		else_if = {
 			limit = {
 				has_activity_option = { category = special_type option = hunt_type_legendary }
 				NOT = { exists = var:hunt_4013 } # Sighting already created
 			}
+			# Create new sighting
 			activity_location.county = {
-				add_county_modifier = {
-					modifier = hunt_sighting_legendary_modifier
-					years = 3
-					desc = hunt_sighting_legendary_modifier_custom_desc
-				}
-				set_variable = {
-					name = sighting_owner
-					years = 3
-					value = root
+				hunt_create_sighting_effect = {
+					TYPE = legendary
+					ANIMAL = scope:activity.var:animal_type
+					OWNER = scope:host
 				}
 			}
 		}
@@ -3870,4 +3853,54 @@ hunt_invalidation_event_effect = {
 		limit = { exists = scope:activity }
 		custom_tooltip = hunt_ends_tt
 	}
+}
+
+# Unified effect for adding sightings to counties
+hunt_create_sighting_effect = {
+	# Track who can use the sighting
+	set_variable = {
+		name = animal_type
+		years = 3
+		value = $ANIMAL$
+	}
+	# Track who can use the sighting
+	set_variable = {
+		name = sighting_owner
+		years = 3
+		value = $OWNER$
+	}
+	# Stop sightings in the same place too regularly
+	set_variable = {
+		name = recent_sighting
+		years = 10
+	}
+	# Add sighting modifier
+	add_county_modifier = {
+		modifier = hunt_sighting_$TYPE$_modifier
+		years = 3
+		desc = hunt_sighting_$TYPE$_modifier_custom_desc
+	}
+}
+
+hunt_remove_sighting_effect = {
+	# Remove sighting modifier
+	if = {
+		limit = { has_county_modifier = hunt_sighting_standard_modifier }
+		remove_county_modifier = hunt_sighting_standard_modifier
+	}
+	if = {
+		limit = { has_county_modifier = hunt_sighting_dangerous_modifier }
+		remove_county_modifier = hunt_sighting_dangerous_modifier
+	}
+	if = {
+		limit = { has_county_modifier = hunt_sighting_legendary_modifier }
+		remove_county_modifier = hunt_sighting_legendary_modifier
+	}
+	if = {
+		limit = { has_county_modifier = hunt_sighting_falconry_modifier }
+		remove_county_modifier = hunt_sighting_falconry_modifier
+	}
+	# Remove sightings
+	remove_variable = animal_type
+	remove_variable = sighting_owner
 }
