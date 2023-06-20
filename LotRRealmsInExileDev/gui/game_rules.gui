@@ -1,0 +1,690 @@
+window = {
+	name = "game_rules"
+	size = { 100% 100% }
+	movable = no
+	layer = confirmation
+
+	using = Background_Full_Dim
+
+	state = {
+		name = _show
+		using = Animation_FadeIn_Quick
+		on_start = "[PdxGuiWidget.FindChild('game_rules_window').TriggerAnimation('appear')]"
+	}
+
+	state = {
+		name = _hide
+		using = Animation_FadeOut_Quick
+		on_start = "[PdxGuiWidget.FindChild('game_rules_window').TriggerAnimation('disappear')]"
+	}
+
+	button_normal = {
+		size = { 100% 100% }
+		onclick = "[JominiGameRules.Hide]"
+	}
+
+	widget = {
+		name = "game_rules_window"
+		parentanchor = center
+		size = { 1200 900 }
+		alwaystransparent = no
+		allow_outside = yes
+
+		using = Window_Decoration_Frontend_Spike
+		using = Window_Background
+
+		state = {
+			name = appear
+			duration = 0.15
+			using = Animation_Curve_Default
+
+			position_y = 0
+			start_sound = {
+				soundeffect = "event:/SFX/UI/Generic/Windows/sfx_ui_generic_window_standard_show"
+			}
+		}
+
+		state = {
+			name = disappear
+			duration = 0.15
+			using = Animation_Curve_Default
+
+			position_y = 50
+			start_sound = {
+				soundeffect = "event:/SFX/UI/Generic/Windows/sfx_ui_generic_window_standard_hide"
+			}
+		}
+
+		vbox = {
+			using = Window_Margins
+			spacing = 5
+
+			header_pattern = {
+				layoutpolicy_horizontal = expanding
+
+				blockoverride "header_text"
+				{
+					text = "GAME_RULES_HEADER"
+				}
+
+				blockoverride "button_close"
+				{
+					onclick = "[JominiGameRules.Hide]"
+					shortcut = "close_window"
+					clicksound = "event:/SFX/UI/Generic/sfx_ui_generic_close"
+				}
+			}
+
+			hbox = {
+				margin = { 30 6 }
+				spacing = 20
+
+				hbox_ironman_achievements_info = {
+					name = "ironman_and_achievements"
+					visible = "[Not( GameHasMultiplePlayers )]"
+				}
+
+				vbox_game_rule_preset_options = {
+					visible = "[And( IsHost, Not( HasGameStartedForTheFirstTime ) )]"
+				}
+				
+				vbox = {
+					spacing = 5
+					text_single = {
+						text = "GAME_RULE_CATEGORIES"
+						max_width = 350
+					}
+					
+					dropdown_menu_standard = {
+						visible = "[And( IsHost, Not( HasGameStartedForTheFirstTime ) )]"
+
+						blockoverride "dropdown_properties"
+						{
+							datamodel = "[JominiGameRules.GetCategories]"
+							onselectionchanged = "[JominiGameRules.SelectCategory]"
+							selectedindex = "[JominiGameRules.GetSelectedCategoryIndex]"
+						}
+
+						blockoverride "dropdown_active_item_properties"
+						{
+							text = "[Select_CString( JominiGameRules.HasSelectedCategoryIndex, GameRuleCategory.GetName, Localize( 'GAME_RULES_CATEGORY_DROPDOWN_NONE_SELECTED' ) )]"
+						}
+
+						blockoverride "dropdown_item_properties"
+						{
+							text = "[GameRuleCategory.GetName]"
+						}
+
+					}
+				}
+				
+			}
+
+			scrollbox = {
+				layoutpolicy_horizontal = expanding
+				layoutpolicy_vertical = expanding
+
+				blockoverride "scrollbox_content"
+				{
+					margin_top = 30
+					margin_left = 25
+
+					fixedgridbox = {
+						datamodel = "[JominiGameRules.GetVisibleSettings]"
+						addcolumn = 450
+						addrow = 170
+						datamodel_wrap = 2
+						maxhorizontalslots = 2
+						flipdirection = yes
+
+						item = {
+							widget = {
+								size = { 420 150 }
+								datacontext = "[GuiGameRule.GetRule]"
+								datacontext = "[GuiGameRule.GetSetting]"
+
+								background = {
+									using = Background_Area_With_Header
+									alpha = 0.8
+									margin = { 10 5 }
+									margin_bottom = 0
+								}
+
+								vbox = {
+									text_single = {
+										text = "[GameRule.GetName]"
+										max_width = 350
+										#	parentanchor = hcenter
+									}
+
+									spacer = {
+										size = { 20 20 }
+									}
+
+									widget_game_rule_option = {}
+
+									text_multi = {
+										layoutpolicy_horizontal = expanding
+										layoutpolicy_vertical = expanding
+										text = "[GameRuleSetting.GetDescription]"
+										default_format = "#low"
+										margin = { 10 15 }
+									}
+								}
+
+							}
+						}
+					}
+				}
+			}
+
+			expand = {}
+
+			hbox = {
+				margin = { 0 10 }
+				margin_top = 5
+
+				spacing = 20
+
+				button_standard = {
+					visible = "[And( IsHost, Not( HasGameStartedForTheFirstTime ) )]"
+					text = "GAME_RULES_RESET_TO_DEFAULTS_TEXT"
+					onclick = "[JominiGameRules.ResetAllToDefaults]"
+				}
+
+				button_primary = {
+					text = "CLOSE_LABEL"
+					visible = "[Not( And( IsHost, Not( HasGameStartedForTheFirstTime ) ) )]"
+					onclick = "[JominiGameRules.Hide]"
+					shortcut = "close_window"
+					clicksound = "event:/SFX/UI/Generic/sfx_ui_generic_close"
+				}
+
+				button_primary = {
+					text = "APPLY"
+					visible = "[And( IsHost, Not( HasGameStartedForTheFirstTime ) )]"
+					onclick = "[JominiGameRules.ApplySettings]"
+					onclick = "[JominiGameRules.Hide]"
+					shortcut = "close_window"
+					clicksound = "event:/SFX/UI/Generic/sfx_ui_generic_close"
+				}
+			}
+		}
+		
+		game_rules_preset_window = {}
+	}
+
+}
+
+types GameRuleTypes
+{
+	type widget_game_rule_option = widget {
+		size = { 240 30 }
+
+		background = {
+			using = Background_Area_Dark
+			margin = { 5 5 }
+		}
+
+		button_select_arrow = {
+			visible = "[And( IsHost, Not( HasGameStartedForTheFirstTime ) )]"
+			size = { 25 25 }
+			parentanchor = left|vcenter
+			mirror = horizontal
+
+			block "onclick_prev"
+			{
+				onclick = "[GuiGameRule.Prev]"
+				clicksound = "event:/SFX/UI/Generic/sfx_ui_generic_decrement"
+			}
+		}
+
+		text_single = {
+			text = "[GameRuleSetting.GetName]"
+			parentanchor = center
+			default_format = "#medium"
+			align = nobaseline
+		}
+
+		achievements_disabled_icon = {
+			visible = "[GameRuleSetting.HasFlag( 'blocks_achievements' )]"
+			parentanchor = right
+			position = { -30 4 }
+			size = { 22 22 }
+			tooltip = "GAME_RULE_BLOCKS_ACHIEVEMENTS"
+		}
+
+		button_select_arrow = {
+			visible = "[And( IsHost, Not( HasGameStartedForTheFirstTime ) )]"
+			size = { 25 25 }
+			parentanchor = right|vcenter
+
+			block "onclick_next"
+			{
+				onclick = "[GuiGameRule.Next]"
+				clicksound = "event:/SFX/UI/Generic/sfx_ui_generic_decrement"
+			}
+		}
+	}
+
+	type flowcontainer_game_rules_mini = flowcontainer {
+		name = "difficulty_setting"
+		datacontext = "[AccessGameRules]"
+		datacontext = "[JominiGameRules.AccessNamedGameRule( 'difficulty' )]"
+		datacontext = "[GuiGameRule.GetRule]"
+		datacontext = "[GuiGameRule.GetSetting]"
+		spacing = 10
+
+		text_single = {
+			align = left
+			raw_text = "[GameRule.GetName]:"
+			default_format = "#medium"
+			max_width = 150
+			minimumsize = { 0 25 }
+		}
+
+		widget_game_rule_option = {
+			blockoverride "onclick_prev"
+			{
+				onclick = "[GuiGameRule.Prev]"
+				onclick = "[JominiGameRules.ApplySettings]"
+				clicksound = "event:/SFX/UI/Generic/sfx_ui_generic_decrement"
+
+			}
+			blockoverride "onclick_next"
+			{
+				onclick = "[GuiGameRule.Next]"
+				onclick = "[JominiGameRules.ApplySettings]"
+				clicksound = "event:/SFX/UI/Generic/sfx_ui_generic_decrement"
+			}
+		}
+	}
+
+	type hbox_achievements_info = hbox {
+		name = "achievements"
+		margin = { 10 10 }
+		margin_right = 20
+		margin_bottom = 10
+		spacing = 10
+		tooltip = "[SelectLocalization( CanGetAchievements, 'ACHIEVEMENTS_ENABLED', 'ACHIEVEMENTS_DISABLED' )]"
+
+		block "ai_background"
+		{
+			background = {
+				using = Background_Frame
+			}
+		}
+		
+
+		achievements_enabled_icon = {
+			visible = "[CanGetAchievements]"
+			block "ai_icon_size"
+			{
+
+			}
+		}
+
+		achievements_disabled_icon = {
+			visible = "[Not( CanGetAchievements )]"
+			block "ai_icon_size"
+			{
+
+			}
+		}
+
+		vbox = {
+			name = "text"
+
+			text_single = {
+				text = "ACHIEVEMENTS_LABEL"
+				max_width = 150
+				align = left|nobaseline
+			}
+
+			text_single = {
+				layoutpolicy_horizontal = expanding
+				text = "[SelectLocalization( CanGetAchievements, 'ACHIEVEMENTS_ENABLED_NO_HEADER', 'ACHIEVEMENTS_DISABLED_NO_HEADER' )]"
+				default_format = "#warning"
+				max_width = 150
+				align = left|nobaseline
+			}
+		}
+		
+	}
+
+	type hbox_ironman_achievements_info = hbox {
+		layoutpolicy_horizontal = expanding
+		spacing = 20
+
+		hbox = {
+			name = "ironman"
+			margin = { 10 10 }
+			margin_right = 20
+			margin_bottom = 10
+			tooltip = "IRONMAN_PAUSE_MENU_TOOLTIP"
+
+			background = {
+				using = Background_Frame
+			}
+
+			hbox = {
+				margin = { 5 5 }
+				name = "buttons"
+				visible = "[Not( HasGameStartedForTheFirstTime )]"
+
+				button_standard = {
+					name = "enable"
+					text = "ENABLE_IRONMAN"
+					visible = "[Not( IsIronmanEnabled )]"
+					enabled = "[Not( IsIronmanEnabled )]"
+					onclick = "[SetIronmanEnabledStatus( '(bool)yes' )]"
+					onclick = "[JominiGameRules.SetIronman( '(bool)yes' )]"
+
+					size = { 80 30 }
+				}
+
+				button_standard = {
+					name = "disable"
+					text = "DISABLE_IRONMAN"
+					visible = "[IsIronmanEnabled]"
+					enabled = "[IsIronmanEnabled]"
+					onclick = "[SetIronmanEnabledStatus( '(bool)no' )]"
+					onclick = "[JominiGameRules.SetIronman( '(bool)no' )]"
+
+					size = { 80 30 }
+				}
+
+			}
+
+
+			hbox = {
+
+				widget = {
+					size = { 40 40 }
+
+					ironman_disabled_icon = {
+						visible = "[Not( IsIronmanEnabled )]"
+					}
+
+					ironman_save_icon = {
+						visible = "[IsIronmanEnabled]"
+					}
+				}
+
+				vbox = {
+					margin_left = 10
+
+					text_single = {
+						text = "IRONMAN_LABEL"
+						max_width = 150
+						align = left|nobaseline
+					}
+
+					text_single = {
+						text = "[SelectLocalization( IsIronmanEnabled, 'IRONMAN_ENABLED_NO_HEADER', 'IRONMAN_DISABLED_NO_HEADER' )]"
+						default_format = "#warning"
+						max_width = 150
+						min_width = 60
+						align = left|nobaseline
+						layoutpolicy_horizontal = expanding
+					}
+				}
+			}
+		}
+
+		hbox_achievements_info = {}
+	}
+
+	type vbox_game_rule_preset_options = vbox
+	{
+		spacing = 5
+
+		dropdown_menu_standard = {
+			blockoverride "dropdown_properties"
+			{
+				datamodel = "[JominiGameRules.GetRulePresets]"
+				onselectionchanged = "[JominiGameRules.OnSelectPreset]"
+				onselectionchanged = "[SetIronmanEnabledStatus(JominiGameRules.GetSelectedPreset.IsIronmanEnabled)]"
+			}
+
+
+			blockoverride "dropdown_active_item_properties"
+			{
+				text = "[SelectLocalization( JominiGameRules.HasValidPresetSelected, JominiGameRules.GetSelectedPreset.GetName, 'GAME_RULES_PRESET_DROPDOWN_NO_SELECTED' )]"
+			}
+
+			blockoverride "dropdown_item_properties"
+            {
+                widget = {
+					size = { 100% 100% }
+					
+                    hbox = {
+						margin_right = 10
+						
+                        text_single = {
+                            layoutpolicy_horizontal = expanding
+							max_width = 145
+							margin_left = 4
+							default_format = "#clickable"
+							text = "[GuiGameRulePreset.GetName]"
+                        }
+
+                        achievements_enabled_icon = {
+							visible = "[And( GuiGameRulePreset.IsIronmanEnabled, Not( GuiGameRulePreset.HasRuleWithFlag('blocks_achievements') ) )]"
+							size = { 20 20 }
+                        }
+    
+                        achievements_disabled_icon = {
+                            visible = "[Or( Not( GuiGameRulePreset.IsIronmanEnabled ), GuiGameRulePreset.HasRuleWithFlag('blocks_achievements') )]"
+                            size = { 20 20 }
+                        }
+                    }  
+                }
+            }
+
+			blockoverride "dropdown_list_properties"
+			{
+				minimumsize = { 192 50 }
+				hbox = {
+					visible = "[IsDataModelEmpty(JominiGameRules.GetRulePresets)]"
+					textbox = {
+						text = "GAME_RULES_PRESET_DROPDOWN_NO_SELECTED_BODY"
+						align = center
+					}
+				}
+			}
+		}
+
+		hbox = {
+			spacing = 10
+
+			button_standard = {
+				size = { 100 30 }
+
+				onclick = "[JominiGameRules.ShowPresetWindow]"
+				onclick = "[JominiGameRules.SetPresetSaveName]"
+
+				text = "SAVE"
+				tooltip = "SAVE_PRESET_BUTTON_TOOLTIP"
+			}
+
+			button_standard = {
+				size = { 100 30 }
+
+				enabled = "[JominiGameRules.HasValidPresetSelected]"
+				onclick = "[JominiGameRules.DeletePresetAtIndex( JominiGameRules.GetSelectedPresetIndex )]"
+
+				text = "DELETE"
+				tooltip = "DELETE_SELECTED_PRESET_BUTTON_TOOLTIP"
+			}
+		}
+	}
+
+	type game_rules_preset_window = window  {
+		name = "game_rules_preset"
+
+		visible = "[And( And( IsHost, Not( HasGameStartedForTheFirstTime ) ), JominiGameRules.IsPresetWindowShown )]"
+
+		size = { 400 510 }
+		position = { 385 25 }
+		parentanchor = right	
+
+		layer = confirmation
+		alwaystransparent = no
+		movable = no
+
+		using = Window_Background_Subwindow
+
+		vbox = {
+			header_pattern = {
+				layoutpolicy_horizontal = expanding
+
+				blockoverride "header_text"
+				{
+					text = "SAVE_PRESET_HEADER"
+				}
+
+				blockoverride "button_close"
+				{
+					onclick = "[JominiGameRules.HidePresetWindow]"
+					shortcut = "close_window"
+					clicksound = "event:/SFX/UI/Generic/sfx_ui_generic_close"
+				}
+			}
+
+			editbox_standard_with_label = {
+				margin = { 30 0 }
+				margin_bottom = 14
+				layoutpolicy_horizontal = expanding
+			
+				blockoverride "editbox_label"
+				{
+					text = "SAVE_PRESET_SAVE_AS_LABEL"
+				}
+
+				blockoverride "editbox_properties" 
+				{
+					name = "preset_name_edit"
+					multiline = no
+					maxcharacters = 40
+					text = "[JominiGameRules.GetPresetSaveName]"
+					ontextedited = "[JominiGameRules.OnPresetSaveNameEdit]"
+				}
+			}
+			
+			scrollbox = {
+				size = { 390 0 }
+				layoutpolicy_vertical = expanding				
+
+				blockoverride "scrollbox_content"
+				{
+					margin_top = 20
+					margin_left = 20
+
+					fixedgridbox = {
+						datamodel = "[JominiGameRules.GetRulePresets]"
+						addcolumn = 350
+						addrow = 70
+						datamodel_wrap = 1
+						maxhorizontalslots = 1
+						flipdirection = yes
+
+						item = {
+							button_standard = {
+								size = { 350 60 }
+
+								onclick = "[JominiGameRules.OnPresetSaveNameChange( GuiGameRulePreset.GetName )]"
+								down = "[EqualTo_string(JominiGameRules.GetPresetSaveName, GuiGameRulePreset.GetName)]"
+								
+								hbox = {								
+									vbox = {
+										margin_left = 10
+
+										text_single = {
+											text = "[GuiGameRulePreset.GetName]"
+											layoutpolicy_horizontal = expanding
+											align = nobaseline
+											max_width = 280
+										}
+
+										text_single = {
+											datacontext = "[GuiGameRulePreset.GetSettingForRule( 'difficulty' )]"
+											layoutpolicy_horizontal = expanding
+											layoutpolicy_vertical = expanding
+											minimumsize = { 240 0 }
+
+											text = "GAME_RULES_PRESET_DIFFICULTY"
+											default_format = "#low"										
+											align = nobaseline	
+										}
+									}
+
+									expand = {}
+
+									hbox = {
+										margin_right = 10
+
+										achievements_enabled_icon = {
+											visible = "[And( GuiGameRulePreset.IsIronmanEnabled, Not( GuiGameRulePreset.HasRuleWithFlag('blocks_achievements') ) )]"
+										}
+					
+										achievements_disabled_icon = {
+											visible = "[Or( Not( GuiGameRulePreset.IsIronmanEnabled ), GuiGameRulePreset.HasRuleWithFlag('blocks_achievements') )]"
+										}
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+
+			hbox = {
+				margin = { 0 16 }
+				margin_top = 10
+
+				button_standard = {			
+					size = { 150 33 }
+					
+					enabled = "[JominiGameRules.HasPresetWithName(JominiGameRules.GetPresetSaveName)]"
+					onclick = "[JominiGameRules.DeletePresetWithName( JominiGameRules.GetPresetSaveName )]"
+
+					text = "DELETE"
+					tooltip = "DELETE_PRESET_WITH_NAME_BUTTON_TOOLTIP"
+				}
+
+				spacer = {
+					size = { 20 0 }
+				}
+
+				button_standard = {
+					visible = "[Not(JominiGameRules.HasPresetWithName(JominiGameRules.GetPresetSaveName))]"			
+					size = { 150 33 }		
+
+					enabled = "[JominiGameRules.IsValidPresetName]"
+					onclick = "[JominiGameRules.SavePreset]"
+					clicksound = "event:/SFX/UI/Generic/sfx_ui_generic_close"
+
+					text = "SAVE"
+					tooltip = "[SelectLocalization( JominiGameRules.IsValidPresetName, 'SAVE_PRESET_BUTTON_TOOLTIP', JominiGameRules.GetInvalidPresetNameTooltip )]"
+				}
+
+				button_standard = {
+					visible = "[JominiGameRules.HasPresetWithName(JominiGameRules.GetPresetSaveName)]"
+					size = { 150 33 }	
+
+					onclick = "[JominiGameRules.SavePreset]"
+					clicksound = "event:/SFX/UI/Generic/sfx_ui_generic_close"
+					
+					text = "OVERWRITE_GAME_RULES_PRESET_ACCEPT"
+					tooltip = "OVERWRITE_PRESET_BUTTON_TOOLTIP"
+				}				
+			}
+			expand = {}
+		}
+	}
+}
+
+
+
+
