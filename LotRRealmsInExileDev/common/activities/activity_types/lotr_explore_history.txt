@@ -1,0 +1,2587 @@
+﻿# Exploring Histories activity
+
+activity_explore_history = {
+
+	is_shown = {
+		is_landed = yes
+		highest_held_title_tier > tier_barony
+		is_in_valinor = no
+		OR = {
+			AND = {
+				religion = { is_in_family = rf_eruhini }
+				OR = {
+					lotr_has_numenorean_culture_trigger = yes
+					is_eldar = yes
+				}
+			}
+			faith = {
+				has_doctrine = tenet_adunaic_birthright
+			}
+		}
+	}
+	
+	can_start_showing_failures_only = {
+		is_available_adult = yes
+	}
+	
+	is_valid = {
+		scope:host = {
+			is_alive = yes
+			is_capable_adult = yes
+			is_imprisoned = no
+			is_landed = yes
+			NOT = { is_incapable = yes }
+		}
+		# Converting mid-exploratiion is a big no-no.
+		scope:activity = {
+			OR = {
+				NOT = { has_variable = starting_faith }
+				scope:host.faith = var:starting_faith
+			}
+		}
+	}
+	
+	on_host_death = {
+		every_attending_character = {
+			limit = { is_alive = yes }
+			trigger_event = {
+				id = explore_history.0063
+				days = 1 # So you don't get spammed
+			}
+		}
+		# Code sends your entourage home on invalidated
+		scope:activity.var:host_var = {
+			# Saving the title for loc
+			primary_title = { save_scope_as = host_title }
+			# Inform your heir if you have one
+			player_heir ?= {
+				trigger_event = {
+					id = explore_history.0070
+					days = 1
+				}
+			}
+		}
+	}
+	
+	on_invalidated = {
+		if = {
+			limit = {
+				scope:host = { is_imprisoned = yes }
+			}
+			#Host has been imprisoned
+			every_attending_character = {
+				limit = {
+					NOT = { this  = scope:host }
+				}
+				trigger_event = explore_history.0065
+			}
+			scope:host = { 
+				trigger_event = explore_history.0064
+			}
+		}
+		if = {
+			limit = {
+				scope:host = { is_incapable = yes }
+			}
+			scope:activity = {
+				activity_type = { save_scope_as = activity_type }
+			}
+			scope:host = {
+				trigger_event = activity_system.0330
+			}
+			every_attending_character = {
+				limit = { NOT = { this = scope:host } }
+				trigger_event = activity_system.0331
+			}
+		}
+		# Host becomes unlanded
+		if = {
+			limit = {
+				scope:host = { is_landed = no }
+			}
+			scope:activity = {
+				activity_type = { save_scope_as = activity_type }
+			}
+			every_attending_character = {
+				trigger_event = activity_system.0320
+			}
+		}
+	}
+	
+	
+	## Defining appropriate locations
+	
+	is_location_valid = {
+		has_holding = yes
+		
+		
+		#Check that the province is in the list
+		trigger_if = {
+			limit = { 
+				has_holding = yes 
+				scope:host = { faith_is_good = yes }
+			}
+			
+			custom_tooltip = {
+				text = activity_explore_history.is_location_valid.not_in_list
+				OR = {
+					province_owner.top_liege ?= scope:host.top_liege
+					AND = {
+						scope:host = { is_human = yes }
+						unique_human_archives_trigger = yes
+					}
+					AND = {
+						scope:host = { is_elf = yes }
+						unique_elven_archives_trigger = yes
+					}
+				}
+			}	
+			custom_tooltip = {
+				text = activity_explore_history.is_location_valid.wrong_holder_faith
+				province_owner.top_liege = { faith_is_evil = no }
+			}
+		}
+		trigger_if = {
+			limit = { 
+				has_holding = yes 
+				NOT = { scope:host = { faith_is_good = yes } }
+				scope:host.faith = { has_doctrine = tenet_adunaic_birthright }
+			}
+			
+			custom_tooltip = {
+				text = activity_explore_history.is_location_valid.not_in_list
+				OR = {
+					province_owner.top_liege ?= scope:host.top_liege
+					AND = {
+						scope:host = { is_human = yes }
+						unique_human_archives_trigger = yes
+					}
+					AND = {
+						scope:host = { is_elf = yes }
+						unique_elven_archives_trigger = yes
+					}
+				}
+			}
+			custom_tooltip = {
+				text = activity_explore_history.is_location_valid.wrong_holder_faith
+				province_owner.top_liege = { faith_is_good = no }
+			}
+		}
+
+		# If you are supposed to be the realm's reserve ruler, then you can't take a foreign trip.
+		trigger_if = {
+			limit = {
+				scope:host = { bannable_serving_diarch_trigger = yes }
+				NOT = { scope:host.capital_province = root }
+			}
+			custom_tooltip = {
+				text = activity_pilgrimage.serving_diarch
+				county.holder = {
+					any_liege_or_above = { this = scope:host.liege }
+				}
+			}
+		}
+	}
+	
+	host_description = {
+		desc = activity_explore_history_host_desc
+		first_valid = {
+			triggered_desc = {
+				trigger = { has_trait = lifestyle_archivist }
+				desc = activity_explore_history_host_desc_trait_xp
+			}
+			desc = activity_explore_history_host_desc_trait
+		}
+		triggered_desc = {
+			trigger = {
+				has_dlc_feature = accolades
+			}
+			desc = activity_hunt_guest_desc_accolade
+		}
+		triggered_desc = {
+			trigger = {
+				NOT = { employs_court_position = antiquarian_court_position }
+			}
+			desc = activity_explore_history_host_desc_antiquarian
+		}
+	}
+
+	guest_description = {
+		first_valid = {
+			triggered_desc = {
+				trigger = { has_trait = lifestyle_archivist }
+				desc = activity_explore_history_host_desc_trait_xp
+			}
+			desc = activity_explore_history_host_desc_trait
+		}
+		desc = activity_hunt_guest_desc_accolade
+	}
+	
+	conclusion_description = {
+		desc = explore_history.conclusion.desc
+		first_valid = {
+			triggered_desc = {
+				trigger = {
+					scope:activity = {
+						has_activity_option = { category = special_type option = explore_history_type_adunaic_propaganda }
+					}
+				}
+				desc = activity_explore_history_conclusion_desc_adunaic_propaganda
+			}
+			desc = activity_explore_history_conclusion_desc_standard
+		}
+	}
+	
+	###################
+	# PARAMETERS
+	###################
+
+	is_grand_activity = no
+	is_single_location = yes
+
+	province_filter = all
+	ai_province_filter = top_realm
+
+	max_route_deviation_mult = 2.0
+
+	
+	province_description = {
+		desc = activity_explore_history_province_desc
+		# +++ / triple plus good
+		triggered_desc = {
+			trigger = { has_building_or_higher = wonder_angrenost_02_storehouses }
+			desc = activity_explore_history_province_desc_wonder_angrenost_upgraded
+		}
+		triggered_desc = {
+			trigger = { has_building_or_higher = wonder_minas_anor_02 }
+			desc = activity_explore_history_province_desc_wonder_minas_anor_upgraded
+		}
+		triggered_desc = {
+			trigger = {
+				OR = {
+					has_building = wonder_minas_ithil_01
+					has_building = wonder_minas_ithil_03
+				}
+			}
+			desc = activity_explore_history_province_desc_wonder_minas_ithil
+		}
+		triggered_desc = {
+			trigger = { has_building_or_higher = wonder_osgiliath_05 }
+			desc = activity_explore_history_province_desc_wonder_osgiliath
+		}
+		triggered_desc = {
+			trigger = { has_building_or_higher = wonder_palace_of_ithilien }
+			desc = activity_explore_history_province_desc_wonder_palace_of_ithilien
+		}
+		triggered_desc = {
+			trigger = { has_building_or_higher = wonder_port_of_pelargir_02 }
+			desc = activity_explore_history_province_desc_wonder_port_of_pelargir_upgraded
+		}
+		triggered_desc = {
+			trigger = { has_building_or_higher = wonder_dol_amroth_02 }
+			desc = activity_explore_history_province_desc_wonder_dol_amroth_upgraded
+		}
+		triggered_desc = {
+			trigger = { has_building_or_higher = wonder_umbar_02 }
+			desc = activity_explore_history_province_desc_wonder_umbar_upgraded
+		}
+		triggered_desc = {
+			trigger = { has_building_or_higher = wonder_arminalethor_01 }
+			desc = activity_explore_history_province_desc_wonder_arminalethor
+		}
+		triggered_desc = {
+			trigger = { has_building_or_higher = wonder_nilulonde_02 }
+			desc = activity_explore_history_province_desc_wonder_nilulonde_upgraded
+		}
+		triggered_desc = {
+			trigger = { has_building_or_higher = wonder_marath_kharadune_02 }
+			desc = activity_explore_history_province_desc_wonder_marath_kharadune_upgraded
+		}
+		triggered_desc = {
+			trigger = { has_building_or_higher = wonder_caras_galadhon }
+			desc = activity_explore_history_province_desc_wonder_caras_galadhon
+		}
+		triggered_desc = {
+			trigger = { has_building_or_higher = wonder_aradhrynd }
+			desc = activity_explore_history_province_desc_wonder_aradhrynd
+		}
+		triggered_desc = {
+			trigger = { 
+				OR = {
+					has_building = wonder_amarthrynd_01
+					has_building = wonder_amarthrynd_03
+				}
+			}
+			desc = activity_explore_history_province_desc_wonder_amarthrynd
+		}
+		triggered_desc = {
+			trigger = { 
+				OR = {
+					has_building = wonder_edhellond_01
+					has_building = wonder_edhellond_03
+				}
+			}
+			desc = activity_explore_history_province_desc_wonder_edhellond
+		}
+		triggered_desc = {
+			trigger = { 
+				OR = {
+					has_building = wonder_amon_lanc_01
+					has_building = wonder_amon_lanc_03
+				}
+			}
+			desc = activity_explore_history_province_desc_wonder_amon_lanc
+		}
+		
+		
+		# ++ / double plus good
+		triggered_desc = {
+			trigger = { has_building = wonder_angrenost_01 }
+			desc = activity_explore_history_province_desc_wonder_angrenost
+		}
+		triggered_desc = {
+			trigger = { has_building = wonder_minas_anor_01 }
+			desc = activity_explore_history_province_desc_wonder_minas_anor
+		}
+		triggered_desc = {
+			trigger = { has_building = wonder_port_of_pelargir_01 }
+			desc = activity_explore_history_province_desc_wonder_port_of_pelargir
+		}
+		triggered_desc = {
+			trigger = { has_building = wonder_dol_amroth_01 }
+			desc = activity_explore_history_province_desc_wonder_dol_amroth
+		}
+		triggered_desc = {
+			trigger = { has_building = wonder_umbar_01 }
+			desc = activity_explore_history_province_desc_wonder_umbar
+		}
+		triggered_desc = {
+			trigger = { has_building = wonder_nilulonde_01 }
+			desc = activity_explore_history_province_desc_wonder_nilulonde
+		}
+		triggered_desc = {
+			trigger = { has_building = wonder_haven_korlea }
+			desc = activity_explore_history_province_desc_wonder_haven_korlea
+		}
+		triggered_desc = {
+			trigger = { has_building = wonder_marath_kharadune_01 }
+			desc = activity_explore_history_province_desc_wonder_marath_kharadune
+		}
+		triggered_desc = {
+			trigger = { has_building = wonder_lighthouse_of_adunazain }
+			desc = activity_explore_history_province_desc_wonder_lighthouse_of_adunazain
+		}
+		
+		# + / plus good
+		triggered_desc = {
+			trigger = { has_building_or_higher = building_library_01 }
+			desc = activity_explore_history_province_desc_library
+		}
+		triggered_desc = {
+			trigger = { has_building_or_higher = military_academy_01 }
+			desc = activity_explore_history_province_desc_military_academy
+		}
+		triggered_desc = {
+			trigger = { has_building_or_higher = monastic_schools_01 }
+			desc = activity_explore_history_province_desc_monastic_schools
+		}
+		triggered_desc = {
+			trigger = { has_building_or_higher = citadel_01 }
+			desc = activity_explore_history_province_desc_citadel
+		}
+		
+		# Unlocked Histories
+		triggered_desc = {
+			trigger = { 
+				OR = {
+					unique_human_archives_trigger = yes
+					unique_elven_archives_trigger = yes
+				}
+			}
+			desc = activity_explore_history_province_desc_elder_days_records
+		}
+		triggered_desc = {
+			trigger = { 
+				OR = {
+					geographical_region = middleearth_west
+					geographical_region = middleearth_haradwaith_umbar
+				}
+			}
+			desc = activity_explore_history_province_desc_northern_histories
+		}
+		triggered_desc = {
+			trigger = { geographical_region = middleearth_haradwaith }
+			desc = activity_explore_history_province_desc_southern_histories
+		}
+	}
+	
+	max_province_icons = 10
+	
+	province_score = {
+		value = 0
+		# BUILDINGS
+		# Triple good / +++
+		if = {
+			limit = { has_building_or_higher = wonder_angrenost_02_storehouses }
+			add = 150
+		}
+		if = {
+			limit = { has_building = wonder_angrenost_01 }
+			add = 150
+		}
+		if = {
+			limit = { has_building_or_higher = wonder_minas_anor_02 }
+			add = 150
+		}
+		if = {
+			limit = { has_building = wonder_minas_anor_01 }
+			add = 150
+		}
+		if = {
+			limit = { has_building = wonder_minas_ithil_01 }
+			add = 150
+		}
+		if = {
+			limit = { has_building = wonder_minas_ithil_03 }
+			add = 150
+		}
+		if = {
+			limit = { has_building_or_higher = wonder_osgiliath_05 }
+			add = 150
+		}
+		if = {
+			limit = { has_building_or_higher = wonder_palace_of_ithilien }
+			add = 150
+		}
+		if = {
+			limit = { has_building_or_higher = wonder_port_of_pelargir_02 }
+			add = 150
+		}
+		if = {
+			limit = { has_building_or_higher = wonder_dol_amroth_02 }
+			add = 150
+		}
+		if = {
+			limit = { has_building_or_higher = wonder_umbar_02 }
+			add = 150
+		}
+		if = {
+			limit = { has_building_or_higher = wonder_arminalethor_01 }
+			add = 150
+		}
+		if = {
+			limit = { has_building_or_higher = wonder_nilulonde_02 }
+			add = 150
+		}
+		if = {
+			limit = { has_building_or_higher = wonder_marath_kharadune_02 }
+			add = 150
+		}
+		if = {
+			limit = { has_building_or_higher = wonder_caras_galadhon }
+			add = 150
+		}
+		if = {
+			limit = { has_building_or_higher = wonder_aradhrynd }
+			add = 150
+		}
+		if = {
+			limit = { has_building = wonder_amarthrynd_01 }
+			add = 150
+		}
+		if = {
+			limit = { has_building = wonder_amarthrynd_03 }
+			add = 100
+		}
+		if = {
+			limit = { has_building = wonder_edhellond_01}
+			add = 150
+		}
+		if = {
+			limit = { has_building = wonder_edhellond_03 }
+			add = 150
+		}
+		if = {
+			limit = { has_building = wonder_amon_lanc_01 }
+			add = 150
+		}
+		if = {
+			limit = { has_building = wonder_amon_lanc_03 }
+			add = 150
+		}
+		# Double good / ++
+		if = {
+			limit = { has_building = wonder_port_of_pelargir_01 }
+			add = 100
+		}
+		if = {
+			limit = { has_building = wonder_dol_amroth_01 }
+			add = 100
+		}
+		if = {
+			limit = { has_building = wonder_umbar_01 }
+			add = 100
+		}
+		if = {
+			limit = { has_building = wonder_nilulonde_01 }
+			add = 100
+		}
+		if = {
+			limit = { has_building = wonder_haven_korlea }
+			add = 100
+		}
+		if = {
+			limit = { has_building = wonder_marath_kharadune_01 }
+			add = 100
+		}
+		if = {
+			limit = { has_building = wonder_lighthouse_of_adunazain }
+			add = 100
+		}
+		
+		
+		# Good / +
+		if = {
+			limit = { has_building_or_higher = building_library_01 }
+			add = 25
+		}
+		if = {
+			limit = { has_building_or_higher = military_academy_01 }
+			add = 25
+		}
+		if = {
+			limit = { has_building_or_higher = monastic_schools_01 }
+			add = 25
+		}
+		if = {
+			limit = { has_building_or_higher = citadel_01 }
+			add = 25
+		}
+	}
+	
+	cooldown = { years = standard_explore_history_cooldown_time } #10 years
+	
+	# desc is only shown in debug AI watch window
+	ai_will_do = {
+		add = {
+			value = 30
+			desc = "Base"
+		}
+		add = {
+            value = ai_greed
+            multiply = -0.25
+            desc = "ai_greed"
+        }
+        add = {
+        	value = ai_sociability
+        	multiply = -0.25
+        	desc = "ai_sociability"
+        }
+		if = {
+			limit = {
+				ai_energy < 0
+			}
+			add = {
+				add = ai_energy
+				desc = "ai_energy"
+			}
+		}
+		if = {
+			limit = { has_trait = gregarious }
+			add = {
+				value = -10
+				desc = "Is gregarious"
+			}
+		}
+		if = {
+			limit = { has_trait = shy }
+			add = {
+				value = 30
+				desc = "Is shy"
+			}
+		}
+		if = {
+			limit = { has_trait = reclusive }
+			add = {
+				value = 30
+				desc = "Is reclusive"
+			}
+		}
+		if = {
+			limit = {
+				short_term_gold >= explore_history_activity_base_cost
+				short_term_gold >= major_gold_value
+			}
+			add = {
+				value = 30
+				desc = "Got gold to burn"
+			}
+		}
+		if = {
+			limit = { has_trait = lifestyle_archivist }
+			add = {
+				value = 20
+				desc = "Is Archivist"
+			}
+		}
+		if = {
+			limit = {
+				has_royal_court = yes 
+				has_court_type = court_scholarly
+				}
+			add = {
+				value = 10
+				desc = "Learning court trait"
+			}
+		}
+		if = {
+			limit = { has_trait = diligent }
+			add = {
+				value = 30
+				desc = "Is Diligent"
+			}
+		}
+		if = {
+			limit = { has_trait = journaller }
+			add = {
+				value = 30
+				desc = "Is Journaler"
+			}
+		}
+		if = {
+			limit = { has_trait = calm }
+			add = {
+				value = 10
+				desc = "Is Calm"
+			}
+		}
+		if = {
+			limit = { has_trait = patient }
+			add = {
+				value = 10
+				desc = "Is Patient"
+			}
+		}
+		if = {
+			limit = { has_trait = impatient }
+			add = {
+				value = -10
+				desc = "Is Impatient"
+			}
+		}
+		if = {
+			limit = { has_trait = scholar }
+			add = {
+				value = 30
+				desc = "Is Scholar"
+			}
+		}
+		# Stress
+		if = { # Low Stress
+            limit = {
+				stress >= lower_than_baseline_stress
+				NOT = { has_trait = impatient }
+			}
+            add = {
+            	value = 10
+            	desc = "lower_than_baseline_stress"
+            }
+        }
+        if = { # High Stress
+        	limit = {
+				stress >= higher_than_baseline_stress
+				NOT = { has_trait = impatient }
+			}
+        	add = {
+        		value = 10
+        		desc = "higher_than_baseline_stress"
+        	}
+        }
+        if = { # Very High Stress
+        	limit = {
+				stress >= high_stress
+				NOT = { has_trait = impatient }
+			}
+        	add = {
+        		value = 10
+        		desc = "high_stress"
+        	}
+        }
+        if = {
+        	limit = { ai_has_warlike_personality = yes }
+        	add = {
+            	value = -30
+            	desc = "Warlike"
+            }
+        }
+        # Economic Archetype
+		if = { # Too busy booming the economy
+            limit = {
+                OR = {
+                    ai_has_economical_boom_personality = yes
+                    has_character_flag = ai_boom
+                }
+            }
+            add = {
+            	value = -200
+            	desc = "Builder"
+            }
+        }
+	}
+	
+	###################
+	# GUEST HANDLING
+	###################
+	
+	allow_zero_guest_invites = yes
+
+	max_guests = 5
+	
+	guest_invite_rules = {
+		rules = {
+			# Misc landless.
+			5 = activity_invite_rule_knights
+
+			# MP 
+			6 = activity_invite_mp
+		}
+		defaults = {
+			1 = activity_invite_rule_close_family
+			1 = activity_invite_spouses
+		}
+	}
+
+	can_be_activity_guest = {
+		is_adult = yes
+		is_healthy = yes
+		in_diplomatic_range = scope:host
+		lotr_can_be_activity_guest = yes
+	}
+
+	host_intents = {
+		intents = { reduce_stress_intent woo_attendee_intent befriend_attendee_intent }
+		default = reduce_stress_intent
+	}
+
+	guest_intents = {
+		intents = { reduce_stress_intent woo_attendee_intent befriend_attendee_intent }
+		default = reduce_stress_intent
+	}
+	
+	travel_entourage_selection = {
+		weight = standard_travel_entourage_additions
+		max = 5
+		invite_rule_order = 1
+	}
+	
+	###################
+	# COSTS
+	###################
+	
+	cost = {
+		gold = {
+			add = {
+				add = {
+					value = explore_history_activity_base_cost #Base level
+					desc = explore_history_base_cost
+				}
+				add = {
+					value = explore_history_activity_base_cost
+					multiply = activity_cost_scale_by_era
+					subtract = explore_history_activity_base_cost
+					desc = activity_cost_scale_by_era_desc
+				}
+				if = {
+					limit = {
+						dynasty ?= {
+							has_dynasty_perk = law_legacy_1
+						}
+					}
+					subtract = {
+						value = 0
+						add = {
+							value = explore_history_activity_base_cost
+							add = {
+								value = explore_history_activity_base_cost
+								multiply = activity_cost_scale_by_era
+								subtract = explore_history_activity_base_cost
+							}
+						}
+						multiply = law_legacy_cost_reduction_mult
+						desc = law_legacy_1_name
+					}
+				}
+				#Maximum cost reduction
+				if = {
+					limit = {
+						scope:province ?= { has_building_or_higher = wonder_angrenost_02_storehouses }
+					}
+					add = {
+						value = 0
+						add = {
+							value = explore_history_activity_base_cost
+							add = {
+								value = explore_history_activity_base_cost
+								multiply = activity_cost_scale_by_era
+								subtract = explore_history_activity_base_cost
+							}
+						}
+						multiply = explore_history_activity_cost_discount_max_value
+						desc = explore_history_cost_discount_wonder_angrenost_upgraded
+					}
+				}
+				if = {
+					limit = {
+						scope:province ?= { has_building_or_higher = wonder_minas_anor_02 }
+					}
+					add = {
+						value = 0
+						add = {
+							value = explore_history_activity_base_cost
+							add = {
+								value = explore_history_activity_base_cost
+								multiply = activity_cost_scale_by_era
+								subtract = explore_history_activity_base_cost
+							}
+						}
+						multiply = explore_history_activity_cost_discount_max_value
+						desc = explore_history_cost_discount_wonder_minas_anor_upgraded
+					}
+				}
+				if = {
+					limit = {
+						scope:province ?= { 
+							OR = {
+								has_building = wonder_minas_ithil_01
+								has_building = wonder_minas_ithil_03
+							}
+						}
+					}
+					add = {
+						value = 0
+						add = {
+							value = explore_history_activity_base_cost
+							add = {
+								value = explore_history_activity_base_cost
+								multiply = activity_cost_scale_by_era
+								subtract = explore_history_activity_base_cost
+							}
+						}
+						multiply = explore_history_activity_cost_discount_max_value
+						desc = explore_history_cost_discount_wonder_minas_ithil
+					}
+				}
+				if = {
+					limit = {
+						scope:province ?= { has_building_or_higher = wonder_osgiliath_05 }
+					}
+					add = {
+						value = 0
+						add = {
+							value = explore_history_activity_base_cost
+							add = {
+								value = explore_history_activity_base_cost
+								multiply = activity_cost_scale_by_era
+								subtract = explore_history_activity_base_cost
+							}
+						}
+						multiply = explore_history_activity_cost_discount_max_value
+						desc = explore_history_cost_discount_wonder_osgiliath
+					}
+				}
+				if = {
+					limit = {
+						scope:province ?= { has_building_or_higher = wonder_palace_of_ithilien }
+					}
+					add = {
+						value = 0
+						add = {
+							value = explore_history_activity_base_cost
+							add = {
+								value = explore_history_activity_base_cost
+								multiply = activity_cost_scale_by_era
+								subtract = explore_history_activity_base_cost
+							}
+						}
+						multiply = explore_history_activity_cost_discount_max_value
+						desc = explore_history_cost_discount_wonder_palace_of_ithilien
+					}
+				}
+				if = {
+					limit = {
+						scope:province ?= { has_building_or_higher = wonder_port_of_pelargir_02 }
+					}
+					add = {
+						value = 0
+						add = {
+							value = explore_history_activity_base_cost
+							add = {
+								value = explore_history_activity_base_cost
+								multiply = activity_cost_scale_by_era
+								subtract = explore_history_activity_base_cost
+							}
+						}
+						multiply = explore_history_activity_cost_discount_max_value
+						desc = explore_history_cost_discount_wonder_port_of_pelargir_upgraded
+					}
+				}
+				if = {
+					limit = {
+						scope:province ?= { has_building_or_higher = wonder_dol_amroth_02 }
+					}
+					add = {
+						value = 0
+						add = {
+							value = explore_history_activity_base_cost
+							add = {
+								value = explore_history_activity_base_cost
+								multiply = activity_cost_scale_by_era
+								subtract = explore_history_activity_base_cost
+							}
+						}
+						multiply = explore_history_activity_cost_discount_max_value
+						desc = explore_history_cost_discount_wonder_dol_amroth_upgraded
+					}
+				}
+				if = {
+					limit = {
+						scope:province ?= { has_building_or_higher = wonder_umbar_02 }
+					}
+					add = {
+						value = 0
+						add = {
+							value = explore_history_activity_base_cost
+							add = {
+								value = explore_history_activity_base_cost
+								multiply = activity_cost_scale_by_era
+								subtract = explore_history_activity_base_cost
+							}
+						}
+						multiply = explore_history_activity_cost_discount_max_value
+						desc = explore_history_cost_discount_wonder_umbar_upgraded
+					}
+				}
+				if = {
+					limit = {
+						scope:province ?= { has_building_or_higher = wonder_arminalethor_01 }
+					}
+					add = {
+						value = 0
+						add = {
+							value = explore_history_activity_base_cost
+							add = {
+								value = explore_history_activity_base_cost
+								multiply = activity_cost_scale_by_era
+								subtract = explore_history_activity_base_cost
+							}
+						}
+						multiply = explore_history_activity_cost_discount_max_value
+						desc = explore_history_cost_discount_wonder_arminalethor
+					}
+				}
+				if = {
+					limit = {
+						scope:province ?= { has_building_or_higher = wonder_nilulonde_02 }
+					}
+					add = {
+						value = 0
+						add = {
+							value = explore_history_activity_base_cost
+							add = {
+								value = explore_history_activity_base_cost
+								multiply = activity_cost_scale_by_era
+								subtract = explore_history_activity_base_cost
+							}
+						}
+						multiply = explore_history_activity_cost_discount_max_value
+						desc = explore_history_cost_discount_wonder_nilulonde_upgraded
+					}
+				}
+				if = {
+					limit = {
+						scope:province ?= { has_building_or_higher = wonder_marath_kharadune_02 }
+					}
+					add = {
+						value = 0
+						add = {
+							value = explore_history_activity_base_cost
+							add = {
+								value = explore_history_activity_base_cost
+								multiply = activity_cost_scale_by_era
+								subtract = explore_history_activity_base_cost
+							}
+						}
+						multiply = explore_history_activity_cost_discount_max_value
+						desc = explore_history_cost_discount_wonder_marath_kharadune_upgraded
+					}
+				}
+				if = {
+					limit = {
+						scope:province ?= { has_building_or_higher = wonder_caras_galadhon }
+					}
+					add = {
+						value = 0
+						add = {
+							value = explore_history_activity_base_cost
+							add = {
+								value = explore_history_activity_base_cost
+								multiply = activity_cost_scale_by_era
+								subtract = explore_history_activity_base_cost
+							}
+						}
+						multiply = explore_history_activity_cost_discount_max_value
+						desc = explore_history_cost_discount_wonder_caras_galadhon
+					}
+				}
+				if = {
+					limit = {
+						scope:province ?= { has_building_or_higher = wonder_aradhrynd }
+					}
+					add = {
+						value = 0
+						add = {
+							value = explore_history_activity_base_cost
+							add = {
+								value = explore_history_activity_base_cost
+								multiply = activity_cost_scale_by_era
+								subtract = explore_history_activity_base_cost
+							}
+						}
+						multiply = explore_history_activity_cost_discount_max_value
+						desc = explore_history_cost_discount_wonder_aradhrynd
+					}
+				}
+				if = {
+					limit = {
+						scope:province ?= {
+							OR = {
+								has_building = wonder_amarthrynd_01
+								has_building = wonder_amarthrynd_03
+							}
+						}
+					}
+					add = {
+						value = 0
+						add = {
+							value = explore_history_activity_base_cost
+							add = {
+								value = explore_history_activity_base_cost
+								multiply = activity_cost_scale_by_era
+								subtract = explore_history_activity_base_cost
+							}
+						}
+						multiply = explore_history_activity_cost_discount_max_value
+						desc = explore_history_cost_discount_wonder_amarthrynd
+					}
+				}
+				if = {
+					limit = {
+						scope:province ?= { 
+							OR = {
+								has_building = wonder_edhellond_01
+								has_building = wonder_edhellond_03
+							}
+						}
+					}
+					add = {
+						value = 0
+						add = {
+							value = explore_history_activity_base_cost
+							add = {
+								value = explore_history_activity_base_cost
+								multiply = activity_cost_scale_by_era
+								subtract = explore_history_activity_base_cost
+							}
+						}
+						multiply = explore_history_activity_cost_discount_max_value
+						desc = explore_history_cost_discount_wonder_edhellond
+					}
+				}
+				if = {
+					limit = {
+						scope:province ?= { 
+							OR = {
+								has_building = wonder_amon_lanc_01
+								has_building = wonder_amon_lanc_03
+							}
+						}
+					}
+					add = {
+						value = 0
+						add = {
+							value = explore_history_activity_base_cost
+							add = {
+								value = explore_history_activity_base_cost
+								multiply = activity_cost_scale_by_era
+								subtract = explore_history_activity_base_cost
+							}
+						}
+						multiply = explore_history_activity_cost_discount_max_value
+						desc = explore_history_cost_discount_wonder_amon_lanc
+					}
+				}
+				#Medium cost reduction
+				if = {
+					limit = { 
+						scope:province ?= {
+							has_building = wonder_angrenost_01
+						}
+					}
+					add = {
+						value = 0
+						add = {
+							value = explore_history_activity_base_cost
+							add = {
+								value = explore_history_activity_base_cost
+								multiply = activity_cost_scale_by_era
+								subtract = explore_history_activity_base_cost
+							}
+						}
+						multiply = explore_history_activity_cost_discount_medium_value
+						desc = explore_history_cost_discount_wonder_angrenost
+					}
+				}
+				if = {
+					limit = { 
+						scope:province ?= {
+							has_building = wonder_minas_anor_01
+						}
+					}
+					add = {
+						value = 0
+						add = {
+							value = explore_history_activity_base_cost
+							add = {
+								value = explore_history_activity_base_cost
+								multiply = activity_cost_scale_by_era
+								subtract = explore_history_activity_base_cost
+							}
+						}
+						multiply = explore_history_activity_cost_discount_medium_value
+						desc = explore_history_cost_discount_wonder_minas_anor
+					}
+				}
+				if = {
+					limit = { 
+						scope:province ?= {
+							has_building = wonder_port_of_pelargir_01
+						}
+					}
+					add = {
+						value = 0
+						add = {
+							value = explore_history_activity_base_cost
+							add = {
+								value = explore_history_activity_base_cost
+								multiply = activity_cost_scale_by_era
+								subtract = explore_history_activity_base_cost
+							}
+						}
+						multiply = explore_history_activity_cost_discount_medium_value
+						desc = explore_history_cost_discount_wonder_port_of_pelargir
+					}
+				}
+				if = {
+					limit = { 
+						scope:province ?= {
+							has_building = wonder_dol_amroth_01
+						}
+					}
+					add = {
+						value = 0
+						add = {
+							value = explore_history_activity_base_cost
+							add = {
+								value = explore_history_activity_base_cost
+								multiply = activity_cost_scale_by_era
+								subtract = explore_history_activity_base_cost
+							}
+						}
+						multiply = explore_history_activity_cost_discount_medium_value
+						desc = explore_history_cost_discount_wonder_dol_amroth
+					}
+				}
+				if = {
+					limit = { 
+						scope:province ?= {
+							has_building = wonder_nilulonde_01
+						}
+					}
+					add = {
+						value = 0
+						add = {
+							value = explore_history_activity_base_cost
+							add = {
+								value = explore_history_activity_base_cost
+								multiply = activity_cost_scale_by_era
+								subtract = explore_history_activity_base_cost
+							}
+						}
+						multiply = explore_history_activity_cost_discount_medium_value
+						desc = explore_history_cost_discount_wonder_nilulonde
+					}
+				}
+				if = {
+					limit = { 
+						scope:province ?= {
+							has_building = wonder_haven_korlea
+						}
+					}
+					add = {
+						value = 0
+						add = {
+							value = explore_history_activity_base_cost
+							add = {
+								value = explore_history_activity_base_cost
+								multiply = activity_cost_scale_by_era
+								subtract = explore_history_activity_base_cost
+							}
+						}
+						multiply = explore_history_activity_cost_discount_medium_value
+						desc = explore_history_cost_discount_wonder_haven_korlea
+					}
+				}
+				if = {
+					limit = { 
+						scope:province ?= {
+							has_building = wonder_marath_kharadune_01
+						}
+					}
+					add = {
+						value = 0
+						add = {
+							value = explore_history_activity_base_cost
+							add = {
+								value = explore_history_activity_base_cost
+								multiply = activity_cost_scale_by_era
+								subtract = explore_history_activity_base_cost
+							}
+						}
+						multiply = explore_history_activity_cost_discount_medium_value
+						desc = explore_history_cost_discount_wonder_marath_kharadune
+					}
+				}
+				if = {
+					limit = { 
+						scope:province ?= {
+							has_building = wonder_lighthouse_of_adunazain
+						}
+					}
+					add = {
+						value = 0
+						add = {
+							value = explore_history_activity_base_cost
+							add = {
+								value = explore_history_activity_base_cost
+								multiply = activity_cost_scale_by_era
+								subtract = explore_history_activity_base_cost
+							}
+						}
+						multiply = explore_history_activity_cost_discount_medium_value
+						desc = explore_history_cost_discount_wonder_lighthouse_of_adunazain
+					}
+				}
+				#Minimal cost reduction
+				if = {
+					limit = { 
+						scope:province ?= {
+							has_building_or_higher = building_library_01
+						}
+					}
+					add = {
+						value = 0
+						add = {
+							value = explore_history_activity_base_cost
+							add = {
+								value = explore_history_activity_base_cost
+								multiply = activity_cost_scale_by_era
+								subtract = explore_history_activity_base_cost
+							}
+						}
+						multiply = explore_history_activity_cost_discount_min_value
+						desc = explore_history_cost_discount_library
+					}
+				}
+				if = {
+					limit = { 
+						scope:province ?= {
+							has_building_or_higher = monastic_schools_01
+						}
+					}
+					add = {
+						value = 0
+						add = {
+							value = explore_history_activity_base_cost
+							add = {
+								value = explore_history_activity_base_cost
+								multiply = activity_cost_scale_by_era
+								subtract = explore_history_activity_base_cost
+							}
+						}
+						multiply = explore_history_activity_cost_discount_min_value
+						desc = explore_history_cost_discount_monastic_schools
+					}
+				}
+				if = {
+					limit = { 
+						scope:province ?= {
+							has_building_or_higher = citadel_01
+						}
+					}
+					add = {
+						value = 0
+						add = {
+							value = explore_history_activity_base_cost
+							add = {
+								value = explore_history_activity_base_cost
+								multiply = activity_cost_scale_by_era
+								subtract = explore_history_activity_base_cost
+							}
+						}
+						multiply = explore_history_activity_cost_discount_min_value
+						desc = explore_history_cost_discount_citadel
+					}
+				}
+				if = {
+					limit = { 
+						scope:province ?= {
+							has_building_or_higher = military_academy_01
+						}
+					}
+					add = {
+						value = 0
+						add = {
+							value = explore_history_activity_base_cost
+							add = {
+								value = explore_history_activity_base_cost
+								multiply = activity_cost_scale_by_era
+								subtract = explore_history_activity_base_cost
+							}
+						}
+						multiply = explore_history_activity_cost_discount_min_value
+						desc = explore_history_cost_discount_military_academy
+					}
+				}
+			}
+		}
+	}
+
+	ui_predicted_cost = {
+		# All costs are balanced on County/Early Era starting point
+		gold = {
+			add = { # Base cost, scaled by era
+				value = explore_history_activity_base_cost
+				multiply = activity_cost_scale_by_era
+			}
+			
+			# Options 
+			add = { # Scholars
+				value = 0 # No Scholars Cost 
+				add = 25 # Few Scholars Cost 
+				add = 50 # Many Scholars Cost 
+				# Scale option costs by tier and era
+				multiply = activity_cost_scale_by_tier
+				multiply = activity_cost_scale_by_era
+				# Divide by the number of option levels to get an average option cost
+				divide = 3
+			}
+			add = { # Funding
+				value = 0 # Basic Funding Cost
+				add = 50 # Extra Funding Cost
+				# Scale option costs by tier and era
+				multiply = activity_cost_scale_by_tier
+				multiply = activity_cost_scale_by_era
+				# Divide by the number of option levels to get an average option cost
+				divide = 2
+			}
+			if = {
+				limit = {
+					dynasty ?= {
+						has_dynasty_perk = law_legacy_1
+					}
+				}
+				subtract = {
+					value = explore_history_activity_base_cost
+					multiply = law_legacy_cost_reduction_mult
+				}
+			}
+			
+			# Make it a multiple of 5 (rounded up)
+			divide = 5
+			ceiling = yes
+			multiply = 5
+			
+		}
+	}
+	
+	###################
+	# OPTIONS
+	###################
+
+	special_option_category = special_type
+
+	options = {
+		special_type = {
+			explore_history_type_standard = {
+				default = yes
+				is_valid = {
+					faith_is_good = yes
+					OR = {
+						lotr_has_numenorean_culture_trigger = yes
+						is_eldar = yes
+					}
+				}
+			}
+			explore_history_type_adunaic_propaganda = {
+				is_valid = { faith = { has_doctrine = tenet_adunaic_birthright } }
+			}
+		}
+		explore_history_scholars = {
+			explore_history_no_scholars = {
+				ai_will_do = {
+					value = 0
+					add = { #Base amount
+						value = 30
+					}
+					if = {
+						limit = {
+							has_trait = greedy
+						}
+						add = 30
+					}
+					if = {
+						limit = {
+							OR = {
+								has_trait = lazy
+								has_trait = temperate
+								has_trait = content
+							}
+						}
+						add = 15
+					}
+					if = {
+						limit = {
+							has_trait = humble
+						}
+						add = 10
+					}
+					if = {
+						limit = {
+							gold <= major_gold_value
+						}
+						add = 100
+					}
+				}
+			}
+			explore_history_few_scholars = {
+				default = yes
+				travel_entourage_selection = {
+					weight = explore_history_entourage_weight_value
+					max = 5
+					invite_rule_order = 1
+				}
+
+				on_start = {
+					scope:host = {
+						add_prestige = minor_prestige_gain
+					}
+				}
+				is_valid = {
+					gold > minor_gold_value
+					custom_tooltip = {
+						text = more_than_5_courtiers
+						any_courtier_or_guest = { count > 5 }
+					}
+				}
+
+				ai_will_do = {
+					value = 50
+				}
+
+				cost = {
+					gold = {
+						add = {
+							add = {
+								value = 25
+								desc = explore_history_few_scholars
+							}
+							add = {
+								value = 25
+								multiply = activity_cost_scale_by_era
+								subtract = 25
+								desc = activity_cost_scale_by_era_desc
+							}
+						}
+					}
+				}
+			}
+			explore_history_many_scholars = {
+				is_valid = {
+					gold > medium_gold_value
+					custom_tooltip = {
+						text = more_than_10_courtiers
+						any_courtier_or_guest = { count > 10 }
+					}
+				}
+
+				travel_entourage_selection = {
+					weight = explore_history_entourage_weight_value
+					max = 10
+					invite_rule_order = 1
+				}
+
+				on_start = {
+					scope:host = {
+						add_prestige = medium_prestige_gain
+					}
+				}
+
+				ai_will_do = {
+					value = 0
+					add = { #Base amount
+						value = 30
+					}
+					if = {
+						limit = {
+							has_trait = generous
+						}
+						add = 30
+					}
+					if = {
+						limit = {
+							OR = {
+								has_trait = diligent
+								has_trait = gluttonous
+								has_trait = ambitious
+							}
+						}
+						add = 15
+					}
+					if = {
+						limit = {
+							has_trait = arrogant
+						}
+						add = 10
+					}
+				}
+
+				cost = {
+					gold = {	
+						add = {
+							add = {
+								value = 50
+								desc = explore_history_many_scholars
+							}
+							add = {
+								value = 50
+								multiply = activity_cost_scale_by_era
+								subtract = 50
+								desc = activity_cost_scale_by_era_desc
+							}
+							# Some people get one free.
+							if = {
+								limit = { factor_zero_if_entitled_to_freebie_activity_trigger = yes }
+								multiply = 0
+							}
+						}
+					}
+				}
+			}
+		}
+		explore_history_funding = {
+			explore_history_basic_funding = {
+
+				ai_will_do = {
+					value = 0
+					add = { #Base amount
+						value = 30
+					}
+					if = {
+						limit = {
+							has_trait = greedy
+						}
+						add = 30
+					}
+					if = {
+						limit = {
+							OR = {
+								has_trait = lazy
+								has_trait = temperate
+								has_trait = content
+							}
+						}
+						add = 15
+					}
+					if = {
+						limit = {
+							has_trait = humble
+						}
+						add = 10
+					}
+					if = {
+						limit = {
+							gold <= major_gold_value
+						}
+						add = 100
+					}
+				}
+			}
+			explore_history_extra_funding = {
+				default = yes
+				is_valid = {
+					gold > tiny_gold_value
+				}
+				cost = {
+					gold = {
+						add = {
+							add = {
+								value = 50
+								desc = explore_history_extra_funding
+							}
+							add = {
+								value = 50
+								multiply = activity_cost_scale_by_era
+								subtract = 50
+								desc = activity_cost_scale_by_era_desc
+							}
+							# Some people get one free.
+							if = {
+								limit = { factor_zero_if_entitled_to_freebie_activity_trigger = yes }
+								multiply = 0
+							}
+						}
+					}
+				}
+
+				ai_will_do = {
+					value = 0
+					add = { #Base amount
+						value = 30
+					}
+					if = {
+						limit = {
+							has_trait = generous
+						}
+						add = 30
+					}
+					if = {
+						limit = {
+							OR = {
+								has_trait = diligent
+								has_trait = scholar
+								has_trait = ambitious
+							}
+						}
+						add = 15
+					}
+					if = {
+						limit = {
+							has_trait = arrogant
+						}
+						add = 10
+					}
+				}
+			}
+		}
+	}
+	
+	###################
+	# PHASES
+	###################
+
+	max_guest_arrival_delay_time = { months = 3 }
+
+	phases = {
+
+		explore_history_phase_reading = {
+			is_predefined = yes
+
+			order = 1
+
+			is_shown = {
+				always = yes
+			}
+
+			on_phase_active = {
+				# Fires the conclusion events for every attendee, and advance to next phase, with a delay
+				if = {
+					limit = {
+						this = scope:host
+						scope:activity = {
+							AND = {
+								has_activity_option = {
+									category = special_type 
+									option = explore_history_type_standard
+								}
+								has_activity_option = {
+									category = explore_history_funding
+									option = explore_history_extra_funding
+								}
+							}
+						}
+					}
+					scope:activity = { progress_activity_phase_after = { weeks = 12 } }
+				}
+				else_if = {
+					limit = { this = scope:host }
+					scope:activity = { progress_activity_phase_after = { weeks = 6 } }
+				}
+				# Fires for the host
+				if = {  #Propaganda
+					limit = {
+						root = scope:host
+						scope:activity = {
+							has_activity_option = { 
+								category = special_type 
+								option = explore_history_type_adunaic_propaganda
+							}
+						}
+					}
+					scope:host = { 
+						trigger_event = {
+							id = propaganda.0001 
+							days = 1
+						}
+					}
+				}
+				else = { #Explore the Histories
+					scope:host = { 
+						trigger_event = {
+							id = explore_history.0001 
+							days = 1
+						}
+					}
+				}
+			}
+
+			on_weekly_pulse = {
+				# Fires for every attendee	
+				#trigger_event = { on_action = explore_history_ongoing_event_pulse }
+			}			
+
+			ai_will_do = {
+				value = 100
+			}
+		}
+
+		explore_history_phase_museum_shop = {
+			is_predefined = yes
+
+			order = 2
+
+			on_enter_phase = {
+				if = {
+					limit = { this = scope:host }
+					# No passive state for the toast, just jump right into it
+					scope:activity = { progress_activity_phase_after = { days = 1 } }
+				}
+			}
+
+			on_phase_active = {
+				# Fires for the host only
+				scope:host = { trigger_event = explore_history.0060 }
+				scope:activity = { progress_activity_phase_after = { weeks = 1 } }
+			}
+
+			ai_will_do = {
+				value = 100
+			}
+		}
+	}
+	
+	ai_check_interval = 60
+	
+	###################
+	# ACTIVITY-SPECIFIC PULSES
+	###################
+
+	pulse_actions = {
+		entries = { guest_friendship guest_insulted impressed_zealot_vassal host_gains_learning_xp guest_impressed_by_court_artifact antiquarian_admires_artifact apa_overcome_with_emotion apa_sight_seeing_group apa_cultured_discussion apa_picked_up_local_language apa_audience apa_studying_scripture explore_history_scholar_protection spouse_skill_learning_improves host_gains_diplo_xp explore_history_host_shushes_knight }
+		chance_of_no_event = 3
+	}
+
+	allow_zero_guest_invites = yes
+
+	on_enter_passive_state = {
+		scope:activity = {
+			if = {
+				limit = {
+					NOT = { has_variable = progressed_to_active }
+					# Everyone who accepted is here
+					any_attending_character = {
+						count = all
+						location = scope:activity.activity_location
+					}
+					# There are no open invitations
+					any_invited_character = {
+						count = 0
+					}
+				}
+				set_variable = progressed_to_active
+				scope:activity = { progress_activity_phase_after = { days = 1 } }
+			}
+		}
+		trigger_event = explore_history.0550
+		if = {
+			limit = {
+				this = scope:host
+				NOT = { employs_court_position = antiquarian_court_position }
+				involved_activity = {
+					any_attending_character = {
+						location = root.location
+						save_temporary_scope_as = potential_antiquarian
+						
+					}
+				}
+				can_appoint_char_to_court_position = { CHAR = scope:potential_antiquarian COURT_POS = antiquarian_court_position }
+			}
+			trigger_event = {
+				id = explore_history.0540
+				days = 2
+			}
+		}
+	}
+	
+	on_enter_active_state = {
+		if = {
+			limit = { this = scope:host }
+			trigger_event = { id = explore_history.0110 }
+		}
+	}
+
+	on_complete = {
+		scope:activity.activity_location = {
+			if = {
+				limit = { exists = var:recent_explore_history_held }
+				save_scope_value_as = {
+					name = recent_explore_history_held_count
+					value = var:recent_explore_history_held
+				}
+				set_variable = {
+					name = recent_explore_history_held
+					value = {
+						value = scope:recent_explore_history_held_count
+						add = 1
+					}
+					years = 10
+				}
+			}
+			else = {
+				set_variable = {
+					name = recent_explore_history_held
+					value = 1
+					years = 10
+				}
+			}
+		}
+	}
+	
+	###################
+	# GRAPHICS
+	###################
+
+	map_entity = {
+		trigger = {
+			activity_location.culture = {
+				OR = {
+					has_graphical_mena_culture_group_trigger = yes
+					has_graphical_steppe_culture_group_trigger = yes
+					has_graphical_african_culture_group_trigger = yes
+				}
+			}
+		}
+		reference = "building_mena_feast_01_entity"
+	}
+
+	map_entity = {
+		trigger = {
+			activity_location.culture = {
+				has_graphical_india_culture_group_trigger = yes
+			}
+		}
+		reference = "building_indian_feast_01_entity"
+	}
+	
+	map_entity = "building_western_feast_01_entity"
+	
+	# Travel
+	background = { # Bridge
+		trigger = {
+			NOT = { scope:host.location = scope:activity.activity_location }
+			scope:host.location = {
+				is_riverside_province = yes
+				geographical_region = middleearth_west
+				OR = {
+					terrain = farmlands
+					terrain = plains
+					terrain = mountains
+					terrain = hills
+				}
+			}
+		}
+		texture = "gfx/interface/illustrations/event_scenes/ep2_travel_bridge.dds"
+		environment = "environment_travel_bridge"
+		ambience = "event:/SFX/Events/Backgrounds/mountains_day"
+	}
+	
+	background = { # Farmland, settled
+		trigger = {
+			NOT = { scope:host.location = scope:activity.activity_location }
+			scope:host.location = {
+				terrain = farmlands
+				exists = province_owner
+			}
+		}
+		texture = "gfx/interface/illustrations/event_scenes/ep2_travel_farm.dds"
+		environment = "environment_travel_farmlands"
+		ambience = "event:/SFX/Events/Backgrounds/fields_farms_day"
+	}
+	background = { # Farmland, unsettled
+		trigger = {
+			NOT = { scope:host.location = scope:activity.activity_location }
+			scope:host.location = {
+				terrain = farmlands
+				NOT = { exists = province_owner }
+			}
+		}
+		texture = "gfx/interface/illustrations/event_scenes/farms.dds"
+		environment = "environment_event_farms"
+		ambience = "event:/SFX/Events/Backgrounds/fields_farms_day"
+	}
+
+	background = { #Desert, settled
+		trigger = {
+			NOT = { scope:host.location = scope:activity.activity_location }
+			scope:host.location = {
+				graphical_wilderness_desert_trigger = yes
+				exists = province_owner
+			}
+		}
+		texture = "gfx/interface/illustrations/event_scenes/ep2_travel_desert.dds"
+		environment = "environment_travel_desert"
+		ambience = "event:/SFX/Events/Backgrounds/desert_day"
+	}
+	background = { #LotR Rhûn desert
+		trigger = {
+			NOT = { scope:host.location = scope:activity.activity_location }
+			scope:host.location = {
+				graphical_wilderness_desert_rhun_trigger = yes
+				exists = province_owner
+			}
+		}
+		texture = "gfx/interface/illustrations/event_scenes/rhun.dds"
+		environment = "environment_event_desert"
+		ambience = "event:/SFX/Events/Backgrounds/desert_day"
+	}
+	background = { #Desert, unsettled
+		trigger = {
+			NOT = { scope:host.location = scope:activity.activity_location }
+			scope:host.location = {
+				graphical_wilderness_desert_trigger = yes
+				NOT = { exists = province_owner }
+			}
+		}
+		texture = "gfx/interface/illustrations/event_scenes/desert.dds"
+		environment = "environment_event_bp1_desert"
+		ambience = "event:/SFX/Events/Backgrounds/desert_day"
+	}
+
+	background = { #forest snowy
+		trigger = {
+			NOT = { scope:host.location = scope:activity.activity_location }
+			scope:host.location ?= { hunt_snowy_forest_trigger = yes }
+		}
+		texture = "gfx/interface/illustrations/event_scenes/ep2_hunt_snowy_forest.dds"
+		environment = "environment_hunt_snowy_forest"
+		ambience = "event:/SFX/Events/Backgrounds/mountains_day"
+	}
+
+	background = { #forest_pine
+		trigger = {
+			NOT = { scope:host.location = scope:activity.activity_location }
+			scope:host.location = {
+				graphical_wilderness_forest_pine_trigger = yes
+			}
+		}
+		texture = "gfx/interface/illustrations/event_scenes/forest_pine.dds"
+		environment = "environment_event_forest_pine"
+		ambience = "event:/SFX/Events/Backgrounds/coniferous_forest_day"
+	}
+
+	background = { #forest
+		trigger = {
+			NOT = { scope:host.location = scope:activity.activity_location }
+			scope:host.location = {
+				graphical_wilderness_forest_trigger = yes
+			}
+		}
+		texture = "gfx/interface/illustrations/event_scenes/forest.dds"
+		environment = "environment_event_forest"
+		ambience = "event:/SFX/Events/Backgrounds/deciduous_forest_day"
+	}
+	
+	background = { #LotR forest deep
+		trigger = {
+			NOT = { scope:host.location = scope:activity.activity_location }
+			scope:host.location = { graphical_wilderness_forest_deep_trigger = yes } 
+		}
+		texture = "gfx/interface/illustrations/event_scenes/forest_deep.dds"
+		environment = "environment_event_forest"
+		ambience = "event:/SFX/Events/Backgrounds/deciduous_forest_day"
+	}
+
+	background = { #LotR forest_mallorn unsettled
+		trigger = {
+			NOT = { scope:host.location = scope:activity.activity_location }
+			scope:host.location = { 
+				graphical_wilderness_forest_mallorn_trigger = yes
+				NOT = { exists = province_owner }
+			}
+		}
+		texture = "gfx/interface/illustrations/event_scenes/forest_mallorn.dds"
+		environment = "environment_event_forest"
+		ambience = "event:/SFX/Events/Backgrounds/deciduous_forest_day"
+	}
+	background = { #LotR forest_mallorn settled
+		trigger = {
+			NOT = { scope:host.location = scope:activity.activity_location }
+			scope:host.location = { 
+				graphical_wilderness_forest_mallorn_trigger = yes
+				exists = province_owner
+			}
+		}
+		texture = "gfx/interface/illustrations/event_scenes/lorien_day.dds"
+		environment = "environment_event_forest"
+		ambience = "event:/SFX/Events/Backgrounds/deciduous_forest_day"
+	}
+
+	background = { #mountains, settled
+		trigger = {
+			NOT = { scope:host.location = scope:activity.activity_location }
+			scope:host.location = {
+				graphical_wilderness_mountains_trigger = yes
+				exists = province_owner
+			}
+		}
+		texture = "gfx/interface/illustrations/event_scenes/ep2_travel_mountains.dds"
+		environment = "environment_travel_mountain_settlement"
+		ambience = "event:/SFX/Events/Backgrounds/mountains_day"
+	}
+	background = { #mountains, dwarven settled
+		trigger = {
+			NOT = { scope:host.location = scope:activity.activity_location }
+			scope:host.location = {
+				graphical_wilderness_mountains_trigger = yes
+				exists = province_owner
+				is_dwarf = no
+			}
+		}
+		texture = "gfx/interface/illustrations/event_scenes/dwarven_gate.dds"
+		environment = "environment_travel_mountain_settlement"
+		ambience = "event:/SFX/Events/Backgrounds/mountains_day"
+	}
+	background = { #mountains, unsettled
+		trigger = {
+			NOT = { scope:host.location = scope:activity.activity_location }
+			scope:host.location = {
+				graphical_wilderness_mountains_trigger = yes
+				NOT = { exists = province_owner }
+			}
+		}
+		texture = "gfx/interface/illustrations/event_scenes/mountains.dds"
+		environment = "environment_event_mountains"
+		ambience = "event:/SFX/Events/Backgrounds/mountains_day"
+	}
+
+	background = { #steppe, settled
+		trigger = {
+			NOT = { scope:host.location = scope:activity.activity_location }
+			scope:host.location = {
+				graphical_wilderness_steppe_trigger = yes
+				exists = province_owner
+			}
+		}
+		texture = "gfx/interface/illustrations/event_scenes/ep2_travel_steppe.dds"
+		environment = "environment_travel_steppe_settlement"
+		ambience = "event:/SFX/Events/Backgrounds/steppe_day"
+	}
+	background = { #steppe, unsettled
+		trigger = {
+			NOT = { scope:host.location = scope:activity.activity_location }
+			scope:host.location = {
+				graphical_wilderness_steppe_trigger = yes
+				NOT = { exists = province_owner }
+			}
+		}
+		texture = "gfx/interface/illustrations/event_scenes/steppe.dds"
+		environment = "environment_event_steppe"
+		ambience = "event:/SFX/Events/Backgrounds/steppe_day"
+	}
+
+	background = { #drylands (formerly desert)
+		trigger = {
+			NOT = { scope:host.location = scope:activity.activity_location }
+			scope:host.location = {
+				graphical_drylands_trigger = yes
+			}
+		}
+		texture = "gfx/interface/illustrations/event_scenes/drylands.dds"
+		environment = "environment_event_desert"
+		ambience = "event:/SFX/Events/Backgrounds/desert_day"
+	}
+
+	background = { #wetlands
+		trigger = {
+			NOT = { scope:host.location = scope:activity.activity_location }
+			scope:host.location = {
+				graphical_wilderness_wetlands_trigger = yes
+			}
+		}
+		texture = "gfx/interface/illustrations/event_scenes/bp1_wetlands.dds"
+		environment = "environment_event_bp1_wetlands" 
+		ambience = "event:/SFX/Events/Backgrounds/deciduous_forest_day"
+	}
+
+	background = { #jungle
+		trigger = {
+			NOT = { scope:host.location = scope:activity.activity_location }
+			scope:host.location = {
+				graphical_wilderness_jungle_trigger = yes
+			}
+		}
+		texture = "gfx/interface/illustrations/event_scenes/bp1_jungle.dds"
+		environment = "environment_event_bp1_jungle"
+		ambience = "event:/SFX/Events/Backgrounds/deciduous_forest_day"
+	}
+
+	background = { #plains, settled
+		trigger = {
+			NOT = { scope:host.location = scope:activity.activity_location }
+			scope:host.location = {
+				graphical_plains_trigger = yes
+				exists = province_owner
+			}
+		}
+		texture = "gfx/interface/illustrations/event_scenes/ep2_travel_hills.dds"
+		environment = "environment_travel_hills_settlement"
+		ambience = "event:/SFX/Events/Backgrounds/fields_farms_day"
+	}
+	background = { #plains, unsettled
+		trigger = {
+			NOT = { scope:host.location = scope:activity.activity_location }
+			scope:host.location = {
+				graphical_plains_trigger = yes
+				NOT = { exists = province_owner }
+			}
+		}
+		texture = "gfx/interface/illustrations/event_scenes/bp1_plains.dds"
+		environment = "environment_event_bp1_plains"
+		ambience = "event:/SFX/Events/Backgrounds/fields_farms_day"
+	}
+
+	background = { #hills, settled
+		trigger = {
+			NOT = { scope:host.location = scope:activity.activity_location }
+			scope:host.location = {
+				graphical_hills_trigger = yes
+				exists = province_owner
+				is_dwarf = no
+			}
+		}
+		texture = "gfx/interface/illustrations/event_scenes/ep2_travel_hills.dds"
+		environment = "environment_travel_hills_settlement"
+		ambience = "event:/SFX/Events/Backgrounds/fields_farms_day"
+	}
+	background = { #hills, dwarven settled
+		trigger = {
+			NOT = { scope:host.location = scope:activity.activity_location }
+			scope:host.location = {
+				graphical_hills_trigger = yes
+				exists = province_owner
+				is_dwarf = yes
+			}
+		}
+		texture = "gfx/interface/illustrations/event_scenes/dwarven_gate.dds"
+		environment = "environment_travel_mountain_settlement"
+		ambience = "event:/SFX/Events/Backgrounds/mountains_day"
+	}
+	background = { #hills, unsettled
+		trigger = {
+			NOT = { scope:host.location = scope:activity.activity_location }
+			scope:host.location = {
+				graphical_hills_trigger = yes
+				NOT = { exists = province_owner }
+			}
+		}
+		texture = "gfx/interface/illustrations/event_scenes/bp1_hills.dds"
+		environment = "environment_event_bp1_hills"
+		ambience = "event:/SFX/Events/Backgrounds/fields_farms_day"
+	}
+
+	background = { #sea
+		trigger = {
+			NOT = { scope:host.location = scope:activity.activity_location }
+			scope:host.location = {
+				is_sea_province = yes
+			}
+		}
+		texture = "gfx/interface/illustrations/event_scenes/fp1_ocean.dds"
+		environment = "environment_event_fp1_ocean"
+		ambience = "event:/DLC/FP1/SFX/Events/event_ocean_longship"
+	}
+	
+	background = { #LotR volcanic_plains
+		trigger = {
+			NOT = { scope:host.location = scope:activity.activity_location }
+			scope:host.location = { graphical_wilderness_volcanic_trigger = yes } 
+		}
+		texture = "gfx/interface/illustrations/event_scenes/volcanic_plains.dds"
+		environment = "environment_event_feast" 
+		ambience = "event:/SFX/Events/Backgrounds/burning_building"
+	}
+
+	background = { #LotR underground
+		trigger = {
+			NOT = { scope:host.location = scope:activity.activity_location }
+			scope:host.location = { graphical_underground_caverns_trigger = yes } 
+		}
+		texture = "gfx/interface/illustrations/event_scenes/underground_caverns_02.dds"
+		environment = "environment_event_alley"
+		ambience = "event:/SFX/Events/Backgrounds/city_alley_night"
+	}
+
+	background = { #LotR saltflats
+		trigger = {
+			NOT = { scope:host.location = scope:activity.activity_location }
+			scope:host.location = { graphical_wilderness_saltflats_trigger = yes } 
+		}
+		texture = "gfx/interface/illustrations/event_scenes/saltflats.dds"
+		environment = "environment_event_bp1_desert"
+		ambience = "event:/SFX/Events/Backgrounds/desert_day"
+	}
+	
+	# End Travel
+	#Unique sites
+	# background = {
+		# trigger = {
+			# activity_location.county = title:c_minas_tirith
+		# }
+		# texture = "gfx/interface/illustrations/event_scenes/minas_tirith.dds"
+		# environment = "environment_event_farms"
+		# ambience = "event:/SFX/Events/Backgrounds/fields_farms_day"
+	# }
+	# background = {
+		# trigger = {
+			# activity_location.county = title:c_caras_galadhon
+		# }
+		# texture = "gfx/interface/illustrations/event_scenes/lorien_day.dds"
+		# environment = "environment_event_forest"
+		# ambience = "event:/SFX/Events/Backgrounds/deciduous_forest_day"
+	# }
+	background = {
+		trigger = {
+			activity_location.county = title:c_aradhrynd
+		}
+		texture = "gfx/interface/illustrations/event_scenes/throneroom_thranduils_halls.dds"
+		environment = "environment_frontend_east_main"
+		ambience = "event:/SFX/Events/Backgrounds/throneroom_western"
+	}
+	background = {	#Study
+		texture = "gfx/interface/illustrations/event_scenes/study.dds"
+		environment = "environment_event_study"
+		ambience = "event:/SFX/Events/Backgrounds/office_workplace"
+	}
+	
+	
+	
+	window_characters = {
+		
+		guest = {
+			camera = camera_body
+			
+			effect = {
+				if = {
+					limit = {
+						scope:host.location = scope:activity.activity_location
+						scope:player ?= {
+							NOR = {
+								this = scope:host
+								AND = {
+									exists = scope:host.court_position:antiquarian_court_position
+									this = scope:host.court_position:antiquarian_court_position
+								}
+								AND = {
+									exists = scope:host.cp:councillor_court_chaplain
+									this = scope:host.cp:councillor_court_chaplain
+								}
+							}
+						}
+					}
+					scope:player ?= { add_to_list = characters }
+				}
+				else_if = {
+					limit = {
+						scope:host.location = scope:activity.activity_location
+						exists = scope:host.intent_target
+						any_attending_character = {
+							location = scope:activity.activity_location
+							NOT = {
+								this = scope:host
+							}
+							this = scope:host.intent_target
+						}
+					}
+					every_attending_character = {
+						limit = {
+							location = scope:activity.activity_location
+							NOT = {
+								this = scope:host
+							}
+							this = scope:host.intent_target
+						}
+						add_to_list = characters
+					}
+				}
+				else_if = {
+					limit = {
+						scope:host.location = scope:activity.activity_location
+						any_attending_character = {
+							location = scope:activity.activity_location
+							NOT = {
+								this = scope:host
+							}
+							OR = {
+								has_relation_lover = scope:host
+								has_relation_friend = scope:host
+							}
+						}
+					}
+					every_attending_character = {
+						limit = {
+							location = scope:activity.activity_location
+							NOT = {
+								this = scope:host
+							}
+							OR = {
+								has_relation_lover = scope:host
+								has_relation_friend = scope:host
+							}
+						}
+						add_to_list = characters
+					}
+				}
+				else_if = {
+					limit = {
+						scope:host.location = scope:activity.activity_location
+						any_attending_character = {
+							location = scope:activity.activity_location
+							NOT = {
+								this = scope:host
+							}
+							is_councillor_of = scope:host
+						}
+					}
+					every_attending_character = {
+						limit = {
+							location = scope:activity.activity_location
+							NOT = {
+								this = scope:host
+							}
+							is_councillor_of = scope:host
+						}
+						add_to_list = characters
+					}
+				}
+				else_if = {
+					limit = {
+						scope:host.location = scope:activity.activity_location
+						any_attending_character = {
+							location = scope:activity.activity_location
+							NOT = {
+								this = scope:host
+							}
+							highest_held_title_tier >= tier_duchy
+						}
+					}
+					every_attending_character = {
+						limit = {
+							location = scope:activity.activity_location
+							NOT = {
+								this = scope:host
+							}
+							highest_held_title_tier >= tier_duchy
+						}
+						add_to_list = characters
+					}
+				}
+				else_if = {
+					limit = {
+						scope:host.location = scope:activity.activity_location
+						any_attending_character = {
+							location = scope:activity.activity_location
+							NOT = {
+								this = scope:host
+							}
+							highest_held_title_tier >= tier_county
+						}
+					}
+					every_attending_character = {
+						limit = {
+							location = scope:activity.activity_location
+							NOT = {
+								this = scope:host
+							}
+							highest_held_title_tier >= tier_county
+						}
+						add_to_list = characters
+					}
+				}
+				else = {
+					if = {
+						limit = {
+							scope:host.location = scope:activity.activity_location
+						}
+						every_attending_character = {
+							limit = {
+								location = scope:activity.activity_location
+								NOR = {
+									this = scope:host
+									has_court_position = antiquarian_court_position
+								}
+							}
+							add_to_list = characters
+						}
+					}
+				}
+			}
+			scripted_animation = {
+				triggered_animation = {
+					trigger = {
+						exists = scope:host.intent_target
+						scope:host = {
+							has_activity_intent = woo_attendee_intent
+						}
+						scope:character = scope:host.intent_target
+					}
+					animation = { love flirtation }
+				}
+				triggered_animation = {
+					trigger = {
+						scope:character = {
+							NOR = {
+								this = scope:host
+								has_court_position = antiquarian_court_position
+								has_council_position = councillor_court_chaplain
+							}
+						}
+					}
+					animation = { idle happiness laugh admiration worry personality_rational }
+				}
+				#Fallback
+				animation = personality_rational
+			}
+		}
+		
+		host = {
+			camera = camera_body
+			
+			effect = {
+				if = {
+					limit = {
+						scope:host.location = scope:activity.activity_location
+					}
+					scope:host = {
+						add_to_list = characters
+					}
+				}
+			}
+
+			scripted_animation = {
+				triggered_animation = {
+					trigger = {
+						scope:character = {
+							OR = {
+								has_court_position = antiquarian_court_position
+								has_council_position = councillor_court_chaplain
+							}
+						}
+					}
+					animation = { chancellor }
+				}
+				#Fallback
+				animation = personality_rational
+			}
+		}
+		
+		travel_host = {
+			camera = camera_body
+			
+			effect = {
+				if = {
+					limit = {
+						NOT = {
+							scope:host.location = scope:activity.activity_location
+						}
+					}
+					scope:host = {
+						add_to_list = characters
+					}
+				}
+			}
+
+			scripted_animation = {
+				triggered_animation = {
+					trigger = {
+						scope:character.location = { is_sea_province = yes }
+					}
+					animation = { idle }
+				}
+				triggered_animation = {
+					trigger = { scope:character = { has_trait = impatient } }
+					animation = { jockey_gallop }
+				}
+				animation = jockey_walk
+			}
+		}
+		
+		antiquarian = {
+			camera = camera_body
+			
+			effect = {
+				scope:host.court_position:antiquarian_court_position ?= {
+					if = {
+						limit = {
+							scope:host.location = scope:activity.activity_location
+							is_participant_in_activity = scope:activity
+							location = scope:activity.activity_location
+						}
+						add_to_list = characters
+					}
+				}
+			}
+			scripted_animation = {
+				animation = throne_room_writer
+			}
+		}
+		
+		court_chaplain = {
+			camera = camera_body
+			
+			effect = {
+				scope:host.cp:councillor_court_chaplain ?= {
+					if = {
+						limit = {
+							scope:host.location = scope:activity.activity_location
+							is_participant_in_activity = scope:activity
+							location = scope:activity.activity_location
+						}
+						add_to_list = characters
+					}
+				}
+			}
+			scripted_animation = {
+				animation = chancellor
+			}
+		}					
+	}
+}
