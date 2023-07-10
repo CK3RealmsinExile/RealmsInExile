@@ -3,14 +3,31 @@
 scripted_trigger wrong_gender_for_fighting_in_faith_trigger = {
 	#Has access to the appropriate cultural parameter.
 	culture = { has_cultural_parameter = has_access_to_shieldmaidens }
+	trigger_if = { # Has the Royal Court and thus can modify pillars
+		limit = {
+			has_dlc_feature = diverge_culture # Can modify pillars
+		}
+		OR = {
+			AND = {
+				culture = { has_cultural_parameter = martial_custom_male_only_combatant }
+				is_female = yes
+			}
+			AND = {
+				culture = { has_cultural_parameter = martial_custom_female_only_combatant }
+				is_male = yes
+			}
+		}
+	}
+	trigger_else = { # Does not have the Royal Court and thus combatant is governed by faith
 	OR = {
 		AND = {
+				faith = { has_doctrine_parameter = combatant_must_be_male_if_no_roco }
 			is_female = yes
-			faith = { has_doctrine = doctrine_gender_male_dominated }
 		}
 		AND = {
+				faith = { has_doctrine_parameter = combatant_must_be_female_if_no_roco }
 			is_male = yes
-			faith = { has_doctrine = doctrine_gender_female_dominated }
+			}
 		}
 	}
 }
@@ -22,23 +39,35 @@ scripted_trigger wrong_gender_for_fighting_in_faith_trigger = {
 ##################################################
 
 scripted_trigger likely_to_be_offended_list_trigger = {
+	trigger_if = { # Has the Royal Court and thus can modify pillars
+		limit = { has_dlc_feature = diverge_culture }
+		culture = {
+			NOT = { has_cultural_parameter = martial_custom_equal_combatant	}
+		}
+	}
+	trigger_else = {
 	#Separate religions already think your ways are terrible already, co-religionists think you're making them look bad.
 	religion = root.religion
 	#No bias, no problem.
 	faith = {
-		OR = {
-			has_doctrine = doctrine_gender_male_dominated
-			has_doctrine = doctrine_gender_female_dominated
+			NOT = { has_doctrine_parameter = combatant_can_be_either_gender_if_no_roco }
 		}
+		}
+	culture = {
+		# Warrior by merit, if strong enought you can be a warrior regardless of gender
+		NOT = { has_cultural_parameter = high_prowess_ignores_knight_restrictions }
 	}
 	#Existing shieldmaidens cut slack.
 	NOT = { has_trait = shieldmaiden }
+	age >= childhood_education_start_age
 }
 
 scripted_trigger valid_to_become_shieldperson_trigger = {
 	wrong_gender_for_fighting_in_faith_trigger = yes
 	is_available_ai_adult = yes
 	prowess >= decent_skill_rating
+	NOT = { has_trait = shieldmaiden }
+	NOT = { has_trait = craven }
 }
 
 scripted_trigger child_dreams_of_shieldpersonhood_trigger = {
@@ -62,7 +91,7 @@ fp1_shieldmaiden.0001 = {
 		character = scope:challenged_knight
 		animation = dismissal
 	}
-	override_background = { event_background = throne_room }
+	override_background = { reference = throne_room }
 
 	trigger = {
 		#DLC check.
@@ -73,8 +102,12 @@ fp1_shieldmaiden.0001 = {
 		#Has access to the appropriate cultural parameter.
 		culture = { has_cultural_parameter = has_access_to_shieldmaidens }
 		#Your society must consider one gender or the other lesser.
-		NOT = {
-			faith = { has_doctrine = doctrine_gender_equal }
+		trigger_if = { # Has the Royal Court and thus can modify pillars
+			limit = { has_dlc_feature = diverge_culture }
+			culture = { NOT = { has_cultural_parameter = martial_custom_equal_combatant } }
+		}
+		trigger_else = {
+			faith = { NOT = { has_doctrine_parameter = combatant_can_be_either_gender_if_no_roco } }
 		}
 		#You've got to have at least one suitable courtier or guest.
 		any_courtier_or_guest = { valid_to_become_shieldperson_trigger = yes }
@@ -83,6 +116,7 @@ fp1_shieldmaiden.0001 = {
 			is_available_ai_adult = yes
 			is_ruler = no
 			wrong_gender_for_fighting_in_faith_trigger = no
+			NOT = { has_trait = shieldmaiden }
 		}
 	}
 
@@ -162,7 +196,7 @@ fp1_shieldmaiden.0001 = {
 				}
 				if = {
 					limit = { has_trait = shy }
-					add = 5
+					add = -5
 				}
 			}
 			save_scope_as = shieldmaiden
@@ -173,6 +207,7 @@ fp1_shieldmaiden.0001 = {
 				is_available_ai_adult = yes
 				is_ruler = no
 				wrong_gender_for_fighting_in_faith_trigger = no
+				NOT = { has_trait = shieldmaiden }
 			}
 			order_by = prowess
 			save_scope_as = challenged_knight
@@ -413,11 +448,36 @@ fp1_shieldmaiden.0001 = {
 				target = root
 				modifier = fp1_accepted_my_sword_opinion
 			}
+			#If scope:shieldmaiden is a guest, you get them for free.
+			if = {
+				limit = { is_pool_guest = yes }
+				root = { add_courtier = scope:shieldmaiden }
+			}
 		}
 		#Loyalty hook on the new shieldmaiden for your trust.
+		if = {
+			limit = {
+				NOR = {
+					has_hook_of_type = {
+						target = scope:shieldmaiden
+						type = loyalty_hook
+					}
+					has_hook_of_type = {
+						target = scope:shieldmaiden
+						type = ritual_best_friend_hook
+					}
+				}
+			}
+			if = {
+				limit = {
+					has_hook = scope:shieldmaiden
+				}
+				hidden_effect = { remove_hook = { target = scope:shieldmaiden } }
+			}
 		add_hook = {
 			type = loyalty_hook
 			target = scope:shieldmaiden
+		}
 		}
 		#Opinion loss with all courtiers who do not feel they should be able to fight.
 		if = {
@@ -659,11 +719,13 @@ scripted_trigger suitable_shieldmaiden_savior_trigger = {
 		#Require that they don't hate their liege.
 		has_relation_rival = scope:target
 		opinion = {
-			target = scope:imprisoner
+			target = scope:target
 			value <= high_negative_opinion
 		}
 		#Can't be directly involved with the scheme either.
+		scope:scheme = {
 		any_scheme_agent = { this = scope:prospective_shieldmaiden }
+		}
 		root = scope:prospective_shieldmaiden
 	}
 }
@@ -942,7 +1004,7 @@ fp1_shieldmaiden.0022 = {
 	theme = murder_scheme
 	override_background = { 
 		trigger = { scope:murder_method = flag:hired_thugs }
-		event_background = wilderness_scope
+		reference = wilderness_scope
 	}
 	override_background = { 
 		trigger = {
@@ -951,11 +1013,11 @@ fp1_shieldmaiden.0022 = {
 				scope:murder_method = flag:child_pushed
 			}
 		}
-		event_background = courtyard
+		reference = courtyard
 	}
 	override_background = { 
 		trigger = { scope:murder_method = flag:lured_into_forest }
-		event_background = wilderness_forest
+		reference = wilderness_forest
 	}
 
 	left_portrait = {
@@ -1138,7 +1200,7 @@ fp1_shieldmaiden.0032 = {
 		character = scope:shieldmaiden
 		animation = rage
 	}
-	override_background = { event_background = army_camp }
+	override_background = { reference = army_camp }
 
 	trigger = {
 		#DLC check.
@@ -1369,9 +1431,14 @@ fp1_shieldmaiden.0032 = {
 		}
 
 		# Minor stress revolving around paranoia: what if they backstab *YOU*, after all?
+		if = {
+			limit = {
+				NOT = { scope:shieldmaiden = root }
+			}
 		stress_impact = {
 			trusting = minor_stress_impact_loss
 			paranoid = minor_stress_impact_gain
+		}
 		}
 		ai_chance = {
 			base = 100
@@ -1381,10 +1448,12 @@ fp1_shieldmaiden.0032 = {
 			}
 			modifier = {	#Weight up for stress.
 				add = 10
+				NOT = { scope:shieldmaiden = root }
 				has_trait = trusting
 			}
 			modifier = {	#Weight down for stress.
 				add = -10
+				NOT = { scope:shieldmaiden = root }
 				has_trait = paranoid
 			}
 		}

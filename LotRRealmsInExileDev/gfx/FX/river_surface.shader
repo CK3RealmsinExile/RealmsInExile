@@ -27,7 +27,7 @@ PixelShader =
 		[[				
 			PDX_MAIN
 			{		
-				float4 Color = CalcRiverSurface( Input );
+				float4 Color = CalcRiverAdvanced( Input )._Color;
 				
 				Color.rgb = GH_ApplyAtmosphericEffects( Color.rgb, Input.WorldSpacePos, FogOfWarAlpha );
 				Color.rgb = ApplyDistanceFog( Color.rgb, Input.WorldSpacePos );

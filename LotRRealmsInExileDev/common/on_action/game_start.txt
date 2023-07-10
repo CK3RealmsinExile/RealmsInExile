@@ -39,6 +39,13 @@ on_game_start = {
 		dynasty:dynasty_jauf = { add_dynasty_modifier = master_merchants }
 		### --------------------------------- ###
 		
+		### Set Up Dune Sea Witch Covens ###
+
+		house:house_shazares ?= { add_house_modifier = witch_coven }
+		house:house_mirakes ?= { add_house_modifier = witch_coven }
+		house:house_druages ?= { add_house_modifier = witch_coven }
+		house:house_zayares ?= { add_house_modifier = witch_coven }
+
 		### Appoint Princely Houses of the Dunedain ###
 		dynasty:dynasty_dol_amroth = { add_dynasty_modifier = princely_house_of_dol_amroth }
 		
@@ -55,7 +62,6 @@ on_game_start = {
 		
 		random_independent_ruler = {
 			trigger_event = elven_racial.0100
-			trigger_event = elven_racial.0101
 		}
 		
 		every_living_character = {
@@ -114,7 +120,10 @@ on_game_start = {
 		### Tweaking faith fervor so we dont have strange game-start heresies
 
 		faith:faith_arysis = {
-			change_fervor = { value = 80 }
+			change_fervor = { 
+				value = 80
+				desc = fervor_gain_ascetic_example
+			}
 		}
 
 		#title:k_izindizanda_eruhinim.holder = {
@@ -240,6 +249,76 @@ on_game_start = {
 			}
 		}
 		
+		### GRANDEUR ###
+		#Royal Court: Set starting Grandeur to be the same as Expected
+		if = {
+			limit = {
+				has_dlc_feature = royal_court
+			}
+			every_character_with_royal_court = {
+				set_current_court_grandeur = court_grandeur_minimum_expected
+				apply_hold_court_grace_effect = yes
+				# Stops Hold Court reminders at game start
+				set_variable = {
+					name = last_hold_court_date
+					value = current_year
+				}
+			}
+		}
+
+		### REGENCIES ###
+		# Pre-defined historic regencies setup.
+		## NOTE: we do these first to avoid feed messages getting weird due to regents being replaced immediately after getting their position.
+		## 867.
+		### None. Yet.
+		## 1066.
+		#if = { #LotR - commented out vanilla, but kept as an example of how we can do it
+		#	limit = { game_start_date = 1066.9.15 }
+		#	# Designate some regents.
+		#	## King Philippe of France & Duke Boudewijn of Flanders (friend of his dad's)
+		#	character:214 = {
+		#		designate_diarch = character:364
+		#		# Baldwin of Flanders also promised the prior king he'd take care of Philippe, so we add that starting loyalty hook.
+		#		add_hook = {
+		#			type = predecessor_loyalty_hook
+		#			target = character:364
+		#			years = historic_regent_loyal_after_death_hook_duration_years_value
+		#		}
+		#		reverse_add_opinion = {
+		#			target = character:364
+		#			modifier = promise_to_predecessor
+		#			opinion = 50
+		#		}
+		#	}
+		#}
+		# Set up anyone who should be in a regency at start whether we have sources or not.
+		## If you start as a child, incapable, or imprisoned, you get a regency.
+		every_ruler = {
+			limit = {
+				OR = {
+					is_adult = no
+					is_incapable = yes
+					is_imprisoned = yes
+				}
+			}
+			# We don't want to check over so many characters *twice*, so we check again inside the block to determine what type of regency to put 'em in.
+			## Temporary Regencies.
+			if = {
+				limit = { is_imprisoned = yes }
+				trigger_event = {
+					id = diarchy.0001
+					delayed = yes
+				}
+			}
+			## Entrenched Regencies.
+			else = {
+				trigger_event = {
+					id = diarchy.0011
+					delayed = yes
+				}
+			}
+		}
+		
 	}
 }
 
@@ -270,6 +349,58 @@ on_game_start_after_lobby = {
             # Initialise tributary income for UI
             trigger_event = { id = tributary.0006 }
         }
+        
+        # Make sure that Realm Priests are landed theocrats where it makes sense
+		every_ruler = {
+			limit = {
+				highest_held_title_tier >= tier_duchy
+			}
+			if = {
+				limit = {
+					exists = cp:councillor_court_chaplain
+					cp:councillor_court_chaplain = {
+						is_ruler = no
+					}
+					faith = { has_doctrine = doctrine_clerical_succession_spiritual_fixed_appointment }
+					any_vassal = {
+						is_physically_able_adult = yes
+						is_councillor = no
+						government_has_flag = government_is_theocracy
+						can_be_court_chaplain_trigger = { COURT_OWNER = liege }
+						faith = liege.faith
+					}
+				}
+				random_vassal = {
+					limit = {
+						is_physically_able_adult = yes
+						is_councillor = no
+						government_has_flag = government_is_theocracy
+						can_be_court_chaplain_trigger = { COURT_OWNER = liege }
+						faith = liege.faith
+					}
+					weight = {
+						base = 1
+						modifier = {
+							add = 1000
+							faith.religious_head ?= this
+						}
+						modifier = {
+							add = learning
+						}
+						modifier = {
+							add = primary_title.tier
+						}
+					}
+					liege = {
+						assign_councillor_type = {
+							type = councillor_court_chaplain
+							remove_existing_councillor = yes
+							target = prev
+						}
+					}
+				}
+			}
+		}
 	
 		### GAME RULE: VIEW ON SAME-SEX RELATIONS
 		if = {
@@ -333,30 +464,16 @@ on_game_start_after_lobby = {
 		else = { # So that children 10+ starts with a sexuality
 			child_sexuality_distribution_effect = yes
 		}
-
-		every_character_with_royal_court = {
-			set_current_court_grandeur = court_grandeur_minimum_expected
-			apply_hold_court_grace_effect = yes
-			# Stops Hold Court reminders at game start
-			set_variable = {
-				name = last_hold_court_date
-				value = current_year
-			}
-		}
 		
-		#Royal Court: Set starting Grandeur to be the same as Expected
-		if = {
-			limit = {
-				has_dlc_feature = royal_court
-			}
-			every_character_with_royal_court = {
-				set_current_court_grandeur = court_grandeur_minimum_expected
-				apply_hold_court_grace_effect = yes
-				# Stops Hold Court reminders at game start
-				set_variable = {
-					name = last_hold_court_date
-					value = current_year
-				}
+		# Give Ruler Designer characters regencies.
+		every_in_global_list = {
+			variable = rd_chars_needing_regencies
+			trigger_event = diarchy.0011
+			# Aaaand clean the list.
+			save_temporary_scope_as = char_temp
+			remove_list_global_variable = {
+				name = rd_chars_needing_regencies
+				target = scope:char_temp
 			}
 		}
 		

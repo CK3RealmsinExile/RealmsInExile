@@ -6,7 +6,6 @@
 #			umbar.0200 #Castimiri Introduction
 #			umbar.1000-1 #Castmiri Invasion
 
-
 ### Ar-Adûnâim Events ###
 
 umbar.0100 = { # Introduction to the Ar-Adunaim
@@ -98,7 +97,7 @@ umbar.0102 = { # The Conquest of Umbar
 	}
 	theme = war
 	override_background = {
-		event_background = black_ship
+		reference = black_ship
 	}
 	left_portrait = {
 		character = scope:adunaim_conquerer
@@ -225,26 +224,30 @@ umbar.1000 = {
 	}
 	immediate = {
 		play_music_cue = "mx_cue_combat_2"
+		add_character_flag = {
+			flag = pressed_castamiri_claim
 		}
+	}
+
 	option = {
 		name = umbar.1000.a
 		if = {
 			limit = { exists = title:e_gondor_steward }
-				start_war = {
-					casus_belli = castamir_claim_cb
-					target = title:e_gondor_steward.holder
-					target_title = title:e_gondor_steward
-					}
-				}
-		if = {
-			limit = { exists = title:e_gondor }
-				start_war = {
-					casus_belli = castamir_claim_cb
-					target = title:e_gondor.holder
-					target_title = title:e_gondor
-					}
-				}
+			start_war = {
+				casus_belli = castamir_claim_cb
+				target = title:e_gondor_steward.holder
+				target_title = title:e_gondor_steward
 			}
+		}
+		if = {
+		limit = { exists = title:e_gondor }
+			start_war = {
+				casus_belli = castamir_claim_cb
+				target = title:e_gondor.holder
+				target_title = title:e_gondor
+			}
+		}
+	}
 }
 
 umbar.1001 = {	
@@ -264,30 +267,7 @@ umbar.1001 = {
 	option = {
 		name = umbar.1001.a #The Castamiri become the Kings of Gondor
 		set_house = character:lineofanarion53.house
-		if = {
-			limit = { exists = title:e_gondor_steward.holder }
-			create_artifact_crown_of_gondor_effect = { OWNER = this }
-			title:e_gondor_steward.holder = { # Inherits the Throne of Gondor and the Palantir of Minas Tirith from the steward.
-				every_character_artifact = {
-					limit = {
-						OR = {
-					OR = {
-						has_variable = palantir_minasanor
-						has_variable = black_chair_stewards
-						has_variable = throne_of_gondor
-					}
-						}
-					}
-					set_owner = {
-						target = root
-						history = {
-							type = inherited
-							recipient = root
-						}
-					}
-				}
-			}
-		}
+		
 		if = {
 			limit = { exists = title:e_gondor.holder }
 			title:e_gondor.holder = { # Inherits the Throne of Gondor, the Palantir of Minas Tirith and the Crown of Gondor from the King.
@@ -310,6 +290,39 @@ umbar.1001 = {
 				}
 			}
 		}
+		else_if = {
+			limit = { exists = title:e_gondor_steward.holder }
+			if = {
+				limit = {
+					NOT = {
+						any_artifact = {
+							has_variable = crown_of_gondor
+						}
+					}
+				}
+				create_artifact_crown_of_gondor_effect = { OWNER = this }
+			}
+			title:e_gondor_steward.holder = { # Inherits the Throne of Gondor and the Palantir of Minas Tirith from the steward.
+				every_character_artifact = {
+					limit = {
+						OR = {
+							has_variable = palantir_minasanor
+							has_variable = black_chair_stewards
+							has_variable = throne_of_gondor
+							has_variable = crown_of_gondor
+						}
+					}
+					set_owner = {
+						target = root
+						history = {
+							type = inherited
+							recipient = root
+						}
+					}
+				}
+			}
+		}
+		
 		every_child = {
 			limit = {
 				OR = {
@@ -501,7 +514,7 @@ umbar.1002 = {
 		}
 	option = {
 		name = umbar.1002.a
-		}
+	}
 }
 
 umbar.1003 = {	###Chose the capital
@@ -586,6 +599,57 @@ umbar.1003 = {	###Chose the capital
 	}
 }
 
+umbar.1500 = { # Hidden event to make realm break up
+	hidden = yes
+
+	trigger = {	root = { highest_held_title_tier >= tier_kingdom } }
+
+	immediate = {
+		root = { save_scope_as = defender }
+		
+		scope:defender = { # maybe check first if a castamirian member is alive? Kinda like a "Im more powerful than you!" type of effect
+			random_powerful_vassal = {
+				limit = { NOT = { is_allied_to = scope:defender } }
+				save_scope_as = attacker 
+			}
+		}
+		scope:defender = {
+			every_vassal = {
+				limit = {
+					# is_powerful_vassal = no # Already added
+					OR = {
+						has_vassal_stance = minority
+						has_vassal_stance = glory_hound
+					}
+					
+					NOT = { this = scope:attacker } 
+					NOT = { is_allied_to = scope:defender }
+				}
+				add_to_list = vassals_in_umbar
+			}
+		}
+
+		scope:attacker = {
+			start_war = {
+				casus_belli = nation_fracturing_faction_war
+				target = scope:defender
+				target_title = scope:defender.primary_title
+			}
+			every_character_war = {
+				limit = { using_cb = nation_fracturing_faction_war } # In-case the random head of the attackers has other wars hes currently engaged in
+				save_scope_as = war_depose_castamir
+			}
+		}
+		every_in_list = {
+			list = vassals_in_umbar
+			# limit = { prev = { is_attacker = no } } #WIP - throwing an error, so commenting out for now.
+			scope:war_depose_castamir = {
+				add_attacker = prev
+			}
+		}
+	}
+}
+
 umbar.0001 = {
 	type = character_event
 	title = umbar.0001.t
@@ -598,7 +662,7 @@ umbar.0001 = {
 	}
 
 	immediate = {
-		find_wildperson_for_umbar_effect = yes
+		# find_wildperson_for_umbar_effect = yes
 		title:k_umbar.holder = { save_scope_as = black_lord }
 	}
 
@@ -614,7 +678,7 @@ umbar.0001 = {
 		name = umbar.0001.a
 		custom_tooltip = umbar.0001.tt
 		add_character_modifier = { modifier = black_lord_of_umbar_modifier years = 10 }
-		fund_wildperson_for_umbar_effect = yes
+		# fund_wildperson_for_umbar_effect = yes
 	}
 	option = {
 		name = umbar.0001.b

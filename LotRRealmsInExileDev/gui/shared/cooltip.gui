@@ -68,7 +68,7 @@ template character_opinion_tooltip {
 				text_single = {
 					block "ott_heading_text"
 					{
-						text = "[Character.GetOpinionHeadingText( GetPlayer )]"
+						raw_text = "@opinion_icon! [Character.GetOpinionHeadingText( GetPlayer )]"
 					}
 
 					using = Font_Size_Medium
@@ -159,10 +159,12 @@ template character_trait_tooltip {
 				margin_top = 8
 				margin_left = -4
 
-				icon = {
-					size = { 52 52 }
-					texture = "[Trait.GetIcon( Character.Self )]"
-					tintcolor = "[TooltipInfo.GetTintColor]"
+				trait_icon_texture = {
+					blockoverride "icon_size"
+					{
+						size = { 52 52 }
+						tintcolor = "[TooltipInfo.GetTintColor]"
+					}
 				}
 			}
 		}
@@ -179,6 +181,110 @@ template character_trait_tooltip {
 		blockoverride "description_text" {
 			block "actual_description_text" {
 				text = "[Trait.GetFullDescription( Character.Self, Faith.Self )]"
+			}
+		}
+
+		blockoverride "extra_data_after_description"
+		{
+			vbox = {
+				name = "trait_level_tracks"
+				layoutpolicy_horizontal = expanding
+				visible = "[DataModelHasItems( Trait.GetLevelTracks )]"
+				allow_outside = yes
+
+				spacer = {
+					size = { 10 10 }
+				}
+
+				text_label_left = {
+					layoutpolicy_horizontal = expanding
+					text = "TRAIT_LEVEL_TRACKS_HEADER"
+				}
+
+				vbox = {
+					layoutpolicy_horizontal = expanding
+					datamodel = "[Trait.GetLevelTracks]"
+					spacing = 5
+					allow_outside = yes
+
+					item = {
+						hbox = {
+							layoutpolicy_horizontal = expanding
+							allow_outside = yes
+							spacing = 5
+							margin_right = 20
+
+							vbox = {
+								margin_top = 6
+
+								icon = {
+									size = { 30 30 }
+									texture = "[TraitLevelTrack.GetIcon( Trait.Self, Character.Self )]"
+								}
+							}
+
+							vbox = {
+								layoutpolicy_horizontal = expanding
+								spacing = 5
+
+								text_single = {
+									layoutpolicy_horizontal = expanding
+									text = "[TraitLevelTrack.GetName]"
+								}
+
+								widget = {
+									size = { 0 15 }
+									layoutpolicy_horizontal = expanding
+									allow_outside = yes
+
+									datacontext = "[Character.GetTraitTrackProgressBar( Trait.Self, TraitLevelTrack.Self )]"
+
+									hbox_complex_bar_progress_next = {
+										size = { 0 15 }
+										layoutpolicy_horizontal = expanding
+										tooltip = "TRAIT_LEVEL_TRACK_PROGRESS_TOOTLIP"
+										using = tooltip_se
+									}
+
+									hbox_complex_bar_levels = {
+										size = { 0 15 }
+										layoutpolicy_horizontal = expanding
+
+										blockoverride "marker"
+										{
+											widget_level_marker = {
+												scale = 0.75
+												datacontext = "[TraitLevelTrack.GetEntryForXp( ComplexBarItem.GetValue )]"
+												visible = "[GreaterThanOrEqualTo_int32( TraitLevelTrackEntry.GetLevel, '(int32)0' )]"
+
+												blockoverride "visible_active"
+												{
+													visible = "[EqualTo_int32( Character.GetTraitTrackLevel( Trait.Self, TraitLevelTrack.Self ), TraitLevelTrackEntry.GetLevel )]"
+												}
+
+												blockoverride "visible_inactive"
+												{
+													visible = "[Not( EqualTo_int32( Character.GetTraitTrackLevel( Trait.Self, TraitLevelTrack.Self ), TraitLevelTrackEntry.GetLevel ) )]"
+												}
+
+												blockoverride "marker_tooltip"
+												{
+													tooltip = "TRAIT_LEVEL_TRACK_TT"
+													using = tooltip_se
+												}
+
+												blockoverride "marker_text"
+												{
+													text = "[TraitLevelTrackEntry.GetLevel]"
+												}
+											}
+										}
+									}
+								}
+							}
+						}
+					}
+				}
 			}
 		}
 	}
@@ -395,7 +501,7 @@ types GameTooltipTypes
 								layoutpolicy_horizontal = expanding
 								autoresize = yes
 								fontsize_min = 14
-								using = Font_Size_Medium
+								using = Font_Size_Small
 								block "subtitle_text" {
 									text = ""
 								}
@@ -538,8 +644,15 @@ types GameTooltipTypes
 									margin_bottom = 7
 								}
 
-								portrait_opinion = {
-									visible = "[And( Character.IsAlive, Not( Character.IsPlayer ) )]"
+								vbox = {
+									layoutpolicy_vertical = expanding
+									margin_top = 3
+
+									portrait_opinion = {
+										visible = "[And( Character.IsAlive, Not( Character.IsPlayer ) )]"
+									}
+
+									expand = {}
 								}
 
 								spacer = {
@@ -552,12 +665,13 @@ types GameTooltipTypes
 									text = "CHARACTER_TT_NAME_AGE"
 									default_format = "#high"
 									using = Font_Size_Medium
-									max_width = 335
+									max_width = 350
 									autoresize = yes
 								}
 
-								hbox = {
-									margin_left = 4
+								vbox = {
+									layoutpolicy_vertical = expanding
+									margin_left = 5
 
 									icon = {
 										visible = "[Not(Character.IsDeadAndValid)]"
@@ -567,6 +681,8 @@ types GameTooltipTypes
 										texture = "gfx/interface/icons/character_status/icon_health.dds"
 										tooltip = "[Character.GetHealthInfo]"
 									}
+
+									expand = {}
 								}
 
 								expand = {}
@@ -603,7 +719,9 @@ types GameTooltipTypes
 
 							text_single = {
 								visible = "[Not( Character.IsPlayer )]"
-								text = "[Character.GetAIPersonality]"
+								text = "[Character.GetAIPersonalityNoTooltip]"
+								default_format = "#L"
+								tooltip = "AI_PERSONALITY_TT"
 								align = nobaseline
 							}
 
@@ -628,7 +746,7 @@ types GameTooltipTypes
 									tooltip = "SEXUALITY_TT"
 								}
 
-								portrait_status_icons = {									
+								portrait_status_icons = {
 									blockoverride "direction"
 									{
 										direction = horizontal
@@ -656,7 +774,7 @@ types GameTooltipTypes
 						}
 
 						text_single = {
-							visible = "[And( Character.HasLocation,Not(Character.IsImprisoned))]"
+							visible = "[And( Character.IsAlive, Not( Character.IsImprisoned ) )]"
 							layoutpolicy_horizontal = expanding
 							text = "CHARACTER_LOCATION_TOOLTIP"
 							align = nobaseline
@@ -664,7 +782,7 @@ types GameTooltipTypes
 						}
 
 						text_single = {
-							visible = "[Character.IsImprisoned]"
+							visible = "[And( Character.IsAlive, Character.IsImprisoned )]"
 							layoutpolicy_horizontal = expanding
 							text = "CHARACTER_IMPRISONED_TOOLTIP"
 							align = nobaseline
@@ -703,7 +821,7 @@ types GameTooltipTypes
 
 									button_normal = {
 										size = { 100% 100% }
-										onclick = "[DefaultOnFaithClick(Faith.GetID)]"
+										onclick = "[OpenGameViewData( 'faith', Faith.GetID )]"
 									}
 
 								}
@@ -716,7 +834,7 @@ types GameTooltipTypes
 
 									button_normal = {
 										size = { 100% 100% }
-										onclick = "[DefaultOnCultureClick(Culture.GetID)]"
+										onclick = "[OpenGameViewData( 'culture_window', Culture.GetID )]"
 										# shortcut = "innovations_window"
 									}
 								}
@@ -985,6 +1103,26 @@ types GameTooltipTypes
 						texture = "gfx/interface/component_masks/mask_fade_vertical.dds"
 						blend_mode = alphamultiply
 						mirror = vertical
+					}
+				}
+				datacontext = "[GetIllustration( 'character_view_bg' )]"
+				background = {
+					texture = "[Illustration.GetTexture( Character.MakeScope )]"
+					fittype = centercrop
+					#alpha = 0.7
+
+					using = Mask_Rough_Edges
+
+					modify_texture = {
+						texture = "gfx/interface/component_masks/mask_fade_vertical.dds"
+						blend_mode = alphamultiply
+					}
+
+					modify_texture = {
+						texture = "gfx/interface/component_masks/mask_fade_vertical.dds"
+						blend_mode = alphamultiply
+						mirror = vertical
+						alpha = 0.7
 					}
 				}
 
@@ -1499,6 +1637,10 @@ template regiment_container_tooltip
 				datacontext = "[Regiment.GetMAAType]"
 				layoutpolicy_horizontal = growing
 
+				hbox_maa_location = {
+					layoutpolicy_horizontal = expanding
+				}
+
 				vbox = {
 					layoutpolicy_horizontal = expanding
 					visible = "[Regiment.IsRegular]"
@@ -1654,6 +1796,10 @@ template regiment_container_text_tooltip
 				datacontext = "[Regiment.GetMAAType]"
 				layoutpolicy_horizontal = growing
 
+				hbox_maa_location = {
+					layoutpolicy_horizontal = expanding
+				}
+
 				vbox = {
 					layoutpolicy_horizontal = expanding
 					visible = "[Regiment.IsRegular]"
@@ -1735,6 +1881,7 @@ template unit_icon_item_tooltip {
 			}
 
 			hbox = {
+				name="troops_summary"
 				layoutpolicy_horizontal = expanding
 
 				soldiers_and_quality_small = {
@@ -1742,6 +1889,7 @@ template unit_icon_item_tooltip {
 				}
 				expand = {}
 			}
+
 			hbox = {
 				name = "troop_breakdown"
 				layoutpolicy_vertical = expanding
@@ -1801,6 +1949,7 @@ template unit_icon_item_tooltip {
 			}
 
 			hbox = {
+				name="troop_commander"
 				datacontext = "[Army.GetCommander]"
 				visible = "[Character.IsValid]"
 				layoutpolicy_horizontal = expanding
@@ -1824,6 +1973,7 @@ template unit_icon_item_tooltip {
 			}
 
 			text_single = {
+				name = "no_troop_commander"
 				visible = "[Not( Army.GetCommander.IsValid )]"
 				layoutpolicy_horizontal = expanding
 				text = "ARMY_TOOLTIP_NO_COMMANDER"
@@ -1846,6 +1996,7 @@ template unit_icon_item_tooltip {
 					align = nobaseline
 				}
 			}
+
 			hbox = {
 				visible = "[UnitItem.HasDisembarkPenalty]"
 				layoutpolicy_horizontal = expanding
@@ -1878,20 +2029,30 @@ template unit_icon_item_tooltip {
 				}
 			}
 
-
+			# #--------------------------------------
+			# |  ¤ Attrition: 1%/month
+			# |  & Well supplied (100) -10/month
+			# | -> Province, 17 days left (29 May yyyy)
+			# | () Movement locked
+			# #--------------------------------------
 			vbox = {
+				name = "involved_army_details"
 				visible = "[Not(Army.IsNeutralToPlayer)]"
 				layoutpolicy_horizontal = expanding
 				spacing = 4
+
 				hbox = {
+					name = "involved_army_attrition_warning"
+					visible = "[Army.IsArmySufferingFromAttrition]"
 					layoutpolicy_horizontal = expanding
 					margin_left = 4
 					tooltip = "ARMY_ATTRITION_TT"
-					visible = "[GreaterThan_CFixedPoint( Army.GetArmyAttritionPercentage, '(CFixedPoint)0' )]"
+
 					icon = {
 						texture = "gfx/interface/icons/map_icons/attrition_icon.dds"
 						size = { 24 24 }
 					}
+
 					text_single = {
 						layoutpolicy_horizontal = expanding
 						name = "attrition"
@@ -1901,6 +2062,7 @@ template unit_icon_item_tooltip {
 				}
 
 				hbox = {
+					name = "involved_army_supply_status"
 					layoutpolicy_horizontal = expanding
 					margin_left = 4
 
@@ -1913,20 +2075,24 @@ template unit_icon_item_tooltip {
 				}
 
 				hbox = {
-					layoutpolicy_horizontal = expanding
+					name = "involved_army_movement"
 					visible = "[Army.IsMoving]"
+					layoutpolicy_horizontal = expanding
 					margin_left = 4
+
 					icon = {
 						name = "unit_retreating"
 						visible = "[UnitItem.IsRetreating]"
 						texture = "gfx/interface/icons/map_icons/army_icon_retreating.dds"
 					}
+
 					icon = {
 						name = "unit_moving"
 						visible = "[Not(UnitItem.IsRetreating)]"
 						texture = "gfx/interface/icons/combat_effects/moving_army.dds"
 						size = { 24 24 }
 					}
+
 					text_single = {
 						layoutpolicy_horizontal = expanding
 						text = "[Army.GetMovementInfoForTooltip]"
@@ -1935,6 +2101,7 @@ template unit_icon_item_tooltip {
 				}
 
 				hbox = {
+					name = "involved_army_movement_lock"
 					visible = "[UnitItem.IsMovementLocked]"
 					layoutpolicy_horizontal = expanding
 					margin_left = 4
@@ -1950,11 +2117,11 @@ template unit_icon_item_tooltip {
 						align = nobaseline
 					}
 				}
-			}
+			} # vbox "involved_army_details"
 
 			hbox = {
-				layoutpolicy_horizontal = expanding
 				visible = "[UnitItem.GetArmy.IsRaidArmy]"
+				layoutpolicy_horizontal = expanding
 				margin_left = 4
 
 				hbox = {
@@ -1972,7 +2139,6 @@ template unit_icon_item_tooltip {
 						align = nobaseline
 					}
 				}
-
 
 				text_single = {
 					layoutpolicy_horizontal = expanding
@@ -2648,12 +2814,15 @@ container = {
 			margin = { 0 8 }
 			text = "[Building.GetNameNoTooltip]"
 		}
-
+		blockoverride "subtitle_text" {
+			text = "[Building.GetTypeName]"
+			default_format = "#weak"
+		}
 		blockoverride "concept_link" {
-			text = [building|E]
+			text = "[building|E]"
 		}
 		blockoverride "description_text" {
-			text = "[Building.GetDescription]"
+			text = "BUILDING_TOOLTIP_TEXT"
 		}
 	}
 }
@@ -2818,10 +2987,6 @@ container = {
 	object_tooltip_pop_out = {
 		blockoverride "header_additions" {
 			hbox = {
-				margin_right = 10
-				margin_top = 8
-				margin_left = -4
-
 				icon = {
 					size = { 32 32 }
 					texture = "[StaticModifier.GetIcon]"
@@ -2840,7 +3005,6 @@ container = {
 		}
 
 		blockoverride "description_text" {
-			margin_left = 30
 			text = "[StaticModifier.GetDesc]"
 		}
 	}
@@ -3164,14 +3328,14 @@ template culture_innovation_tooltip_no_context {
 
 				blockoverride "eie_label_visible"
 				{
-					visible = "[CultureInnovationType.HasEffects]"
+					visible = "[CultureInnovationType.HasEffects( GetPlayer.GetCulture, GetPlayer )]"
 					minimumsize = { 500 30 }
 				}
 
 
 				blockoverride "eie_effects"
 				{
-					text = "[CultureInnovationType.GetEffectsDesc]"
+					text = "[CultureInnovationType.GetEffectsDesc( GetPlayer.GetCulture, GetPlayer )]"
 				}
 			}
 
@@ -3337,14 +3501,14 @@ template culture_innovation_tooltip {
 
 				blockoverride "eie_label_visible"
 				{
-					visible = "[CultureInnovationType.HasEffects]"
+					visible = "[CultureInnovationType.HasEffects( CultureInnovation.GetCulture, GetPlayer )]"
 					minimumsize = { 500 30 }
 				}
 
 
 				blockoverride "eie_effects"
 				{
-					text = "[CultureInnovationType.GetEffectsDesc]"
+					text = "[CultureInnovationType.GetEffectsDesc( CultureInnovation.GetCulture, GetPlayer )]"
 				}
 			}
 
@@ -3525,14 +3689,14 @@ template culture_era_tooltip {
 
 				blockoverride "eie_label_visible"
 				{
-					visible = "[CultureEraType.HasEffects]"
+					visible = "[CultureEraType.HasEffects( CultureEra.GetCulture, GetPlayer )]"
 					minimumsize = { 500 30 }
 				}
 
 
 				blockoverride "eie_effects"
 				{
-					text = "[CultureEraType.GetEffectsDesc]"
+					text = "[CultureEraType.GetEffectsDesc( CultureEra.GetCulture, GetPlayer )]"
 				}
 			}
 
@@ -4400,7 +4564,7 @@ template culture_pillar_tooltip {
 
 					cooltip_paragraph = {
 						text = "CULTURE_PILLAR_TOOLTIP_COURT_LANGUAGE"
-						visible = "[ObjectsEqual( GetPlayer.GetCourtLanguage, CulturePillar.Self ))]"
+						visible = "[ObjectsEqual( GetPlayer.GetCourtLanguage, CulturePillar.Self )]"
 					}
 
 					cooltip_paragraph = {
@@ -4837,6 +5001,20 @@ types InventoryTooltips
 					}
 
 					hbox = {
+						name = "artifact_creator"
+						visible = "[Artifact.HasCreator()]"
+						layoutpolicy_horizontal = expanding
+
+						text_single = {
+							name = "creator"
+							text = "ARTIFACT_CREATOR"
+							max_width = 350
+						}
+
+						expand = {}
+					}
+
+					hbox = {
 						datacontext = "[Artifact.GetAssociatedTitle]"
 						visible = "[Title.IsValid]"
 						layoutpolicy_horizontal = expanding
@@ -4871,10 +5049,8 @@ types InventoryTooltips
 
 					expand = {}
 				}
+			} # vbox
 
-
-
-			}
 			hbox = {
 				layoutpolicy_horizontal = expanding
 				block "extra_information"
@@ -4889,7 +5065,7 @@ types InventoryTooltips
 				expand = {}
 			}
 		}
-	}
+	} # type artifact_tooltip = widget
 }
 
 container = {
@@ -4933,7 +5109,7 @@ types CourtPositionTooltips {
 				vbox = {
 					layoutpolicy_vertical = expanding
 					layoutpolicy_horizontal = expanding
-					visible = "[CourtPositionType.HasLiegeModifiers)]"
+					visible = "[CourtPositionType.HasLiegeModifiers]"
 					spacing = 2
 
 					### Liege Modifiers
@@ -5351,7 +5527,7 @@ template nickname_tooltip {
 		object_tooltip_pop_out = {
 			blockoverride "title_text" {
 				margin = { 0 8 }
-				text = "[Nickname.GetLocalizationNoTooltip( Character.Self )|U]"
+				text = "[Character.GetNicknameNoTooltip()|U]"
 				default_format = "#T"
 			}
 
@@ -6167,3 +6343,561 @@ container = {
 	datacontext = "[StrugglePhase.GetStruggle]"
 	using = struggle_phase_tooltip
 }
+
+template activity_tooltip {
+	container = {
+		alwaystransparent = no
+		datacontext = "[Activity.GetType]"
+
+		object_tooltip_pop_out = {
+			blockoverride "title_text" {
+				margin = { 0 8 }
+				raw_text = "[Activity.GetNameNoTooltip|U]"
+				default_format = "#T"
+			}
+
+			blockoverride "subtitle_text" {
+				text = "[Activity.GetType.GetName]"
+				default_format = "#weak"
+			}
+
+			blockoverride "description_text" {
+				text = "[Activity.GetInvolvementText( GetPlayer.Self, 'tooltip' )]"
+			}
+
+			blockoverride "concept_link" {
+				text = "ACTIVITY_TYPE_CONCEPT_SELECTOR"
+			}
+
+			blockoverride "header_additions" {
+				hbox = {
+					margin_right = 10
+					margin_top = 8
+					margin_left = -4
+
+					icon = {
+						size = { 52 52 }
+						texture = "[ActivityType.GetIcon]"
+						framesize = { 160 160 }
+						tintcolor = "[TooltipInfo.GetTintColor]"
+					}
+				}
+			}
+		}
+	}
+}
+
+container = {
+	alwaystransparent = no
+	name = "ActivityTooltip"
+	using = activity_tooltip
+}
+
+template activity_type_tooltip {
+	container = {
+		alwaystransparent = no
+
+		object_tooltip_pop_out = {
+			blockoverride "title_text" {
+				margin = { 0 8 }
+				raw_text = "[ActivityType.GetNameNoTooltip]"
+				default_format = "#T"
+			}
+
+			blockoverride "description_text" {
+				text = "[ActivityType.GetDescription]"
+			}
+
+			blockoverride "concept_link" {
+				text = "ACTIVITY_TYPE_CONCEPT_SELECTOR"
+			}
+		}
+	}
+}
+
+container = {
+	alwaystransparent = no
+	name = "ActivityTypeTooltip"
+	using = activity_type_tooltip
+}
+
+template activity_locale_tooltip {
+	container = {
+		alwaystransparent = no
+		
+		object_tooltip_pop_out = {
+			blockoverride "title_text" {
+				margin = { 0 8 }
+				raw_text = "[ActivityLocale.GetName]"
+				default_format = "#T"
+			}
+
+			blockoverride "description_text" {
+				text = "[ActivityLocaleWindow.EnterLocaleTooltip( ActivityLocale.Self )]"
+			}
+
+			blockoverride "concept_link" {
+				text = ""
+			}
+		}
+	}
+}
+
+container = {
+	alwaystransparent = no
+	name = "ActivityLocaleTooltip"
+	using = activity_locale_tooltip
+}
+
+template travel_option_tooltip {
+	container = {
+		alwaystransparent = no
+
+		object_tooltip_pop_out = {
+
+			blockoverride "concept_link" {}
+
+			blockoverride "title_text" {
+				margin = { 0 8 }
+				text = "[TravelOption.GetNameNoTooltip]"
+				default_format = "#T"
+			}
+
+			blockoverride "description_text" {
+				text = "[TravelOption.GetTooltipWithBlocker(TravelPlanData.Self)]"
+			}
+
+			blockoverride "extra_data_after_description" {
+				textbox = {
+					name = "effects"
+					layoutpolicy_horizontal = expanding
+					max_width = 400
+					margin_top = 10
+					using = DefaultTooltipText
+					multiline = yes
+					text = "[TravelOption.GetDesc]"
+					fonttintcolor = "[TooltipInfo.GetTintColor]"
+					alwaystransparent = no
+				}
+			}
+
+			blockoverride "input_info_text"
+			{
+				visible = "[IsGameViewOpen('travel_option_selection_window')]"
+				text_single = {
+					name = "click_add"
+					visible = "[And(Not(TravelOptionSelectionWindow.HasOptionSelected(TravelOption.Self)), TravelOptionSelectionWindow.CanSelect(TravelOption.Self)))]"
+					text = "TRAVEL_OPTION_TT_CLICK_TO_ADD"
+					default_format = "#I"
+				}
+
+				text_single = {
+					name = "click_remove"
+					visible = "[TravelOptionSelectionWindow.HasOptionSelected(TravelOption.Self)]"
+					text = "TRAVEL_OPTION_TT_CLICK_TO_REMOVE"
+					default_format = "#I"
+				}
+			}
+		}
+	}
+}
+
+container = {
+	alwaystransparent = no
+	name = "TravelOptionTooltip"
+	using = travel_option_tooltip
+	datacontext = "[GetPlayer.GetTravelPlan.GetData]"
+}
+
+template vassal_stance_tooltip
+{
+	container = {
+		alwaystransparent = no
+
+		object_tooltip_pop_out = {
+			blockoverride "title_text" {
+				margin = { 0 8 }
+				raw_text = "[VassalStance.GetTextIconNoFormat][VassalStance.GetNameNoTooltip]"
+				default_format = "#T"
+			}
+
+			blockoverride "description_text" {
+				text = "[VassalStance.GetDescription]"
+			}
+
+			blockoverride "concept_link" {
+				text = "[vassal_stance|E]"
+			}
+		}
+	}
+}
+
+container = {
+	name = "VassalStanceTooltip"
+	alwaystransparent = no
+	using = vassal_stance_tooltip
+}
+
+template ai_personality_tooltip
+{
+	container = {
+		alwaystransparent = no
+
+		object_tooltip_pop_out = {
+			blockoverride "title_text" {
+				margin = { 0 8 }
+				text = "[Character.GetAIPersonalityNoTooltip]"
+				default_format = "#T"
+			}
+
+			blockoverride "description_text" {
+				text = "[Character.GetAIPersonalityExplanation]"
+			}
+
+			blockoverride "concept_link" {
+				text = "[personality|E]"
+			}
+		}
+	}
+}
+
+container = {
+	name = "AiPersonalityTooltip"
+	alwaystransparent = no
+	using = ai_personality_tooltip
+}
+
+template travel_plan_tooltip {
+	container = {
+		alwaystransparent = no
+
+		object_tooltip_pop_out = {
+			blockoverride "title_text" {
+				margin = { 0 8 }
+				raw_text = "[TravelPlan.GetNameNoTooltip]"
+				default_format = "#T"
+			}
+
+			blockoverride "description_text" {
+				text = "TRAVEL_PLAN_TOOLTIP_DESC"
+			}
+
+			blockoverride "concept_link" {
+				text = "[travel|E]"
+			}
+		}
+	}
+}
+
+container = {
+	alwaystransparent = no
+	name = "TravelPlanTooltip"
+	using = travel_plan_tooltip
+}
+
+template accolade_tooltip {
+	container = {
+		alwaystransparent = no
+
+		object_tooltip_pop_out = {
+			blockoverride "title_text" {
+				margin = { 0 8 }
+				text = "[Accolade.GetNameNoTooltip]"
+				default_format = "#T"
+			}
+
+			blockoverride "subtitle_text" {
+				text = "ACCOLADE_GLORY_AND_LEVEL"
+			}
+
+			blockoverride "main_description" {
+				vbox = {
+					margin_bottom = 10
+
+					hbox = {
+						layoutpolicy_horizontal = expanding
+
+						text_single = {
+							text = "ACCOLADE_PRIMARY_TYPE_NAME"
+							align = left
+						}
+
+						expand = {}
+					}
+
+					hbox = {
+						layoutpolicy_horizontal = expanding
+
+						text_single = {
+							text = "ACCOLADE_SECONDARY_TYPE_NAME"
+							align = left
+						}
+
+						expand = {}
+					}
+
+					hbox = {
+						layoutpolicy_horizontal = expanding
+
+						text_single = {
+							text = "ACCOLADE_ACCLAIMED_KNIGHT_NAME"
+							align = left
+						}
+
+						expand = {}
+					}
+
+					hbox = {
+						layoutpolicy_horizontal = expanding
+						visible = "[Accolade.GetSuccessor.IsValid]"
+
+						text_single = {
+							text = "ACCOLADE_SUCCESSOR_NAME"
+							align = left
+						}
+
+						expand = {}
+					}
+
+					hbox = {
+						margin_top = 20
+						layoutpolicy_horizontal = expanding
+						layoutpolicy_vertical = expanding
+						visible = "[Accolade.HasActiveEffects]"
+
+						text_multi = {
+							text = "[Accolade.BuildActiveRankEffects]"
+							autoresize = yes
+							max_width = 500
+						}
+
+						expand = {}
+					}
+				}
+			}
+
+			blockoverride "concept_link" {
+				text = "[accolade|E]"
+			}
+		}
+	}
+}
+
+container = {
+	alwaystransparent = no
+	name = "AccoladeTooltip"
+	using = accolade_tooltip
+}
+
+template accolade_type_tooltip {
+	container = {
+		alwaystransparent = no
+
+		object_tooltip_pop_out = {
+			blockoverride "title_text" {
+				margin = { 0 8 }
+				text = "[AccoladeType.GetNameNoTooltip]"
+				default_format = "#T"
+			}
+
+			blockoverride "subheading" {
+				text_single = {
+					layoutpolicy_horizontal = expanding
+					autoresize = yes
+					max_width = 500
+					fontsize_min = 14
+					using = Font_Size_Small
+
+					visible = "[And(Accolade.IsValid, Accolade.IsPrimaryType( AccoladeType.Self ))]"
+					fonttintcolor = "[TooltipInfo.GetTintColor]"
+					text = "ACCOLADE_PRIMARY_TYPE"
+				}
+
+				text_single = {
+					layoutpolicy_horizontal = expanding
+					autoresize = yes
+					max_width = 500
+					fontsize_min = 14
+					using = Font_Size_Small
+
+					visible = "[And(Accolade.IsValid, Accolade.IsSecondaryType( AccoladeType.Self ))]"
+					fonttintcolor = "[TooltipInfo.GetTintColor]"
+					text = "ACCOLADE_SECONDARY_TYPE"
+				}
+			}
+
+			blockoverride "main_description" {
+				# breakdown of all effects, not tied to an accolade
+				vbox = {
+					visible = "[Not(Accolade.IsValid)]"
+					datamodel = "[AccoladeType.GetRanks]"
+					margin_bottom = 10
+					spacing = 5
+
+					item = {
+						widget = {
+							size = { 300 40 }
+							tooltip = "ACCOLADE_RANK_HEADER_AND_EFFECTS_TT"
+							using = tooltip_se
+
+							background = {
+								using = Background_Frame
+							}
+
+							hbox = {
+								margin = { 20 0 }
+								text_single = {
+									layoutpolicy_horizontal = expanding
+									text = "[AccoladeType.GetLevelAndGloryOfRank( AccoladeRank.Self )]"
+									using = Font_Size_Medium
+									align = nobaseline
+								}
+							}
+						}
+					}
+				}
+
+				# current rank number
+				text_single = {
+					margin_left = 10
+					margin_bottom = 5
+					layoutpolicy_horizontal = expanding
+					visible = "[Accolade.IsValid]"
+					text = "CURRENT_ACCOLADE_GLORY_AND_LEVEL"
+					align = nobaseline
+
+					background = {
+						margin_top = 5
+						using = Background_Area_Dark
+						alpha = 0.6
+					}
+				}
+
+				# breakdown of primary effects
+				vbox = {
+					visible = "[And(Accolade.IsValid, Accolade.IsPrimaryType( AccoladeType.Self ))]"
+					datamodel = "[AccoladeType.GetRanks]"
+					margin_bottom = 10
+					spacing = 5
+
+					item = {
+						widget = {
+							visible = "[AccoladeType.IsPrimaryRank( AccoladeRank.Self )]"
+							size = { 300 40 }
+							tooltip = "ACCOLADE_RANK_HEADER_AND_EFFECTS_TT"
+							using = tooltip_se
+
+							background = {
+								using = Background_Frame
+							}
+
+							hbox = {
+								margin = { 20 0 }
+								text_single = {
+									layoutpolicy_horizontal = expanding
+									text = "[AccoladeType.GetLevelAndGloryOfRank( AccoladeRank.Self )]"
+									using = Font_Size_Medium
+									align = nobaseline
+								}
+							}
+						}
+					}
+				}
+
+				# breakdown of secondary effects
+				vbox = {
+					visible = "[And(Accolade.IsValid, Accolade.IsSecondaryType( AccoladeType.Self ))]"
+					datamodel = "[AccoladeType.GetRanks]"
+					margin_bottom = 10
+					spacing = 5
+
+					item = {
+						widget = {
+							visible = "[AccoladeType.IsSecondaryRank( AccoladeRank.Self )]"
+							size = { 300 40 }
+							tooltip = "ACCOLADE_RANK_HEADER_AND_EFFECTS_TT"
+							using = tooltip_se
+
+							background = {
+								using = Background_Frame
+							}
+
+							hbox = {
+								margin = { 20 0 }
+								text_single = {
+									layoutpolicy_horizontal = expanding
+									text = "[AccoladeType.GetLevelAndGloryOfRank( AccoladeRank.Self )]"
+									using = Font_Size_Medium
+									align = nobaseline
+								}
+							}
+						}
+					}
+				}
+			}
+
+			blockoverride "concept_link" {
+				text = "[accolade_type|E]"
+			}
+		}
+	}
+}
+
+container = {
+	alwaystransparent = no
+	name = "AccoladeTypeTooltip"
+	using = accolade_type_tooltip
+}
+
+template point_of_interest_tooltip {
+	container = {
+		alwaystransparent = no
+		name = "PointOfInterestTooltip"
+
+		datacontext = "[TravelPointsOfInterestIconData.GetProvince]"
+		datacontext = "[TravelPointsOfInterestIconData.GetProvince.GetTitle]"
+
+		object_tooltip_pop_out = {
+			blockoverride "header_additions" {
+				margin_top = 5
+				coa_title_small = {
+					visible = "[And( Not( Province.GetHolding.IsEmpty ), Title.IsValid )]"
+					blockoverride "coa_tooltip" {}
+					blockoverride "coa_hover_glow_visible"
+					{
+						visible = no
+					}
+				}
+
+				widget = {
+					visible = "[Or( Province.GetHolding.IsEmpty, Not( Title.IsValid ) )]"
+					size = { 55 65 }
+					icon = {
+						parentanchor = center
+						texture = "[Province.GetTerrain.GetIcon]"
+						position = { 0 -2 }
+						size = { 55 55 }
+					}
+				}
+			}
+
+			blockoverride "title_text" {
+				margin_top = -10
+				margin_left = 5
+
+				text = "[Select_CString( Title.IsValid, Title.GetNameNoTierNoTooltip, Province.GetName )]"
+				default_format = "#T"
+			}
+
+			blockoverride "description_text" {
+				text = "[TravelPointsOfInterestIconData.GetDescription]"
+			}
+
+			blockoverride "concept_link" {
+				margin_top = -2
+				text = "[point_of_interest|E]"
+			}
+		}
+	}
+}
+

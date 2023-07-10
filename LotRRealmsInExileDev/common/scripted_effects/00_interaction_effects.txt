@@ -730,10 +730,33 @@ war_for_imprison_effect = {
 
 vassal_revocation_tyranny_effect = {
 	if = {
+		limit = { exists = scope:use_strife_not_tyranny }
+		# If you have revocation reason, we allow that.
+		if = {
+			limit = { has_revoke_title_reason = scope:recipient }
+			consume_revoke_title_reason = scope:recipient
+		}
+		else = { change_strife_opinion = major_strife_gain }
+	}
+	else_if = {
 		limit = {
 			vassal_revocation_is_tyrannical_trigger = yes
 		}
-		add_tyranny = revoke_vassal_tyranny_gain
+		add_tyranny = {
+			value = revoke_vassal_tyranny_gain
+			if = {
+				limit = {
+					scope:recipient = {
+						is_imprisoned = yes
+						NOT = { is_imprisoned_by = scope:actor }
+					}
+					NOT = {
+						scope:actor = { has_revoke_title_reason = scope:recipient }
+					}
+				}
+				multiply = 2
+			}
+		}
 	}
 	else_if = {
 		limit = {
@@ -788,6 +811,15 @@ vassal_revocation_tyranny_effect = {
 
 revocation_tyranny_effect = {
 	if = {
+		limit = { exists = scope:use_strife_not_tyranny }
+		# If you have revocation reason, we allow that.
+		if = {
+			limit = { has_revoke_title_reason = scope:recipient }
+			consume_revoke_title_reason = scope:recipient
+		}
+		else = { change_strife_opinion = major_strife_gain }
+	}
+	else_if = {
 		limit = {
 			title_revocation_is_tyrannical_trigger = yes
 		}
@@ -1101,7 +1133,7 @@ war_for_retraction_effect = {
 								primary_defender = scope:actor
 							}
 						}
-							add_to_list = war_to_join
+						add_to_list = war_to_join
 					}
 				}
 				every_in_list = {
@@ -1206,6 +1238,33 @@ kick_from_court_interaction_effect = {
 }
 
 disinherit_effect = {
+	if = {
+		limit = {
+			is_heir_of = $DISINHERITOR$
+			NOT = {
+				has_trait = disputed_heritage
+			}
+			$DISINHERITOR$ = {
+				any_vassal = {
+					has_vassal_stance = courtly
+				}
+			}
+		}
+		$DISINHERITOR$ = {
+			custom_tooltip = courtly_vassal_disapproves_disinheriting
+			hidden_effect = {
+				every_vassal = {
+					limit = {
+						has_vassal_stance = courtly
+					}
+					add_opinion = {
+						target = $DISINHERITOR$
+						modifier = courtly_disinherit_opinion
+					}
+				}
+			}
+		}
+	}
 	add_trait = disinherited
 	add_opinion = {
 		modifier = disinherited_opinion
@@ -1287,13 +1346,21 @@ restore_inheritance_effect = {
 		}
 	}
 	else = {
+		if = {
+			limit = {
+				NOT = { this = scope:actor }
+			}
 		add_opinion = {
 			modifier = restored_inheritance_opinion
 			target = scope:actor
 		}
+		}
 		house = {
 			every_house_member = {
-				limit = { NOT = { this = scope:recipient } }
+				limit = {
+					NOT = { this = scope:recipient }
+					NOT = { this = scope:actor }
+				}
 				custom = all_house_members
 				add_opinion = {
 					modifier = restored_house_member_inheritance_opinion
@@ -2185,15 +2252,15 @@ offer_vassalization_interaction_effect = {
 		if = {
 			limit = {
 				OR = {
-					has_government = feudal_government
-					has_government = elven_government
+					government_has_flag = government_is_feudal
+					government_has_flag = government_is_elven
 				}
 			}
 			if = {
 				limit = { scope:high_obligations = yes }
 				hidden_effect = {
 					if = {
-						limit = { is_independent_ruler = no} # To avoid errors during tooltip generation (prior to the contract being generated)
+						limit = { is_independent_ruler = no } # To avoid errors during tooltip generation (prior to the contract being generated)
 						vassal_contract_set_obligation_level = { type = feudal_government_taxes level = 3 }
 						vassal_contract_set_obligation_level = { type = feudal_government_levies level = 3 }
 					}	
@@ -2205,7 +2272,7 @@ offer_vassalization_interaction_effect = {
 				limit = { scope:low_obligations = yes }
 				hidden_effect = {
 					if = {
-						limit = { is_independent_ruler = no} # To avoid errors during tooltip generation (prior to the contract being generated)
+						limit = { is_independent_ruler = no } # To avoid errors during tooltip generation (prior to the contract being generated)
 						vassal_contract_set_obligation_level = { type = feudal_government_taxes level = 1 }
 						vassal_contract_set_obligation_level = { type = feudal_government_levies level = 1 }
 					}			
@@ -2214,23 +2281,35 @@ offer_vassalization_interaction_effect = {
 				custom_tooltip = low_obligations_levies
 			}
 			else_if = {
-				limit = { scope:religious_exemption = yes}
+				limit = { scope:religious_exemption = yes }
 				hidden_effect = {
 					if = {
-						limit = { is_independent_ruler = no} # To avoid errors during tooltip generation (prior to the contract being generated)
+						limit = { is_independent_ruler = no } # To avoid errors during tooltip generation (prior to the contract being generated)
 						vassal_contract_set_obligation_level = { type = feudal_government_taxes level = 2 }
 						vassal_contract_set_obligation_level = { type = feudal_government_levies level = 1 }
-						vassal_contract_set_obligation_level = { type = religious_rights level = 1 }
-					}		
+						# if = { #LotR
+						# 	limit = { scope:actor.faith = { has_doctrine_parameter = unlock_jizya_contract } }
+						# 	vassal_contract_set_obligation_level = { type = jizya_special_rights level = 1 }
+						# }
+						# else = {
+							vassal_contract_set_obligation_level = { type = religious_rights level = 1 }
+						# }		
+					}
 				}
 				custom_tooltip = normal_obligations_taxes
 				custom_tooltip = low_obligations_levies
-				custom_tooltip = religious_protection_tt
+				# if = { #LotR
+				# 	limit = { scope:actor.faith = { has_doctrine_parameter = unlock_jizya_contract } }
+				# 	custom_tooltip = jizya_religious_protection_tt
+				# }
+				# else = { 
+					custom_tooltip = religious_protection_tt 
+				# }
 			}
 			else = {
 				hidden_effect = {
 					if = {
-						limit = { is_independent_ruler = no} # To avoid errors during tooltip generation (prior to the contract being generated)
+						limit = { is_independent_ruler = no } # To avoid errors during tooltip generation (prior to the contract being generated)
 						vassal_contract_set_obligation_level = { type = feudal_government_taxes level = 2 }
 						vassal_contract_set_obligation_level = { type = feudal_government_levies level = 2 }
 					}			
@@ -2241,16 +2320,28 @@ offer_vassalization_interaction_effect = {
 		}
 		else_if = {
 			limit = {
-				has_government = clan_government
+				government_has_flag = government_is_clan
 				scope:religious_exemption_clan = yes
 			}
 			hidden_effect = {
 				if = {
 					limit = { is_independent_ruler = no } # To avoid errors during tooltip generation (prior to the contract being generated)
-					vassal_contract_set_obligation_level = { type = religious_rights level = 1 }
-				}		
+					# if = { #LotR
+					# 	limit = { scope:actor.faith = { has_doctrine_parameter = unlock_jizya_contract } }
+					# 	vassal_contract_set_obligation_level = { type = jizya_special_rights level = 1 }
+					# }
+					# else = {
+						vassal_contract_set_obligation_level = { type = religious_rights level = 1 }
+					# }		
+				}
 			}
-			custom_tooltip = religious_protection_tt
+			# if = { #LotR
+			# 	limit = { scope:actor.faith = { has_doctrine_parameter = unlock_jizya_contract } }
+			# 	custom_tooltip = jizya_religious_protection_tt
+			# }
+			# else = { 
+				custom_tooltip = religious_protection_tt
+			# }
 		}
 	}
 }
@@ -2278,8 +2369,8 @@ offer_fealty_interaction_effect = {
 		if = {
 			limit = {
 				OR = {
-					has_government = feudal_government
-					has_government = elven_government
+					government_has_flag = government_is_feudal
+					government_has_flag = government_is_elven
 				}
 			}
 			if = {
@@ -2307,18 +2398,30 @@ offer_fealty_interaction_effect = {
 				custom_tooltip = low_obligations_levies
 			}
 			else_if = {
-				limit = { scope:religious_taxation = yes}
+				limit = { scope:religious_taxation = yes }
 				hidden_effect = {
 					if = {
 						limit = { is_independent_ruler = no } # To avoid errors during tooltip generation (prior to the contract being generated)
 						vassal_contract_set_obligation_level = { type = feudal_government_taxes level = 3 }
 						vassal_contract_set_obligation_level = { type = feudal_government_levies level = 2 }
-						vassal_contract_set_obligation_level = { type = religious_rights level = 1 }
+						# if = { #LotR
+						# 	limit = { scope:recipient.faith = { has_doctrine_parameter = unlock_jizya_contract } }
+						# 	vassal_contract_set_obligation_level = { type = jizya_special_rights level = 1 }
+						# }
+						# else = {
+							vassal_contract_set_obligation_level = { type = religious_rights level = 1 }
+						# }
 					}
 				}
 				custom_tooltip = high_obligations_taxes
 				custom_tooltip = normal_obligations_levies
-				custom_tooltip = religious_protection_tt
+				# if = { #LotR
+				# 	limit = { scope:recipient.faith = { has_doctrine_parameter = unlock_jizya_contract } }
+				# 	custom_tooltip = jizya_religious_protection_tt
+				# }
+				# else = { 
+					custom_tooltip = religious_protection_tt
+				# }
 			}
 			else = {
 				hidden_effect = {
@@ -2334,16 +2437,28 @@ offer_fealty_interaction_effect = {
 		}
 		else_if = {
 			limit = {
-				has_government = clan_government
+				government_has_flag = government_is_clan
 				scope:religious_exemption_clan = yes
 			}
 			hidden_effect = {
 				if = {
 					limit = { is_independent_ruler = no } # To avoid errors during tooltip generation (prior to the contract being generated)
-					vassal_contract_set_obligation_level = { type = religious_rights level = 1 }
-				}		
+					# if = { #LotR
+					# 	limit = { scope:recipient.faith = { has_doctrine_parameter = unlock_jizya_contract } }
+					# 	vassal_contract_set_obligation_level = { type = jizya_special_rights level = 1 }
+					# }
+					# else = {
+						vassal_contract_set_obligation_level = { type = religious_rights level = 1 }
+					# }		
+				}
 			}
-			custom_tooltip = religious_protection_tt
+			# if = { #LotR
+			# 	limit = { scope:recipient.faith = { has_doctrine_parameter = unlock_jizya_contract } }
+			# 	custom_tooltip = jizya_religious_protection_tt
+			# }
+			# else = { 
+				custom_tooltip = religious_protection_tt 
+			# }
 		}
 	}
 }
@@ -2484,10 +2599,11 @@ retract_vassal_interaction_effect = {
 		}
 	}
 	if = {
-		limit = { always = scope:hook }
-		scope:actor = {
-			use_hook = scope:recipient
+		limit = { 
+			always = scope:hook
+			scope:actor ?= { has_hook = scope:recipient }
 		}
+		scope:actor = { use_hook = scope:recipient }
 	}
 }
 
@@ -2549,8 +2665,9 @@ revoke_title_interaction_effect = {
 		limit = {
 			scope:recipient = {
 				faith = scope:actor.faith
-				has_government = theocracy_government
+				government_has_flag = government_is_theocracy
 			}
+			NOT = { scope:actor = scope:actor.faith.religious_head } #No loss if actor is head of faith themselves
 		}
 		scope:actor = {
 			add_piety = major_piety_loss
@@ -2726,6 +2843,27 @@ revoke_title_interaction_effect = {
 				NOT = { exists = scope:revoke_title_interaction }
 			}
 			custom_tooltip = IS_ALLOWED_TO_REVOKE_TITLE_BARONY_DESC
+			scope:actor = {
+				if = {
+					limit = {
+						any_vassal = {
+							has_vassal_stance = barons_and_minor_landholders
+						}
+					}
+					custom_tooltip = barons_and_minor_landholders_disapproves_baron_revocations
+					hidden_effect = {
+						every_vassal = {
+							limit = {
+								has_vassal_stance = barons_and_minor_landholders
+							}
+							add_opinion = {
+								target = scope:actor
+								modifier = barons_and_minor_landholders_disapproves_baron_revocations_opinion
+							}
+						}
+					}
+				}
+			}
 		}
 	}
 
@@ -3100,6 +3238,25 @@ hof_ask_for_gold_interaction_effect = {
 			limit = { always = scope:hook }
 			use_hook = scope:recipient
 		}
+		if = {
+			limit = {
+				any_vassal = {
+					has_vassal_stance = zealot
+			}
+		}
+		custom_tooltip = zealot_vassal_disapproves_asking_hof_for_gold
+			hidden_effect = {
+				every_vassal = {
+					limit = {
+						has_vassal_stance = zealot
+					}
+					add_opinion = {
+						target = scope:actor
+						modifier = zealot_disapproves_of_asking_hof_for_gold_opinion
+					}
+				}
+			}
+		}
 	}
 }
 
@@ -3429,5 +3586,145 @@ revoke_holy_order_duel_victor_apply_effects_effect = {
 	scope:sc_victor = { 
 		add_stress = major_stress_loss
 		add_prestige = major_prestige_gain
+	}
+}
+
+diarch_declare_recipient_criminal_effect = {
+	scope:actor = {
+		# First we process the diarch.
+		## Players get a different tooltip, since they don't want to see opinion.
+		if = {
+			limit = { is_ai = no }
+			custom_tooltip = diarch_imprison_reason_for_player.tt
+			hidden_effect = {
+				add_opinion = {
+					target = scope:recipient
+					modifier = treasonous_disobeyed_diarch
+				}
+			}
+		}
+		## AI use the standard opinion flow.
+		else = {
+			add_opinion = {
+				target = scope:recipient
+				modifier = treasonous_disobeyed_diarch
+			}
+		}
+		# Then their liege.
+		liege = {
+			# Same flow: players get a different tooltip so that they don't see opinion.
+			if = {
+				limit = { is_ai = no }
+				custom_tooltip = ADD_OPINION_EFFECT_I_HAVE_IMPRISONMENT_REASON_UNUSABLE
+				hidden_effect = {
+					add_opinion = {
+						target = scope:recipient
+						modifier = treasonous_disobeyed_diarch
+					}
+				}
+			}
+			# But AI just get opinion.
+			else = {
+				add_opinion = {
+					target = scope:recipient
+					modifier = treasonous_disobeyed_diarch
+				}
+			}
+		}
+	}
+}
+
+diarch_declare_claim_war_effect = {
+	start_war = {
+		casus_belli = claim_cb
+		target = scope:recipient
+		claimant = scope:actor
+		target_title = scope:landed_title
+	}
+}
+
+diarch_declare_vassalisation_war_effect = {
+	start_war = {
+		casus_belli = diarch_vassalisation_cb
+		target = scope:recipient
+		target_title = scope:secondary_recipient.primary_title
+	}
+}
+
+make_criminal_effect = {
+	random_list = {
+		10 = {
+			trigger = {
+				trait_is_criminal_in_faith_trigger = {
+					TRAIT = adulterer
+					GENDER_CHARACTER = root
+					FAITH = root.faith
+				}
+				NOT = { has_trait = adulterer }
+			}
+			add_trait = adulterer
+		}
+		10 = {
+			trigger = {
+				trait_is_criminal_in_faith_trigger = {
+					TRAIT = kinslayer_3
+					GENDER_CHARACTER = root
+					FAITH = root.faith
+				}
+				NOT = { has_trait = kinslayer_3 }
+			}
+			add_trait = kinslayer_3
+		}
+		10 = {
+			trigger = {
+				trait_is_criminal_in_faith_trigger = {
+					TRAIT = witch
+					GENDER_CHARACTER = root
+					FAITH = root.faith
+				}
+				NOT = { has_trait = witch }
+			}
+			add_trait = witch
+		}
+		10 = {
+			trigger = {
+				trait_is_criminal_in_faith_trigger = {
+					TRAIT = cannibal
+					GENDER_CHARACTER = root
+					FAITH = root.faith
+				}
+				NOT = { has_trait = cannibal }
+			}
+			add_trait = cannibal
+		}
+		10 = {
+			trigger = {
+				trait_is_criminal_in_faith_trigger = {
+					TRAIT = deviant
+					GENDER_CHARACTER = root
+					FAITH = root.faith
+				}
+				NOT = { has_trait = deviant }
+			}
+			add_trait = deviant
+		}
+		10 = {
+			trigger = {
+				trait_is_criminal_in_faith_trigger = {
+					TRAIT = fornicator
+					GENDER_CHARACTER = root
+					FAITH = root.faith
+				}
+				NOT = { has_trait = fornicator }
+			}
+			add_trait = fornicator
+		}
+	}
+}
+
+clear_hostile_actions_lock_flag_effect = {
+	if = {
+		limit = { has_character_flag = flag_hostile_actions_disabled_delay }
+		remove_character_flag = flag_hostile_actions_disabled_delay
 	}
 }

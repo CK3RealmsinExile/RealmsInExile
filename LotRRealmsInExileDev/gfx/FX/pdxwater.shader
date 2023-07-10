@@ -41,8 +41,7 @@ PixelShader =
 		[[
 			PDX_MAIN
 			{
-				float Depth;
-				float4 Water = CalcWater( Input, Depth );
+				float4 Water = CalcWater( Input )._Color;
 
 				#ifdef WATER_COLOR_OVERLAY
 					// Not enough texture slots, so use only secondary colors on water.

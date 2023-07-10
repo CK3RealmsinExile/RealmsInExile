@@ -1,76 +1,70 @@
 ﻿artifact_war = {
+	icon = artifact_war
 	group = artifact
 	ai_only_against_neighbors = yes
 	
 	allowed_for_character = {
 		has_any_artifact_claim = yes
 		scope:attacker = {
-			NOT = { AND = {
-			        exists = primary_title.empire
-			        primary_title.empire = title:e_valinor
-		        } }
+			is_in_valinor = no
 		}
 	}
 	allowed_against_character = {
+		is_in_valinor = no
 		scope:attacker = {
 			OR = {
-				any_personal_claimed_artifact = {
-					artifact_owner = {
-						is_ruler = yes
-						target_is_same_character_or_above = scope:defender
-					}
-					nor = {
-						has_variable = elven_ring
-						has_variable = silmaril
-						and = {
-							has_variable = ring_of_men
-							has_game_rule = default_ai_behavior
-						}
-					}
-					trigger_if ={
-						limit = {
-							scope:attacker = { is_ai = yes }
-						}
-						NOT = { has_variable = cursed_artifact }
-						artifact_rarity >= 4 #More than masterwork
-						scope:attacker = {
-							can_benefit_from_artifact = prev
+				any_personal_claimed_artifact = {	
+					artifact_war_claimable_artifact_trigger = yes
+				}
+				house ?= {
+					any_house_claimed_artifact = {
+						artifact_war_claimable_artifact_trigger = yes
+						artifact_owner = {
+							trigger_if = { # Lowborn or not the same House
+								limit = { exists = house }
+								NOT = { house = scope:attacker.house }
+							}
 						}
 					}
 				}
-				AND = {
-					exists = scope:attacker.house
-					house = {
-						any_house_claimed_artifact = {
-							trigger_if ={
-								limit = {
-									scope:attacker = { is_ai = yes }
-								}
-								NOT = { has_variable = cursed_artifact }
-								artifact_rarity >= 4 #More than masterwork
-								scope:attacker = {
-									can_benefit_from_artifact = prev
-								}
-							}
-							artifact_owner = {
-								OR = {
-									AND = { # Not the same House
-										exists = scope:attacker.house
-										exists = house
-										NOT = {
-											house = scope:attacker.house
-										}
-									}
-									AND = { # Defender is lowborn
-										exists = scope:attacker.house
-										is_lowborn = yes
-									}
-								}
-								is_ruler = yes
-								target_is_same_character_or_above = scope:defender
-							}
-						}
-					}
+			}
+		}
+	}
+
+	allowed_against_character_display_regardless = { #LotR Tributaries
+		custom_tooltip = {
+			text = IS_GUARANTEED_BY_ME_TRIGGER_CB
+			NAND = {
+				exists = var:my_suzerain
+				scope:attacker = {
+					OR = {
+						is_target_in_variable_list = { name = non_permanent_tributaries target = prev }
+						is_target_in_variable_list = { name = permanent_tributaries target = prev }
+					}		
+				}
+			}
+		}
+		custom_tooltip = {
+			text = IS_GUARANTEED_BY_ATTACKERS_TOP_LIEGE_TRIGGER_CB
+			NAND = {
+				exists = var:my_suzerain
+				scope:attacker.top_liege = {
+					OR = {
+						is_target_in_variable_list = { name = non_permanent_tributaries target = prev }
+						is_target_in_variable_list = { name = permanent_tributaries target = prev }
+					}		
+				}
+				scope:attacker = {
+					is_independent_ruler = no
+				}
+			}
+		}
+		custom_tooltip = {
+			text = IS_MY_SUZERAIN_TRIGGER_CB
+			NAND = {
+				scope:attacker = { 
+					exists = var:my_suzerain
+					scope:defender = var:my_suzerain
 				}
 			}
 		}
@@ -105,27 +99,40 @@
 	}
 	
 	on_victory = {
-		scope:attacker = { show_pow_release_message_effect = yes }
-		
-		# transfer artifacts
 		scope:attacker = {
+
+			show_pow_release_message_effect = yes
+
+			#EP2 accolade glory gain for winning against higher ranked enemy
+			accolade_attacker_war_end_glory_gain_med_effect = yes
+
+			# transfer artifacts
 			every_personal_claimed_artifact = {
 				limit = {
-					trigger_if ={
+					artifact_war_claimable_artifact_trigger = yes
+				}
+				add_to_list = transferred_artifacts
+			}
+			if = {
+				limit = { exists = house }
+				house = {
+					every_house_claimed_artifact = {
 						limit = {
-							scope:attacker = { is_ai = yes }
+							artifact_war_claimable_artifact_trigger = yes
+							artifact_owner = {
+								trigger_if = { # Lowborn or not the same House
+									limit = { exists = house }
+									NOT = { house = scope:attacker.house }
+								}
+							}
 						}
-						NOT = { has_variable = cursed_artifact }
-						artifact_rarity >= 4 #More than masterwork
-						scope:attacker = {
-							can_benefit_from_artifact = prev
-						}
-					}
-					artifact_owner = {
-						is_ruler = yes
-						target_is_same_character_or_above = scope:defender
+						add_to_list = transferred_artifacts
 					}
 				}
+			}
+			every_in_list = {
+				list = transferred_artifacts
+				save_scope_as = artifact
 				set_owner = {
 					target = scope:attacker
 					history = {
@@ -134,63 +141,12 @@
 						recipient = scope:attacker
 					}
 				}
-				if = {
-					limit = {
-						NOT = { 
-							scope:defender = { has_personal_artifact_claim = prev }
-						}
-					}
-					scope:defender = { add_personal_artifact_claim = prev }
-				}
-			}
-			if = {
-				limit = {
-					exists = scope:attacker.house
-				}
-				house = {
-					every_house_claimed_artifact = {
+				scope:defender = {
+					if = {
 						limit = {
-							artifact_owner = {
-								OR = {
-									AND = { # Not the same House
-										exists = house
-										NOT = {
-											house = scope:attacker.house
-										}
-									}
-									AND = { # Defender is lowborn
-										exists = scope:attacker.house
-										is_lowborn = yes
-									}
-								}
-								is_ruler = yes
-								target_is_same_character_or_above = scope:defender
-							}
-							save_temporary_scope_as = temp_artifact_check
-							NOT = {
-								scope:attacker = {
-									any_personal_claimed_artifact = {
-										this = scope:temp_artifact_check
-									}
-								}
-							}
+							NOT = { has_personal_artifact_claim = scope:artifact }
 						}
-						set_owner = {
-							target = scope:attacker
-							history = {
-								type = conquest
-								actor = scope:attacker
-								recipient = scope:defender
-							}
-						}
-						if = {
-							limit = {
-								NOT = { 
-									scope:defender = { has_personal_artifact_claim = prev }
-								}
-							}
-							scope:defender = { add_personal_artifact_claim = prev }
-						}
+						add_personal_artifact_claim = scope:artifact
 					}
 				}
 			}
@@ -222,6 +178,10 @@
 	
 	on_white_peace = {
 		scope:attacker = { show_pow_release_message_effect = yes }
+
+		#EP2 accolade glory gain for doing ok against higher ranked enemy
+		scope:defender = { accolade_defender_war_end_glory_gain_low_effect = yes }
+
 		# Prestige loss for the attacker
 		scope:attacker = {
 			add_prestige = {
@@ -255,39 +215,34 @@
 	}
 	
 	on_defeat = {
+		#EP2 accolade glory gain for winning against higher ranked enemy
+		scope:defender = { accolade_defender_war_end_glory_gain_med_effect = yes }
+
 		scope:attacker = {
 			show_pow_release_message_effect = yes
 
 			every_personal_claimed_artifact = {
 				limit = {
-					artifact_owner = {
-						is_ruler = yes
-						target_is_same_character_or_above = scope:defender
-					}
+					artifact_war_claimable_artifact_trigger = yes
 				}
-				scope:attacker = { remove_personal_artifact_claim = prev }
+				save_scope_as = artifact
+				scope:attacker = { remove_personal_artifact_claim = scope:artifact }
 			}
 			if = {
-				limit = {
-					exists = scope:attacker.house
-				}
+				limit = { exists = house }
 				house = {
 					every_house_claimed_artifact = {
 						limit = {
+							artifact_war_claimable_artifact_trigger = yes
 							artifact_owner = {
-								trigger_if = {
-									limit = {
-										exists = house
-									}
-									NOT = {
-										house = scope:attacker.house
-									}
+								trigger_if = { # Lowborn or not the same House
+									limit = { exists = house }
+									NOT = { house = scope:attacker.house }
 								}
-								is_ruler = yes
-								target_is_same_character_or_above = scope:defender
 							}
 						}
-						scope:attacker.house = { remove_house_artifact_claim = prev }
+						save_scope_as = artifact
+						scope:attacker.house = { remove_house_artifact_claim = scope:artifact }
 					}
 				}
 			}
@@ -460,6 +415,7 @@
 }
 
 reclaim_relic_artifact_war = {
+	icon = reclaim_relic_artifact_war
 	group = artifact
 	ai_only_against_neighbors = yes
 	
@@ -468,10 +424,7 @@ reclaim_relic_artifact_war = {
 			highest_held_title_tier >= tier_duchy
 			is_ai = no
 		}
-		scope:attacker = { NOT = { AND = {
-			        exists = primary_title.empire
-			        primary_title.empire = title:e_valinor
-		        } } }
+		scope:attacker = { is_in_valinor = no }
 	}
 	allowed_against_character = {
 		custom_tooltip = { # The custom_tooltip is here for error suppression
@@ -480,6 +433,7 @@ reclaim_relic_artifact_war = {
 				scope:attacker.faith = scope:defender.faith
 			}
 			scope:defender = {
+				is_in_valinor = no
 				OR = {
 					any_character_artifact = {
 						OR = {
@@ -508,6 +462,45 @@ reclaim_relic_artifact_war = {
 			}
 		}
 	}
+
+	allowed_against_character_display_regardless = { #LotR Tributaries
+		custom_tooltip = {
+			text = IS_GUARANTEED_BY_ME_TRIGGER_CB
+			NAND = {
+				exists = var:my_suzerain
+				scope:attacker = {
+					OR = {
+						is_target_in_variable_list = { name = non_permanent_tributaries target = prev }
+						is_target_in_variable_list = { name = permanent_tributaries target = prev }
+					}		
+				}
+			}
+		}
+		custom_tooltip = {
+			text = IS_GUARANTEED_BY_ATTACKERS_TOP_LIEGE_TRIGGER_CB
+			NAND = {
+				exists = var:my_suzerain
+				scope:attacker.top_liege = {
+					OR = {
+						is_target_in_variable_list = { name = non_permanent_tributaries target = prev }
+						is_target_in_variable_list = { name = permanent_tributaries target = prev }
+					}		
+				}
+				scope:attacker = {
+					is_independent_ruler = no
+				}
+			}
+		}
+		custom_tooltip = {
+			text = IS_MY_SUZERAIN_TRIGGER_CB
+			NAND = {
+				scope:attacker = { 
+					exists = var:my_suzerain
+					scope:defender = var:my_suzerain
+				}
+			}
+		}
+	}
 	
 	on_declaration = {
 		on_declared_war = yes
@@ -519,15 +512,6 @@ reclaim_relic_artifact_war = {
 			add = {
 				value = medium_prestige_value
 				desc = CB_BASE_COST
-			}
-			if = {
-				limit = {
-					scope:attacker = { has_government = tribal_government }
-				}
-				multiply = {
-					value = 0.5
-					desc = CB_TRIBAL_COST
-				}
 			}
 
 			multiply = common_cb_prestige_cost_multiplier
@@ -549,6 +533,9 @@ reclaim_relic_artifact_war = {
 	on_victory = {
 		scope:attacker = { show_pow_release_message_effect = yes }
 		
+		#EP2 accolade glory gain for winning against higher ranked enemy
+		scope:attacker = { accolade_attacker_war_end_glory_gain_med_effect = yes }
+
 		# transfer artifacts
 		scope:defender = {
 			every_character_artifact = {
@@ -641,6 +628,9 @@ reclaim_relic_artifact_war = {
 	on_white_peace = {
 		scope:attacker = { show_pow_release_message_effect = yes }
 		
+		#EP2 accolade glory gain for doing ok against higher ranked enemy
+		scope:defender = { accolade_defender_war_end_glory_gain_low_effect = yes }
+
 		# Prestige loss for the attacker
 		scope:attacker = {
 			add_prestige = {
@@ -675,6 +665,9 @@ reclaim_relic_artifact_war = {
 	
 	on_defeat = {
 		scope:attacker = { show_pow_release_message_effect = yes }
+
+		#EP2 accolade glory gain for winning against higher ranked enemy
+		scope:defender = { accolade_defender_war_end_glory_gain_med_effect = yes }
 
 		# Prestige loss for the attacker
 		scope:attacker = {
