@@ -1,0 +1,261 @@
+﻿## Lotr Marriage triggers
+
+lotr_children_allowed = {
+	is_maiar = no
+	is_valar = no
+	is_nazgul = no
+	is_undead = no
+}
+
+lotr_children_with_allowed = { #example lotr_children_with_allowed = { TARGET = scope:lover }
+	lotr_marriage_allowed = yes
+	$TARGET$ = { lotr_marriage_allowed = yes }
+	same_race = { TARGET = $TARGET$ }
+}
+
+lotr_marriage_allowed = { #this and the next one are inserted into vanilla marriage_triggers, best use those when you deal with marriage in events, etc.
+	lotr_children_allowed = yes
+	NOR = {
+		has_trait = widowed
+		has_trait = cannot_marry
+	}
+	OR = {
+		is_adult = no
+		is_nubile = yes
+	}
+}
+
+lotr_marriage_to_allowed = { #example lotr_marriage_to_allowed = { TARGET = scope:lover }
+	lotr_children_with_allowed = { TARGET = $TARGET$ }
+	OR = { #druedain can only marry druedain
+		NOR = {
+			culture = { has_cultural_pillar = heritage_druedain }
+			$TARGET$ = { culture = { has_cultural_pillar = heritage_druedain } }
+		}
+		culture = { has_same_culture_heritage = $TARGET$.culture } #Jamie - Hope this works!
+	}
+	$TARGET$ = { 
+		OR = {
+			is_adult = no
+			is_nubile = yes
+		}
+	}
+}
+
+lotr_extramarital_allowed = {
+	lotr_children_allowed = yes
+}
+
+lotr_extramarital_to_allowed = { #example lotr_extramarital_to_allowed = { TARGET = scope:lover }
+	lotr_children_with_allowed = { TARGET = $TARGET$ }
+}
+
+## Betrothal triggers
+
+is_nubile = {
+	age >= nubile_age
+}
+
+lotr_betrothal_allowed = {
+	lotr_children_allowed = yes
+	NOR = {
+		is_elf = yes
+		has_trait = widowed
+		has_trait = cannot_marry
+	}
+}
+
+lotr_betrothal_to_allowed = { #example lotr_betrothal_to_allowed = { TARGET = scope:lover }
+	lotr_betrothal_allowed = yes
+	$TARGET$ = { lotr_betrothal_allowed = yes }
+	same_race = { TARGET = $TARGET$ }
+	OR = { #druedain can only marry druedain
+		NOR = {
+			culture = { has_cultural_pillar = heritage_druedain }
+			$TARGET$ = { culture = { has_cultural_pillar = heritage_druedain } }
+		}
+		culture = { has_same_culture_heritage = $TARGET$.culture } #Jamie - Hope this works!
+	}
+	NAND = {
+		is_nubile = yes
+		$TARGET$ = { is_nubile = yes }
+	}
+}
+
+can_be_betrothed_common_trigger = {
+	is_alive = yes
+	lotr_betrothal_allowed = yes
+
+	trigger_if = {
+		limit = {
+			exists = primary_title
+		}
+		NOR = {
+			# Block Mercenaries from marrying or showing up in marriage interactions
+			primary_title = {
+				is_mercenary_company = yes
+			}
+		}
+		NOR = {
+			is_leading_faction_type = peasant_faction
+			is_leading_faction_type = populist_faction
+		}
+	}
+
+	# Clergy cannot marry if their faith disallows it
+	trigger_if = {
+		limit = {
+			is_clergy = yes
+		}
+		faith = {
+			has_doctrine_parameter = clergy_can_marry
+		}
+	}
+	trigger_if = {
+		limit = {
+			exists = liege.involved_activity.var:tournament_marriage_prize
+			this = liege.involved_activity.var:tournament_marriage_prize
+		}
+		exists = scope:contest_winner
+	}
+}
+
+can_be_betrothed_trigger = {
+	can_be_betrothed_common_trigger = yes
+	allowed_more_spouses = yes
+	NOT = {
+		has_culture = culture:wastelands
+	}
+}
+
+could_betrothe_character_trigger = {
+	save_temporary_scope_as = can_betrothe_check
+	can_be_betrothed_common_trigger = yes
+	$CHARACTER$ = { can_be_betrothed_common_trigger = yes }
+	lotr_betrothal_to_allowed = { TARGET = $CHARACTER$ }
+	#Opposite genders if you don't have accepted same-sex marriage game rule enabled and your faith supports it
+	trigger_if = {
+		limit = { #If you're someone's courtier, your liege can marry you anyway
+			NOT = { is_courtier_of = $CHARACTER$ }
+			allowed_to_marry_same_sex_trigger = no
+		}
+		sex_opposite_of = $CHARACTER$
+	}
+	trigger_if = {
+		limit = { #If you're someone's courtier, your liege can marry you anyway
+			$CHARACTER$ = { NOT = { is_courtier_of = scope:can_betrothe_check } }
+			$CHARACTER$ = { allowed_to_marry_same_sex_trigger = no }
+		}
+		sex_opposite_of = $CHARACTER$
+	}
+	trigger_if = {
+		limit = {
+			is_courtier_of = $CHARACTER$
+			$CHARACTER$ = { allowed_to_marry_same_sex_trigger = no }
+		}
+		sex_opposite_of = $CHARACTER$
+	}
+	trigger_if = {
+		limit = {
+			$CHARACTER$ = { is_courtier_of = scope:can_betrothe_check }
+			allowed_to_marry_same_sex_trigger = no
+		}
+		sex_opposite_of = $CHARACTER$
+	}
+	#Faith hostility & consanguinity
+	trigger_if = {
+		limit = { NOT = { is_courtier_of = $CHARACTER$ } } #If you're someone's courtier, your liege can marry you anyway
+		faith = {
+			faith_allows_marriage_consanguinity_trigger = {
+				CHARACTER_1 = scope:can_betrothe_check
+				CHARACTER_2 = $CHARACTER$
+			}
+		}
+	}
+	trigger_if = {
+		limit = { $CHARACTER$ = { NOT = { is_courtier_of = scope:can_betrothe_check } } } #If you're someone's courtier, your liege can marry you anyway
+		$CHARACTER$.faith = {
+			faith_allows_marriage_consanguinity_trigger = {
+				CHARACTER_1 = scope:can_betrothe_check
+				CHARACTER_2 = $CHARACTER$
+			}
+		}
+	}
+}
+
+can_betrothe_character_trigger = {
+	save_temporary_scope_as = can_betrothe_char_check
+	lotr_betrothal_to_allowed = { TARGET = $CHARACTER$ }
+	AND = {
+		can_be_betrothed_trigger = yes
+		$CHARACTER$ = { can_be_betrothed_trigger = yes }
+	}
+	could_betrothe_character_trigger = { CHARACTER = $CHARACTER$ } #Gender, recent divorce, allowed to marry, no illegal incest etc.
+}
+
+betrothal_interaction_can_be_picked_trigger = {
+	can_be_betrothed_trigger = yes
+	is_imprisoned = no
+}
+
+betrothal_interaction_valid_target_trigger = {
+	# Clergy cannot marry if their faith doesn't allow it
+	trigger_if = {
+		limit = {
+			scope:secondary_actor = {
+				is_clergy = yes
+				NOT = {
+					faith = {
+						has_doctrine_parameter = clergy_can_marry
+					}
+				}
+			}
+		}
+		custom_description = {
+			text = character_is_clergy_and_cannot_marry
+			subject = scope:secondary_actor
+			object = scope:secondary_recipient
+			scope:secondary_actor = {
+				is_clergy = no
+			}
+		}
+	}
+	trigger_else_if = {
+		limit = {
+			scope:secondary_recipient = {
+				is_clergy = yes
+				NOT = {
+					faith = {
+						has_doctrine_parameter = clergy_can_marry
+					}
+				}
+			}
+		}
+		custom_description = {
+			text = character_is_clergy_and_cannot_marry
+			subject = scope:secondary_recipient
+			object = scope:secondary_actor
+			scope:secondary_recipient = {
+				is_clergy = no
+			}
+		}
+	}
+	#Betrothal
+	trigger_else = {
+		scope:secondary_actor = {
+			custom_description = {
+				text = "can_betroth_check_secondary_actor"
+				subject = scope:secondary_actor
+				object = scope:secondary_recipient
+				can_betrothe_character_trigger = { CHARACTER = scope:secondary_recipient } #Checks marriage status, betrothed, gender, consanguinity, faith hostility etc.
+			}
+		}
+	}
+}
+
+
+betrothal_interaction_can_be_picked_trigger = {
+	can_be_betrothed_trigger = yes
+	is_imprisoned = no
+}
+
