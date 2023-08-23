@@ -1,1123 +1,532 @@
-﻿#############
-# Diarchy Scripted Effects
+﻿﻿﻿#############
+# Diarchy Scripted Triggers
 #############
 
 ##################################################
-# Debug Effects
+# General Triggers
 
-log_diarch_send_interaction_as_variable_effect = {
-	if = {
-		limit = { always = no }
-		# Did a landless diarch send this?
-		if = {
-			limit = {
-				scope:actor = { is_ruler = no }
-			}
-			if = {
-				limit = {
-					NOT = { exists = global_var:landless_diarch_tried_$INTERACTION$ }
-				}
-				set_global_variable = {
-					name = landless_diarch_tried_$INTERACTION$
-					value = 1
-				}
-			}
-			else = {
-				change_global_variable = {
-					name = landless_diarch_tried_$INTERACTION$
-					add = 1
-				}
-			}
-		}
+character_hates_scope_due_to_strife_guts_trigger = {
+	# We've got to share a direct liege for strife to be valid.
+	exists = liege
+	exists = $TARGET$.liege
+	liege = $TARGET$.liege
+	# And $TARGET$ must have accumulated enough strife to aggravate me (which we modulate up or down a little with some traits).
+	$TARGET$.strife_opinion >= strife_harm_threshold_value
+	# Finally, there has to be at least _some_ love lost.
+	opinion = {
+		target = $TARGET$
+		value < 0
 	}
 }
 
-# These two effects exist to allow quantitative tracking of how many characters in the world are actually using diarch interactions & in what numbers mid-game — left in case Design needs to do more frequency checking & doesn't want to re-script everything.
-diarch_interaction_set_or_update_global_variable_effect = {
-	if = {
-		limit = { always = no }
-		if = {
-			limit = {
-				NOT = { exists = global_var:$VARIABLE$ }
-			}
-			set_global_variable = {
-				name = $VARIABLE$
-				value = 1
-			}
-		}
-		else = {
-			change_global_variable = {
-				name = $VARIABLE$
-				add = 1
-			}
-		}
-	}
-}
-diarch_interaction_add_to_global_list_effect = {
-	if = {
-		limit = { always = no }
-		add_to_global_variable_list = {
-			name = $VARIABLE_LIST$
-			target = this
-		}
-	}
-}
-
-##################################################
-# Historical Effects
-
-remove_generated_diarch_consequences_effect = {
-	$NEW_DIARCH$ = {
-		remove_opinion = {
-			target = $LIEGE$
-			modifier = designated_me_regent_opinion
-		}
-	}
-	$LIEGE$ = {
-		every_diarchy_succession_character = {
-			remove_opinion = {
-				target = $LIEGE$
-				modifier = passed_me_over_for_regent_opinion
-			}
-		}
-		every_vassal = {
-			limit = { has_vassal_stance = courtly }
-			remove_opinion = {
-				target = $LIEGE$
-				modifier = designated_bad_regent_opinion
-			}
-		}
-	}
-}
-
-##################################################
-# Decision Effects
-
-ai_diarch_check_to_see_if_should_launch_coup_effect = {
-	scope:actor = {
-		if = {
-			limit = {
-				# Robots only, please.
-				is_ai = yes
-				# Check that this is the diarch.
-				is_diarch_of_target = scope:recipient
-				# Plus a few checks for scope:recipient.
-				scope:recipient = {
-					# Then, we look to see if we've hit that magic number.
-					has_diarchy_active_parameter = regents_can_try_to_overthrow_present_lieges
-					# Finally, make sure that scope:recipient doesn't have a sensibility cooldown on 'em.
-					NOT = { has_character_flag = immune_ai_coups }
-				}
-				# Only disloyal diarchs will even consider this. It's really not for casuals.
-				diarch_loyalty <= diarch_loyalty_visibly_disloyal_threshold
-			}
-			# Right, lets try for some treason, then!
-			trigger_event = diarchy.9031
-		}
-	}
-}
-
-diarch_finalise_conspirators_for_overthrow_list_effect = {
-	# The list we know we have.
-	every_in_list = {
-		variable = coup_pv_supporters_list
+# This is hooked up to the should_invalidate_diarch rule, referenced by Code.
+is_diarch_valid_trigger = {
+	# If you're in an entrenched regency for some reason, you can't manage a regency yourself.
+	is_alive = yes
+	NOT = { has_diarchy_parameter = diarchy_type_is_entrenched_regency }
+	# You need to be mentally & physically sound, to some degree.
+	regency_for_personal_reasons_trigger = no
+	#We cannot be at war with our liege
+	trigger_if = {
 		limit = {
-			diarch_coup_valid_conspiracy_culmination_vassals_trigger = { LIEGE = prev.liege }
+			exists = liege
 		}
-		add_to_list = coup_pv_supporters_final_list
-	}
-	# & the lists we only might have.
-	## Hooks.
-	if = {
-		limit = { has_variable_list = coup_promise_list_weak_hook }
-		every_in_list = {
-			variable = coup_promise_list_weak_hook
-			limit = {
-				diarch_coup_valid_conspiracy_culmination_vassals_trigger = { LIEGE = prev.liege }
-			}
-			add_to_list = coup_promise_list_weak_hook_final
+		NOT = {
+			is_at_war_with = liege
 		}
 	}
-	## Strong hooks.
-	if = {
-		limit = { has_variable_list = coup_promise_list_strong_hook }
-		every_in_list = {
-			variable = coup_promise_list_strong_hook
+	# If you have somehow managed to get invited to/start an activity outside of your realm (e.g., you're the spouse in a grand wedding), then yeah, you forfeit your position.
+	NAND = {
+		# Is it redundant to check twice?
+		## Yes.
+		### Do the machine spirits demand this thoroughness of us?
+		#### Also yes.
+		##### Do not ask why the God-Machine commands it, merely be glad that it commanded it of you.
+		is_travelling = yes
+		exists = current_travel_plan
+		# We check your liege so that you can attend business within the realm easily.
+		## Schemes are their own special lil guys so we take care of them separately.
+		trigger_if = {
 			limit = {
-				diarch_coup_valid_conspiracy_culmination_vassals_trigger = { LIEGE = prev.liege }
+				exists = scope:owner
+				exists = scope:target
 			}
-			add_to_list = coup_promise_list_strong_hook_final
+			travel_would_cause_regency_trigger = { REALM_HOLDER = scope:owner.liege }
+		}
+		## Else, we're an ordinary, gods-fearing root scope, so use that.
+		trigger_else = {
+			travel_would_cause_regency_trigger = { REALM_HOLDER = this.liege }
 		}
 	}
-	## Gold.
-	if = {
-		limit = { has_variable_list = coup_promise_list_gold }
-		every_in_list = {
-			variable = coup_promise_list_gold
-			limit = {
-				diarch_coup_valid_conspiracy_culmination_vassals_trigger = { LIEGE = prev.liege }
-			}
-			add_to_list = coup_promise_list_gold_final
+	trigger_if = {
+		limit = {
+			is_ai = yes
 		}
-	}
-	## Big gold.
-	if = {
-		limit = { has_variable_list = coup_promise_list_big_gold }
-		every_in_list = {
-			variable = coup_promise_list_big_gold
-			limit = {
-				diarch_coup_valid_conspiracy_culmination_vassals_trigger = { LIEGE = prev.liege }
-			}
-			add_to_list = coup_promise_list_big_gold_final
+		NOT = {
+			has_character_flag = cannot_be_diarch
 		}
 	}
 }
 
-diarch_clean_up_conspiracy_variables_effect = {
-	if = {
-		limit = { is_alive = yes }
-		remove_variable = coup_pv_supporters_list
-		remove_variable = coup_promise_list_weak_hook
-		remove_variable = coup_promise_list_strong_hook
-		remove_variable = coup_promise_list_gold
-		remove_variable = coup_promise_list_big_gold
+# This is hooked up to the is_diarch_able rule, referenced by Code.
+is_diarch_able_trigger = {
+	# You can't possibly manage someone else's realm from prison.
+	is_imprisoned = no
+	# You'd clearly be preoccupied.
+	trigger_if = {
+		limit = { exists = involved_activity }
+		save_temporary_scope_as = diarch_temp
+		involved_activity.activity_location.county.holder = {
+			NOR = {
+				this = scope:diarch_temp.liege
+				NOT = {
+					any_liege_or_above = { this = scope:diarch_temp.liege }
+				}
+			}
+		}
+	}
+	# If you're in a temporary regency for any other reason, you need to chill.
+	NOT = { has_diarchy_active_parameter = diarchy_type_is_temporary_regency }
+}
+
+# And *this* needs to be added to guest activity intents to keep diarchs from showing up to the same parties as their liege.
+bannable_serving_diarch_trigger = {
+	OR = {
+		# Diarchs with official responsibilities can't come out to play.
+		is_diarch = yes
+		is_designated_diarch = yes
+		# Assumed diarchs don't get to either if they're the AI, as the player might be planning around them & the AI may have designated to avoid people after if it'd known they were going to welch.
+		## Assumed-diarch players can make an intelligent choice on whether they want to go to events or not.
+		AND = {
+			is_ai = yes
+			is_diarchy_successor = yes
+		}
 	}
 }
 
-diarch_coup_preamble_effects_effect = {
-	# Note that we don't want a list when it comes to the coup event.
-	save_scope_value_as = {
-		name = disable_display_rightful_imprisonment_tooltip
-		value = yes
-	}
-	# If there's an alliance, it's pretty decisively broken.
-	if = {
-		limit = { is_allied_to = scope:liege }
-		break_alliance_due_to_attack_effect = { TARGET = scope:liege }
-	}
-	# And don't forget stress!
-	stress_impact = {
-		base = major_stress_impact_gain
-		disloyal = medium_stress_impact_loss
-		ambitious = minor_stress_impact_loss
-		arrogant = minor_stress_impact_loss
-		callous = miniscule_stress_impact_loss
-		arbitrary = miniscule_stress_impact_loss
-		just = minor_stress_impact_gain
-		humble = medium_stress_impact_gain
-		content = medium_stress_impact_gain
-		loyal = major_stress_impact_gain
-	}
-	# Register that the AI shouldn't try to coup liege again for a *while*.
-	scope:liege = {
-		add_character_flag = {
-			flag = immune_ai_coups
-			years = 50
+diarch_has_situational_loyalty_trigger = {
+	diarch_loyalty > diarch_loyalty_visibly_disloyal_threshold
+	diarch_loyalty < diarch_loyalty_visibly_loyal_threshold
+}
+
+diarch_callable_in_internal_war_trigger = {
+	OR = {
+		# CBs where the liege doesn't (necessarily) control an internal attacker.
+		using_cb = peasant_war
+		using_cb = populist_war
+		# All other internal CBs.
+		primary_attacker = {
+			any_liege_or_above = { this = scope:actor }
 		}
 	}
 }
 
 ##################################################
-# Activities
+# Setup Triggers
 
-remove_strife_per_invited_powerful_vassal_effect = {
-	scope:activity = {
-		if = {
-			limit = {
-				# Does scope:host have any strife to take care of?
-				scope:host = {
-					exists = liege
-					strife_opinion >= 1
-				}
-				any_attending_character = {
-					NOT = { this = scope:host }
-					is_powerful_vassal_of = scope:host.liege
+basic_eligible_for_diarchy_trigger = {
+	is_landed = yes
+	highest_held_title_tier >= tier_county
+	NOT = { has_active_diarchy = yes }
+}
+
+regency_for_personal_reasons_trigger = {
+	OR = {
+		is_a_minor = yes
+		is_incapable = yes
+	}
+}
+
+imprisonment_would_cause_regency_trigger = {
+	custom_tooltip = {
+		text = imprisonment_would_cause_regency_trigger.tt.imprisoned_abroad
+		is_imprisoned = yes
+		# Doesn't count if your gaoler is your vassal.
+		save_temporary_scope_as = liege_temp
+		NOT = {
+			any_vassal_or_below = { this = scope:liege_temp.imprisoner }
+		}
+	}
+}
+
+travel_would_cause_regency_trigger = {
+	OR = {
+		# Travelling one-way.
+		AND = {
+			# Make sure that we _aren't_ going bilaterally.
+			NOT = { current_travel_plan.final_destination_province = current_travel_plan.departure_location }
+			# Then check that we're actually going outside of the realm.
+			current_travel_plan.final_destination_province.county.holder = {
+				NOR = {
+					any_liege_or_above = { this = $REALM_HOLDER$ }
+					this = $REALM_HOLDER$
 				}
 			}
-			# Save a variable for the loc key so that we don't need to parse a million scopes _into_ the key.
-			## We do it this way because the custom_tooltip otherwise gets real finnicky about having 
-			scope:host = {
-				set_variable = {
-					name = strife_loss_total
-					value = {
-						value = scope:activity.diarch_reduced_strife_for_inviting_powerful_covassals_value
-						# Invert it for UX purposes.
-						multiply = -1
+		}
+		# Travelling in a circle.
+		AND = {
+			# Make sure that we _are_ going bilaterally.
+			current_travel_plan.final_destination_province = current_travel_plan.departure_location
+			# Check the next destination province instead.
+			## We put a break in to check if there _is_ a county because you might be travelling through the ocean.
+			current_travel_plan.next_destination_province.county ?= {
+				holder = {
+					NOR = {
+						any_liege_or_above = { this = $REALM_HOLDER$ }
+						this = $REALM_HOLDER$
 					}
 				}
 			}
-			custom_tooltip = remove_strife_per_invited_powerful_vassal_effect.tt
-			## Don't forget to remove the variable!
-			# Now, change the actual strife.
-			hidden_effect = {
-				scope:host = { change_strife_opinion = scope:activity.diarch_reduced_strife_for_inviting_powerful_covassals_value }
-			}
 		}
 	}
+}
+
+can_leave_diarchy_trigger = {
+	trigger_if = {
+		limit = { is_imprisoned = yes }
+		imprisonment_would_cause_regency_trigger = no
+	}
+	is_travelling = no
+	regency_for_personal_reasons_trigger = no
+}
+
+regent_would_remain_loyal_after_death_trigger = {
+	is_ai = yes
+	diarch_loyalty_score_type_regency_value >= diarch_loyalty_visibly_loyal_threshold
 }
 
 ##################################################
 # Character Interactions
 
-diarch_changed_own_contract_effect = {
-	if = {
-		limit = { always = scope:diarch }
-		scope:recipient = {
-			add_to_variable_list = {
-				name = diarch_contract_rights_used_list
-				target = scope:actor
-			}
-			custom_tooltip = liege_modify_vassal_contract_interaction.tt.diarch_powers_used
-			reverse_add_opinion = {
-				target = scope:actor
-				modifier = abused_position_of_trust_opinion
-				opinion = -40
-			}
+diarch_cannot_be_disabled_trigger = {
+	custom_description = {
+		text = diarch_interactions_tt_is_able
+		subject = $DIARCH$
+		$DIARCH$ = { is_diarch_able_trigger = yes }
+	}
+}
+
+diarch_legal_meddling_claimable_title_trigger = {
+	custom_description = {
+		text = "you_must_not_have_a_claim_on_the_title"
+		NOT = {
+			any_claimant = { this = $ACTOR$ }
+		}
+	}
+	custom_description = {
+		text = "character_interactions_not_rel_head_title"
+		is_head_of_faith = no
+	}
+	custom_tooltip = {
+		text = title_must_be_county_tier.tt
+		tier = tier_county
+	}
+	# This is mostly here to stop people from not claiming titles because they have valid titles that are _outside_ the sub-realm.
+	custom_tooltip = {
+		text = title_must_be_same_realm.tt
+		holder = {
+			any_liege_or_above = { this = $ACTOR$.liege }
 		}
 	}
 }
 
-diarch_revoke_title_interaction_intermediary_fail_opinions_effect = {
-	# Scope:actor dislikes scope:intermediary.
-	scope:actor = {
-		if = {
-			limit = { is_ai = yes }
-			add_opinion = {
-				target = scope:intermediary
-				modifier = disappointed_opinion
-				opinion = -20
-			}
-		}
-	}
-	# Scope:recipient has mixed feelings.
-	scope:recipient = {
-		# Specifically, they're now happy with scope:intermediary...
-		if = {
-			limit = { is_ai = yes }
-			add_opinion = {
-				target = scope:intermediary
-				modifier = protected_me_opinion
-				opinion = 20
-			}
-			# ... but upset with scope:actor.
-			add_opinion = {
-				target = scope:actor
-				modifier = revoked_title
-			}
-		}
+diarch_syphon_treasury_embezzlement_modifiers_trigger = {
+	OR = {
+		has_county_modifier = syphon_treasury_massive_sum_modifier
+		has_county_modifier = syphon_treasury_large_sum_modifier
+		has_county_modifier = syphon_treasury_medium_sum_modifier
+		has_county_modifier = syphon_treasury_small_sum_modifier
 	}
 }
 
-diarch_retract_vassal_interaction_intermediary_fail_opinions_effect = {
-	# Scope:actor dislikes scope:intermediary.
-	scope:actor = {
-		if = {
-			limit = { is_ai = yes }
-			add_opinion = {
-				target = scope:intermediary
-				modifier = disappointed_opinion
-				opinion = -20
-			}
-		}
-	}
-	# Scope:recipient has mixed feelings.
-	scope:recipient = {
-		# Specifically, they're now happy with scope:intermediary...
-		if = {
-			limit = { is_ai = yes }
-			add_opinion = {
-				target = scope:intermediary
-				modifier = protected_me_opinion
-				opinion = 20
-			}
-			# ... but upset with scope:actor.
-			add_opinion = {
-				target = scope:actor
-				modifier = retracted_vassal
-			}
-		}
+diarch_shift_privileges_valid_target_title_trigger = {
+	NOR = {
+		has_county_modifier = shift_privileges_monopolies_sold_modifier
+		has_county_modifier = shift_privileges_scutage_exemptions_modifier
+		has_county_modifier = shift_privileges_conflicting_deeds_modifier
 	}
 }
 
-diarch_imprison_interaction_intermediary_fail_opinions_effect = {
-	# Scope:actor dislikes scope:intermediary.
-	scope:actor = {
-		if = {
-			limit = { is_ai = yes }
-			add_opinion = {
-				target = scope:intermediary
-				modifier = disappointed_opinion
-				opinion = -20
-			}
-		}
+diarch_swing_scales_valid_shared_hof_trigger = {
+	# You must share a HoF to be able to petition one.
+	custom_tooltip = {
+		text = swing_scales_currency_interaction.tt.no_shared_hof
+		exists = scope:actor.faith.religious_head
+		exists = scope:recipient.faith.religious_head
+		scope:actor.faith.religious_head = scope:recipient.faith.religious_head
 	}
-	# Scope:recipient has mixed feelings.
-	scope:recipient = {
-		# Specifically, they're now happy with scope:intermediary...
-		if = {
-			limit = { is_ai = yes }
-			add_opinion = {
-				target = scope:intermediary
-				modifier = protected_me_opinion
-				opinion = 20
-			}
-			# ... but upset with scope:actor.
-			add_opinion = {
-				target = scope:actor
-				modifier = imprisoned_me
-			}
-		}
-	}
-}
-
-diarch_legal_meddling_interaction_success_effect = {
-	scope:actor = {
-		# Nab the claim.
-		add_unpressed_claim = scope:target
-		# We nest this so that scope:recipient doesn't have to see their own opinion effects.
-		if = {
-			limit = {
-				NOT = { this = scope:recipient }
-			}
-			# Add some opinion loss.
-			## Counties are worrying.
-			if = {
-				limit = { scope:target.tier = tier_county }
-				reverse_add_opinion = {
-					target = scope:recipient
-					modifier = annoyed_opinion
-					opinion = -20
-				}
-				change_strife_opinion = minor_strife_gain
-			}
-			## Duchies are troublesome.
-			else_if = {
-				limit = { scope:target.tier = tier_duchy }
-				reverse_add_opinion = {
-					target = scope:recipient
-					modifier = angry_opinion
-					opinion = -40
-				}
-				change_strife_opinion = medium_strife_gain
-			}
-			## Kingdoms are hateful.
-			else_if = {
-				limit = { scope:target.tier = tier_kingdom }
-				reverse_add_opinion = {
-					target = scope:recipient
-					modifier = hate_opinion
-					opinion = -60
-				}
-				change_strife_opinion = major_strife_gain
-			}
-		}
-	}
-	# Object explorer logging.
-	scope:actor = {
-		diarch_interaction_set_or_update_global_variable_effect = { VARIABLE = di_track_legmed_success }
-		diarch_interaction_add_to_global_list_effect = { VARIABLE_LIST = di_track_legmed_success_actor_list }
-	}
-	scope:recipient = {
-		diarch_interaction_add_to_global_list_effect = { VARIABLE_LIST = di_track_legmed_success_recipient_list }
-	}
-}
-
-diarch_legal_meddling_interaction_fail_effect = {
-	scope:actor = {
-		# Gain some stress.
-		add_stress = minor_stress_gain
-		# We nest this so that scope:recipient doesn't have to see their own opinion effects.
-		if = {
-			limit = {
-				NOT = { this = scope:recipient }
-			}
-			# Add some opinion loss.
-			## Counties are worrying.
-			if = {
-				limit = { scope:target.tier = tier_county }
-				reverse_add_opinion = {
-					target = scope:recipient
-					modifier = respect_opinion
-					opinion = -10
-				}
-			}
-			## Duchies are troublesome.
-			else_if = {
-				limit = { scope:target.tier = tier_duchy }
-				reverse_add_opinion = {
-					target = scope:recipient
-					modifier = annoyed_opinion
-					opinion = -20
-				}
-			}
-			## Kingdoms are hateful.
-			else_if = {
-				limit = { scope:target.tier = tier_kingdom }
-				reverse_add_opinion = {
-					target = scope:recipient
-					modifier = angry_opinion
-					opinion = -30
-				}
-			}
-		}
-	}
-	# Object explorer logging.
-	scope:actor = {
-		diarch_interaction_set_or_update_global_variable_effect = { VARIABLE = di_track_legmed_failure }
-		diarch_interaction_add_to_global_list_effect = { VARIABLE_LIST = di_track_legmed_failure_actor_list }
-	}
-	scope:recipient = {
-		diarch_interaction_add_to_global_list_effect = { VARIABLE_LIST = di_track_legmed_failure_recipient_list }
-	}
-}
-
-diarch_legal_meddling_interaction_apply_success_effect = {
-	# Notify other parties.
-	hidden_effect = {
-		# Inform the liege.
-		scope:actor.liege = {
-			send_interface_message = {
-				type = msg_diarch_acting_effect
-				title = diarch_using_powers.t
-				right_icon = scope:recipient
-				left_icon = scope:actor
-				show_as_tooltip = { diarch_legal_meddling_interaction_success_effect = yes }
-			}
-		}
-		# Inform scope:recipient.
-		scope:recipient = {
-			send_interface_toast = {
-				title = diarch_legal_meddling_interaction.tt.success
-				left_icon = scope:actor
-				show_as_tooltip = { diarch_legal_meddling_interaction_success_effect = yes }
-			}
-		}
-	}
-	# Finally, fire off the actual effect.
-	send_interface_toast = {
-		title = diarch_legal_meddling_interaction.tt.success
-		left_icon = scope:recipient
-		# Prestige costs.
-		## Point out the lack of cost.
-		if = {
-			limit = { scope:diarch_legal_meddling_interaction_duel_learning = yes }
-			custom_tooltip = diarch_interaction_pay_prestige_none
-		}
-		## Point out the discount.
-		else_if = {
-			limit = { scope:diarch_legal_meddling_interaction_pay_prestige_partial = yes }
-			add_prestige = legal_meddling_interaction_title_discounted_cost_value
-		}
-		## Soz mate, yerr payin' full price.
-		else = { add_prestige = legal_meddling_interaction_title_cost_value }
-		# Gib claim & opinion loss.
-		diarch_legal_meddling_interaction_success_effect = yes
-	}
-}
-
-diarch_legal_meddling_interaction_apply_fail_effect = {
-	# Notify other parties.
-	hidden_effect = {
-		# Inform scope:secondary_recipient.
-		scope:secondary_recipient = {
-			send_interface_message = {
-				type = msg_diarch_acting_text_and_effect
-				title = diarch_using_powers.t
-				desc = diarch_legal_meddling_interaction.tt.failure.liege
-				right_icon = scope:recipient
-				left_icon = scope:actor
-				show_as_tooltip = { diarch_legal_meddling_interaction_fail_effect = yes }
-			}
-		}
-		# Inform scope:recipient.
-		scope:recipient = {
-			send_interface_toast = {
-				title = diarch_legal_meddling_interaction.tt.failure
-				left_icon = scope:actor
-				show_as_tooltip = { diarch_legal_meddling_interaction_fail_effect = yes }
-			}
-		}
-	}
-	# Finally, fire off the actual effect.
-	send_interface_toast = {
-		title = diarch_legal_meddling_interaction.tt.failure
-		left_icon = scope:recipient
-		diarch_legal_meddling_interaction_fail_effect = yes
-	}
-}
-
-diarch_syphon_treasury_interaction_syphon_development_growth_effect = {
-	# First, configure the development growth loss to be divided.
-	save_scope_value_as = {
-		name = county_attribute_loss
-		value = $LOSS$
-	}
-	# Now, execute our general effects.
-	while = {
-		count = syphon_treasury_recipient_county_tally
-		random_held_county = {
-			limit = {
-				NOT = {
-					save_temporary_scope_as = current_county
-					any_in_list = {
-						list = syphon_treasury_affected_counties
-						this = scope:current_county
-					}
-				}
-			}
-			change_development_progress = syphon_treasury_county_attribute_loss_fraction
-			add_to_list = syphon_treasury_affected_counties
-		}
-	}
-}
-
-diarch_syphon_treasury_interaction_syphon_control_effect = {
-	# First, configure the control loss to be divided.
-	save_scope_value_as = {
-		name = county_attribute_loss
-		value = $LOSS$
-	}
-	# Now, execute our general effects.
-	while = {
-		count = syphon_treasury_recipient_county_tally
-		random_held_county = {
-			limit = {
-				NOT = {
-					save_temporary_scope_as = current_county
-					any_in_list = {
-						list = syphon_treasury_affected_counties
-						this = scope:current_county
-					}
-				}
-			}
-			change_county_control = syphon_treasury_county_attribute_loss_fraction
-			add_to_list = syphon_treasury_affected_counties
-		}
-	}
-}
-
-diarch_syphon_treasury_interaction_caught_embezzling_effect = {
-	scope:actor = {
-		# Variable results depending on embezzlement level.
-		## Very high.
-		if = {
-			limit = { always = scope:diarch_syphon_treasury_sum_huge }
-			# Apply strife.
-			change_strife_opinion = monumental_strife_gain
-			# Negative opinion.
-			scope:recipient = {
-				# Greedy characters will not forgive this slight if they can help it.
-				if = {
-					limit = {
-						has_trait = greedy
-						can_set_relation_nemesis_trigger = { CHARACTER = scope:actor }
-					}
-					set_relation_nemesis = {
-						target = scope:actor
-						reason = rival_tried_to_embezzle
-					}
-				}
-				# Forgiving characters lose a little less.
-				else_if = {
-					limit = { has_trait = forgiving }
-					add_opinion = {
-						target = scope:actor
-						modifier = disappointed_opinion
-						opinion = -10
-					}
-				}
-				# Otherwise, folks do be mad.
-				else = {
-					add_opinion = {
-						target = scope:actor
-						modifier = trust_opinion
-						opinion = -45
-					}
-				}
-			}
-		}
-		## High.
-		else_if = {
-			limit = { always = scope:diarch_syphon_treasury_sum_large }
-			# Apply strife.
-			change_strife_opinion = massive_strife_gain
-			# Negative opinion.
-			scope:recipient = {
-				# Greedy characters will not forgive this slight if they can help it.
-				if = {
-					limit = {
-						has_trait = greedy
-						can_set_relation_rival_trigger = { CHARACTER = scope:actor }
-					}
-					set_relation_rival = {
-						target = scope:actor
-						reason = rival_tried_to_embezzle
-					}
-				}
-				# Forgiving characters lose a little less.
-				else_if = {
-					limit = { has_trait = forgiving }
-					add_opinion = {
-						target = scope:actor
-						modifier = disappointed_opinion
-						opinion = -5
-					}
-				}
-				# Otherwise, folks are still somewhat mad.
-				else = {
-					add_opinion = {
-						target = scope:actor
-						modifier = trust_opinion
-						opinion = -20
-					}
-				}
-			}
-		}
-		## Medium.
-		else_if = {
-			limit = { always = scope:diarch_syphon_treasury_sum_medium }
-			# Apply strife.
-			change_strife_opinion = major_strife_gain
-			# Negative opinion.
-			## Covered by embezzlement.
-			## Greedy characters do still have a bit more room for hate.
-			scope:recipient = {
-				if = {
-					limit = {
-						scope:recipient = { has_trait = greedy }
-					}
-					progress_towards_rival_effect = {
-						REASON = rival_tried_to_embezzle
-						CHARACTER = scope:actor
-						OPINION = 0
-					}
-				}
-			}
-		}
-		## Low.
-		else_if = {
-			limit = { always = scope:diarch_syphon_treasury_sum_small }
-			# Apply strife.
-			change_strife_opinion = medium_strife_gain
-			# Negative opinion.
-			## Covered by embezzlement.
-			## Greedy characters do still have a bit more room for hate.
-			scope:recipient = {
-				if = {
-					limit = {
-						scope:recipient = { has_trait = greedy }
-					}
-					progress_towards_rival_effect = {
-						REASON = rival_tried_to_embezzle
-						CHARACTER = scope:actor
-						OPINION = 0
-					}
-				}
-			}
-		}
-		# Crime opinion.
-		reverse_add_opinion = {
-			target = scope:recipient
-			modifier = embezzled_opinion
-		}
-	}
-}
-
-diarch_shift_privileges_interaction_success_apply_modifiers_vague_effect = {
-	scope:recipient = {
-		# We obfuscate at this stage for neater UX.
-		custom_tooltip = diarch_shift_privileges_interaction.tt.success.random_negative_effect
-	}
-}
-
-diarch_shift_privileges_interaction_success_apply_modifiers_actual_effect = {
-	# Add a randomised negative modifier.
-	random_list = {
-		# Target cash.
-		100 = {
-			ordered_held_title = {
-				limit = {
-					tier = tier_county
-					diarch_shift_privileges_valid_target_title_trigger = yes
-				}
-				order_by = {
-					value = title_province.monthly_income
-					# Weight down the capital to be the last selected, if we can.
-					if = {
-						limit = { this = scope:recipient.capital_county }
-						add = -1000
-					}
-				}
-				add_county_modifier = {
-					modifier = shift_privileges_monopolies_sold_modifier
-					years = shift_privileges_modifier_duration_value
-				}
-				change_county_control = medium_county_control_loss
-			}
-		}
-		# Target levies.
-		100 = {
-			ordered_held_title = {
-				limit = {
-					tier = tier_county
-					diarch_shift_privileges_valid_target_title_trigger = yes
-				}
-				order_by = {
-					value = building_levies
-					# Weight down the capital to be the last selected, if we can.
-					if = {
-						limit = { this = scope:recipient.capital_county }
-						add = -1000
-					}
-				}
-				add_county_modifier = {
-					modifier = shift_privileges_scutage_exemptions_modifier
-					years = shift_privileges_modifier_duration_value
-				}
-				change_county_control = medium_county_control_loss
-			}
-		}
-		# Target development growth.
-		100 = {
-			ordered_held_title = {
-				limit = {
-					tier = tier_county
-					diarch_shift_privileges_valid_target_title_trigger = yes
-				}
-				order_by = {
-					value = development_rate
-					# Weight down the capital to be the last selected, if we can.
-					if = {
-						limit = { this = scope:recipient.capital_county }
-						add = -1000
-					}
-				}
-				add_county_modifier = {
-					modifier = shift_privileges_conflicting_deeds_modifier
-					years = shift_privileges_modifier_duration_value
-				}
-				change_county_control = medium_county_control_loss
-			}
-		}
-	}
-	# Object explorer logging.
-	scope:actor = {
-		diarch_interaction_set_or_update_global_variable_effect = { VARIABLE = di_track_shiftpriv_success }
-		diarch_interaction_add_to_global_list_effect = { VARIABLE_LIST = di_track_shiftpriv_success_actor_list }
-	}
-	scope:recipient = {
-		diarch_interaction_add_to_global_list_effect = { VARIABLE_LIST = di_track_shiftpriv_success_recipient_list }
-	}
-}
-
-diarch_shift_privileges_interaction_success_apply_opinion_effect = {
-	scope:actor = {
-		# Plus opinion loss.
-		reverse_add_opinion = {
-			target = scope:recipient
-			modifier = hate_opinion
-			opinion = -30
-		}
-		# And some strife.
-		change_strife_opinion = minor_strife_gain
-	}
-}
-
-diarch_shift_privileges_interaction_success_apply_other_effect = {
-	scope:actor = {
-		# Now we dole out some cash.
-		add_gold = major_gold_value
-	}
-}
-
-diarch_shift_privileges_interaction_fail_effect = {
-	scope:actor ?= {
-		# Gain some stress, proportional to the size of the realm you're harassing.
-		## Counties are a bit of stress.
-		if = {
-			limit = { scope:recipient.highest_held_title_tier >= tier_county }
-			add_stress = minor_stress_gain
-		}
-		## Duchies are troublesome.
-		else_if = {
-			limit = { scope:recipient.highest_held_title_tier >= tier_duchy }
-			add_stress = medium_stress_gain
-		}
-		## Kingdoms are a big deal.
-		else_if = {
-			limit = { scope:recipient.highest_held_title_tier >= tier_kingdom }
-			add_stress = major_stress_gain
-		}
-		# We nest this so that scope:recipient doesn't have to see their own opinion effects.
-		if = {
-			limit = {
-				NOT = { this = scope:recipient }
-			}
-			# Add some opinion loss.
-			reverse_add_opinion = {
-				target = scope:recipient
-				modifier = angry_opinion
-				opinion = -20
-			}
-		}
-	}
-	# Object explorer logging.
-	scope:actor = {
-		diarch_interaction_set_or_update_global_variable_effect = { VARIABLE = di_track_shiftpriv_failure }
-		diarch_interaction_add_to_global_list_effect = { VARIABLE_LIST = di_track_shiftpriv_failure_actor_list }
-	}
-	scope:recipient = {
-		diarch_interaction_add_to_global_list_effect = { VARIABLE_LIST = di_track_shiftpriv_failure_recipient_list }
-	}
-}
-
-diarch_shift_privileges_interaction_apply_success_effect = {
-	# Notify other parties.
-	hidden_effect = {
-		# Inform the liege.
-		scope:actor.liege = {
-			send_interface_message = {
-				type = msg_diarch_acting_effect
-				title = diarch_using_powers.t
-				right_icon = scope:recipient
-				left_icon = scope:actor
-				show_as_tooltip = {
-					diarch_shift_privileges_interaction_success_apply_modifiers_vague_effect = yes
-					diarch_shift_privileges_interaction_success_apply_other_effect = yes
-				}
-			}
-		}
-		# Inform scope:recipient.
-		scope:recipient = {
-			send_interface_toast = {
-				title = diarch_shift_privileges_interaction.tt.success
-				left_icon = scope:actor
-				# We apply the actual modifier here, so that scope:recipient can see it.
-				diarch_shift_privileges_interaction_success_apply_modifiers_actual_effect = yes
-				show_as_tooltip = { diarch_shift_privileges_interaction_success_apply_other_effect = yes }
-			}
-		}
-	}
-	# Finally, fire off the actual effect.
-	send_interface_toast = {
-		title = diarch_shift_privileges_interaction.tt.success
-		left_icon = scope:recipient
-		# Gib actual gold here.
-		diarch_shift_privileges_interaction_success_apply_other_effect = yes
-		# Plus talk about a county modifier.
-		diarch_shift_privileges_interaction_success_apply_modifiers_vague_effect = yes
-	}
-	# Finally, apply opinion loss.
-	diarch_shift_privileges_interaction_success_apply_opinion_effect = yes
-}
-
-diarch_shift_privileges_interaction_apply_fail_effect = {
-	# Notify other parties.
-	hidden_effect = {
-		# Inform scope:secondary_recipient.
-		scope:secondary_recipient = {
-			send_interface_message = {
-				type = msg_diarch_acting_text_and_effect
-				title = diarch_using_powers.t
-				desc = diarch_shift_privileges_interaction.tt.failure.liege
-				right_icon = scope:recipient
-				left_icon = scope:actor
-				show_as_tooltip = { diarch_shift_privileges_interaction_fail_effect = yes }
-			}
-		}
-		# Inform scope:recipient.
-		scope:recipient = {
-			send_interface_toast = {
-				title = diarch_shift_privileges_interaction.tt.failure
-				left_icon = scope:actor
-				show_as_tooltip = { diarch_shift_privileges_interaction_fail_effect = yes }
-			}
-		}
-	}
-	# Finally, fire off the actual effect.
-	send_interface_toast = {
-		title = diarch_shift_privileges_interaction.tt.failure
-		left_icon = scope:recipient
-		diarch_shift_privileges_interaction_fail_effect = yes
-	}
-}
-
-diarch_swing_scales_guts_effect = {
-	# Prestige.
-	if = {
-		limit = { scope:swing_prestige = yes }
-		show_as_tooltip = {
-			add_prestige = {
-				value = swing_scales_prestige_cost_value
-				multiply = -1
-			}
-		}
-	}
-	# Piety.
-	else_if = {
-		limit = { scope:swing_piety = yes }
-		show_as_tooltip = {
-			add_piety = {
-				value = swing_scales_piety_cost_value
-				multiply = -1
-			}
-		}
-	}
-	# Cash.
-	else_if = {
-		limit = { scope:swing_gold = yes }
-		show_as_tooltip = {
-			pay_short_term_gold = {
-				target = scope:recipient
-				gold = swing_scales_cash_cost_value
-			}
-		}
-		# Scope:actor actually loses their gold when paying the admission price for the interaction, so we silently give scope:recipient gold from nowhere instead.
-		hidden_effect = {
-			scope:recipient = { add_gold = scope:actor.swing_scales_cash_cost_value }
-		}
-	}
-	# Hook.
-	else_if = {
-		limit = { scope:swing_hook = yes }
-		use_hook = scope:recipient
-	}
-	# HoF.
-	else_if = {
-		limit = { scope:swing_hof = yes }
-		show_as_tooltip = {
-			add_piety = {
-				value = swing_scales_piety_cost_value
-				multiply = -1
-			}
-			pay_short_term_gold = {
-				target = scope:actor.faith.religious_head
-				gold = swing_scales_cash_cost_value
-			}
-		}
-		# The HoF doesn't need *another* source of cash unless they're fairly minor, so we only actually pay this if they're already very low on cash.
-		hidden_effect = {
+	# And opinions've gotta line up.
+	trigger_if = {
+		limit = { exists = scope:actor.faith.religious_head }
+		# They must like you.
+		custom_tooltip = {
+			text = swing_scales_currency_interaction.tt.hof_needs_to_like_you_more
 			scope:actor.faith.religious_head = {
-				if = {
-					limit = { gold <= 1000 }
-					add_gold = scope:actor.swing_scales_cash_cost_value
+				opinion = {
+					target = scope:actor
+					value >= high_positive_opinion
 				}
+			}
+		}
+		# And not like scope:recipient too much.
+		custom_tooltip = {
+			text = swing_scales_currency_interaction.tt.hof_needs_to_like_them_less
+			scope:actor.faith.religious_head = {
+				opinion = {
+					target = scope:recipient
+					value <= medium_positive_opinion
+				}
+			}
+		}
+		# Plus scope:recipient can't have anything over them.
+		custom_tooltip = {
+			text = swing_scales_currency_interaction.tt.hof_refuses_to_cross_recipient
+			NOT = {
+				scope:recipient = { has_strong_hook = scope:actor.faith.religious_head }
 			}
 		}
 	}
 }
 
-overthrow_regent_scheme_interaction_actor_stress_effect = {
-	# Loyal stress.
-	## Gain stress if current diarch is loyal.
-	if = {
-		limit = {
-			scope:recipient = { diarch_loyalty >= diarch_loyalty_visibly_loyal_threshold }
-		}
-		stress_impact = {
-			honest = medium_stress_impact_gain
-			compassionate = major_stress_impact_gain
-			just = major_stress_impact_gain
-			loyal = major_stress_impact_gain
-		}
-		if = {
-			limit = { has_trait = loyal }
-			custom_tooltip = overthrow_regent_scheme_interaction_actor_stress_effect.tt.loyal.remove_loyal
-		}
-	}
-	## Lose stress if current diarch is disloyal.
-	else_if = {
-		limit = {
-			scope:recipient = { diarch_loyalty <= diarch_loyalty_visibly_disloyal_threshold }
-		}
-		stress_impact = {
-			loyal = major_stress_impact_loss
-			honest = medium_stress_impact_loss
-			compassionate = major_stress_impact_loss
-			just = major_stress_impact_loss
-		}
-		if = {
-			limit = { has_trait = loyal }
-			custom_tooltip = overthrow_regent_scheme_interaction_actor_stress_effect.tt.loyal.remove_disloyal
-		}
-	}
-	# Disloyal stress.
-	## Disloyals don't care if they unseat another disloyal character enough to stress about it, even if they're a bit less likely to do it.
-	## Lose stress if current diarch is loyal.
-	else_if = {
-		limit = {
-			scope:recipient = { diarch_loyalty >= diarch_loyalty_visibly_loyal_threshold }
-		}
-		stress_impact = {
-			disloyal = major_stress_impact_loss
-			honest = medium_stress_impact_loss
-			compassionate = major_stress_impact_loss
-			just = major_stress_impact_loss
-		}
-		if = {
-			limit = { has_trait = disloyal }
-			custom_tooltip = overthrow_regent_scheme_interaction_actor_stress_effect.tt.disloyal.remove_loyal
-		}
-	}
-	# Else, standard.
-	else = {
-		stress_impact = {
-			honest = medium_stress_impact_gain
-			compassionate = major_stress_impact_gain
-			just = major_stress_impact_gain
+diarch_liege_wants_to_stiff_regent_trigger = {
+	OR = {
+		has_any_bad_relationship_with_character_trigger = { CHARACTER = scope:recipient }
+		opinion = {
+			target = scope:recipient
+			value <= very_high_negative_opinion
 		}
 	}
 }
 
-invalidate_diarch_grand_wedding_effect = {
-	# Invalidate grand weddings
-	scope:diarch ?= {
-		if = {
+cannot_release_former_regent_whilst_old_regent_holds_power_trigger = {
+	$PRISONER$ = {
+		trigger_if = {
 			limit = {
-				# scope:diarch is currently an active Diarch
-				liege = { has_active_diarchy = yes }
-				# scope:diarch was promised a Grand Wedding
-				exists = var:promised_grand_wedding_by
+				has_variable = imprisoned_by_diarch
+				exists = $PRISONER$.liege
+				$REGENT$ = { is_diarch_of_target = $PRISONER$.liege }
 			}
-			betrothed = { save_scope_as = betrothed }
-			# Save scopes of spouses, and organizers from variables
-			scope:diarch = {
-				add_to_list = informee
-				var:promised_grand_wedding_by ?= {
-					add_to_list = informee
-					var:promised_grand_wedding_to ?= { add_to_list = informee }
-				}
-			}
-			scope:betrothed = {
-				add_to_list = informee
-				var:promised_grand_wedding_by ?= {
-					add_to_list = informee
-					var:promised_grand_wedding_to ?= { add_to_list = informee }
-				}
-			}
-			# Clean up variables and inform relevant characters of invalidation
-			every_in_list = {
-				list = informee
-				if = {
-					limit = { exists = var:promised_grand_wedding_marriage_countdown }
-					remove_variable = promised_grand_wedding_marriage_countdown
-				}
-				if = {
-					limit = { exists = var:promised_grand_wedding_by }
-					remove_variable = promised_grand_wedding_by
-				}
-				if = {
-					limit = { exists = var:promised_grand_wedding_to }
-					remove_variable = promised_grand_wedding_to
-				}
-				send_interface_message = {
-					type = event_generic_bad_with_text
-					title = grand_wedding_cancelled_by_regency_title
-					left_icon = scope:diarch
-					right_icon = scope:betrothed
-					desc = grand_wedding_cancelled_by_regency_desc
+			custom_tooltip = {
+				text = overthrow_regent_scheme_interaction.tt.cannot_release
+				NOR = {
+					var:imprisoned_by_diarch = $PRISONER$.imprisoner
+					var:imprisoned_by_diarch ?= $PRISONER$.liege.diarch
 				}
 			}
 		}
+	}
+}
+
+##################################################
+# Important Actions
+
+action_regent_imprison_suitable_char_covassals_trigger = {
+	opinion = {
+		target = root
+		value <= very_high_negative_opinion
+	}
+	save_temporary_scope_as = char_temp
+	# Could you take the interaction?
+	root = {
+		is_character_interaction_valid = {
+			interaction = diarch_imprison_interaction
+			recipient = scope:char_temp
+		}
+	}
+}
+
+action_regent_imprison_suitable_char_rivals_trigger = {
+	save_temporary_scope_as = char_temp
+	root = {
+		is_character_interaction_valid = {
+			interaction = diarch_imprison_interaction
+			recipient = scope:char_temp
+		}
+	}
+}
+
+action_shift_privileges_suitable_char_trigger = {
+	save_temporary_scope_as = char_temp
+	# Make sure we've got equal or higher diplo and so might get away with a cheeky forgery.
+	diplomacy <= root.diplomacy
+	# And we don't want to spam with little guys, especially as they're more expensive to use prestige on.
+	OR = {
+		highest_held_title_tier >= tier_duchy
+		# But don't block this out entirely within duchies.
+		liege.highest_held_title_tier = tier_duchy
+	}
+	# Could you take the interaction?
+	root = {
+		is_character_interaction_valid = {
+			interaction = diarch_shift_privileges_interaction
+			recipient = scope:char_temp
+		}
+	}
+}
+
+action_legal_meddling_suitable_char_trigger = {
+	max_military_strength < root.eighty_percent_of_max_military_strength
+	NOR = {
+		has_any_good_relationship_with_character_trigger = { CHARACTER = root }
+		root = { has_truce = prev }
+		is_allied_to = root
+	}
+}
+
+action_legal_meddling_suitable_title_trigger = {
+	diarch_legal_meddling_claimable_title_trigger = { ACTOR = root }
+	root = {
+		# Could you take the interaction?
+		is_character_interaction_valid = {
+			interaction = diarch_legal_meddling_interaction
+			recipient = scope:char_temp
+		}
+	}
+}
+
+##################################################
+# Decisions
+
+diarch_coup_valid_conspiracy_culmination_vassals_trigger = {
+	is_powerful_vassal_of = $LIEGE$
+	is_imprisoned = no
+}
+
+diarch_coup_attempt_is_valid_trigger = {
+	# Diarchy checks.
+	is_diarch = yes
+	$LIEGE$ = { has_diarchy_active_parameter = regents_can_try_to_overthrow_present_lieges }
+	## Liege must be physically present to overthrow. You can't coup them whilst they're abroad.
+	$LIEGE$ = {
+		is_imprisoned = no
+		is_travelling = no
+		is_at_war = no
+		custom_tooltip = {
+			text = custom.not_attending_activity
+			NOT = { exists = involved_activity }
+		}
+		age >= 5
+	}
+	# Support checks.
+	## Have you gathered enough support from the realm's powerful vassals and/or councillors?
+	custom_tooltip = {
+		text = diarch_attempt_to_overthrow_liege.tt.majority_powerful_vassal_support
+		subject = root
+		has_variable_list = coup_pv_supporters_list
+		any_in_list = {
+			variable = coup_pv_supporters_list
+			count >= pv_overthrow_threshold_value
+			# Double check they're still valid.
+			diarch_coup_valid_conspiracy_culmination_vassals_trigger = { LIEGE = $LIEGE$ }
+		}
+	}
+	# As a speed-bump, we check how long this diarchy has been on for.
+	OR = {
+		# Either, you've been a diarch for a good long ways.
+		years_as_diarch >= 8
+		# Or, you haven't been but everyone is kinda used to the concept of a diarch.
+		AND = {
+			years_as_diarch >= 4
+			$LIEGE$ = { years_in_diarchy >= 10 }
+		}
+		# OR, you've laid the groundwork for such a coup already
+		custom_tooltip = {
+			text = diarch_attempt_to_overthrow_liege_bypass
+			has_character_flag = laid_coup_groundwork_flag
+		}
+	}
+	# And finally, for ease of sanity, your liege must be of a certain size.
+	$LIEGE$.sub_realm_size >= minor_realm_size
+}
+
+diarch_coup_attempt_is_valid_showing_failure_only_trigger = {
+	# Diarch must be able to act.
+	diarch_cannot_be_disabled_trigger = { DIARCH = $DIARCH$ }
+	# Plus standard checks.
+	is_available_adult = yes
+	# Filter this out in advance, else we risk trying to enter a duel later, only to find we're already engaged in one.
+	custom_description = {
+		text = ENGAGED_IN_SINGLE_COMBAT
+		NOT = { exists = var:engaged_in_single_combat } 
+	}
+	# Liege must have _something_ at the highest tier that isn't a HoF title.
+	custom_tooltip = {
+		text = diarch_attempt_to_overthrow_liege.tt.liege_cant_hold_only_hof_highest_title
+		liege = {
+			any_held_title = {
+				tier = prev.highest_held_title_tier
+				is_head_of_faith = no
+			}
+		}
+	}
+}
+
+diarch_coup_attempt_grabbable_kingdom_trigger = {
+	highest_held_title_tier >= tier_empire
+	any_held_title = {
+		diarch_coup_attempt_grabbable_kingdom_guts_trigger = { TARGET = $TARGET$ }
+	}
+}
+
+diarch_coup_attempt_grabbable_kingdom_guts_trigger = {
+	tier = tier_kingdom
+	is_head_of_faith = no
+	any_de_jure_county = {
+		holder = {
+			any_liege_or_above = { this = $TARGET$ }
+		}
+	}
+}
+
+diarch_coup_attempt_grabbable_capital_and_duchies_trigger = {
+	is_head_of_faith = no
+	OR = {
+		AND = {
+			tier = tier_county
+			this.duchy = $TARGET$.primary_title.title_capital_county.duchy
+		}
+		this = $TARGET$.primary_title.title_capital_county.duchy
+	}
+}
+
+##################################################
+# Mandates
+
+#TODO_CD_EP2; rig these up to the actual loyalty value.
+
+diarch_loyalty_due_to_hook_trigger = {
+	$LIEGE$ = {
+		OR = {
+			has_hook_of_type = {
+				target = $DIARCH$
+				type = loyalty_hook
+			}
+			has_hook_of_type = {
+				target = $DIARCH$
+				type = predecessor_loyalty_hook
+			}
+		}
+	}
+}
+
+diarch_wants_to_engage_with_mandates_trigger = {
+	save_temporary_scope_value_as = {
+		name = diarch_loyalty
+		value = $DIARCH$.diarch_loyalty_score_type_regency_value
+	}
+	OR = {
+		scope:diarch_loyalty >= diarch_loyalty_visibly_loyal_threshold
+		scope:diarch_loyalty <= diarch_loyalty_visibly_disloyal_threshold
+	}
+}
+
+##################################################
+# Events
+
+character_has_regency_diarchy_trigger = {
+	exists = diarch
+	OR = {
+		has_diarchy_active_parameter = diarchy_type_is_temporary_regency
+		has_diarchy_active_parameter = diarchy_type_is_entrenched_regency
 	}
 }
