@@ -17,7 +17,7 @@ PixelShader
 		// GH_GAUSS_KERNEL_SIZE for better visual results.
 		//
 		// Must be positive.
-		static const float GH_GAUSS_SIGMA = 5.0f;
+		static const float GH_GAUSS_SIGMA = 2.75f;
 
 		// Kernel size for Gaussian filter.
 		// This is the primary FPS drain for bloom and other effects using blur!
@@ -28,7 +28,7 @@ PixelShader
 		// For best performance should be as small as possible,
 		// but if too small the blur edges will look boxy.
 		// So there is some space for a visuals/performance trade-off here.
-		static const int GH_GAUSS_KERNEL_SIZE = 31;
+		static const int GH_GAUSS_KERNEL_SIZE = 17;
 
 		// Determines whether to adjust the size of Gauss filter mask and by how much.
 		//
