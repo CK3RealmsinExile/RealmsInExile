@@ -1070,20 +1070,1989 @@ mining.0201 = { # Guest - kick off result - add stress
 #	1000 - 1999						#
 #####################################
 
+# Gossiping Miner
+
+scripted_trigger mining_1001_secret_knower_trigger = {
+	NOT = { this = root }
+	opinion = {
+		target = root
+		value > 0
+	}
+	save_temporary_scope_as = secret_knower_temp
+	any_known_secret = {
+		NOR = {
+			secret_owner ?= scope:secret_knower_temp
+			is_known_by = root
+			secret_owner ?= root
+		}
+		secret_owner ?= {
+			OR = {
+				is_of_major_interest_trigger = { CHARACTER = root }
+				is_of_minor_interest_trigger = { CHARACTER = root }
+			}
+		}
+	}
+}
+
 mining.1001 = {
 	type = activity_event
-	title = a
-	desc = b
+	title = mining.1001.t
+	desc = mining.1001.desc
+
 	override_background = {
 		reference = mining_activity
 	}
-	center_portrait = {
-		character = scope:host
-		animation = personality_bold
+
+	left_portrait = {
+		character = root
+		animation = eavesdrop
+	}
+	right_portrait = {
+		character = scope:secret_sharer
+		animation = paranoia
+	}
+	lower_right_portrait = scope:secret_owner
+
+	cooldown = { years = 2 }
+	
+	trigger = {
+		scope:activity = {
+			any_attending_character = { mining_1001_secret_knower_trigger = yes }
+		}
 	}
 
-	option = {
-		name = c
+	immediate = {
+		scope:activity = {
+			random_attending_character = {
+				limit = { mining_1001_secret_knower_trigger = yes }
+				save_scope_as = secret_sharer
+				random_known_secret = {
+					limit = { #Prefer a secret about someone highly relevant to activity_host
+						NOR = {
+							secret_owner = scope:secret_sharer
+							is_known_by = root
+							secret_owner = root
+						}
+						secret_owner ?= {
+							is_of_major_interest_trigger = { CHARACTER = root }
+						}
+					}
+					alternative_limit = { #Fallback to minor interest characters
+						NOR = {
+							secret_owner = scope:secret_sharer
+							is_known_by = root
+							secret_target = root
+						}
+						secret_owner ?= {
+							is_of_minor_interest_trigger = { CHARACTER = root }
+						}
+					}
+					save_scope_as = secret_to_share
+					secret_owner ?= {
+						save_scope_as = secret_owner
+					}
+				}
+			}
+		}
+	}
+
+	option = { #Enough gossip, I need to work!
+		name = mining.1001.a
+		flavor = mining.1001.a.flavor
+		scope:activity = {
+			add_activity_log_entry = {
+				key = mining_secret_animal_log
+				score = 25
+				tags = { random neutral social }
+				character = root
+				target = scope:secret_owner
+
+				# Effect
+				root = {
+					add_prestige = minor_prestige_gain
+					mining_activity_success_change_effect = { CHANGE = increase_medium }
+					stress_impact = {
+						paranoid = minor_stress_impact_gain
+						trusting = minor_stress_impact_loss
+						diligent = minor_stress_impact_loss
+						arrogant = minor_stress_impact_loss
+						impatient = minor_stress_impact_loss
+					}
+				}
+			}
+		}
+		ai_chance = {
+			base = 50
+			ai_value_modifier = {
+				ai_boldness = 0.5
+				ai_compassion = -0.25
+				ai_honor = 0.25
+			}
+		}
+	}
+
+	option = { #No wait, tell me!
+		name = mining.1001.b
+		flavor = mining.1001.b.tt
+		scope:activity = {
+			add_activity_log_entry = {
+				key = mining_secret_learned_log
+				score = 25
+				tags = { random neutral social }
+				character = root
+				target = scope:secret_owner
+
+				# Effect
+				root = {
+					custom_tooltip = mining.1001.b.reveal
+					mining_activity_success_change_effect = { CHANGE = decrease_minor }
+					add_prestige = minor_prestige_loss
+					hidden_effect = {
+						scope:secret_to_share = { reveal_to = root }
+					}
+					stress_impact = {
+						arrogant = minor_stress_impact_gain
+						impatient = minor_stress_impact_gain
+						trusting = minor_stress_impact_gain
+						diligent = minor_stress_impact_gain
+						paranoid = minor_stress_impact_loss
+					}
+				}
+			}
+		}
+		ai_chance = {
+			base = 100
+			ai_value_modifier = {
+				ai_rationality = 0.5
+				ai_greed = 0.25
+			}
+		}
+	}
+}
+
+# You investigate curious fungi
+
+scripted_trigger mining_1011_interested_in_fungi = { #POV of the picker
+	OR = {
+		has_trait = lifestyle_gardener
+		has_trait = lifestyle_herbalist
+		is_witch_trigger = yes
+		has_trait = scholar
+		has_trait = lifestyle_physician
+		has_lifestyle = learning_lifestyle
+		has_trait = curious
+		has_trait = eccentric
+		AND = {
+			has_court_position = court_gardener_court_position
+			aptitude = {
+				court_position = court_gardener_court_position
+				value >= 2
+			}
+		}
+		AND = {
+			has_court_position = court_physician_court_position
+			aptitude = {
+				court_position = court_physician_court_position
+				value >= 2
+			}
+		}
+	}
+}
+
+mining.1011 = {
+	type = activity_event
+	title = mining.1011.t
+	desc = {
+		desc = mining.1011.desc
+		first_valid = {
+			triggered_desc = {
+				trigger = { 
+					is_witch_trigger = yes
+				}
+				desc = mining.1011.desc.witch
+			}
+			desc = mining.1011.desc.religious
+		}
+		desc = mining.1011.desc.ending
+	}
+
+	override_background = {
+		reference = mining_activity
+	}
+
+	left_portrait = {
+		character = root
+		animation = worry
+	}
+	right_portrait = {
+		character = scope:mining_participant
+		animation = happiness
+	}
+
+	cooldown = { years = 1 }
+
+	artifact = {
+		position = lower_right_portrait
+		target = scope:newly_created_artifact
+	}
+
+	trigger = {
+		mining_1011_interested_in_fungi = yes
+	}
+
+	immediate = {
+		mining_activity_random_interest_participant_effect = {
+			ARCHETYPE = miner
+			SCOPE = mining_participant
+		}
+		hidden_effect = {
+			create_artifact_fungi_effect = { OWNER = root }
+			random_list = {
+				10 = { # Poisonous Herbs
+					trigger = { has_personality_benevolent_trigger = no }
+					modifier = {
+						factor = 2
+						has_trait = schemer
+					}
+					modifier = {
+						factor = 2
+						any_scheme = { scheme_type = murder }
+					}
+					modifier = {
+						factor = 2
+						has_trait = education_intrigue
+					}
+					modifier = {
+						factor = 2
+						has_trait = callous
+					}
+					save_scope_as = poisonous_mushrooms
+				}
+				10 = { # Medicinal Herbs
+					modifier = {
+						factor = 2
+						has_trait = schemer
+					}
+					modifier = {
+						factor = 2
+						has_court_position = court_physician_court_position
+					}
+					modifier = {
+						factor = 2
+						has_trait = education_learning
+					}
+					modifier = {
+						factor = 2
+						has_trait = compassionate
+					}
+					modifier = {
+						factor = 2
+						has_trait = lifestyle_physician
+					}
+				}
+			}
+		}
+		hidden_effect_new_object = {
+			scope:newly_created_artifact = {
+				flag_as_trash_artifact = yes
+			}
+		}
+	}
+
+	option = { #Focus on the task at hand
+		name = mining.1011.a
+		hidden_effect_new_object = {
+			scope:newly_created_artifact = {
+				destroy_artifact = this 
+			}
+		}
+		scope:activity = {
+			add_activity_log_entry = {
+				key = mining_host_fungi_focus_log
+				score = 25
+				tags = { random neutral }
+				character = root
+				target = scope:mining_participant
+				
+				#Effect
+				root = {
+					miner_progress_point_gain_effect = { CHANGE = 1 RANDOM_CHANGE = 1 }
+					add_prestige = minor_prestige_gain
+					mining_activity_success_change_effect = { CHANGE = increase_medium }
+					stress_impact = {
+						diligent = minor_stress_impact_loss
+						ambitious = minor_stress_impact_loss
+						lazy = minor_stress_impact_gain
+						lifestyle_gardener = minor_stress_impact_gain
+						lifestyle_herbalist = minor_stress_impact_gain
+					}
+				}
+			}
+		}
+		ai_chance = {
+			base = 25
+			ai_value_modifier = {
+				ai_energy = 1
+				ai_boldness = -0.5
+			}
+		}
+	}
+
+	option = { #Who cares what others think!?
+		name = mining.1011.b
+		scope:activity = {
+			add_activity_log_entry = {
+				key = mining_host_fungi_distracted_log
+				score = 25
+				tags = { random neutral }
+				character = root
+				target = scope:mining_participant
+				artifact = scope:newly_created_artifact
+				
+				#Effect
+				root = {
+					mining_activity_success_change_effect = { CHANGE = decrease_minor }
+					show_as_tooltip = {
+						scope:newly_created_artifact = { set_owner = root }
+					}
+					add_learning_lifestyle_xp = medium_lifestyle_xp
+					scope:activity = {
+						if = {
+							limit = {
+								any_attending_character = {
+									NOT = { this = root }
+									has_trait = lifestyle_miner
+								}
+							}
+							every_attending_character = {
+								limit = {
+									NOT = { this = root }
+									has_trait = lifestyle_miner
+								}
+								custom = mining_every_miner_attendee_tt
+								add_opinion = {
+									target = root
+									modifier = mining_distracted_opinion
+									opinion = -10
+								}
+							}
+						}
+					}
+					stress_impact = {
+						lifestyle_miner = medium_stress_impact_gain
+						diligent = minor_stress_impact_gain
+						impatient = minor_stress_impact_gain
+						lifestyle_gardener = minor_stress_impact_loss
+						lifestyle_herbalist = minor_stress_impact_loss
+					}
+				}
+			}
+		}
+		ai_chance = {
+			base = 25
+			ai_value_modifier = {
+				ai_energy = -1
+				ai_boldness = 0.5
+			}
+		}
+	}
+
+	option = { #Death Cap
+		name = mining.1011.d
+		trigger = { has_trait = lifestyle_herbalist }
+		trait = lifestyle_herbalist
+		flavor = {
+			first_valid = {
+				triggered_desc = {
+					trigger = { exists = scope:poisonous_mushrooms }
+					desc = mining.1011.d.poisonous
+				}
+				desc = mining.1011.d.medicinal
+			}
+		}
+		scope:activity = {
+			add_activity_log_entry = {
+				key = mining_host_fungi_poison_log
+				score = 25
+				tags = { random neutral }
+				character = root
+				target = scope:mining_participant
+				
+				#Effect
+				root = {
+					mining_activity_success_change_effect = { CHANGE = decrease_minor }
+					if = {
+						limit = { exists = scope:poisonous_mushrooms }
+						add_character_modifier = {
+							modifier = mining_poisonous_mushrooms_modifier
+							years = 5
+						}
+						stress_impact = {
+							lifestyle_miner = minor_stress_impact_gain
+							schemer = minor_stress_impact_loss
+							lifestyle_gardener = miniscule_stress_impact_loss
+							lifestyle_herbalist = minor_stress_impact_loss
+						}
+					}
+					else = {
+						add_character_modifier = {
+							modifier = mining_medicinal_mushrooms_modifier
+							years = 5
+						}
+						if = {
+							limit = { has_trait = lifestyle_physician }
+							add_trait_xp = {
+								trait = lifestyle_physician
+								value = 2
+							}
+						}
+						stress_impact = {
+							lifestyle_miner = minor_stress_impact_gain
+							lifestyle_physician = minor_stress_impact_loss
+							lifestyle_gardener = miniscule_stress_impact_loss
+							lifestyle_herbalist = minor_stress_impact_loss
+						}
+					}
+				}
+			}
+		}
+		ai_chance = {
+			base = 25
+			ai_value_modifier = {
+				ai_energy = -1
+				ai_boldness = 0.5
+			}
+		}
+	}
+
+	option = { #Uuuh, distraction!
+		name = mining.1011.c
+		scope:activity = {
+			add_activity_log_entry = {
+				key = mining_host_fungi_steal_log
+				score = 25
+				tags = { random neutral }
+				character = root
+				target = scope:mining_participant
+				artifact = scope:newly_created_artifact
+				
+				#Effect
+				root = {
+					duel = {
+						skill = intrigue
+						value = average_skill_rating
+						75 = {
+							desc = mining.1011.c.success
+							compare_modifier = {
+								value = scope:duel_value
+								multiplier = 5
+							}
+							min = 10
+							show_as_tooltip = {
+								scope:newly_created_artifact = {
+									set_owner = root
+								}
+							}
+							add_intrigue_lifestyle_xp = 200
+						}
+						25 = {	
+							desc = learn_language_ongoing.1100.a.failure
+							compare_modifier = {
+								value = scope:duel_value
+								multiplier = -5
+							}
+							min = 10
+							reverse_add_opinion = {
+								modifier = thinks_liege_incapable_opinion
+								target = scope:mining_participant
+								opinion = -10
+							}
+							hidden_effect_new_object = {
+								scope:newly_created_artifact = { destroy_artifact = this }
+							}
+						}
+					}
+					stress_impact = {
+						lifestyle_miner = medium_stress_impact_gain
+						diligent = minor_stress_impact_gain
+						honest = minor_stress_impact_gain
+						lifestyle_gardener = minor_stress_impact_loss
+						lifestyle_herbalist = minor_stress_impact_loss
+					}
+				}
+			}
+		}
+		ai_chance = {
+			base = 25
+			ai_value_modifier = {
+				ai_honor = -0.5
+				ai_boldness = 0.5
+			}
+		}
+	}
+}
+
+# A party member investigates curious fungi
+
+scripted_trigger mining_1012_courtier_interested_in_fungi = {
+	NOR = {
+		this = root
+		trigger_if = {
+			limit = { exists = scope:mining_participant }
+			this = scope:mining_participant
+		}
+	}
+	mining_1011_interested_in_fungi = yes
+	is_ai = yes
+}
+
+mining.1012 = {
+	type = activity_event
+	title = mining.1011.t
+	desc = {
+		first_valid = {
+			triggered_desc = {
+				trigger = {
+					OR = {
+						AND = {
+							exists = scope:gardener
+							scope:mining_participant = scope:gardener
+						}
+						AND = {
+							exists = scope:physician
+							scope:mining_participant = scope:physician
+						}
+					}
+				}
+				desc = mining.1012.opening_position
+			}
+			desc = mining.1012.opening
+		}
+		first_valid = {
+			triggered_desc = {
+				trigger = {
+					exists = scope:mining_participant_2
+					OR = {
+						AND = {
+							exists = scope:gardener
+							scope:mining_participant_2 = scope:gardener
+						}
+						AND = {
+							exists = scope:physician
+							scope:mining_participant_2 = scope:physician
+						}
+					}
+				}
+				desc = mining.1012.second_position
+			}
+			triggered_desc = {
+				trigger = { exists = scope:mining_participant_2 }
+				desc = mining.1012.second
+			}
+			desc = mining.1012.alone
+		}
+		first_valid = {
+			triggered_desc = {
+				trigger = {
+					exists = scope:gardener
+					scope:mining_participant = {
+						OR = {
+							this = scope:gardener
+							has_trait = lifestyle_gardener
+						}
+					}
+				}
+				desc = mining.1012.gardener
+			}
+			triggered_desc = {
+				trigger = {
+					exists = scope:physician
+					scope:mining_participant = {
+						OR = {
+							this = scope:physician
+							has_trait = lifestyle_herbalist
+						}
+					}
+				}
+				desc = mining.1012.physician
+			}
+			desc = mining.1012.desc
+		}
+	}
+
+	override_background = {
+		reference = mining_activity
+	}
+
+	left_portrait = {
+		character = root
+		animation = disapproval
+	}
+	center_portrait = {
+		character = scope:mining_participant_2
+		animation = thinking
+	}
+	right_portrait = {
+		character = scope:mining_participant
+		animation = happiness
+	}
+	lower_right_portrait = {
+		trigger = {
+			exists = scope:physician
+			NOR = {
+				scope:physician = scope:mining_participant
+				AND = {
+					exists = scope:mining_participant_2
+					scope:physician = scope:mining_participant_2
+				}
+			}
+		}
+		character = scope:physician
+	}
+	lower_center_portrait = {
+		trigger = {
+			exists = scope:gardener
+			NOR = {
+				scope:gardener = scope:mining_participant
+				AND = {
+					exists = scope:mining_participant_2
+					scope:gardener = scope:mining_participant_2
+				}
+			}
+		}
+		character = scope:gardener
+	}
+
+	cooldown = { years = 1 }
+
+	trigger = {
+		scope:activity = {
+			any_attending_character = { mining_1012_courtier_interested_in_fungi = yes }
+		}
+	}
+
+	immediate = {
+		if = {
+			limit = { employs_court_position = court_gardener_court_position }
+			court_position:court_gardener_court_position = { save_scope_as = gardener }
+		}
+		if = {
+			limit = { employs_court_position = court_physician_court_position }
+			court_position:court_physician_court_position = { save_scope_as = physician }
+		}
+		scope:activity = {
+			every_attending_character = {
+				limit = { mining_1012_courtier_interested_in_fungi = yes }
+				add_to_list = fungi_people
+			}
+		}
+		random_in_list = {
+			list = fungi_people
+			limit = {
+				is_of_major_interest_trigger = { CHARACTER = root }
+			}
+			alternative_limit = {
+				is_of_minor_interest_trigger = { CHARACTER = root }
+			}
+			alternative_limit = { always = yes }
+			weight = {
+				base = 1
+				modifier = {
+					add = 1
+					exists = scope:gardener
+					this = scope:gardener
+				}
+				modifier = {
+					add = 1
+					exists = scope:physician
+					this = scope:physician
+				}
+			}
+			save_scope_as = mining_participant
+		}
+		if = {
+			limit = {
+				any_in_list = {
+					list = fungi_people
+					NOT = { this = scope:mining_participant }
+				}
+			}
+			hidden_effect = {
+				random = {
+					chance = 33
+					random_in_list = {
+						list = fungi_people
+						limit = {
+							is_of_major_interest_trigger = { CHARACTER = root }
+							NOT = { this = scope:mining_participant }
+						}
+						alternative_limit = {
+							is_of_minor_interest_trigger = { CHARACTER = root }
+							NOT = { this = scope:mining_participant }
+						}
+						alternative_limit = {
+							NOT = { this = scope:mining_participant }
+						}
+						weight = {
+							base = 1
+							modifier = {
+								add = 1
+								exists = scope:gardener
+								this = scope:gardener
+							}
+							modifier = {
+								add = 1
+								exists = scope:physician
+								this = scope:physician
+							}
+						}
+						save_scope_as = mining_participant_2
+						progress_towards_friend_effect = {
+							REASON = friend_bonded_over_botany
+							CHARACTER = scope:mining_participant
+							OPINION = default_friend_opinion
+						}
+					}
+				}
+			}
+		}		
+	}
+
+	option = { # Focus on the expedition
+		name = {
+			text = mining.1012.a
+			trigger = {
+				NOT = { exists = scope:mining_participant_2 }
+			}
+		}
+		name = {
+			text = mining.1012.a.second
+			trigger = { exists = scope:mining_participant_2 }
+		}
+		flavor = mining.1012.a.flavor
+		scope:activity = {
+			add_activity_log_entry = {
+				key = mining_fungi_focus_log
+				score = 25
+				tags = { random neutral social }
+				character = scope:mining_participant
+				target = scope:mining_participant_2
+				
+				#Effect
+				root = {
+					miner_progress_point_gain_effect = { CHANGE = 1 RANDOM_CHANGE = 1 }
+					add_prestige = miniscule_prestige_gain
+					reverse_add_opinion = {
+						modifier = disappointed_opinion
+						target = scope:mining_participant
+						opinion = -10
+					}
+					if = {
+						limit = { exists = scope:mining_participant_2 }
+						reverse_add_opinion = {
+							modifier = disappointed_opinion
+							target = scope:mining_participant_2
+							opinion = -10
+						}
+					}
+					mining_activity_success_change_effect = { CHANGE = increase_medium }
+					stress_impact = {
+						lifestyle_herbalist = minor_stress_impact_gain
+						lifestyle_gardener = minor_stress_impact_gain
+						patient = minor_stress_impact_gain
+						content = minor_stress_impact_gain
+					}
+				}
+			}
+		}
+		ai_chance = {
+			base = 25
+			ai_value_modifier = {
+				ai_boldness = 0.5
+				ai_energy = 1
+			}
+			modifier = {
+				factor = 2
+				has_trait = lifestyle_miner
+			}
+		}
+	}
+
+	option = { # Learn about Fungi
+		name = mining.1012.b
+		trigger = {
+			NOR = {
+				has_trait = lifestyle_herbalist
+				has_trait = lifestyle_gardener
+			}
+		}
+		scope:activity = {
+			add_activity_log_entry = {
+				key = mining_fungi_learn_log
+				score = 25
+				tags = { random neutral social }
+				character = scope:mining_participant
+				target = scope:mining_participant_2
+				
+				#Effect
+				root = {
+					mining_activity_success_change_effect = { CHANGE = decrease_minor }
+					add_learning_lifestyle_xp = major_lifestyle_xp
+					hidden_effect = {
+						scope:mining_participant = {
+							create_artifact_fungi_effect = { OWNER = scope:mining_participant }
+						}
+					}
+					stress_impact = {
+						lifestyle_miner = minor_stress_impact_gain
+						impatient = minor_stress_impact_gain
+						ambitious = minor_stress_impact_gain
+					}
+				}
+			}
+		}
+		ai_chance = {
+			base = 25
+			ai_value_modifier = {
+				ai_boldness = -0.5
+				ai_energy = -1
+			}
+			modifier = {
+				factor = 2
+				has_lifestyle = learning_lifestyle
+			}
+		}
+	}
+
+	option = { # Gardener bond
+		name = {
+			trigger = {
+				has_trait = lifestyle_gardener
+				NOT = { has_trait = lifestyle_herbalist }
+			}
+			text = mining.1012.e.gardener
+		}
+		name = {
+			trigger = {
+				has_trait = lifestyle_herbalist
+				NOT = { has_trait = lifestyle_gardener }
+			}
+			text = mining.1012.e.herbalist
+		}
+		name = {
+			trigger = {
+				has_trait = lifestyle_gardener
+				has_trait = lifestyle_herbalist
+			}
+			text = mining.1012.e
+		}
+		flavor = mining.1012.e.flavor
+		trigger = {
+			OR = {
+				has_trait = lifestyle_gardener
+				has_trait = lifestyle_herbalist
+			}
+		}
+		trait = lifestyle_gardener
+		trait = lifestyle_herbalist
+		scope:activity = {
+			add_activity_log_entry = {
+				key = mining_fungi_bond_log
+				score = 25
+				tags = { random neutral }
+				character = scope:mining_participant
+				target = scope:mining_participant_2
+				
+				#Effect
+				root = {
+					mining_activity_success_change_effect = { CHANGE = decrease_minor }
+					create_artifact_fungi_effect = { OWNER = root }
+					progress_towards_friend_effect = {
+						REASON = friend_bonded_over_botany
+						CHARACTER = scope:mining_participant
+						OPINION = default_friend_opinion
+					}
+					if = {
+						limit = { exists = scope:mining_participant_2 }
+						progress_towards_friend_effect = {
+							REASON = friend_bonded_over_botany
+							CHARACTER = scope:mining_participant_2
+							OPINION = default_friend_opinion
+						}
+					}
+					stress_impact = {
+						impatient = minor_stress_impact_gain
+						ambitious = minor_stress_impact_gain
+						lifestyle_herbalist = minor_stress_impact_loss
+						lifestyle_gardener = medium_stress_impact_loss
+					}
+				}
+			}
+		}
+		ai_chance = {
+			base = 25
+			ai_value_modifier = {
+				ai_rationality = 0.5
+				ai_energy = -1
+				ai_sociability = 0.5
+			}
+		}
+	}
+
+	option = { # Gardener CP
+		name = {
+			trigger = {
+				scope:gardener = { is_participant_in_activity = scope:activity }
+				OR = {
+					scope:mining_participant = scope:gardener
+					trigger_if = {
+						limit = { exists = scope:mining_participant_2 }
+						scope:mining_participant_2 = scope:gardener
+					}
+				}
+			}
+			text = mining.1012.g
+		}
+		name = {
+			trigger = {
+				scope:gardener = { is_participant_in_activity = scope:activity }
+				NOR = {
+					scope:mining_participant = scope:gardener
+					trigger_if = {
+						limit = { exists = scope:mining_participant_2 }
+						scope:mining_participant_2 = scope:gardener
+					}
+				}
+			}
+			text = mining.1012.g.present
+		}
+		name = {
+			trigger = {
+				scope:gardener = {
+					NOT = { is_participant_in_activity = scope:activity }
+				}
+			}
+			text = mining.1012.g.elsewhere
+		}
+		flavor = {
+			first_valid = {
+				triggered_desc = {
+					trigger = {
+						scope:gardener = { is_participant_in_activity = scope:activity }
+						OR = {
+							scope:mining_participant = scope:gardener
+							trigger_if = {
+								limit = { exists = scope:mining_participant_2 }
+								scope:mining_participant_2 = scope:gardener
+							}
+						}
+					}
+					desc = mining.1012.cp_flavor
+				}
+				triggered_desc = {
+					trigger = {
+						scope:gardener = { is_participant_in_activity = scope:activity }
+						NOR = {
+							scope:mining_participant = scope:gardener
+							trigger_if = {
+								limit = { exists = scope:mining_participant_2 }
+								scope:mining_participant_2 = scope:gardener
+							}
+						}
+					}
+					desc = mining.1012.cp_present_flavor
+				}
+				desc = mining.1012.cp_elsewhere_flavor
+			}
+		}
+		trigger = { exists = scope:gardener }
+		scope:activity = {
+			add_activity_log_entry = {
+				key = mining_fungi_gardener_log
+				score = 25
+				tags = { random social neutral }
+				character = scope:mining_participant
+				target = scope:mining_participant_2
+				
+				#Effect
+				root = {
+					add_character_modifier = {
+						modifier = mining_flourishing_garden_modifier
+						years = 5 
+					}
+					scope:gardener = {
+						if = {
+							limit = { is_participant_in_activity = scope:activity }
+							remove_from_activity = scope:activity
+							if = {
+								limit = {
+									OR = {
+										has_trait = lifestyle_miner
+										has_trait = lazy
+										NOR = {
+											has_trait = lifestyle_herbalist
+											has_trait = lifestyle_gardener
+										}
+									}
+								}
+								add_opinion = {
+									modifier = annoyed_opinion
+									target = root
+									opinion = -10
+								}
+							}
+							else = {
+								add_opinion = {
+									modifier = grateful_opinion
+									target = root
+									opinion = 10
+								}
+							}
+						}
+						else = {
+							scope:mining_participant = {
+								remove_from_activity = scope:activity
+								if = {
+									limit = {
+										OR = {
+											has_trait = lifestyle_miner
+											has_trait = lazy
+											NOR = {
+												has_trait = lifestyle_herbalist
+												has_trait = lifestyle_gardener
+											}
+										}
+									}
+									add_opinion = {
+										modifier = annoyed_opinion
+										target = root
+										opinion = -20
+									}
+								}
+								else = {
+									add_opinion = {
+										modifier = annoyed_opinion
+										target = root
+										opinion = -10
+									}
+								}
+							}
+							if = {
+								limit = { exists = scope:mining_participant_2 }
+								scope:mining_participant_2 = {
+									remove_from_activity = scope:activity
+									if = {
+										limit = {
+											OR = {
+												has_trait = lifestyle_miner
+												has_trait = lazy
+												NOR = {
+													has_trait = lifestyle_herbalist
+													has_trait = lifestyle_gardener
+												}
+											}
+										}
+										add_opinion = {
+											modifier = annoyed_opinion
+											target = root
+											opinion = -20
+										}
+									}
+									else = {
+										add_opinion = {
+											modifier = annoyed_opinion
+											target = root
+											opinion = -10
+										}
+									}
+								}
+							}
+							add_opinion = {
+								modifier = grateful_opinion
+								target = root
+								opinion = 10
+							}
+						}
+					}
+					stress_impact = {
+						impatient = minor_stress_impact_gain
+						ambitious = minor_stress_impact_gain
+						lifestyle_herbalist = miniscule_stress_impact_loss
+						lifestyle_gardener = minor_stress_impact_loss
+					}
+				}
+			}
+		}
+		ai_chance = {
+			base = 25
+			ai_value_modifier = {
+				ai_zeal = 1
+				ai_boldness = 1
+			}
+			modifier = {
+				factor = 2
+				has_trait = paranoid
+			}
+		}
+	}
+
+	option = { # Physician CP
+		name = {
+			trigger = {
+				scope:physician = { is_participant_in_activity = scope:activity }
+				OR = {
+					scope:mining_participant = scope:physician
+					trigger_if = {
+						limit = { exists = scope:mining_participant_2 }
+						scope:mining_participant_2 = scope:physician
+					}
+				}
+			}
+			text = mining.1012.h
+		}
+		name = {
+			trigger = {
+				scope:physician = { is_participant_in_activity = scope:activity }
+				NOR = {
+					scope:mining_participant = scope:physician
+					trigger_if = {
+						limit = { exists = scope:mining_participant_2 }
+						scope:mining_participant_2 = scope:physician
+					}
+				}
+			}
+			text = mining.1012.h.present
+		}
+		name = {
+			trigger = {
+				scope:physician = {
+					NOT = { is_participant_in_activity = scope:activity }
+				}
+			}
+			text = mining.1012.h.elsewhere
+		}
+		flavor = {
+			first_valid = {
+				triggered_desc = {
+					trigger = {
+						scope:physician = { is_participant_in_activity = scope:activity }
+						OR = {
+							scope:mining_participant = scope:physician
+							trigger_if = {
+								limit = { exists = scope:mining_participant_2 }
+								scope:mining_participant_2 = scope:physician
+							}
+						}
+					}
+					desc = mining.1012.cp_flavor
+				}
+				triggered_desc = {
+					trigger = {
+						scope:physician = { is_participant_in_activity = scope:activity }
+						NOR = {
+							scope:mining_participant = scope:physician
+							trigger_if = {
+								limit = { exists = scope:mining_participant_2 }
+								scope:mining_participant_2 = scope:physician
+							}
+						}
+					}
+					desc = mining.1012.cp_present_flavor
+				}
+				desc = mining.1012.cp_elsewhere_flavor
+			}
+		}
+		trigger = { exists = scope:physician }
+		scope:activity = {
+			add_activity_log_entry = {
+				key = mining_fungi_physician_log
+				score = 25
+				tags = { random social neutral }
+				character = scope:mining_participant
+				target = scope:mining_participant_2
+				
+				#Effect
+				root = {
+					add_character_modifier = {
+						modifier = mining_stocked_medicus_modifier
+						years = 5 
+					}
+					scope:physician = {
+						if = {
+							limit = { is_participant_in_activity = scope:activity }
+							remove_from_activity = scope:activity
+							if = {
+								limit = {
+									NOT = { this = scope:mining_participant }
+									OR = {
+										has_trait = lifestyle_miner
+										has_trait = lazy
+										NOR = {
+											has_trait = lifestyle_herbalist
+											has_trait = lifestyle_gardener
+										}
+									}
+								}
+								add_opinion = {
+									modifier = annoyed_opinion
+									target = root
+									opinion = -10
+								}
+							}
+							else = {
+								add_opinion = {
+									modifier = grateful_opinion
+									target = root
+									opinion = 10
+								}
+							}
+						}
+						else = {
+							scope:mining_participant = {
+								remove_from_activity = scope:activity
+								if = {
+									limit = {
+										OR = {
+											has_trait = lifestyle_miner
+											has_trait = lazy
+											NOR = {
+												has_trait = lifestyle_herbalist
+												has_trait = lifestyle_gardener
+											}
+										}
+									}
+									add_opinion = {
+										modifier = annoyed_opinion
+										target = root
+										opinion = -20
+									}
+								}
+								else = {
+									add_opinion = {
+										modifier = grateful_opinion
+										target = root
+										opinion = 10
+									}
+								}
+							}
+						}
+					}
+					stress_impact = {
+						impatient = minor_stress_impact_gain
+						callous = minor_stress_impact_gain
+						lifestyle_herbalist = minor_stress_impact_loss
+						lifestyle_gardener = miniscule_stress_impact_loss
+					}
+				}
+			}
+		}
+		ai_chance = {
+			base = 25
+			ai_value_modifier = {
+				ai_zeal = 1
+				ai_boldness = 1
+			}
+			modifier = {
+				factor = 2
+				has_trait = paranoid
+			}
+		}
+	}
+
+	option = { #Witchcraft!?
+		name = {
+			text = mining.1012.c
+			trigger = {
+				scope:mining_participant = {
+					NOR = {
+						has_trait = witch
+						any_secret = {
+							secret_type = secret_witch
+							is_known_by = root
+						}
+					}
+				}
+			}
+		}
+		name = {
+			text = mining.1012.c.known
+			trigger = {
+				scope:mining_participant = {
+					OR = {
+						has_trait = witch
+						any_secret = {
+							secret_type = secret_witch
+							is_known_by = root
+						}
+					}
+				}
+			}
+		}
+		flavor = mining.1012.c.flavor
+		trigger = {
+			NOR = {
+				is_witch_trigger = yes
+				faith = { has_doctrine_parameter = witchcraft_accepted }
+			}
+		}
+		scope:activity = {
+			add_activity_log_entry = {
+				key = mining_fungi_witchcraft_log
+				score = 25
+				tags = { random social bad }
+				character = scope:mining_participant
+				target = scope:mining_participant_2
+				
+				#Effect
+				root = {
+					add_piety = minor_piety_gain
+					scope:mining_participant = {
+						add_opinion = {
+							modifier = accused_crime_opinion
+							target = root
+							opinion = -15
+						}
+						add_character_modifier = {
+							modifier = hunt_witch_suspicion_modifier # LotR - fine to retain
+							years = 5
+						}
+					}
+					if = {
+						limit = { exists = scope:mining_participant_2 }
+						scope:mining_participant_2 = {
+							add_opinion = {
+								modifier = accused_crime_opinion
+								target = root
+								opinion = -15
+							}
+							add_character_modifier = {
+								modifier = hunt_witch_suspicion_modifier # LotR - fine to retain
+								years = 5
+							}
+						}
+					}
+					stress_impact = {
+						cynical = minor_stress_impact_gain
+						compassionate = minor_stress_impact_gain
+						lifestyle_herbalist = medium_stress_impact_gain
+						lifestyle_gardener = medium_stress_impact_gain
+						scholar = medium_stress_impact_gain
+					}
+				}
+			}
+		}
+		ai_chance = {
+			base = 25
+			ai_value_modifier = {
+				ai_zeal = 1
+				ai_boldness = 1
+			}
+			modifier = {
+				factor = 2
+				has_trait = paranoid
+			}
+		}
+	}
+
+	option = { #Witch - Be more careful
+		name = mining.1012.d
+		flavor = mining.1012.d.flavor
+		trigger = {
+			is_witch_trigger = yes
+			scope:mining_participant = {
+				OR = {
+					has_trait = witch
+					any_secret = {
+						secret_type = secret_witch
+						is_known_by = root
+					}
+				}
+			}
+		}
+		trait = witch
+		scope:activity = {
+			add_activity_log_entry = {
+				key = mining_fungi_fellow_witch_log
+				score = 25
+				tags = { random neutral social }
+				character = scope:mining_participant
+				target = scope:mining_participant_2
+				
+				#Effect
+				root = {
+					add_character_modifier = {
+						modifier = hunt_witch_protector_modifier # LotR - fine to retain
+						years = 10
+					}
+					reverse_add_opinion = {
+						modifier = hunt_fellow_witch_opinion # LotR - fine to retain
+						target = scope:mining_participant
+						opinion = 15
+					}
+					if = {
+						limit = {
+							any_secret = {
+								secret_type = secret_witch
+								NOT = { is_known_by = scope:mining_participant }
+							}
+						}
+						random_secret = {
+							limit = {
+								secret_type = secret_witch
+								NOT = { is_known_by = scope:mining_participant }
+							}
+							reveal_to = scope:mining_participant
+						}
+					}
+				}
+			}
+		}
+		ai_chance = {
+			base = 25
+			ai_value_modifier = {
+				ai_zeal = 1
+				ai_boldness = 1
+			}
+			modifier = {
+				factor = 2
+				has_trait = paranoid
+			}
+		}
+	}
+}
+
+scripted_trigger mining_1013_animal_over_flower = {
+	OR = {
+		has_trait = sadistic
+		has_trait = vengeful
+		has_trait = lifestyle_miner
+		has_trait = brave
+		has_trait = berserker
+		has_trait = nafarati_berserker
+		has_trait = urukhai_berserker
+		has_court_position = master_of_hunt_court_position
+	}
+}
+
+mining.1013 = {
+	type = activity_event
+	title = hunt.8001.t
+	desc = {
+		desc = mining.1013.opening
+		first_valid = {
+			triggered_desc = {
+				trigger = {
+					scope:mining_participant = { has_relation_lover = root }
+				}
+				desc = mining.1013.desc
+			}
+			desc = mining.1013.desc_woo
+		}
+		first_valid = {
+			triggered_desc = {
+				trigger = {
+					scope:mining_participant = { mining_1013_animal_over_flower = yes }
+				}
+				desc = mining.1013.desc.animal
+			}
+			desc = mining.1013.desc.flower
+		}
+		desc = mining.1013.ending
+		first_valid = {
+			triggered_desc = {
+				trigger = {
+					scope:mining_participant = { has_relation_lover = root }
+				}
+				desc = mining.1013.ending_lover
+			}
+			desc = mining.1013.ending_woo
+		}
+	}
+	theme = hunt_activity
+	left_portrait = {
+		character = scope:mining_participant
+		triggered_animation = {
+			trigger = {
+				scope:mining_participant = { mining_1013_animal_over_flower = yes }
+			}
+			animation = hunting_carcass_start
+		}
+		triggered_animation  = {
+			trigger = {
+				scope:mining_participant = { mining_1013_animal_over_flower = no }
+			}
+			animation = flirtation
+		}
+	}
+	artifact = {
+		 target = scope:newly_created_artifact 
+		position = lower_right_portrait
+	}
+	cooldown = { years = 1 }
+
+	trigger = {
+		scope:activity = {
+			any_attending_character = {
+				OR = {
+					has_relation_lover = root
+					is_scheming_against = {
+						target = root
+						type = seduce
+					}
+					is_scheming_against = {
+						target = root
+						type = courting
+					}
+					AND = {
+						has_activity_intent = woo_attendee_intent
+						intent_target = root
+					}
+				}
+				is_alive = yes
+				is_ai = yes
+			}
+		}
+	}
+
+	immediate = {
+		# Fetch lover
+		scope:activity = {
+			every_attending_character = {
+				limit = {
+					OR = {
+						has_relation_lover = root
+						is_scheming_against = {
+							target = root
+							type = seduce
+						}
+						is_scheming_against = {
+							target = root
+							type = courting
+						}
+						AND = {
+							has_activity_intent = woo_attendee_intent
+							intent_target = root
+						}
+					}
+					is_alive = yes
+					is_ai = yes
+				}
+				add_to_list = lover_list
+			}
+			random_in_list = {
+				list = lover_list
+				limit = {
+					AND = {
+						has_activity_intent = woo_attendee_intent
+						intent_target = root
+					}
+				}
+				alternative_limit = {
+					OR = {
+						is_scheming_against = {
+							target = root
+							type = seduce
+						}
+						is_scheming_against = {
+							target = root
+							type = courting
+						}
+					}
+				}
+				alternative_limit = { has_relation_soulmate = root } # prioritise soulmates
+				alternative_limit = { is_powerful_vassal = yes } # second priority is characters that are interesting gameplay-wise
+				alternative_limit = { has_secret_relation_lover = root }
+				alternative_limit = { always = yes } # Fallback is boring lover
+				save_scope_as = mining_participant
+			}
+		}
+		# Fetch potential onlooker
+		scope:activity = {
+			if = {
+				limit = {
+					any_attending_character = {
+						NOR = {
+							this = root
+							this = scope:mining_participant
+						}
+						is_alive = yes
+						is_ai = yes
+					}
+				}
+				every_attending_character = {
+					limit = {
+						NOR = {
+							this = root
+							this = scope:mining_participant
+						}
+						is_alive = yes
+						is_ai = yes
+					}
+					add_to_list = witness_list
+				}
+				random_in_list = {
+					list = witness_list
+					limit = {
+						is_of_major_interest_trigger = { CHARACTER = root }
+					}
+					alternative_limit = {
+						is_of_minor_interest_trigger = { CHARACTER = root }
+					}
+					alternative_limit = { always = yes }
+					save_scope_as = potential_witness
+				}
+			}
+		}
+
+		# Gift depends on personality (same as desc)
+		hidden_effect = {
+			if = {
+				limit = {
+					scope:mining_participant = { mining_1013_animal_over_flower = yes }
+					has_royal_court = yes
+				}
+				create_artifact_animal_hide_effect = {
+					OWNER = root
+					HUNTER = scope:mining_participant
+					LEGENDARY = no
+					ANIMAL = flag:hare
+				}
+			}
+			else_if = {
+				limit = {
+					scope:mining_participant = { mining_1013_animal_over_flower = yes }
+				}
+				create_artifact_animal_trinket_effect = {
+					OWNER = root
+					HUNTER = scope:mining_participant
+					LEGENDARY = no
+					ANIMAL = flag:hare
+				}
+			}
+			else = {
+				scope:mining_participant = {
+					save_scope_as = fungi_picker
+					create_artifact_fungi_effect = { OWNER = root }
+				}
+			}
+		}
+	}
+
+	option = { #Scold your secret lover
+		name = mining.1013.a
+		trigger = {
+			OR = {
+				has_secret_relation_lover = scope:mining_participant 
+				any_secret = {
+					secret_type = secret_lover
+					secret_target = { this = scope:mining_participant }
+				}
+			}
+		}
+		scope:activity = {
+			add_activity_log_entry = {
+				key = hunt_lover_scold_key
+				score = 25
+				tags = { random good social }
+				character = root
+				target = scope:mining_participant
+
+				#Effect
+				root = {
+					add_character_modifier = {
+						modifier = hunt_protected_their_secret_modifier
+						years = 5
+					}
+					reverse_add_opinion = {
+						modifier = disappointed_opinion
+						target = scope:mining_participant
+						opinion = -10
+					}
+					hidden_effect_new_object = {
+						scope:newly_created_artifact = { destroy_artifact = this }
+					}
+					stress_impact = {
+						trusting = minor_stress_impact_gain
+					}
+				}
+			}
+		}
+		ai_chance = {
+			base = 25
+			ai_value_modifier = {
+				ai_compassion = -0.5
+				ai_boldness = -0.5
+				ai_rationality = 0.5
+			}
+		}
+	}
+
+	option = { #Thank you sweetie
+		name = {
+			text = mining.1013.b
+			trigger = { has_relation_lover = scope:mining_participant }
+		}
+		name = {
+			text = mining.1013.b.woo
+			trigger = {
+				NOT = { has_relation_lover = scope:mining_participant }
+			}
+		}
+		scope:activity = {
+			add_activity_log_entry = {
+				key = hunt_lover_gift_key
+				score = 25
+				tags = { random good social }
+				character = root
+				target = scope:mining_participant
+
+				#Effect
+				root = {
+					show_as_tooltip = {
+						scope:newly_created_artifact = { set_owner = root }
+					}
+					if = {
+						limit = {
+							NOT = { has_relation_lover = scope:mining_participant }
+						}
+						scope:mining_participant = {
+							if = {
+								limit = {
+									has_activity_intent = woo_attendee_intent
+									intent_target = root
+								}
+								progress_towards_lover_effect = {
+									REASON = lover_hunt_gift_reason
+									CHARACTER = root
+									OPINION = default_lover_opinion
+								}
+							}
+							else = {
+								random_scheme = {
+									limit = {
+										scheme_target = root
+										OR = {
+											scheme_type = seduce
+											scheme_type = courting
+										}
+									}
+									add_scheme_progress = scheme_progress_gain
+								}
+							}
+						}
+					}
+					#But alas, you're not completely alone and might've been spotted!
+					if = {
+						limit = {
+							OR = {
+								has_secret_relation_lover = scope:mining_participant 
+								any_secret = {
+									secret_type = secret_lover
+									secret_target = { this = scope:mining_participant }
+								}
+							}
+						}
+						custom_tooltip = mining.1013.b.tt
+					}
+					stress_impact = {
+						base = medium_stress_impact_loss
+						callous = minor_stress_impact_gain
+					}
+				}
+			}
+		}
+		ai_chance = {
+			base = 25
+			ai_value_modifier = {
+				ai_compassion = 0.5
+				ai_boldness = 0.5
+				ai_rationality = -0.5
+			}
+		}
+	}
+
+	option = { #Chance it
+		name = {
+			text = mining.1013.d
+			trigger = { has_relation_lover = scope:mining_participant }
+		}
+		name = {
+			text = mining.1013.d.woo
+			trigger = {
+				NOT = { has_relation_lover = scope:mining_participant }
+			}
+		}
+		trigger = {
+			OR = {
+				has_relation_lover = scope:mining_participant
+				might_cheat_on_every_partner_trigger = yes
+			}
+		}
+		scope:activity = {
+			add_activity_log_entry = {
+				key = hunt_lover_chance_key
+				score = 25
+				tags = { random good social }
+				character = root
+				target = scope:mining_participant
+
+				#Effect
+				root = {
+					scope:newly_created_artifact = { set_owner = root }
+					random_list = {
+						10 = {
+							had_sex_with_effect = {
+								CHARACTER = scope:mining_participant
+								PREGNANCY_CHANCE = pregnancy_chance
+							}
+							scope:newly_created_artifact = { add_durability = -10 }
+							scope:mining_participant = {
+								if = {
+									limit = {
+										has_activity_intent = woo_attendee_intent
+										intent_target = root
+									}
+									progress_towards_lover_effect = {
+										REASON = lover_hunt_gift_reason
+										CHARACTER = root
+										OPINION = default_lover_opinion
+									}
+								}
+								else_if = {
+									limit = {
+										is_scheming_against = {
+											target = root
+											type = seduce
+										}
+									}
+									random_scheme = {
+										limit = {
+											scheme_target = root
+											scheme_type = seduce
+										}
+										end_scheme = yes
+									}
+									set_relation_lover = root
+								}
+								else = {
+									random_scheme = {
+										limit = {
+											scheme_target = root
+											scheme_type = courting
+										}
+										add_scheme_progress = scheme_progress_gain
+									}
+								}
+							}
+						}
+						10 = {
+							trigger = {
+								scope:mining_participant = {
+									is_scheming_against = {
+										target = root
+										type = courting
+									}
+								}
+							}
+							reverse_add_opinion = {
+								target = scope:mining_participant
+								modifier = insulted_opinion
+								opinion = -10
+							}
+						}
+					}
+					stress_impact = {
+						base = major_stress_impact_loss
+						callous = minor_stress_impact_gain
+					}
+				}
+			}
+		}
+		ai_chance = {
+			base = 25
+			ai_value_modifier = {
+				ai_energy = 0.5
+				ai_boldness = 1
+				ai_rationality = -1
+			}
+		}
+	}
+
+	option = { # I don't want this
+		name = mining.1013.c
+		scope:activity = {
+			add_activity_log_entry = {
+				key = hunt_lover_reject_key
+				score = 25
+				tags = { random good social }
+				character = root
+				target = scope:mining_participant
+
+				#Effect
+				root = {
+					add_prestige = miniscule_prestige_gain
+					reverse_add_opinion = {
+						modifier = spurned_gift_opinion
+						target = scope:mining_participant
+						opinion = -10
+					}
+					random = {
+						chance = 33
+						modifier = {
+							factor = 2 
+							scope:mining_participant = { has_trait = vengeful }
+						}
+						modifier = {
+							factor = 0.5
+							scope:mining_participant = { has_trait = forgiving }
+						}
+						opinion_modifier = {
+							opinion_target = scope:mining_participant
+							multiplier = 0.33
+						}
+						remove_lover_or_downgrade_relationship_effect = { SCOPE = scope:mining_participant }
+					}
+					scope:newly_created_artifact = { destroy_artifact = this }
+					stress_impact = {
+						compassionate = minor_stress_impact_gain
+					}
+				}
+			}
+		}
+		ai_chance = {
+			base = 25
+			ai_value_modifier = {
+				ai_compassion = -1
+				ai_boldness = 0.5
+				ai_rationality = 0.5
+			}
+		}
+	}
+
+	after = {
+		if = {
+			limit = { has_relation_lover = scope:mining_participant }
+			custom_tooltip = mining.1013.b.tt
+			hidden_effect = {
+				random = {
+					chance = 80
+					modifier = {
+						has_character_modifier = hunt_protected_their_secret_modifier
+						factor = 0.5
+					}
+					random_secret = {
+						limit = {
+							secret_type = secret_lover
+							secret_target = { this = scope:mining_participant }
+						}
+						if = {
+							limit = { exists = scope:potential_witness }
+							reveal_to = scope:potential_witness
+						}
+					}
+				}
+			}
+		}
 	}
 }
 
