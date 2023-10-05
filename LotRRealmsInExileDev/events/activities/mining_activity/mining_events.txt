@@ -1,4 +1,4 @@
-﻿# Events for handling the Hunt activity
+﻿# Events for handling the Mining activity
 
 namespace = mining
 
@@ -2518,6 +2518,827 @@ mining.1012 = {
 				has_trait = paranoid
 			}
 		}
+	}
+}
+
+# You walk in on some cave lovin'
+
+scripted_trigger mining_1021_basic_check_trigger = {
+	NOT = { this = root }
+	is_adult = yes
+	is_ai = yes
+}
+
+scripted_trigger mining_1021_secret_trigger = {
+	any_secret = {
+		secret_type = secret_lover
+		NOT = { is_known_by = root }
+		secret_target = {
+			mining_1021_basic_check_trigger = yes
+			is_participant_in_activity = scope:activity
+		}
+	}
+}
+
+mining.1021 = {
+	type = activity_event
+	title = mining.1021.t
+	desc = mining.1021.desc
+
+	override_background = {
+		reference = mining_activity
+	}
+
+	left_portrait = {
+		character = scope:lover_participant
+		animation = flirtation
+	}
+	right_portrait = {
+		character = scope:second_lover_participant
+		animation = happiness
+	}
+	
+	trigger = {
+		scope:activity = {
+			OR = { #Either two that are already lovers, or a lustful one that can pick someone up
+				any_attending_character = {
+					mining_1021_basic_check_trigger = yes
+					mining_1021_secret_trigger = yes
+				}
+				any_attending_character = {
+					mining_1021_basic_check_trigger = yes
+					has_trait = lustful
+					save_temporary_scope_as = lover_check
+					scope:activity = {
+						any_attending_character = {
+							mining_1021_basic_check_trigger = yes
+							NOT = { this = scope:lover_check }
+							matching_gender_and_sexuality_trigger = { CHARACTER_1 = this CHARACTER_2 = scope:lover_check }
+							can_set_relation_lover_trigger = { CHARACTER = scope:lover_check }
+						}
+					}
+				}
+			}
+		}
+	}
+
+	weight_multiplier = {
+		base = 0.75
+		modifier = { #more likely to fire if two participants already are lovers
+			add = 0.5
+			scope:activity = {
+				any_attending_character = {
+					mining_1021_basic_check_trigger = yes
+					mining_1021_secret_trigger = yes
+				}
+			}
+		}
+	}
+
+	immediate = {
+		scope:activity = {
+			if = { #They're already lovers
+				limit = {
+					any_attending_character = {
+						mining_1021_basic_check_trigger = yes
+						mining_1021_secret_trigger = yes
+					}
+				}
+				random_attending_character = { #Find your vassal
+					limit = { #They are already lovers
+						mining_1021_basic_check_trigger = yes
+						mining_1021_secret_trigger = yes
+					}
+					save_scope_as = lover_participant
+				}
+				random_attending_character = {
+					limit = { #They are already lovers
+						mining_1021_basic_check_trigger = yes
+						NOT = { this = scope:lover_participant }
+						any_secret = {
+							secret_type = secret_lover
+							NOT = { is_known_by = root }
+							secret_target = {
+								this = scope:lover_participant
+							}
+						}
+					}
+					save_scope_as = second_lover_participant
+
+					#To save the secret's scope
+					if = {
+						limit = {
+							any_secret = {
+								secret_type = secret_lover
+								secret_target = {
+									this = scope:lover_participant
+									mining_1021_basic_check_trigger = yes
+								}
+								NOT = { is_known_by = root }
+							}
+						}
+						random_secret = {
+							limit = {
+								secret_type = secret_lover
+								secret_target = {
+									this = scope:lover_participant
+									mining_1021_basic_check_trigger = yes
+								}
+								NOT = { is_known_by = root }
+							}
+							save_scope_as = secret
+						}
+					}
+				}
+			}
+			else = { #We make em lovers
+				random_attending_character = { #Find your vassal
+					limit = {
+						mining_1021_basic_check_trigger = yes
+						has_trait = lustful
+						save_temporary_scope_as = lover_check
+						scope:activity = {
+							any_attending_character = {
+								mining_1021_basic_check_trigger = yes
+								NOT = { this = scope:lover_check }
+								matching_gender_and_sexuality_trigger = { CHARACTER_1 = this CHARACTER_2 = scope:lover_check }
+								can_set_relation_lover_trigger = { CHARACTER = scope:lover_check }
+							}
+						}
+					}
+					save_scope_as = lover_participant
+				}
+				random_attending_character = {
+					limit = {
+						mining_1021_basic_check_trigger = yes
+						NOT = { this = scope:lover_participant }
+						matching_gender_and_sexuality_trigger = { CHARACTER_1 = this CHARACTER_2 = scope:lover_participant }
+						can_set_relation_lover_trigger = { CHARACTER = scope:lover_participant }
+					}
+					save_scope_as = second_lover_participant
+
+					#To make them lovers
+					hidden_effect = { set_relation_lover = scope:lover_participant }
+					
+					#To save the secret's scope
+					if = {
+						limit = {
+							any_secret = {
+								secret_type = secret_lover
+								secret_target = {
+									this = scope:lover_participant
+									mining_1021_basic_check_trigger = yes
+								}
+								NOT = { is_known_by = root }
+							}
+						}
+						random_secret = {
+							limit = {
+								secret_type = secret_lover
+								secret_target = {
+									this = scope:lover_participant
+									mining_1021_basic_check_trigger = yes
+								}
+								NOT = { is_known_by = root }
+							}
+							save_scope_as = secret
+						}
+					}
+				}
+			}
+		}
+		scope:activity = {
+			add_activity_log_entry = {
+				key = mining_lover_secret_log
+				score = 25
+				tags = { random social neutral }
+				character = scope:lover_participant
+				target = scope:second_lover_participant
+
+				# Effect
+				show_as_tooltip = {
+					scope:secret = { reveal_to = root }
+				}
+			}
+		}
+		if = {
+			limit = {
+				exists = scope:secret
+				scope:secret = {
+					NOT = { is_known_by = root }
+				}
+			}
+			scope:secret = {
+				reveal_to_without_events_effect = {
+					CHARACTER = root
+				}
+			}
+		}
+	}
+
+	option = { #Keep the secret
+		name = mining.1021.a
+		scope:activity = {
+			add_activity_log_entry = {
+				key = mining_lover_secret_log
+				score = 25
+				tags = { random social neutral }
+				character = scope:lover_participant
+				target = scope:second_lover_participant
+
+				# Effect
+				root = {
+					reverse_add_opinion = {
+						target = scope:lover_participant
+						modifier = grateful_opinion
+						opinion = 15
+					}
+					reverse_add_opinion = {
+						target = scope:second_lover_participant
+						modifier = grateful_opinion
+						opinion = 15
+					}
+					stress_impact = {
+						honest = minor_stress_impact_gain
+						contrite = minor_stress_impact_gain
+					}
+				}
+			}
+		}
+		ai_chance = {
+			base = 50
+			ai_value_modifier = {
+				ai_compassion = 0.5
+			}
+			modifier = {
+				add = 20
+				OR = {
+					has_relation_lover = scope:lover_participant
+					has_relation_lover = scope:second_lover_participant
+				}
+			}
+		}
+	}
+
+	option = { #Expose the secret
+		name = mining.1021.b
+		trigger = { exists = scope:secret } # Chance of Secret invalidating
+		scope:activity = {
+			add_activity_log_entry = {
+				key = mining_lover_secret_log
+				score = 25
+				tags = { random social neutral }
+				character = scope:lover_participant
+				target = scope:second_lover_participant
+				
+				#Effect
+				scope:secret = {
+					expose_secret = root
+				}
+				root = {
+					stress_impact = {
+						honest = minor_stress_impact_loss
+						just = minor_stress_impact_loss
+						contrite = minor_stress_impact_loss
+					}
+				}
+			}
+		}
+		ai_chance = {
+			base = 50
+			modifier = {
+				add = 30
+				OR = {
+					has_trait = just
+					has_trait = zealous
+					has_trait = celibate
+				}
+			}
+			ai_value_modifier = {
+				ai_honor = 0.25
+				ai_vengefulness = 0.25
+			}
+		}
+	}
+
+	option = { #Join in - relationship or seducer trait
+		name = {
+			trigger = {
+				has_relation_lover = scope:lover_participant
+				has_relation_lover = scope:second_lover_participant
+			}
+			text = mining.1021.c_4
+		}
+		name = {
+			trigger = {
+				has_relation_lover = scope:lover_participant
+			}
+			text = mining.1021.c_1
+		}
+		name = {
+			trigger = {
+				has_relation_lover = scope:second_lover_participant
+			}
+			text = mining.1021.c_2
+		}
+		name = {
+			trigger = {
+				NOR = {
+					has_relation_lover = scope:lover_participant
+					has_relation_lover = scope:second_lover_participant
+				}
+			}
+			text = mining.1021.c_3
+		}
+		trigger = {
+			OR = {
+				AND = { #you only feel ok about it if you're lustful
+					OR = {
+						has_relation_lover = scope:lover_participant
+						has_relation_lover = scope:second_lover_participant
+					}
+					has_trait = lustful
+				}
+				has_trait = seducer
+			}
+		}
+		trait = seducer
+		scope:activity = {
+			add_activity_log_entry = {
+				key = mining_lover_secret_join_log
+				score = 25
+				tags = { random social neutral }
+				character = scope:lover_participant
+				target = scope:second_lover_participant
+				
+				#Effect
+				root = {
+					if = {
+						limit = {
+							has_relation_potential_lover = scope:lover_participant
+							can_set_relation_lover_trigger = { CHARACTER = scope:lover_participant }
+						}
+						set_relation_lover = scope:lover_participant
+					}
+					else_if = {
+						limit = { has_relation_lover = scope:lover_participant }
+						scope:lover_participant = {
+							add_opinion = {
+								modifier = pleased_opinion
+								target = root
+								opinion = 20
+							}
+						}
+					}
+					else = { set_relation_potential_lover = scope:lover_participant }
+					if = {
+						limit = {
+							has_relation_potential_lover = scope:second_lover_participant
+							can_set_relation_potential_lover_trigger = { CHARACTER = scope:second_lover_participant }
+						}
+						set_relation_lover = scope:second_lover_participant
+					}
+					else_if = {
+						limit = { has_relation_lover = scope:second_lover_participant }
+						scope:second_lover_participant = {
+							add_opinion = {
+								modifier = pleased_opinion
+								target = root
+								opinion = 20
+							}
+						}
+					}
+					else = { set_relation_potential_lover = scope:second_lover_participant }
+					mining_activity_success_change_effect = { CHANGE = decrease_minor }
+					stress_impact = {
+						base = minor_stress_impact_loss
+						rakish = minor_stress_impact_loss
+						lustful = minor_stress_impact_loss
+					}
+				}
+			}
+		}
+		ai_chance = {
+			base = 75
+			modifier = {
+				add = 30
+				has_trait = lustful
+			}
+		}
+	}
+
+	option = { #Betrayed!!
+		name = {
+			trigger = {
+				OR = {
+					AND = {
+						has_relation_lover = scope:second_lover_participant
+						opinion = {
+							target = scope:second_lover_participant
+							value >= 70
+						}
+						NOT = { has_trait = lustful }
+					}
+					has_relation_soulmate = scope:second_lover_participant
+				}
+			}
+			text = mining.1021.d
+		}
+		name = {
+			trigger = {
+				OR = {
+					AND = {
+						has_relation_lover = scope:lover_participant
+						opinion = {
+							target = scope:lover_participant
+							value >= 70
+						}
+						NOT = { has_trait = lustful }
+					}
+					has_relation_soulmate = scope:lover_participant
+				}
+			}
+			text = mining.1021.d_2
+		}
+		trigger = { #Either you are soulmates, or you like them very much
+			OR = {
+				OR = {
+					AND = {
+						has_relation_lover = scope:lover_participant
+						opinion = {
+							target = scope:lover_participant
+							value >= 70
+						}
+						NOT = { has_trait = lustful }
+					}
+					has_relation_soulmate = scope:lover_participant
+				}
+				OR = {
+					AND = {
+						has_relation_lover = scope:second_lover_participant
+						opinion = {
+							target = scope:second_lover_participant
+							value >= 70
+						}
+						NOT = { has_trait = lustful }
+					}
+					has_relation_soulmate = scope:second_lover_participant
+				}
+			}
+		}
+		if = {
+			limit = {
+				OR = {
+					AND = {
+						has_relation_lover = scope:lover_participant
+						opinion = {
+							target = scope:lover_participant
+							value >= 70
+						}
+						NOT = { has_trait = lustful }
+					}
+					has_relation_soulmate = scope:lover_participant
+				}
+			}
+			scope:lover_participant = { save_scope_as = betraying_lover }
+		}
+		else = {
+			scope:second_lover_participant = { save_scope_as = betraying_lover }
+		}
+		scope:activity = {
+			add_activity_log_entry = {
+				key = mining_lover_secret_log
+				score = 25
+				tags = { random social bad }
+				character = scope:lover_participant
+				target = scope:second_lover_participant
+				
+				#Effect
+				root = {
+					remove_relation_lover = scope:betraying_lover
+					mining_activity_success_change_effect = { CHANGE = decrease_minor }
+				}
+			}
+		}
+		ai_chance = {
+			base = 100
+		}
+	}
+
+	option = { #Oh come on, we have mining to focus on!
+		name = mining.1021.e
+		scope:activity = {
+			add_activity_log_entry = {
+				key = mining_lover_secret_log
+				character = scope:lover_participant
+				target = scope:second_lover_participant
+				
+				#Effect
+				root = {
+					mining_activity_success_change_effect = { CHANGE = increase_minor }
+					stress_impact = {
+						just = minor_stress_impact_gain
+						diligent = minor_stress_impact_loss
+					}
+				}
+			}
+		}
+		ai_chance = {
+			base = 50
+			ai_value_modifier = {
+				ai_energy = 0.5
+			}
+			modifier = {
+				add = 20
+				NOR = {
+					has_relation_lover = scope:lover_participant
+					has_relation_lover = scope:second_lover_participant
+				}
+			}
+		}
+	}
+}
+
+# Illegal mining activity
+
+mining.1031 = {
+	type = activity_event
+	title = mining.1031.t
+	desc = mining.1031.desc
+
+	override_background = {
+		reference = mining_activity
+	}	
+
+	left_portrait = {
+		character = root
+		animation = war_over_win
+	}
+	right_portrait = {
+		character = scope:opportunistic_miner
+		animation = beg
+		outfit_tags = { travel_cloak }
+	}
+
+	cooldown = { years = 10 }
+
+	trigger = {
+		OR = {
+			involved_activity.activity_host = this
+			has_court_position = overseer_of_the_mines_court_position
+		}
+		scope:activity.activity_location.county = {
+			NOT = { has_county_modifier = mining_punished_locals_modifier }
+		}
+		scope:activity = { 
+			has_activity_option = {
+				category = special_type
+				option = mining_type_standard
+			}
+		}
+	}
+
+	immediate = {
+		create_character = {
+			template = miner_template
+			location = scope:activity.activity_location
+			save_scope_as = opportunistic_miner
+		}
+		scope:activity = {
+			activity_location = {
+				county = {
+					save_scope_as = county
+					holder = { save_scope_as = land_owner }
+				}
+			}
+		}
+	}
+
+	option = { #Punish them
+		name = mining.1031.a
+		trigger = { scope:land_owner.top_liege = root.top_liege }
+		scope:activity = {
+			add_activity_log_entry = {
+				key = mining_opportunists_punished_log
+				score = 25
+				tags = { random bad }
+				character = root
+				target = scope:opportunistic_miner
+
+				# Effect
+				scope:activity.activity_location.county = {
+					add_county_modifier = {
+						modifier = mining_punished_locals_modifier
+						years = 10
+					}
+				}
+				root = {
+					stress_impact = {
+						forgiving = minor_stress_impact_gain
+						compassionate = minor_stress_impact_gain
+						arbitrary = minor_stress_impact_loss
+						vengeful = minor_stress_impact_loss
+					}
+				}
+			}
+		}
+		ai_chance = {
+			base = 10
+			ai_value_modifier = {
+				ai_compassion = -0.5
+				ai_boldness = 1
+			}
+		}
+	}
+
+	option = { #I will let you go if you teach me a thing or two
+		name = mining.1031.b
+		trigger = {
+			miner_lifestyle_track_less_trigger = { TRACK = hewer LESS_THAN = 100 }
+		}
+		scope:activity = {
+			add_activity_log_entry = {
+				key = mining_opportunists_lesson_log
+				score = 25
+				tags = { random bad }
+				character = root
+				target = scope:opportunistic_miner
+
+				# Effect
+				root = {
+					mining_activity_success_change_effect = { CHANGE = decrease_minor }
+					add_character_modifier = {
+						modifier = mining_oppostunistic_miner_training_modifier
+						years = 10
+					}
+					hidden_effect = {
+						miner_progress_point_gain_effect = { CHANGE = 1 RANDOM_CHANGE = 1 } #Gives points towards ranking up the Hunter Lifestyle
+					}
+					stress_impact = {
+						just = minor_stress_impact_loss
+						vengeful = minor_stress_impact_gain
+						forgiving = minor_stress_impact_loss
+						ambitious = minor_stress_impact_loss
+					}
+				}
+			}
+		}
+		ai_chance = {
+			base = 10
+			ai_value_modifier = {
+				ai_energy = 1
+				ai_honor = -0.5
+			}
+		}
+	}
+	
+	option = { #Claim the ores and a legal right to their value
+		name = mining.1031.c
+		scope:activity = {
+			add_activity_log_entry = {
+				key = mining_opportunists_legal_log
+				score = 25
+				tags = { random bad }
+				character = root
+				target = scope:opportunistic_miner
+
+				# Effect
+				root = {
+					duel = {
+						skill = stewardship
+						value = average_skill_rating
+						8 = {
+							compare_modifier = {
+								value = scope:duel_value
+								multiplier = 0.25
+							}
+							desc = mining.1031.c.tt_success
+							send_interface_toast = {
+								title = mining.1031.c.tt_success
+								add_gold = medium_gold_value
+								add_prestige = minor_prestige_gain
+								mining_activity_success_change_effect = { CHANGE = increase_minor }
+							}
+						}
+						12 = {
+							compare_modifier = {
+								value = scope:duel_value
+								multiplier = -0.25
+								min = -9
+							}
+							desc = mining.1031.c.tt_failure
+							send_interface_toast = {
+								title = mining.1031.c.tt_failure
+								add_prestige = medium_prestige_loss
+								scope:county = {
+									add_county_modifier = {
+										modifier = mining_upset_mining_county_modifier
+										years = 10
+									}
+								}
+							}
+							mining_activity_success_change_effect = { CHANGE = decrease_major }
+						}
+					}
+					stress_impact = {
+						compassionate = medium_stress_impact_gain
+						honest = medium_stress_impact_gain
+						vengeful = minor_stress_impact_loss
+						arrogant = minor_stress_impact_loss
+						ambitious = minor_stress_impact_loss
+						arbitrary = minor_stress_impact_loss
+					}
+				}
+			}
+		}
+		ai_chance = {
+			base = 10
+			ai_value_modifier = {
+				ai_greed = 1
+				ai_boldness = -0.5
+			}
+		}
+	}
+
+	option = { #Let them off, as it's not your land
+		name = {
+			text = mining.1031.d
+			trigger = {
+				NOR = {
+					scope:land_owner.top_liege = root.top_liege
+					has_relation_rival = scope:land_owner
+				}
+			}
+		}
+		name = {
+			text = mining.1031.d.vassal
+			trigger = { scope:land_owner.top_liege = root.top_liege }
+		}
+		name = {
+			text = mining.1031.d.own
+			trigger = { scope:land_owner.top_liege = root }
+		}
+		name = {
+			text = mining.1031.d.rival
+			trigger = { has_relation_rival = scope:land_owner }
+		}
+		scope:activity = {
+			add_activity_log_entry = {
+				key = mining_opportunists_pardon_log
+				score = 25
+				tags = { random bad }
+				character = root
+				target = scope:opportunistic_miner
+
+				#Effect
+				root = {
+					if = {
+						limit = {
+							NOT = { this = scope:land_owner }
+						}
+						reverse_add_opinion = {
+							target = scope:land_owner
+							modifier = mining_released_opportunists_opinion
+							opinion = -10
+						}
+					}
+					if = {
+						limit = { has_relation_rival = scope:land_owner }
+						stress_impact = {
+							base = medium_stress_impact_loss
+							just = minor_stress_impact_gain
+							vengeful = minor_stress_impact_loss
+						}
+					}
+					else_if = {
+						limit = { scope:land_owner.top_liege = root.top_liege }
+						stress_impact = {
+							just = minor_stress_impact_gain
+							vengeful = minor_stress_impact_loss
+							callous = minor_stress_impact_loss
+						}
+					}
+					else = {
+						stress_impact = {
+							just = minor_stress_impact_gain
+							sadistic = minor_stress_impact_loss
+						}
+					}
+				}
+			}
+		}
+		ai_chance = {
+			base = 10
+			ai_value_modifier = {
+				ai_compassion = 0.5
+				ai_honor = -0.5
+				ai_boldness = -0.5
+			}
+		}
+	}
+
+	after = {
+		scope:opportunistic_miner = { silent_disappearance_effect = yes }
 	}
 }
 
