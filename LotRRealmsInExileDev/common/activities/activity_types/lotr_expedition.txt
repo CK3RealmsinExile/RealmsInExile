@@ -10,7 +10,7 @@
 			is_at_war = no
 			short_term_gold >= hunt_activity_base_cost
 		}
-		is_dwarf = yes # Needs to be a dwarf to let this activity show
+		# is_dwarf = yes # Needs to be a dwarf to let this activity show
 		any_county = { # Needs to be uncolonized underground counties somewhere
 			limit = { 
 				title_province = { terrain = halls }
@@ -119,7 +119,7 @@
 			surrounding_lands_empty = yes
 		}
 		"scope:host.capital_province.squared_distance(root)" <= squared_distance_huge
-		"scope:host.capital_province.squared_distance(root)" >= squared_distance_medium
+		# "scope:host.capital_province.squared_distance(root)" >= squared_distance_medium
 	}
 
 	ai_will_do = { # Done
@@ -601,9 +601,9 @@
 	# PHASES
 	###################
 
-	max_guest_arrival_delay_time = { months = 12 } # Done
+	max_guest_arrival_delay_time = { months = 1 } # Done
 
-	phases = { # Done
+	phases = { # Done # activity = {complete_activity = yes}
 		expedition_phase = {
 			is_predefined = yes
 
@@ -612,7 +612,8 @@
 			on_phase_active = { # Fires for every attendee
 			}
 
-			on_weekly_pulse = { }
+			on_weekly_pulse = {
+			}
 
 			on_end = { # Fires for every attendee
 				target_weight_modifier_effect = { VALUE = -5 }
@@ -692,6 +693,16 @@
 	}
  
 	on_start = { 
+		set_variable = {
+			name = expedition_success_chance
+			value = expedition_success_chance_value
+		}
+
+		start_travel_plan = {
+			destination = scope:activity.location
+			on_arrival_event = bp2_yearly.6201
+		}
+
 		scope:host = {
 			if = {
 				limit = {
@@ -724,7 +735,7 @@
 					NOT = { this = scope:host }
 					NOT = { this.dynasty = scope:host }
 				}
-				this = { save_scope_as = expeditiun_ruler_char }
+				this = { save_scope_as = opportunistic_dwarf }
 			}
 		}
 		else = {
@@ -735,52 +746,60 @@
 					NOT = { this.dynasty = scope:host }
 					NOT = { is_vassal_of = scope:host }
 				}
-				this = { save_scope_as = expeditiun_ruler_char }
+				save_scope_as = opportunistic_dwarf
 			}
 		}
 		
+		if = {
+			limit = { 
+				exists = scope:opportunistic_dwarf
+			}
+			create_character = {
+				template = dwarf_expedition_template
+				location = scope:activity.activity_location
+				save_scope_as = opportunistic_dwarf
+			}
+			scope:host = { set_variable = dwarf_made }
+		}
 	}
 
 	allow_zero_guest_invites = yes
 
-	on_enter_passive_state = {
-	}
+	on_leave_travel_state = {
+		scope:activity.activity_location = {
+			set_holding_type = castle_holding
 
-	on_enter_active_state = {
+			create_title_and_vassal_change = {
+				type = created
+				save_scope_as = change
+				add_claim_on_loss = no
+			}
+
+			county = {
+				set_county_culture = scope:host.culture
+				set_county_faith = scope:host.faith
+				
+				change_title_holder = {
+					holder = scope:host
+					change = scope:change
+				}
+			}
+			
+			resolve_title_and_vassal_change = scope:change
+
+			county = { generate_coa = yes }
+
+			county = { scope:host = { set_realm_capital = prev } }
+
+			# make_tributary = {
+			# 	TYPE = tributary_permanent
+			# 	SUZERAIN = scope:host
+			# 	TRIBUTARY = scope:opportunistic_dwarf
+			# }
+		}
 	}
 
 	on_complete = {
-		if = {
-			limit = {
-				scope:activity = {
-					has_activity_option = { category = special_type option = expedition_type_standard }
-				}
-			}
-		}
-		else = {
-			scope:activity.location.county.title_province = {
-				set_holding_type = castle_holding
-
-				create_title_and_vassal_change = {
-					type = granted
-					save_scope_as = change
-					add_claim_on_loss = no
-				}
-
-				change_title_holder = {
-					holder = scope:expeditiun_ruler_char
-					change = scope:change
-				}
-				
-				resolve_title_and_vassal_change = scope:change
-
-				make_tributary = {
-					TYPE = tributary_permanent
-					SUZERAIN = scope:host
-					TRIBUTARY = scope:expeditiun_ruler_char
-				}
-			}
-		}
 	}
 
 	###################
@@ -1290,7 +1309,6 @@
 
 	### Plug in widgets
 	activity_window_widgets = {
-		hunt_success_chance = "activity_plugin_widgets_summary"
 		artifact_rewards = "activity_plugin_widgets_conclusion"
 		trait_rewards = "activity_plugin_widgets_conclusion"
 	}
