@@ -7,6 +7,117 @@ namespace = mining
 #	0000 - 0999						#
 #####################################
 
+## Invalidations
+
+# Assassination Attempt
+mining.0003 = {
+	type = character_event
+	title = mining.0003.t
+	desc = {
+		first_valid = {
+			triggered_desc = {
+				trigger = { exists = scope:invalidated_culprit }
+				desc = mining.0003.assassination_culprit
+			}
+			desc = mining.0003.assassination
+		}
+	}
+	left_portrait = {
+		character = root
+		animation = worry
+		trigger = { is_in_list = attendees }
+	}
+	right_portrait = {
+		character = scope:host
+		trigger = {
+			NOR = {
+				this = root
+				this = scope:invalidated_culprit
+			}
+		}
+		animation = stress
+	}
+	lower_right_portrait = {
+		character = scope:invalidated_flavor
+		trigger = {
+			exists = scope:invalidated_flavor
+			NOR = {
+				scope:invalidated_flavor = root
+				scope:invalidated_flavor = scope:host
+			}
+		}
+	}
+	lower_center_portrait = {
+		character = scope:invalidated_culprit
+		trigger = {
+			exists = scope:invalidated_culprit
+			NOT = { scope:invalidated_culprit = root }
+		}
+	}
+	theme = hunt_activity
+	cooldown = { weeks = 1 }
+	
+	trigger = {
+		# No need for invalidation ping for botched scheme targets
+		# NOR = {
+		# 	scope:invalidated_flavor ?= root
+		# 	scope:invalidated_culprit ?= root
+		# }
+	}
+
+	immediate = {
+		if = {
+			limit = {
+				NOT = { this = scope:host }
+			}
+			mining_invalidation_event_effect = yes
+		}
+		show_as_tooltip = {
+			if = {
+				limit = {
+					exists = scope:invalidated_culprit
+				}
+			scope:invalidated_flavor = {
+				add_opinion = {
+					target = scope:invalidated_culprit
+					modifier = attempted_murder_me_crime
+				}
+			}
+		}
+	}
+	}
+
+	option = {
+		name = mining.0003.a
+		ai_chance = {
+			base = 100
+		}
+	}
+
+	option = {
+		name = mining.1013.a
+		trigger = { this = scope:host }
+		scope:activity = {
+			set_variable = {
+				name = mining_invalidated
+				value = flag:assassination_attempt
+			}
+			set_variable = {
+				name = mining_invalidated_flavor
+				value = scope:invalidated_flavor
+			}
+			set_variable = {
+				name = mining_invalidated_culprit
+				value = scope:invalidated_culprit
+			}
+		}
+		mining_invalidation_event_effect = yes
+		ai_chance = {
+			base = 25
+		}
+	}
+}
+
 # Select an Overseer of the Mines #
 mining.0100 = {
 	type = activity_event
@@ -3799,7 +3910,7 @@ mining.1061 = {
 #	3000 - 3999						#
 #####################################
 
-# Seduction
+## Seduction
 mining.3001 = {
 	type = activity_event
 	title = mining.3001.t
@@ -4443,12 +4554,641 @@ mining.3005 = {
 				target = scope:woo_target
 
 				#Effect
-				reverse_add_opinion = {
-					target = scope:woo_target
-					modifier = hunt_failed_woo_opinion #LotR - ok to leave
-					opinion = -10
+				root = {
+					reverse_add_opinion = {
+						target = scope:woo_target
+						modifier = hunt_failed_woo_opinion #LotR - ok to leave
+						opinion = -10
+					}
 				}
 			}
+		}
+	}
+}
+
+## Murder
+
+scripted_trigger mining_hostile_scheme_target_trigger = {
+	NOT = { this = root }
+	is_alive = yes
+	is_participant_in_activity = scope:activity
+	# Murder scheme target
+	any_targeting_scheme = {
+		scheme_type = $TYPE$
+		OR = {
+			scheme_owner = root
+			any_scheme_agent = { this = root }
+		}
+	}
+}
+
+mining.3101 = {
+	type = activity_event
+	title = mining.3101.t
+	desc = {
+		desc = mining.3101.desc
+		first_valid = {
+			triggered_desc = {
+				trigger = { exists = scope:accomplice_2 }
+				desc = mining.3101.accomplice_2
+			}
+			triggered_desc = {
+				trigger = { exists = scope:accomplice }
+				desc = mining.3101.accomplice
+			}
+			desc = mining.3101.alone
+		}
+	}
+	theme = hunt_activity
+	override_background = {
+		reference = mining_activity
+	}
+	left_portrait = {
+		character = root
+		animation = scheme
+	}
+	right_portrait = {
+		character = scope:murder_target
+		animation = happiness
+	}
+	center_portrait = {
+		character = scope:accomplice
+		animation = schadenfreude
+	}
+	lower_left_portrait = scope:accomplice_2
+	cooldown = { years = 1 }
+
+	widget = {
+		gui = "event_window_widget_scheme"
+		container = "custom_widgets_container"
+	}
+
+	trigger = {
+		scope:activity ?= {
+			any_attending_character = {
+				mining_hostile_scheme_target_trigger = { TYPE = murder }
+			}
+		}
+	}
+
+	weight_multiplier = {
+		base = 1
+		modifier = {
+			factor = 2
+			scope:host.court_position:overseer_of_the_mines_court_position ?= this
+			mining_murder_risk_trigger = yes
+		}
+	}
+
+	immediate = {
+		scope:activity = {
+			random_attending_character = {
+				limit = {
+					mining_hostile_scheme_target_trigger = { TYPE = murder }
+				}
+				save_scope_as = murder_target
+				# Murder scheme target
+				random_targeting_scheme = {
+					limit = {
+						scheme_type = murder
+						OR = {
+							scheme_owner = root
+							any_scheme_agent = { this = root }
+						}
+					}
+					save_scope_as = scheme
+					every_scheme_agent = { add_to_list = murder_agents }
+					scheme_owner = { save_scope_as = murder_schemer }
+					mining_save_hostile_accomplice_effect = {
+						SCHEME = murder
+						VICTIM = scope:murder_target
+					}
+				}
+			}
+		}
+	}
+
+	option = { # Today is the day
+		name = mining.3101.a
+		custom_tooltip = mining_murder_accomplice_tt
+		set_variable = {
+			name = mining_murder_attempt
+			value = scope:murder_target
+			years = 1
+		}
+		stress_impact = {
+			patient = minor_stress_impact_gain
+			craven = minor_stress_impact_gain
+		}
+	}
+
+	option = { # We are not ready
+		name = mining.3101.d
+		set_variable = {
+			name = mining_murder_defer
+			value = scope:murder_target
+			years = 1
+		}
+		mining_activity_success_change_effect = { CHANGE = increase_minor }
+		stress_impact = {
+			impatient = minor_stress_impact_gain
+			brave = minor_stress_impact_gain
+		}
+	}
+}
+
+mining.3102 = {
+	type = activity_event
+	title = mining.3101.t
+	desc = {
+		desc = mining.3102.opening
+		desc = mining.3102.desc
+		first_valid = {
+			triggered_desc = {
+				trigger = { exists = scope:accomplice }
+				desc = mining.3102.accomplice
+			}
+			desc = mining.3101.alone
+		}
+	}
+	theme = hunt_activity
+	override_background = {
+		reference = mining_activity
+	}
+	left_portrait = {
+		character = root
+		animation = scheme
+	}
+	right_portrait = {
+		character = scope:murder_target
+		animation = thinking
+	}
+	center_portrait = {
+		character = scope:accomplice
+		animation = schadenfreude
+	}
+	lower_center_portrait = scope:accomplice_2
+	cooldown = { years = 1 }
+
+	trigger = {
+		OR = {
+			mining_murder_intent_target_trigger = yes
+			mining_murder_target_trigger = yes
+		}
+	}
+
+	weight_multiplier = {
+		base = 1
+		modifier = {
+			factor = 2
+			scope:host.court_position:overseer_of_the_mines_court_position ?= this
+			mining_murder_risk_trigger = yes
+		}
+	}
+
+	immediate = {
+		save_scope_as = murder_actor
+		hidden_effect = { mining_save_murder_target_effect = yes }
+	}
+
+	option = { #Take the shot!
+		name = mining.3102.a
+		flavor = mining.3102.a.tt
+		reason = activity_intent
+		set_variable = {
+			name = mining_murder_attempt
+			value = scope:murder_target
+		}
+		mining_increment_murder_accident_attempt = yes #So it doesn't get silly, we track attempts and make chance to succeed lower for each recent one
+		duel = {
+			skills = { intrigue prowess }
+			target = scope:murder_target		
+			10 = { # ...but target is killed
+				desc = mining_kill_murder_killed
+				trigger = { scope:murder_target = { cannot_be_killed = no } }
+				compare_modifier = {
+					value = scope:duel_value
+					multiplier = 0.5
+				}
+				custom_tooltip = mining_target_attendee_killed_tt
+				save_scope_as = murder_success
+				min = 2
+			}
+			10 = { # ...the target survives
+				desc = mining_kill_murder_escape
+				compare_modifier = {
+					value = scope:duel_value
+					multiplier = -0.5
+				}
+				custom_tooltip = mining_target_attendee_injured_chance_tt
+				hidden_effect = {
+					random = {
+						chance = 50
+						save_scope_as = murder_injury
+					}
+				}
+				min = 2
+			}
+		}
+		trigger_event = { id = mining.3103 days = 1 }
+		stress_impact = {
+			vengeful = medium_stress_impact_loss
+			sadistic = medium_stress_impact_loss
+		}
+		ai_chance = {
+			base = 50
+			ai_value_modifier = {
+				ai_vengefulness = 0.5
+				ai_energy = 0.5
+				ai_boldness = 0.25
+				ai_honor = -0.25
+				ai_compassion = -0.25
+			}
+		}
+	}
+
+	option = { #Restrain yourself
+		name = mining.3102.b
+		flavor = mining.3102.b.tt
+		scope:activity = {
+			add_activity_log_entry = {
+				key = mining_murder_restrain_key
+				score = 25
+				tags = { random intent }
+				character = root
+				target = scope:murder_target
+
+				# Effect
+				root = {
+					if = {
+						limit = { exists = scope:accomplice }
+						reverse_add_opinion = {
+							target = scope:accomplice
+							modifier = mining_did_not_shoot_opinion
+							opinion = -10
+						}
+					}
+					mining_activity_success_change_effect = { CHANGE = increase_minor }
+					stress_impact = {
+						base = minor_stress_gain
+						sadistic = minor_stress_impact_gain
+						wrathful = minor_stress_impact_gain
+						vengeful = minor_stress_impact_gain
+						impatient = minor_stress_impact_gain
+						compassionate = medium_stress_impact_loss
+						forgiving = medium_stress_impact_loss
+					}
+				}
+			}
+		}
+		ai_chance = {
+			base = 50
+			ai_value_modifier = {
+				ai_honor = 0.75
+				ai_rationality = 0.25
+				ai_compassion = 0.25
+				ai_vengefulness = -0.25
+			}
+		}
+	}
+}
+
+# Outcome 
+mining.3103 = {
+	type = activity_event
+	title = mining.3101.t
+	desc = {
+		desc = mining.3103.desc
+		first_valid = {
+			triggered_desc = {
+				trigger = { exists = scope:accomplice_2 }
+				desc = mining.3103.accomplice_2
+			}
+			triggered_desc = {
+				trigger = { exists = scope:accomplice }
+				desc = mining.3103.accomplice
+			}
+		}
+		first_valid = {
+			triggered_desc = {
+				trigger = { exists = scope:murder_success }
+				desc = mining.3103.success
+			}
+			desc = mining.3103.failure
+		}
+	}
+	theme = hunt_activity
+	override_background = {
+		reference = mining_activity
+	}
+	left_portrait = {
+		character = root
+		triggered_animation = {
+			trigger = { exists = scope:murder_success }
+			animation = schadenfreude
+		}
+		animation = stress
+	}
+	right_portrait = {
+		character = scope:murder_target
+		triggered_animation = {
+			trigger = { exists = scope:murder_success }
+			animation = loss_1
+		}
+		animation = fear
+	}
+	center_portrait = {
+		character = scope:accomplice
+		triggered_animation = {
+			trigger = { exists = scope:murder_success }
+			animation = happiness
+		}
+		animation = fear
+	}
+	lower_center_portrait = scope:accomplice_2
+	cooldown = { years = 1 }
+
+	widget = {
+		gui = "event_window_widget_scheme"
+		container = "custom_widgets_container"
+	}
+
+	trigger = {
+		var:mining_murder_attempt ?= {
+			is_alive = yes
+			is_participant_in_activity = scope:activity
+		}
+	}
+
+	immediate = {
+		if = {
+			limit = { exists = scope:murder_success }
+			scope:activity = {
+				add_activity_log_entry = {
+					key = mining_murder_shot_key
+					score = 25
+					tags = { random intent }
+					character = root
+					target = scope:murder_target
+
+					# Effect
+					show_as_tooltip = {
+						unknown_murder_effect = { VICTIM = scope:murder_target MURDERER = root REASON = death_mining_accident }
+					}
+				}
+			}
+		}
+		else = {
+			scope:activity = {
+				add_activity_log_entry = {
+					key = mining_murder_miss_key
+					score = 25
+					tags = { random intent }
+					character = root
+					target = scope:murder_target
+
+					# Effect
+					root = {
+						show_as_tooltip = {
+							if = {
+								limit = { exists = scope:murder_injury }
+								scope:murder_target = {
+									change_trait_rank = {
+										trait = wounded
+										rank = 1
+										max = 3
+									}
+								}
+							}
+							attempted_murder_opinion_effect = {
+								VICTIM = scope:murder_target
+								MURDERER = root
+							}
+							scope:scheme ?= {
+								expose_scheme = yes
+								if = {
+									limit = { exists = scope:accomplice }
+									expose_scheme_agent = scope:accomplice
+								}
+								if = {
+									limit = { exists = scope:accomplice_2 }
+									expose_scheme_agent = scope:accomplice_2
+								}
+							}
+							scope:murder_target = {
+								if = {
+									limit = { exists = scope:accomplice }
+									add_opinion = {
+										target = scope:accomplice
+										modifier = attempted_murder_me_crime
+									}
+								}
+								if = {
+									limit = { exists = scope:accomplice_2 }
+									add_opinion = {
+										target = scope:accomplice_2
+										modifier = attempted_murder_me_crime
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+		scope:murder_target = { trigger_event = mining.3104 }
+	}
+
+	option = { # Success
+		name = mining.3103.a
+		trigger = { exists = scope:murder_success }
+	}
+
+	option = { # Failure
+		name = mining.3103.b
+		trigger = {
+			NOT = { exists = scope:murder_success }
+		}
+		if = {
+			limit = { this = scope:host }
+			custom_tooltip = mining_ends_tt
+		}
+	}
+}
+
+# Target
+mining.3104 = { 
+	type = activity_event
+	title = mining.3101.t
+	desc = {
+		desc = mining.3104.desc
+		first_valid = {
+			triggered_desc = {
+				trigger = { exists = scope:accomplice_2 }
+				desc = mining.3104.accomplice_2
+			}
+			triggered_desc = {
+				trigger = { exists = scope:accomplice }
+				desc = mining.3104.accomplice
+			}
+		}
+		first_valid = {
+			triggered_desc = {
+				trigger = { exists = scope:accomplice_2 }
+				desc = mining.3104.success
+			}
+			desc = mining.3104.failure
+		}
+	}
+	theme = hunt_activity
+	override_background = {
+		reference = mining_activity
+	}
+	left_portrait = {
+		character = root
+		triggered_animation = {
+			trigger = { exists = scope:murder_success }
+			animation = loss_1
+		}
+		animation = fear
+	}
+	right_portrait = {
+		character = scope:murder_actor
+		triggered_animation = {
+			trigger = { exists = scope:murder_success }
+			animation = schadenfreude
+		}
+		animation = stress
+	}
+	center_portrait = {
+		character = scope:accomplice
+		triggered_animation = {
+			trigger = { exists = scope:murder_success }
+			animation = happiness
+		}
+		animation = fear
+	}
+	lower_left_portrait = scope:accomplice_2
+	cooldown = { years = 1 }
+
+	widget = {
+		gui = "event_window_widget_scheme"
+		container = "custom_widgets_container"
+	}
+
+	immediate = {
+		if = {
+			limit = { exists = scope:murder_success }
+			unknown_murder_effect = { VICTIM = scope:murder_target MURDERER = scope:murder_actor REASON = death_mining_accident }
+			if = {
+				limit = { this = scope:host }
+				scope:activity = {
+					set_variable = {
+						name = mining_invalidated
+						value = flag:death
+					}
+					set_variable = {
+						name = mining_invalidated_flavor
+						value = root
+					}
+				}
+			}
+			else_if = {
+				limit = {
+					NOR = {
+						scope:murder_actor = scope:host
+						scope:accomplice ?= scope:host
+						scope:accomplice_2 ?= scope:host
+					}
+				}
+				save_scope_as = invalidated_flavor
+				scope:host = { trigger_event = mining.0003 } #TODO hunt.0080
+			}
+		}
+		else = {
+			if = {
+				limit = { exists = scope:murder_injury }
+				change_trait_rank = {
+					trait = wounded
+					rank = 1
+					max = 3
+				}
+			}
+			attempted_murder_opinion_effect = {
+				VICTIM = scope:murder_target
+				MURDERER = scope:murder_actor
+			}
+			scope:scheme ?= {
+				if = {
+					limit = { exists = scope:accomplice }
+					expose_scheme_agent = scope:accomplice
+				}
+				if = {
+					limit = { exists = scope:accomplice_2 }
+					expose_scheme_agent = scope:accomplice_2
+				}
+				expose_scheme = yes
+			}
+			if = {
+				limit = { exists = scope:accomplice }
+				attempted_murder_opinion_effect = {
+					VICTIM = scope:murder_target
+					MURDERER = scope:accomplice
+				}
+			}
+			if = {
+				limit = { exists = scope:accomplice_2 }
+				attempted_murder_opinion_effect = {
+					VICTIM = scope:murder_target
+					MURDERER = scope:accomplice_2
+				}
+			}
+		}
+	}
+
+	option = { # Success
+		name = mining.3104.a
+		trigger = { exists = scope:murder_success }
+	}
+
+	option = { # Failure
+		name = mining.3104.b
+		trigger = {
+			NOT = { exists = scope:murder_success }
+		}
+		if = {
+			limit = {
+				OR = {
+					this = scope:host
+					scope:host = scope:murder_actor
+				}
+			}
+			scope:activity = {
+				set_variable = {
+					name = mining_invalidated
+					value = flag:assassination_attempt
+				}
+			set_variable = {
+				name = mining_invalidated_flavor
+				value = root
+			}
+			set_variable = {
+				name = mining_invalidated_culprit
+					value = scope:murder_actor
+				}
+			}
+		}
+		else_if = {
+			limit = {
+				NOR = {
+					scope:murder_actor = scope:host
+					scope:accomplice ?= scope:host
+					scope:accomplice_2 ?= scope:host
+				}
+			}
+			save_scope_as = invalidated_flavor
+			scope:murder_actor = { save_scope_as = invalidated_culprit }
+			scope:host = { trigger_event = mining.0003 }
 		}
 	}
 }
