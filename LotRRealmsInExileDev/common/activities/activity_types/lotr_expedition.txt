@@ -608,16 +608,95 @@
 			is_predefined = yes
 
 			is_shown = {}
+			on_phase_active = {
 
-			on_phase_active = { # Fires for every attendee
+				# Try and find an appropriate character to take over
+				if = {
+					limit = {
+						scope:activity = {
+							has_activity_option = { category = special_type option = expedition_type_standard }
+						}
+					}
+					scope:activity = {
+						random_attending_character = {
+							limit = {
+								location = scope:activity.activity_location
+								NOT = { this = scope:host }
+								NOT = { this.dynasty = scope:host }
+							}
+							save_temporary_scope_as = opportunistic_dwarf
+						}
+					}
+				}
+				else = {
+					scope:activity = {
+						random_attending_character = {
+							limit = {
+								location = scope:activity.activity_location
+								NOT = { this = scope:host }
+								NOT = { this.dynasty = scope:host }
+								NOT = { is_vassal_of = scope:host }
+								is_ruler = no
+							}
+							save_temporary_scope_as = opportunistic_dwarf
+						}
+					}
+				}
+		
+				# Generates a character if one isn't found
+				if = {
+					limit = { 
+						NOT = { exists = scope:opportunistic_dwarf }
+					}
+					create_character = {
+						template = dwarf_expedition_template
+						employer = scope:host
+						save_scope_as = opportunistic_dwarf
+					}
+					scope:opportunistic_dwarf = { add_to_activity = scope:activity }
+				}
+		
+				# Give title to dwarf char
+				if = {
+					limit = {
+						scope:activity = {
+							has_activity_option = { category = special_type option = expedition_type_standard }
+						}
+					}
+					scope:activity.activity_location = {
+						title_change_effect = { RULER = host }
+					}
+				}
+				else = {
+					scope:activity.activity_location = {
+						title_change_effect = { RULER = opportunistic_dwarf }
+			
+						make_tributary = {
+							TYPE = tributary_permanent
+							SUZERAIN = scope:host
+							TRIBUTARY = scope:opportunistic_dwarf
+						}
+					}
+				}
+				invalidate_activity = scope:activity
 			}
 
-			on_weekly_pulse = {
+			on_enter_phase = {
 			}
 
 			on_end = { # Fires for every attendee
 				target_weight_modifier_effect = { VALUE = -5 }
 				scope:activity.activity_location = { save_scope_as = activity_location }
+				scope:activity = { skip_activity_phase = yes }
+				
+				# scope:host = {
+				# 	set_location = scope:activity.activity_location
+				# 	current_travel_plan = {
+				# 		every_entourage_character = {
+				# 			set_location = scope:activity.activity_location
+				# 		}
+				# 	}
+				# }
 			}
 		}
 	}
@@ -717,68 +796,11 @@
 				}
 			}
 		}
-
-		if = {
-			limit = {
-				scope:activity = {
-					has_activity_option = { category = special_type option = expedition_type_standard }
-				}
-			}
-			random_attending_character = {
-				limit = {
-					location = scope:activity.activity_location
-					NOT = { this = scope:host }
-					NOT = { this.dynasty = scope:host }
-				}
-				this = { save_scope_as = opportunistic_dwarf }
-			}
-		}
-		else = {
-			random_attending_character = {
-				limit = {
-					location = scope:activity.activity_location
-					NOT = { this = scope:host }
-					NOT = { this.dynasty = scope:host }
-					NOT = { is_vassal_of = scope:host }
-					is_ruler = no
-				}
-				save_scope_as = opportunistic_dwarf
-			}
-		}
-		
-		create_character = {
-			name = "TEST"
-			template = dwarf_expedition_template
-			employer = scope:host
-			save_scope_as = opportunistic_dwarf
-		}
 	}
+
+	
 
 	allow_zero_guest_invites = yes
-
-	on_leave_travel_state = {
-		if = {
-			limit = {
-				scope:activity = {
-					has_activity_option = { category = special_type option = expedition_type_standard }
-				}
-			}
-			scope:activity.activity_location = {
-				title_change_effect = { RULER = host }
-			}
-		}
-		else = {
-			scope:activity.activity_location = {
-				title_change_effect = { RULER = opportunistic_dwarf }
-	
-				make_tributary = {
-					TYPE = tributary_permanent
-					SUZERAIN = scope:host
-					TRIBUTARY = scope:opportunistic_dwarf
-				}
-			}
-		}
-	}
 
 	on_complete = {
 	}
