@@ -1,0 +1,645 @@
+﻿
+special_eyelashes = {
+
+	usage = game
+
+	eyelashes = {
+		dna_modifiers = {
+			accessory = {
+				mode = replace				
+				gene = eyelashes_accessory
+				template = no_eyelashes
+				value = 0.5
+			}
+		}
+		weight = {
+			base = 0
+			modifier = {
+				add = 200
+				scope:age < 10
+			}
+		}
+	}
+
+}
+
+weight = {
+	usage = game
+
+	@overweight_multiplier = 0.5
+	@underweight_multiplier = -0.5
+
+	overweight = {
+		ignore_outfit_tags = yes
+		dna_modifiers = {
+			morph = {
+				mode = modify
+				gene = gene_bs_body_type
+				value = {
+					value = scope:weight_for_portrait # An absolute and normalized value derived from character body weight
+					multiply = @overweight_multiplier
+				}
+			}
+		}
+		weight = {
+			base = 0
+			modifier = {
+				add = 100
+				scope:current_weight > overweight_threshold
+			}
+			modifier = {
+                add = -100
+				exists = this
+				OR = {
+					has_character_flag = has_scripted_weight
+					has_character_flag = has_scripted_appearance #LotR
+					is_elf = yes #LotR
+					is_maiar = yes #LotR
+				}
+            }
+		}
+	}
+
+	underweight = {
+		ignore_outfit_tags = yes
+		dna_modifiers = {
+			morph = {
+				mode = modify
+				gene = gene_bs_body_type
+				value = {
+					value = scope:weight_for_portrait # An absolute and normalized value derived from character body weight
+					multiply = @underweight_multiplier
+				}
+			}
+		}
+		weight = {
+			base = 0
+			modifier = {
+				add = 100
+				scope:current_weight < underweight_threshold
+			}
+			modifier = {
+                add = -100
+				exists = this
+				OR = {
+					has_character_flag = has_scripted_weight
+					has_character_flag = has_scripted_appearance #LotR
+					is_elf = yes #LotR
+					is_maiar = yes #LotR
+					portrait_hobbit_clothing_trigger = yes # LotR: Hobbits are too well fed to look underweight!
+				}
+            }
+			modifier = {
+                add = 1000
+				this ?= character:lineofgollum3
+            }
+		}
+	}
+
+	ruler_designer_overweight = {
+		dna_modifiers = {
+			morph = {
+				mode = modify
+				gene = gene_bs_body_type
+				value = {
+					value = scope:weight_for_portrait # An absolute and normalized value derived from character body weight
+					multiply = @overweight_multiplier
+				}
+			}
+		}
+		weight = {
+			base = 0
+			modifier = {
+				add = 100
+				exists = scope:ruler_designer
+				scope:current_weight > overweight_threshold
+			}
+		}
+	}
+	ruler_designer_underweight = {
+		dna_modifiers = {
+			morph = {
+				mode = modify
+				gene = gene_bs_body_type
+				value = {
+					value = scope:weight_for_portrait # An absolute and normalized value derived from character body weight
+					multiply = @underweight_multiplier
+				}
+			}
+		}
+		weight = {
+			base = 0
+			modifier = {
+				add = 100
+				exists = scope:ruler_designer
+				scope:current_weight < underweight_threshold
+			}
+		}
+	}
+}
+
+@muscle_multiply = 1
+@muscle_max = 1.0
+
+muscularity = {
+
+	usage = game
+	
+	muscular = {
+		ignore_outfit_tags = yes
+		dna_modifiers = {
+			morph = {
+				mode = modify
+				gene = gene_bs_body_shape
+				value = {
+					value = 0
+
+					if = { 
+						limit = { exists = scope:ruler_designer }
+						add = scope:prowess
+					}
+					else_if = {
+						limit = { exists = this }
+						add = prowess_for_portrait
+					}
+					else = {
+						add = scope:prowess
+					}
+
+					multiply = 4
+
+					max = 1.0
+				}
+			}
+		}
+		weight = {
+			base = 100
+			modifier = {
+				add = -100
+				OR = {
+					has_character_flag = has_scripted_appearance #LotR
+					is_elf = yes #LotR
+					is_maiar = yes #LotR
+				}
+			}
+		}
+	}
+}
+
+special_pregnancy = {
+
+	usage = game
+
+	pregnant = {
+		ignore_outfit_tags = yes
+		dna_modifiers = {
+			morph = {
+				mode = add
+				gene = gene_bs_pregnant
+				template = pregnant
+				value = {
+					value = 1
+					if = {
+						# Overweight females should have less visible pregnancy, so we change the 100% pregnant value
+						limit = { current_weight > overweight_threshold }
+						value = scope:weight_for_portrait # An absolute and normalized value derived from character body weight
+						multiply = -1.0 
+						add = 1.5
+						max = 1.0
+					}
+					if = {
+						limit = {  
+							is_elf = no
+							# NOT = { this = character:animation_test_female_pregnant }
+						}
+						multiply = {
+							add = pregnancy_days
+							# Only change every 10 days
+							divide = 10
+							round = yes
+							multiply = 10
+							divide = 250 # PREGNANCY_DAYS is 280; we want 1 month at 100%
+							max = 1
+						}
+					}
+					else_if = {
+						limit = {
+							is_elf = yes
+							has_variable = year_became_pregnant
+							# NOT = { this = character:animation_test_female_pregnant }
+						}
+						multiply = {
+							add = current_year
+							subtract = var:year_became_pregnant
+							# Only change every 10 days
+							divide = 9
+							max = 1
+						}
+					}					
+				}
+			}
+		}
+		weight = {
+			base = 0
+			modifier = {
+				add = 100
+				OR = {
+					portrait_has_trait_trigger = { TRAIT = pregnant }
+					AND = {
+						is_female = yes
+						exists = var:year_became_pregnant
+						has_variable = year_became_pregnant
+						has_trait = elf_pregnant
+					}
+				}
+			}			
+		}
+	}
+}
+
+
+special_shrink_body = {
+	
+	usage = game
+	shrink_body = {
+        dna_modifiers = {
+            morph = {
+                mode = add
+                gene = gene_shrink_body
+                template = shrink_all
+               	value = 1 # For the randomness to work correctly
+            }
+        }   
+        weight = {
+            base = 10
+		}
+	}
+}
+
+additive_headgears = {
+
+	usage = game
+	additive_headgears = {
+			dna_modifiers = {
+			morph = {
+				mode = add
+				gene = gene_bs_additive_headgears
+				template = additive_headgears
+				value = 1 # For the randomness to work correctly
+			}
+        }
+    }
+}
+
+
+special_prophet = {
+
+    usage = game
+    selection_behavior = weighted_random
+    priority = 50
+	
+	no_portrait = {
+		dna_modifiers = {
+			morph = {
+				mode = replace				
+				gene = gene_bs_body_type
+				template = no_portrait
+				value = 1.0
+			}
+			morph = {
+				mode = replace				
+				gene = complexion
+				template = complexion_no_face
+				value = 1.0
+			}
+			morph = {
+				mode = replace				
+				gene = gene_age
+				template = no_aging
+				value = 1.0
+			}
+			morph = {
+				mode = modify				
+				gene = gene_eyebrows_shape
+				template = no_eyebrows
+				value = 0.5
+			}
+			morph = {
+				mode = modify				
+				gene = gene_eyebrows_fullness
+				template = no_eyebrows
+				value = 0.5
+			}
+			accessory = {
+				mode = modify				
+				gene = eye_accessory
+				template = no_eyes
+				value = 0.5
+			}
+			accessory = {
+				mode = modify				
+				gene = teeth_accessory
+				template = no_teeth
+				value = 0.5
+			}
+			
+			accessory = {
+				mode = modify
+				gene = race_head_accessory
+				template = man
+				value = 0.5
+			}
+			accessory = {
+				mode = modify
+				gene = race_body_accessory
+				template = man
+				value = 0.5
+			}
+			accessory = {
+                 mode = add
+                 gene = hairstyles
+                 template = no_hairstyles
+                 value = 0
+            }
+            accessory = {
+                mode = add
+                gene = beards
+                template = no_beard
+                value = 0
+            }
+            accessory = {
+                mode = add
+                gene = cloaks
+                template = no_cloak
+                value = 0
+            } 
+		}
+		weight = {
+			base = 0
+			modifier = {
+				add = 2000
+				has_trait = nazgul
+			}
+		}	
+	}
+}
+
+lotr_special = {
+
+    usage = game
+
+	sauron = {
+		dna_modifiers = {
+			morph = {
+				mode = add
+				gene = gene_sauron
+				range = { 1.0 1.0 }
+				template = sauron
+			}
+			accessory = {
+				mode = modify				
+				gene = eye_accessory
+				template = sauron_eyes
+				value = 1.0
+			}
+		}
+		weight = {
+			base = 0
+			modifier = {
+				add = 1500
+				has_character_flag = is_sauron
+				has_game_rule = corrupted_sauron
+			}
+		}	
+	}
+	
+	sauron_burned = {
+		dna_modifiers = {
+			morph = {
+			 mode = add
+			 gene = gene_sauron
+			 range = { 1.0 1.0 }
+			 template = sauron_burned
+			}
+			accessory = {
+			 mode = modify				
+			 gene = eye_accessory
+			 template = sauron_eyes
+			 value = 1.0
+			}
+		}
+		weight = {
+			base = 0
+			modifier = {
+				add = 1400
+				has_character_flag = is_sauron
+				has_game_rule = crispy_sauron
+			}
+		}	
+	}
+	
+	haradrim_warpaint = {
+		dna_modifiers = {
+			morph = {
+				mode = add
+				gene = gene_haradrim_head_decals
+				value = 1.0
+				template = harad_war_1
+			}
+			accessory = {
+				mode = add
+				gene = hairstyles
+				template = no_hairstyles
+				range = { 0 1 } # For the randomness to work correctly
+			}
+			accessory = {
+				mode = add
+				gene = beards
+				template = no_beard
+				range = { 0 1 } # For the randomness to work correctly
+			}
+		}	
+		weight = {
+			base = 0
+			#modifier = {
+				#add = 250
+				# ADD CONDITION FOR WARPAINT - TIED TO EVENT/DECISION?
+				#portrait_haradrim_clothing_trigger = yes
+			#}
+		}
+	}
+	
+	haradrim_subdermals = {
+		dna_modifiers = {
+			morph = {
+				mode = add
+				gene = gene_subdermal_implant_decals
+				value = 1.0
+				template = harad_1
+			}
+			accessory = {
+				mode = add
+				gene = hairstyles
+				template = no_hairstyles
+				range = { 0 1 } # For the randomness to work correctly
+			}
+			accessory = {
+				mode = add
+				gene = beards
+				template = no_beard
+				range = { 0 1 } # For the randomness to work correctly
+			}
+		}	
+		weight = {
+			base = 0
+			#modifier = {
+				#add = 250
+				# ADD CONDITION FOR WARPAINT - TIED TO EVENT/DECISION?
+				#portrait_haradrim_clothing_trigger = yes
+			#}
+		}
+	}
+	
+	elven_youth = {
+		dna_modifiers = {
+			morph = {
+				mode = replace				
+				gene = gene_age
+				template = no_aging
+				value = 1.0
+			}
+		}	
+		weight = {
+			base = 0
+			modifier = {
+				add = 250
+				exists = this
+				is_elf = yes
+				# is_alive = no
+				OR = {
+					is_alive = no
+					AND = {
+						is_alive = yes
+						age > 16
+					}
+				}
+			}
+		}
+	}
+	
+	hobbit_feet = {
+		dna_modifiers = {
+			morph = {
+				mode = add
+				gene = gene_hobbit_feet
+				value = 1.0
+				template = hobbit_feet_01
+			}
+		}	
+		weight = {
+			base = 0
+			modifier = {
+				add = 250
+				is_hobbit = yes
+			}
+		}		
+	}
+}
+
+sauron_armor_overrides = {
+
+	usage = game
+	selection_behavior = max
+	priority = 3
+	
+	sauron_armor = {
+		dna_modifiers = {
+			accessory = {
+				mode = add
+				gene = clothes
+				template = sauron_armor
+				range = { 0 1 } # For the randomness to work correctly
+			}
+			morph = {
+				mode = modify_multiply
+				gene = gene_bs_bust
+				value = 1.0
+				template = bust_clothes
+			}
+			morph = {
+				mode = modify_multiply
+				gene = gene_bs_body_shape
+				value = 1.0
+				template = body_shape_average_clothed
+			}
+			accessory = {
+	            mode = add
+	            gene = legwear
+	            template = sauron_armor_legs
+	            range = { 0 1 }
+	        }
+			 accessory = {
+	            mode = add
+	            gene = headgear
+	            template = sauron_helmet
+	            range = { 0 1 }
+	        }
+			 accessory = {
+	            mode = add
+	            gene = hairstyles
+	            template = no_hairstyles
+	            range = { 0 1 }
+	        }
+			morph = {
+				mode = replace				
+				gene = gene_bs_body_type
+				template = no_portrait
+				value = 1.0
+			}
+			 morph = {
+				 mode = replace				
+				 gene = complexion
+				 template = complexion_no_face
+				 value = 1.0
+			 }
+			 morph = {
+				 mode = modify				
+				 gene = gene_eyebrows_shape
+				 template = no_eyebrows
+				 value = 0.5
+			 }
+			 morph = {
+				 mode = modify				
+				 gene = gene_eyebrows_fullness
+				 template = no_eyebrows
+				 value = 0.5
+			 }
+			 accessory = {
+				 mode = modify				
+				 gene = eye_accessory
+				 template = no_eyes
+				 value = 0.5
+			 }
+			 accessory = {
+				 mode = modify				
+				 gene = teeth_accessory
+				 template = no_teeth
+				 value = 0.5
+			 }
+			morph = {
+				mode = modify_multiply
+				gene = gene_height
+				template = giant_height
+				value = 0
+			}
+		}	
+		weight = {
+			base = 0
+			modifier = {
+				add = 99999
+				has_character_flag = is_sauron
+				has_game_rule = armored_sauron
+			}
+		}		
+	}
+}
