@@ -516,6 +516,337 @@ mining.0100 = {
 	}
 }
 
+# Select a Stone Singer #
+mining.0101 = {
+	type = activity_event
+	title = mining.0101.t
+	theme = stewardship
+	desc = {
+		desc = mining.0101.desc.intro
+		first_valid = {
+			triggered_desc = {
+				trigger = {
+					OR = {
+						has_relation_rival = scope:stone_singer_candidate_1
+						opinion = {
+							value <= low_negative_opinion
+							target = scope:stone_singer_candidate_1
+						}
+					}
+				}
+				desc = mining.0101.desc.hates_candidate_a
+			}
+			desc = mining.0101.desc.candidate_a
+		}
+		triggered_desc = {
+			trigger = { exists = scope:stone_singer_candidate_2 }
+			desc = mining.0101.desc.nepotism
+		}
+		triggered_desc = {
+			trigger = { exists = scope:stone_singer_candidate_3 }
+			desc = mining.0101.desc.enthusiasm
+		}
+		desc = mining.0101.desc.outro
+	}
+	override_background = {
+		reference = mining_activity
+	}
+	left_portrait = {
+		character = scope:host
+		animation = thinking
+	}
+	center_portrait = {
+		character = scope:stone_singer_candidate_1
+		animation = war_over_win
+	}
+	right_portrait = {
+		character = scope:stone_singer_candidate_3
+		animation = admiration
+	}
+	lower_right_portrait = scope:stone_singer_candidate_2
+
+	trigger = {
+		NOT = { employs_court_position = stone_singer_court_position } #This is a delayed event so it is possible you have picked out a Stone inger after it was set to trigger
+		exists = scope:activity #As it is delayed, the activity might have invalidated in the meanwhile
+		scope:activity = {
+			OR = {
+				any_attending_character = {
+					AND = {
+						OR = {
+							is_vassal_of = root
+							is_courtier_of = root
+						}
+						root = {
+							can_appoint_char_to_court_position = {
+								CHAR = prev
+								COURT_POS = stone_singer_court_position
+							}
+						}
+					}
+					AND = {
+						any_pool_character = {
+							province = scope:activity.activity_location
+							is_physically_able_ai_adult = yes
+						}
+					}
+				}
+			}
+		}
+	}
+
+	immediate = {
+		scope:activity = {
+			ordered_attending_character = { # The best guy for the job
+				limit = {
+					OR = {
+						is_vassal_of = root
+						is_courtier_of = root
+					}
+					root = {
+						can_appoint_char_to_court_position = {
+							CHAR = prev
+							COURT_POS = stone_singer_court_position
+						}
+					}
+				}
+				order_by = aptitude:stone_singer_court_position
+				save_scope_as = stone_singer_candidate_1
+			}
+			if = {
+				limit = {
+					NOT = { exists = scope:stone_singer_candidate_1 }
+				}
+				limit = {
+					any_pool_character = {
+						province = scope:activity.activity_location
+						is_physically_able_ai_adult = yes
+					}
+				}
+				random_pool_character = {
+					province = scope:activity.activity_location
+					limit = {
+						is_physically_able_ai_adult = yes
+					}
+					save_scope_as = stone_singer_candidate_1
+				}
+			}
+			if = {
+				limit = {
+					any_attending_character = {
+						OR = {
+							is_vassal_of = root
+							is_courtier_of = root
+						}
+						OR = {
+							is_close_or_extended_family_of = root
+							has_relation_friend = root
+							has_relation_lover = root
+						}
+						NOT = { has_relation_rival = root }
+						root = {
+							can_appoint_char_to_court_position = {
+								CHAR = prev
+								COURT_POS = stone_singer_court_position
+							}
+						}
+						NOT = { this = scope:stone_singer_candidate_1 }
+					}
+				}
+				random_attending_character = { # The nepotism pick
+					limit = {
+						OR = {
+							is_vassal_of = root
+							is_courtier_of = root
+						}
+						OR = {
+							is_close_or_extended_family_of = root
+							has_relation_friend = root
+							has_relation_lover = root
+						}
+						NOT = { has_relation_rival = root }
+						root = {
+							can_appoint_char_to_court_position = {
+								CHAR = prev
+								COURT_POS = stone_singer_court_position
+							}
+						}
+						NOT = { this = scope:stone_singer_candidate_1 }
+					}
+					save_scope_as = stone_singer_candidate_2
+				}
+			}
+			if = {
+				limit = {
+					any_attending_character = {
+						OR = {
+							is_vassal_of = root
+							is_courtier_of = root
+						}
+						root = {
+							can_appoint_char_to_court_position = {
+								CHAR = prev
+								COURT_POS = stone_singer_court_position
+							}
+						}
+						NOT = { this = scope:stone_singer_candidate_1 }
+						trigger_if = {
+							limit = {
+								exists = scope:stone_singer_candidate_2
+							}
+							NOT = { this = scope:stone_singer_candidate_2 }
+						}
+					}
+				}
+				ordered_attending_character = { # Second best guy for the job
+					limit = {
+						OR = {
+							is_vassal_of = root
+							is_courtier_of = root
+						}
+						root = {
+							can_appoint_char_to_court_position = {
+								CHAR = prev
+								COURT_POS = stone_singer_court_position
+							}
+						}
+						NOT = { this = scope:stone_singer_candidate_1 }
+						trigger_if = {
+							limit = {
+								exists = scope:stone_singer_candidate_2
+							}
+							NOT = { this = scope:stone_singer_candidate_2 }
+						}
+					}
+					order_by = {
+						value = aptitude:stone_singer_court_position
+						add = ai_energy
+					}
+					save_scope_as = stone_singer_candidate_3
+				}
+			}
+		}
+	}
+
+	option = { # Pick the best guy
+		name = mining.0100.a
+		court_position_grant_effect = {
+			CANDIDATE = scope:stone_singer_candidate_1
+			POS = stone_singer_court_position
+			EMPLOYER = root
+		}
+		add_prestige = minor_prestige_gain
+		ai_chance = {
+			base = 10
+			opinion_modifier = {
+				who = root
+				opinion_target = scope:stone_singer_candidate_1
+				min = 0
+				max = 10
+				multiplier = 0.5
+			}
+			modifier = {
+				factor = 0.5
+				has_trait = family_first
+			}
+			modifier = {
+				factor = 0.5
+				has_relation_rival = scope:stone_singer_candidate_1
+				NOT = { has_trait = forgiving }
+			}
+		}
+	}
+
+	option = { # Pick the nepotism target
+		name = mining.0100.b
+		trigger = {
+			exists = scope:stone_singer_candidate_2
+		}
+		court_position_grant_effect = {
+			CANDIDATE = scope:stone_singer_candidate_2
+			POS = stone_singer_court_position
+			EMPLOYER = root
+		}
+		reverse_add_opinion = {
+			target = scope:stone_singer_candidate_2
+	 		modifier = grateful_opinion
+	 		opinion = 15
+		}
+		ai_chance = {
+			base = 10
+			opinion_modifier = {
+				who = root
+				opinion_target = scope:stone_singer_candidate_2
+				min = 0
+				max = 10
+				multiplier = 0.5
+			}
+			modifier = {
+				factor = 2
+				has_trait = family_first
+			}
+		}
+	}
+
+	option = { # Pick the third target
+		name = mining.0100.c
+		trigger = {
+			exists = scope:stone_singer_candidate_3
+		}
+		court_position_grant_effect = {
+			CANDIDATE = scope:stone_singer_candidate_3
+			POS = stone_singer_court_position
+			EMPLOYER = root
+		}
+		random = {
+			chance = 50
+			set_relation_friend = {
+				target = scope:stone_singer_candidate_3
+		 		reason = friend_made_me_ss
+			}
+		}
+		ai_chance = {
+			base = 5
+			opinion_modifier = {
+				who = root
+				opinion_target = scope:stone_singer_candidate_3
+				min = 0
+				max = 10
+				multiplier = 0.5
+			}
+			modifier = {
+				factor = 0.5
+				has_trait = family_first
+			}
+			modifier = {
+				factor = 0.5
+				has_relation_rival = scope:stone_singer_candidate_3
+				NOT = { has_trait = forgiving }
+			}
+		}
+	}
+
+	option = { # Pick nobody
+		name = mining.0100.d
+		ai_chance = { # The AI should always pick someone, unless they're bankrupt
+			base = 0
+			modifier = {
+				add = 100
+				gold < tiny_gold_value
+			}
+		}
+	}
+
+	after = {
+		# Update success chance
+		scope:activity = {
+			set_variable = {
+				name = mining_success_chance
+				value = mining_success_chance_value
+			}
+		}
+	}
+}
+
 #####################################
 #	INVITATION EVENTS	            #
 #	0100 - 0199						#
@@ -590,6 +921,28 @@ mining.0200 = { # Host - kick off - add stress
 						is_ai = yes
 					}
 					save_scope_as = ootm_character
+					save_scope_as = crowd_member_1
+				}
+			}
+		}
+		if = {
+			limit = {
+				employs_court_position = stone_singer_court_position
+				scope:activity = {
+					any_attending_character = {
+						location = scope:activity.activity_location
+						has_court_position = stone_singer_court_position
+					}
+				}
+			}
+			scope:activity = {
+				random_attending_character = {
+					limit = {
+						location = scope:activity.activity_location
+						has_court_position = stone_singer_court_position
+						is_ai = yes
+					}
+					save_scope_as = stone_singer_character
 					save_scope_as = crowd_member_1
 				}
 			}
@@ -850,6 +1203,73 @@ mining.0200 = { # Host - kick off - add stress
 		}
 	}
 
+	option = { # Let my Stone Singer take over
+		trigger = {
+			exists = scope:stone_singer_character
+		}
+		name = mining.0200.f
+		save_scope_as = stone_singer_speaker
+		custom_description_no_bullet = {
+			text = effect_aptitude_challenge
+		}
+		scope:stone_singer_character = {
+			random_list = {
+				3 = {
+					modifier = {
+						add = aptitude:stone_singer_court_position
+					}
+					scope:activity = {
+						set_variable = {
+							name = mining_team_huddle
+							value = flag:stone_singer_success
+						}
+					}
+					custom_tooltip = mining.0200.d.success
+					root = {
+						send_interface_toast = {
+							title = mining_success_chance.stone_singer_success
+							left_icon = scope:stone_singer_character
+							custom_tooltip = mining_activity_success_increase_medium_tt
+						}
+					}
+					add_prestige = 50
+					scope:activity = {
+						add_activity_log_entry = {
+							key = mining_log_prospecting_start_stone_singer_success
+							score = 25
+							tags = { good }
+							character = scope:stone_singer_character
+						}
+					}
+				}
+				3 = {
+					scope:activity = {
+						set_variable = {
+							name = mining_team_huddle
+							value = flag:stone_singer_failure
+						}
+					}
+					custom_tooltip = mining.0200.d.failure
+					root = {
+						send_interface_toast = {
+							title = mining_success_chance.stone_singer_failure
+							left_icon = scope:stone_singer_character
+							custom_tooltip = mining_activity_success_decrease_medium_tt
+						}
+					}
+					add_prestige = -50
+					scope:activity = {
+						add_activity_log_entry = {
+							key = mining_log_prospecting_start_stone_singer_fail
+							score = 25
+							tags = { bad }
+							character = scope:stone_singer_character
+					}
+				}
+			}
+		}
+	}
+
 	option = { # Leave them to it
 		name = mining.0200.e
 		custom_tooltip = mining.0200.e.tt
@@ -934,6 +1354,18 @@ mining.0201 = { # Guest - kick off result - add stress
 				}
 				desc = mining.0201.t.overseer_failure
 			}
+			triggered_desc = {
+				trigger = { 
+					scope:activity = { var:mining_team_huddle ?= flag:stone_singer_success }
+				}
+				desc = mining.0201.desc.stone_singer_success
+			}
+			triggered_desc = {
+				trigger = { 
+					scope:activity = { var:mining_team_huddle ?= flag:stone_singer_failure }
+				}
+				desc = mining.0201.t.stone_singer_failure
+			}
 			desc = mining.0201.t.get_on_with_it
 		}
 	}
@@ -988,6 +1420,18 @@ mining.0201 = { # Guest - kick off result - add stress
 				}
 				desc = mining.0201.t.overseer_failure
 			}
+			triggered_desc = {
+				trigger = { 
+					scope:activity = { var:mining_team_huddle ?= flag:stone_singer_success }
+				}
+				desc = mining.0201.desc.stone_singer_success
+			}
+			triggered_desc = {
+				trigger = { 
+					scope:activity = { var:mining_team_huddle ?= flag:stone_singer_failure }
+				}
+				desc = mining.0201.t.stone_singer_failure
+			}
 			desc = mining.0201.desc.get_on_with_it
 		}
 	}
@@ -1003,6 +1447,7 @@ mining.0201 = { # Guest - kick off result - add stress
 						var:mining_team_huddle ?= flag:pep_talk_success
 						var:mining_team_huddle ?= flag:strategy_success
 						var:mining_team_huddle ?= flag:overseer_success
+						var:mining_team_huddle ?= flag:stone_singer_success
 					}
 				}
 			}
@@ -1016,6 +1461,7 @@ mining.0201 = { # Guest - kick off result - add stress
 						var:mining_team_huddle ?= flag:strategy_failure
 						var:mining_team_huddle ?= flag:threaten_failure
 						var:mining_team_huddle ?= flag:overseer_failure
+						var:mining_team_huddle ?= flag:stone_singer_failure
 					}
 				}
 			}
@@ -1040,6 +1486,7 @@ mining.0201 = { # Guest - kick off result - add stress
 						var:mining_team_huddle ?= flag:pep_talk_success
 						var:mining_team_huddle ?= flag:strategy_success
 						var:mining_team_huddle ?= flag:overseer_success
+						var:mining_team_huddle ?= flag:stone_singer_success
 					}
 				}
 			}
@@ -1053,6 +1500,7 @@ mining.0201 = { # Guest - kick off result - add stress
 						var:mining_team_huddle ?= flag:strategy_failure
 						var:mining_team_huddle ?= flag:threaten_failure
 						var:mining_team_huddle ?= flag:overseer_failure
+						var:mining_team_huddle ?= flag:stone_singer_failure
 					}
 				}
 			}
@@ -1077,6 +1525,7 @@ mining.0201 = { # Guest - kick off result - add stress
 						var:mining_team_huddle ?= flag:pep_talk_success
 						var:mining_team_huddle ?= flag:strategy_success
 						var:mining_team_huddle ?= flag:overseer_success
+						var:mining_team_huddle ?= flag:stone_singer_success
 					}
 				}
 			}
@@ -1090,6 +1539,7 @@ mining.0201 = { # Guest - kick off result - add stress
 						var:mining_team_huddle ?= flag:strategy_failure
 						var:mining_team_huddle ?= flag:threaten_failure
 						var:mining_team_huddle ?= flag:overseer_failure
+						var:mining_team_huddle ?= flag:stone_singer_failure
 					}
 				}
 			}
@@ -1188,6 +1638,18 @@ mining.0201 = { # Guest - kick off result - add stress
 		}
 		name = {
 			trigger = { 
+				scope:activity = { var:mining_team_huddle ?= flag:stone_singer_success }
+			}
+			text = mining.0201.desc.stone_singer_success
+		}
+		name = {
+			trigger = { 
+				scope:activity = { var:mining_team_huddle ?= flag:stone_singer_failure }
+			}
+			text = mining.0201.t.stone_singer_failure
+		}
+		name = {
+			trigger = { 
 				scope:activity = { var:mining_team_huddle ?= flag:no_speech }
 			}
 			text = mining.0201.a.get_on_with_it
@@ -1234,6 +1696,24 @@ mining.0201 = { # Guest - kick off result - add stress
 				scope:activity = { var:mining_team_huddle ?= flag:overseer_success }
 			}
 			custom_tooltip = mining_activity_success_increase_medium_tt
+		}
+		else_if = {
+			limit = {
+				scope:activity = { var:mining_team_huddle ?= flag:overseer_failure }
+			}
+			custom_tooltip = mining_activity_success_decrease_medium_tt
+		}
+		else_if = {
+			limit = {
+				scope:activity = { var:mining_team_huddle ?= flag:stone_singer_success }
+			}
+			custom_tooltip = mining_activity_success_increase_medium_tt
+		}
+		else_if = {
+			limit = {
+				scope:activity = { var:mining_team_huddle ?= flag:stone_singer_failure }
+			}
+			custom_tooltip = mining_activity_success_decrease_medium_tt
 		}
 		else = {
 			custom_tooltip = mining_activity_success_decrease_medium_tt
@@ -3267,6 +3747,7 @@ mining.1031 = {
 		OR = {
 			involved_activity.activity_host = this
 			has_court_position = overseer_of_the_mines_court_position
+			has_court_position = stone_singer_court_position
 		}
 		scope:activity.activity_location.county = {
 			NOT = { has_county_modifier = mining_punished_locals_modifier }
