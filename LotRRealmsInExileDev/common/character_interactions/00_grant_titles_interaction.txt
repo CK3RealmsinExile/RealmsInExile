@@ -91,43 +91,27 @@
 				count > 1
 			}
 		}
-		scope:recipient = { is_busy_in_events_localised = yes }
+	}
+
+	can_send = {
 		trigger_if = {
 			limit = {
-				scope:recipient = {
-					is_ruler = no
+				scope:actor = {
+					highest_held_title_tier >= tier_kingdom
+					has_diarchy_active_parameter = primeminister_requires_duchy
+					diarch = scope:recipient
 				}
 			}
-			scope:recipient = {
-				is_imprisoned = no
-			}
-		}
-		# DON'T TAKE OTHER PLAYERS' ACCLAIMED KNIGHTS
-		custom_description = {
-			text = grant_title_stealing_acclaimed_knight
-			subject = scope:recipient
-			NOR = {
-				AND = {
-					scope:recipient = {
-						is_acclaimed = yes
-					}
-					scope:recipient.liege ?= {
-						is_ai = no
-						NOT = { this = scope:actor }
-					}
-				}
-				AND = {
-					scope:recipient = {
-						is_acclaimed = yes
-					}
-					scope:actor = {
-						is_ai = yes
-					}
+			custom_tooltip = {
+				text = primeminister_requires_duchy.tt.blocked_grant
+				any_in_list = {
+					list = target_titles
+					tier >= tier_duchy
 				}
 			}
 		}
 	}
-	
+
 	can_be_picked_title = {
 		scope:target = {
 			is_leased_out = no
@@ -312,11 +296,9 @@
 						is_diff_faith_or_culture_trigger = {
 							CHAR = scope:actor
 							STATUS = involved
-							STRUGGLE_TYPE = iberian_struggle
 						}
 						any_character_struggle = {
 							involvement = involved
-							is_struggle_type = iberian_struggle
 							has_struggle_phase_parameter = struggle_grant_titles_diff_faith_culture_to_leads_to_friendship
 						}
 					}
@@ -689,6 +671,64 @@
 			}
 		}
 
+		# Viziers may be booted from their job.
+		scope:actor = {
+			if = {
+				limit = {
+					# Assuming this is relevant at all.
+					diarch ?= scope:recipient
+					# And that scope:actor can do without a supervisor atm.
+					can_leave_diarchy_trigger = yes
+					# Aaaaand that their diarchy supports this type of thing.
+					OR = {
+						has_diarchy_parameter = primeminister_requires_county
+						has_diarchy_parameter = primeminister_requires_duchy
+					}
+				}
+				# Is this a duchy?
+				if = {
+					limit = {
+						any_in_list = {
+							list = target_titles
+							tier >= tier_duchy
+						}
+					}
+					custom_tooltip = grant_titles_interaction.tt.primeminister_title_grant.duchy_sufficient
+					end_diarchy = yes
+				}
+				# Is this a county?
+				else_if = {
+					limit = {
+						any_in_list = {
+							list = target_titles
+							tier = tier_county
+						}
+					}
+					# Is that insufficient?
+					if = {
+						limit = { has_diarchy_active_parameter = primeminister_requires_duchy }
+						custom_tooltip = grant_titles_interaction.tt.primeminister_title_grant.county_insufficient
+					}
+					# Is that sufficient?
+					else = {
+						custom_tooltip = grant_titles_interaction.tt.primeminister_title_grant.county_sufficient
+						end_diarchy = yes
+					}
+				}
+				# Is this a barony?
+				else_if = {
+					limit = {
+						any_in_list = {
+							list = target_titles
+							count = all
+							tier = tier_barony
+						}
+					}
+					custom_tooltip = grant_titles_interaction.tt.primeminister_title_grant.barony_doesnt_end
+				}
+			}
+		}
+
 		if = {
 			limit = {
 				any_in_list = {
@@ -736,10 +776,13 @@
 		}
 		if = {
 			limit = {
+				trigger_if = {
+					limit = { scope:actor = { is_ai = yes } }
 				scope:actor = {
 					any_vassal = {
 						has_vassal_stance = courtly
 					}
+				}
 				}
 				scope:recipient = {
 					is_lowborn = yes
@@ -1055,11 +1098,9 @@
 								is_diff_faith_or_culture_trigger = {
 									CHAR = scope:recipient
 									STATUS = involved
-									STRUGGLE_TYPE = iberian_struggle
 								}
 								any_character_struggle = {
 									involvement = involved
-									is_struggle_type = iberian_struggle
 									has_struggle_phase_parameter = struggle_grant_titles_diff_faith_culture_gives_prestige
 
 								}
@@ -1177,7 +1218,6 @@
 						is_diff_faith_or_culture_trigger = {
 							CHAR = scope:recipient
 							STATUS = involved
-							STRUGGLE_TYPE = iberian_struggle
 						}
 						any_character_struggle = {
 							involvement = involved
