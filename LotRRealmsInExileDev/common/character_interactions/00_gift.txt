@@ -19,6 +19,9 @@ gift_interaction = {
 		ai_recipients = liege
 	}
 	ai_targets = {
+		ai_recipients = head_of_faith
+	}
+	ai_targets = {
 		ai_recipients = neighboring_rulers
 		ai_recipients = peer_vassals
 		max = 10
@@ -83,47 +86,20 @@ gift_interaction = {
 			}
 		}
 
-		# Warning for multiple gifts
-		if = {
-			limit = {
-				scope:recipient = {
-					has_opinion_modifier = {
-						target = scope:actor
-						modifier = gift_opinion
-					}
-				}
-			}
-			custom_tooltip = ALREADY_SENT_GIFT_WARNING
-		}
-		else = { # Struggle Catalyst
-			limit = {
-				#scope:recipient = {
-				#	is_independent_ruler = yes
-				#}
-				scope:actor = {
-					any_character_struggle = {
-						involvement = involved
-						activate_struggle_catalyst_secondary_character_involvement_involved_trigger = {
-							CATALYST = catalyst_gift_independent_ruler
-							CHAR = scope:recipient
-						}
-					}
-				}
-			}
-			hidden_effect = {
-				scope:actor = {
-					every_character_struggle = {
-						involvement = involved
-						activate_struggle_catalyst = {
-							catalyst = catalyst_gift_independent_ruler
-							character = scope:actor
-						}
-					}
-				}
-			}
-		}
-
 		scope:actor = {
+			# Warning for multiple gifts
+			if = {
+				limit = {
+					scope:recipient = {
+						has_opinion_modifier = {
+							target = scope:actor
+							modifier = gift_opinion
+						}
+					}
+				}
+				custom_tooltip = ALREADY_SENT_GIFT_WARNING
+			}
+			
 			send_interface_message = {
 				type = event_generic_neutral
 				title = gift_interaction_notification
@@ -144,9 +120,132 @@ gift_interaction = {
 						}
 					}
 					stress_impact = {
-					generous = medium_stress_impact_loss
+						generous = medium_stress_impact_loss
+					}
 				}
+				
+				#FP3 Tenet Communal Possessions Perk - piety gain for gift giving. 
+				if = {
+					limit = {
+						scope:actor = {
+							faith = {
+					 			has_doctrine_parameter = piety_from_gifts_active
+					 		}
+					 	}
+					}
+					scope:actor = {
+						add_piety = minor_piety_gain
+					}
 				}
+				
+				# Check if the target already has been sent a gift or not. If not, apply the following effects
+				if = {
+					limit = {
+						NOT = {
+							scope:recipient = {
+								has_opinion_modifier = {
+									target = scope:actor
+									modifier = gift_opinion
+								}
+							}
+						}
+					}
+					
+					# Struggle Catalyst
+					if = {
+						limit = {
+							scope:actor = {
+								any_character_struggle = {
+									involvement = involved
+									phase_has_catalyst = catalyst_gift_independent_ruler
+									activate_struggle_catalyst_secondary_character_involvement_involved_trigger = {
+										CATALYST = catalyst_gift_independent_ruler
+										CHAR = scope:recipient
+									}
+								}
+							}
+						}
+						hidden_effect = {
+							scope:actor = {
+								every_character_struggle = {
+									involvement = involved
+									limit = { phase_has_catalyst = catalyst_gift_independent_ruler }
+									activate_struggle_catalyst = {
+										catalyst = catalyst_gift_independent_ruler
+										character = scope:actor
+									}
+								}
+							}
+						}
+					}
+					if = {
+						limit = {
+							fp3_struggle_involves_one_supporter_and_one_detractor = {
+								FIRST = scope:actor
+								SECOND = scope:recipient
+							}
+							scope:actor = {
+								any_character_struggle = {
+									#involvement = involved
+									activate_struggle_catalyst_secondary_character_involvement_either_trigger = {
+										CATALYST = catalyst_gift_supporter_detractor_ruler
+										CHAR = scope:recipient
+									}
+								}
+							}
+						}
+						hidden_effect = {
+							scope:actor = {
+								every_character_struggle = {
+									#involvement = involved
+									limit = {
+										activate_struggle_catalyst_secondary_character_involvement_either_trigger = {
+											CATALYST = catalyst_gift_supporter_detractor_ruler
+											CHAR = scope:recipient
+										}
+									}
+									activate_struggle_catalyst = {
+										catalyst = catalyst_gift_supporter_detractor_ruler
+										character = scope:actor
+									}
+									log_debug_variable_for_persian_struggle_effect = { VAR = concession_catalyst_gift_supporter_detractor_ruler }
+								}
+							}
+						}
+					}
+					
+					# FP2 Urbanism Legacy Perk 2: increase cultural acceptance when gifting a republican vassal
+					if = {
+						limit = {
+							scope:actor = {
+								exists = dynasty
+								dynasty = { has_dynasty_perk = fp2_urbanism_legacy_4 }
+							}
+							scope:recipient = {
+								AND = {
+									is_vassal_of = scope:actor
+									government_has_flag = government_is_republic
+								}
+							}
+							NOT = {
+								scope:actor.culture = scope:recipient.capital_province.county.culture
+							}
+						}
+						scope:recipient.capital_province.county.culture = {
+							change_cultural_acceptance = {
+								target = scope:actor.culture
+								value = {
+									value = 20
+									multiply = scope:recipient.capital_province.county.development_level
+									divide = 100
+								}
+								desc = cultural_acceptance_gain_gift_dynasty_perk
+							}
+						}
+					}
+				}
+				
+				# Let's apply the opinion modifier last, as to apply everything else correctly first
 				scope:recipient = {
 					add_opinion = {
 						target = scope:actor
@@ -156,18 +255,6 @@ gift_interaction = {
 				}
 			}
 
-			# Warning for multiple gifts
-			if = {
-				limit = {
-					scope:recipient = {
-						has_opinion_modifier = {
-							target = scope:actor
-							modifier = gift_opinion
-						}
-					}
-				}
-				custom_tooltip = ALREADY_SENT_GIFT_WARNING
-			}
 			if = { # for tutorial purposes
 				limit = {
 					is_ai = no
@@ -263,12 +350,12 @@ gift_interaction = {
 			factor = 0
 			scope:recipient = {
 				NOR = {
-					AND = { # Bankrupt vassals, lovers, friends and a bankrupt liege should be considered
+					AND = { # Bankrupt lovers, friends and a bankrupt liege should be considered
 						OR = {
-							is_vassal_of = scope:actor
-							AND = {
-								exists = liege
-								liege = scope:actor
+							scope:actor = {
+								any_liege_or_above = {
+									this = scope:recipient
+								}
 							}
 							has_secret_relation_lover = scope:actor
 							has_relation_lover = scope:actor
@@ -311,8 +398,9 @@ gift_interaction = {
 							}
 						}
 					}
-					AND = { # Characters with the loyal trait more likely to give gifts to friends
+					AND = { # Characters with the loyal trait more likely to give gifts to friends/lieges
 						OR = {
+							scope:actor.liege ?= this
 							has_relation_friend = scope:actor
 							has_relation_best_friend = scope:actor
 							is_allied_to = scope:actor
@@ -484,6 +572,26 @@ gift_interaction = {
 						ai_rationality > 50
 					}
 				}
+			}
+		}
+		
+		modifier = {
+			add = 100
+			scope:actor = {
+				is_at_war = no
+				has_trait = fp3_struggle_supporter
+				any_character_struggle = { is_struggle_type = persian_struggle }
+			}
+			scope:recipient = {
+				title:d_sunni.holder ?= this
+				gold < 0
+			}
+		}
+		
+		modifier = {
+			factor = 0.1
+			scope:recipient = {
+				has_relation_rival = scope:actor
 			}
 		}
 	}
