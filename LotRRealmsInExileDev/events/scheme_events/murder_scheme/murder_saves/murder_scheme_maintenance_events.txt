@@ -1,0 +1,431 @@
+﻿# Complex for handling Murder schemes for the AI (both landed and unlanded), murder complex
+
+namespace = murder_scheme_maintenance
+
+# Ruler wants to murder
+murder_scheme_maintenance.1 = {
+	type = character_event
+	
+	hidden = yes
+
+	trigger = {
+		is_pool_character = no
+
+		# Basics of murdering
+		is_physically_able_ai_adult = yes
+		NOT = { # Really honorable characters do not stoop this low, ever
+			ai_honor >= high_positive_ai_value
+		}
+		NOT = {
+			any_scheme = {
+				OR = {
+					scheme_type = murder
+					scheme_type = abduct
+					scheme_type = claim_throne
+					scheme_type = fabricate_hook
+				}
+			}
+		}
+
+		build_murder_targets_trigger = yes
+
+		any_in_list = {
+			list = murder_targets
+			root = {
+				can_start_scheme = {
+					target = prev
+					type = murder
+				}
+			}
+			NOR = {
+				is_child_of = root
+				is_grandchild_of = root
+				is_great_grandchild_of = root
+			}
+			NOT = { this = root }
+			# No targets you're Cowed by	
+			NOT = {
+				root = {
+					has_dread_level_towards = {
+						target = prev
+						level = 2
+					}
+				}
+			}
+		}
+	}
+
+	immediate = {
+		# The peculiar arrangement with an empty if statement & a separate random_in_list is intentional; they save on performance. Somehow.
+		## #JustCodeThings.
+		if = {
+			limit = { build_murder_targets_trigger = yes }
+		}
+		
+		random_in_list = {
+			list = murder_targets
+			limit = {
+				root = {
+					can_start_scheme = {
+						target = prev
+						type = murder
+					}
+				}
+				NOR = {
+					is_child_of = root
+					is_grandchild_of = root
+					is_great_grandchild_of = root
+				}
+				NOT = { this = root }
+				# No targets you're Cowed by	
+				NOT = {
+					root = {
+						has_dread_level_towards = {
+							target = prev
+							level = 2
+						}
+					}
+				}
+			}
+			weight = {
+				base = 0
+				modifier = {
+					add = -100
+					has_relation_friend = root
+				}
+				modifier = {
+					add = -25
+					has_relation_lover = root
+				}
+				modifier = {
+					add = -1000
+					OR = {
+						has_relation_best_friend = root
+						has_relation_soulmate = root
+					}
+				}
+				modifier = {
+					add = root.ai_vengefulness
+					root.ai_vengefulness > 0
+					OR = {
+						has_relation_rival = root
+						has_relation_nemesis = root
+						exposed_cheating_on_spouse_trigger = { SPOUSE = root }
+					}
+				}
+				modifier = {
+					add = 10
+					has_trait = extolled
+					house ?= root.house
+					root = {
+						ai_greed >= 0
+						ai_vengefulness >= 0
+						ai_compassion <= medium_negative_ai_value
+						house.house_head ?= {
+							is_ruler = yes
+							government_has_flag = government_is_clan
+						}
+						ai_wants_low_unity = yes
+					}
+				}
+				modifier = {
+					add = root.ai_greed
+					root.ai_greed > 0
+					OR = {
+						any_held_title = {
+							tier >= root.highest_held_title_tier
+							place_in_line_of_succession = {
+								target = root
+								value <= 3
+							}
+						}
+						any_heir_title = {
+							NOT = { holder = root }
+							tier >= root.highest_held_title_tier
+							place_in_line_of_succession = {
+								target = root
+								value <= 3
+							}
+						}
+					}
+				}
+				modifier = {
+					add = root.ai_greed
+					root.ai_greed > 0
+					root = {
+						is_ruler = yes
+						is_independent_ruler = no
+						liege ?= {
+							any_tax_collector = {
+								any_tax_collector_vassal = {
+									this = root
+								}
+								check_tax_collector_aptitude = {
+									CHARACTER = this
+									VALUE >= 4
+								}
+							}
+						}
+					}
+				}
+				modifier = { # If you're really good at murdering, killing claimants makes a lot of sense
+					add = 50
+					root = {
+						OR = {
+							has_perk = a_job_done_right_perk
+							has_focus = intrigue_skulduggery_focus
+						}
+					}
+					save_temporary_scope_as = the_murder_target
+					root = {
+						is_landed = yes
+						primary_title.tier >= tier_duchy
+						any_targeting_faction = {
+							faction_is_type = claimant_faction
+							special_character = {
+								this = scope:the_murder_target
+							}
+						}
+					}
+				}
+				opinion_modifier = { # Opinion Factor
+					who = root
+					opinion_target = this
+					multiplier = -1.0
+				}
+				modifier = { # Avoid murdering sponsored characters, lest we draw the ire of their patron
+					add = -50
+					exists = inspiration
+					inspiration = { exists = inspiration_sponsor }
+				}
+				modifier = { # Don't gang up on players
+					factor = 0
+					is_ai = no
+					any_targeting_scheme = {
+						scheme_owner = { is_ai = yes }
+						scheme_type = murder
+					
+					}
+				}
+				# If involved in a struggle, you're markedly more likely to try and scheme against anyone inside that struggle.
+				modifier = {
+					add = 75
+					save_temporary_scope_as = the_murder_target
+					root = {
+						any_character_struggle = {
+							involvement = involved
+							is_secondary_character_involvement_either_trigger = { CHAR = scope:the_murder_target }
+						}
+					}
+				}
+				#Scope:target has caused internal strife in the realm
+				character_hates_scope_due_to_strife_modifier = { TARGET = this }
+				modifier = { # Family Feud
+					add = 50
+					exists = root.house
+					exists = house
+					save_temporary_scope_as = the_murder_target
+					root = {
+						house.house_head = {
+							any_owned_story = {
+								story_type = story_cycle_house_feud
+								has_variable = house_feud_house
+								var:house_feud_house = scope:the_murder_target.house
+							}
+						}
+						has_opinion_modifier = {
+							modifier = house_feud_opinion
+							target = scope:the_murder_target.house.house_head
+						}
+					}
+				}
+				# Potential focus on the Caliph for the FP3 struggle
+				modifier = {
+					add = 50
+					exists = struggle:persian_struggle
+					# OR = { # LotR
+					# 	this = title:d_sunni.holder
+					# 	has_trait = fp3_struggle_supporter
+					# }
+				 	root = {
+				 		has_trait = fp3_struggle_detractor
+	 			  	}
+				}
+			}
+			random = {
+				chance = 25
+				modifier = {
+					add = -100
+					has_relation_friend = root
+				}
+				modifier = {
+					add = -25
+					has_relation_lover = root
+				}
+				modifier = {
+					add = -1000
+					OR = {
+						has_relation_best_friend = root
+						has_relation_soulmate = root
+					}
+				}
+				modifier = {
+					add = {
+						value = 0
+						subtract = root.ai_compassion
+						divide = 3
+					}
+					root.ai_compassion > 0
+				}
+				modifier = {
+					add = {
+						value = 0
+						subtract = root.ai_honor
+						divide = 2
+					}
+					root.ai_honor > 0
+				}
+				modifier = {
+					add = {
+						value = root.ai_honor
+						multiply = -1
+						divide = 2
+					}
+					root.ai_honor < 0
+				}
+				modifier = {
+					add = {
+						value = root.ai_vengefulness
+						multiply = 1.5
+					}
+					root.ai_vengefulness > 0
+					OR = {
+						has_relation_rival = root
+						has_relation_nemesis = root
+						exposed_cheating_on_spouse_trigger = { SPOUSE = root }
+					}
+				}
+				modifier = { # Rational people understand that certain threats need to be taken care of
+					add = {
+						value = root.ai_rationality
+						multiply = 0.5
+					}
+					root.ai_rationality > 0
+					save_temporary_scope_as = the_murder_target
+					root = {
+						is_landed = yes
+						primary_title.tier >= tier_duchy
+						any_targeting_faction = {
+							faction_is_type = claimant_faction
+							special_character = {
+								this = scope:the_murder_target
+							}
+						}
+					}
+				}
+				modifier = { # If you're really good at murdering, killing claimants makes a lot of sense
+					add = 50
+					root = {
+						OR = {
+							has_perk = a_job_done_right_perk
+							has_focus = intrigue_skulduggery_focus
+						}
+					}
+					save_temporary_scope_as = the_murder_target
+					root = {
+						is_landed = yes
+						primary_title.tier >= tier_duchy
+						any_targeting_faction = {
+							faction_is_type = claimant_faction
+							special_character = {
+								this = scope:the_murder_target
+							}
+						}
+					}
+				}
+				modifier = {
+					add = {
+						value = root.ai_greed
+						divide = 2
+					}
+					root.ai_greed > 0
+					OR = {
+						any_held_title = {
+							tier >= root.highest_held_title_tier
+							place_in_line_of_succession = {
+								target = root
+								value <=3
+							}
+						}
+						any_heir_title = {
+							NOT = { holder = root }
+							tier >= root.highest_held_title_tier
+							place_in_line_of_succession = {
+								target = root
+								value <=3
+							}
+						}
+					}
+				}
+				# Halve the chance if they're Intimidating
+				modifier = {
+					factor = 0.5
+					root = {
+						has_dread_level_towards = {
+							target = prev
+							level >= 1
+						}
+					}
+				}
+				modifier = { # To fix a bug where lowborn characters want to murder random people...
+					add = -1000
+					NOT = { exists = dynasty }
+					NOR = {
+						has_relation_rival = root
+						has_relation_nemesis = root
+						exposed_cheating_on_spouse_trigger = { SPOUSE = root }
+					}
+				}
+				# Agenda impact
+				modifier = {
+					root = {
+						any_character_struggle = {
+							involvement = involved
+						}
+					}
+					is_important_or_vip_struggle_character = yes
+					add = {
+						value = 0
+						if = {
+							limit = {
+								root = {
+									any_character_struggle = {
+										phase_has_catalyst = catalyst_gain_claim_on_title_fp2
+									}
+									has_character_flag = agenda_towards_escalation
+								}
+							}
+							add = 100
+						}
+						else_if = {
+							limit = {
+								root = {
+									any_character_struggle = {
+										phase_has_catalyst = catalyst_gain_claim_on_title_fp2
+									}
+								}
+							}
+							add = -1000
+						}
+					}
+				}
+				root = {
+					start_scheme = {
+						type = murder
+						target = prev
+					}
+				}
+			}
+		}
+	}
+}
