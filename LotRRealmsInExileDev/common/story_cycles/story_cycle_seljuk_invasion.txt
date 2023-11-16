@@ -1,0 +1,178 @@
+﻿story_seljuk_invasion = {
+
+	on_setup = {
+		story_owner = { # Find a place for the Seljuks to settle
+			set_variable = {
+				name = seljuk_invasion_nomad_strength_score
+				value = 10
+			}
+			try_to_settle_the_seljuk_effect = yes
+		}
+		set_variable = {
+			name = succession_counter
+			value = 0
+		}
+	}
+
+	on_end = {}
+
+	on_owner_death = {
+		# Breakup of the empire should not happen until at least one succession has passed
+		random_list = { # Weighted chance to end the story
+			10 = {
+				trigger = { var:succession_counter < 2 }
+				modifier = {
+					add = 10
+					var:succession_counter > 1
+				}
+				modifier = { # Historical point
+					add = 10
+					var:succession_counter > 2
+				}
+				modifier = { 
+					add = 20
+					var:succession_counter > 3
+				}
+				end_story = yes
+			}
+			90 = {
+				if = {
+					limit = {
+						exists = story_owner.primary_heir
+					}
+					make_story_owner = story_owner.primary_heir
+					change_variable = {
+						name = seljuk_invasion_nomad_strength_score
+						add = -5
+					}
+				}
+				else = {
+					end_story = yes
+				}
+			}
+		}
+	}
+
+	# Start a new war if one is not ongoing
+	effect_group = {
+		days = { 30 60 }
+
+		trigger = {
+			story_owner = {
+				is_at_war = no
+				gold > 0
+				OR = {
+					NOT = { has_character_flag = settled_seljuk }
+					is_independent_ruler = yes
+				}
+			}
+		}
+
+		triggered_effect = {
+			trigger = {
+				story_owner = {
+					is_ai = yes
+				}
+			}
+			effect = {
+				story_owner = {
+					seljuk_war_target_evaluation_and_declaration_effect = yes
+					save_scope_as = owner
+				}
+			}
+		}
+	}
+
+	# Ask for independence if vassals
+	effect_group = {
+		years = { 1 2 }
+
+		trigger = {
+			story_owner = {
+				has_character_flag = settled_seljuk
+				is_independent_ruler = no
+			}
+		}
+
+		triggered_effect = {
+			trigger = {
+				story_owner = {
+					is_ai = yes
+				}
+			}
+			effect = {
+				story_owner = {
+					seljuk_request_independence_from_liege_effect = yes
+					save_scope_as = owner
+				}
+			}
+		}
+	}
+
+	# Create the empire and close the story
+	effect_group = {
+		days = { 30 60 }
+
+		trigger = {
+			OR = {
+				any_county_in_region = {
+					region = world_persian_empire
+					percent >= 0.51
+					holder.top_liege = story_owner
+				}
+				story_owner = {
+					any_held_title = {
+						count = 2
+						tier = tier_kingdom
+						# any_this_title_or_de_jure_above = { #LotR
+						# 	this = title:e_persia
+						# }
+					}
+				}
+				story_owner = {
+					any_held_title = {
+						tier = tier_empire
+						# any_this_title_or_de_jure_above = { #LotR
+						# 	this = title:e_persia
+						# }
+					}
+				}
+			}
+		}
+
+		triggered_effect = {
+			trigger = {
+				story_owner = {
+					is_ai = yes
+				}
+			}
+			effect = {
+				story_owner = {
+					save_scope_as = owner
+
+					create_title_and_vassal_change = {
+						type = created
+						save_scope_as = title_change
+						add_claim_on_loss = no
+					}
+
+					# title:e_persia = { #LotR
+						change_title_holder = {
+							holder = scope:owner
+							change = scope:title_change
+						}
+					# 	save_scope_as = title_e_persia
+					# }
+
+					resolve_title_and_vassal_change = scope:title_change
+
+					# set_primary_title_to = scope:title_e_persia #LotR
+
+				}
+
+				end_story = yes
+			}
+		}
+	}
+
+}
