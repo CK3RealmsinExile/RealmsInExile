@@ -19,11 +19,14 @@ on_war_transferred = {
 
 on_join_war_as_secondary = {
 	effect = {
+		save_scope_as = war_joiner
 		scope:war = {
 			if = {
 				limit = {
 					is_attacker = root
 				}
+				primary_attacker = { save_scope_as = war_joiner_ally }
+				primary_defender = { save_scope_as = war_joiner_enemy }
 				root = {
 					create_character_memory = {
 						type = joined_allys_war
@@ -46,6 +49,8 @@ on_join_war_as_secondary = {
 				}
 			}
 			else = {
+				primary_defender = { save_scope_as = war_joiner_ally }
+				primary_attacker = { save_scope_as = war_joiner_enemy }
 				root = {
 					create_character_memory = {
 						type = joined_allys_war
@@ -98,6 +103,99 @@ on_join_war_as_secondary = {
 				}
 				# If they're in an activity, let them decide whether or not to cancel 
 				activity_on_war_declared_events_effect  = yes
+				# BP2: Joining war and have an enemy's hostage
+				if = {
+					limit = { # Let attacker's go first
+						NOT = {
+							any_warden_hostage = { home_court ?= scope:war_joiner }
+						}
+					}
+					trigger_event = { id = bp2_hostage_system.0120 days = 6 }
+				}
+			}
+			# BP2: Have a hostage of a newly joined enemy
+			every_war_participant = {
+				limit = { is_at_war_with = scope:war_joiner }
+				# Have a hostage of a newly joined enemy
+				trigger_event = { id = bp2_hostage_system.0130 days = 6 }
+			}
+			# Enroute hostage invalidation
+			scope:war_joiner = {
+				if = {
+					limit = {
+						any_close_family_member = {
+							is_travelling = yes
+							var:hostage_travelling_to_warden ?= { is_at_war_with = scope:war_joiner }
+						}
+					}
+					every_close_family_member = {
+						limit = {
+							is_travelling = yes
+							var:hostage_travelling_to_warden ?= { is_at_war_with = scope:war_joiner }
+						}
+						save_scope_as = invalidated_hostage
+						scope:war_joiner = {
+							send_interface_toast = {
+								title = hostage_invalidated_during_travel_title
+								left_icon = scope:invalidated_hostage
+								right_icon = scope:invalidated_hostage.var:hostage_travelling_to_warden
+								show_as_tooltip = {
+									scope:invalidated_hostage.current_travel_plan = { cancel_travel_plan = yes }
+								}
+							}
+						}
+						scope:invalidated_hostage.var:hostage_travelling_to_warden = {
+							send_interface_toast = {
+								title = hostage_invalidated_during_travel_title
+								left_icon = scope:invalidated_hostage
+								right_icon = scope:war_joiner
+								scope:invalidated_hostage = {
+									current_travel_plan = { cancel_travel_plan = yes }
+									remove_variable = hostage_travelling_to_warden
+								}
+							}
+						}
+					}
+				}
+			}
+			every_war_participant = {
+				save_scope_as = participant
+				if = {
+					limit = {
+						any_close_family_member = {
+							is_travelling = yes
+							var:hostage_travelling_to_warden ?= { is_at_war_with = scope:participant }
+						}
+					}
+					every_close_family_member = {
+						limit = {
+							is_travelling = yes
+							var:hostage_travelling_to_warden ?= { is_at_war_with = scope:participant }
+						}
+						save_scope_as = invalidated_hostage
+						scope:participant = {
+							send_interface_toast = {
+								title = hostage_invalidated_during_travel_title
+								left_icon = scope:invalidated_hostage
+								right_icon = scope:invalidated_hostage.var:hostage_travelling_to_warden
+								show_as_tooltip = {
+									scope:invalidated_hostage.current_travel_plan = { cancel_travel_plan = yes }
+								}
+							}
+						}
+						scope:invalidated_hostage.var:hostage_travelling_to_warden = {
+							send_interface_toast = {
+								title = hostage_invalidated_during_travel_title
+								left_icon = scope:invalidated_hostage
+								right_icon = scope:participant
+								scope:invalidated_hostage = {
+									current_travel_plan = { cancel_travel_plan = yes }
+									remove_variable = hostage_travelling_to_warden
+								}
+							}
+						}
+					}
+				}
 			}
 		}
 	}
@@ -156,6 +254,235 @@ on_war_started = {
 				set_global_variable = {
 					name = player_declared_war
 					value = yes
+				}
+			}
+			# BP2 Attacker has defender's hostage
+			if = {	
+				limit = {
+					any_warden_hostage = { home_court ?= scope:defender }
+					# Let defenders go first
+					NOT = {
+						scope:defender = {
+							any_warden_hostage = { home_court ?= scope:attacker }
+						}
+					}
+				}
+				trigger_event = { id = bp2_hostage_system.0100 days = 3 }
+			}
+			# Enroute hostage invalidation
+			if = {
+				limit = {
+					any_close_family_member = {
+						is_travelling = yes
+						var:hostage_travelling_to_warden ?= { is_at_war_with = scope:attacker }
+					}
+				}
+				every_close_family_member = {
+					limit = {
+						is_travelling = yes
+						var:hostage_travelling_to_warden ?= { is_at_war_with = scope:attacker }
+					}
+					save_scope_as = invalidated_hostage
+					scope:attacker = {
+						send_interface_toast = {
+							title = hostage_invalidated_during_travel_title
+							left_icon = scope:invalidated_hostage
+							right_icon = scope:invalidated_hostage.var:hostage_travelling_to_warden
+							show_as_tooltip = {
+								scope:invalidated_hostage.current_travel_plan = { cancel_travel_plan = yes }
+							}
+						}
+					}
+					scope:invalidated_hostage.var:hostage_travelling_to_warden = {
+						send_interface_toast = {
+							title = hostage_invalidated_during_travel_title
+							left_icon = scope:invalidated_hostage
+							right_icon = scope:attacker
+							scope:invalidated_hostage = {
+								current_travel_plan = { cancel_travel_plan = yes }
+								remove_variable = hostage_travelling_to_warden
+							}
+						}
+					}
+				}
+			}
+			# Struggle Catalysts
+			## Log relative involvement for the war's end (since we may have title changes that mess us up otherwise).
+			### Involved.
+			if = {
+				limit = {
+					any_character_struggle = { involvement = involved }
+				}
+				random_character_struggle = {
+					involvement = involved
+					save_scope_as = struggle
+				}
+				scope:war = {
+					set_variable = {
+						name = struggle_involvement_attacker
+						value = flag:involved
+					}
+					set_variable = {
+						name = struggle_scope_attacker
+						value = scope:struggle
+					}
+					set_variable = {
+						name = struggle_attacker_tier
+						value = scope:attacker.highest_held_title_tier
+					}
+				}
+			}
+			### Interloper.
+			else_if = {
+				limit = {
+					any_character_struggle = { involvement = interloper }
+				}
+				random_character_struggle = {
+					involvement = interloper
+					save_scope_as = struggle
+				}
+				scope:war = {
+					set_variable = {
+						name = struggle_involvement_attacker
+						value = flag:interloper
+					}
+					set_variable = {
+						name = struggle_scope_attacker
+						value = scope:struggle
+					}
+					set_variable = {
+						name = struggle_attacker_tier
+						value = scope:attacker.highest_held_title_tier
+					}
+				}
+			}
+			## Unfair wars.
+			if = {
+				limit = {
+					has_trait = fp3_struggle_supporter
+					highest_held_title_tier > scope:defender.highest_held_title_tier
+					scope:war = {
+						NOT = { has_variable = used_for_struggle_catalyst_on_war_started }
+					}
+					any_character_struggle = {
+						involvement = involved
+						activate_struggle_catalyst_secondary_character_involvement_involved_trigger = {
+							CATALYST = catalyst_supporter_declare_unfair_war_within_the_region
+							CHAR = scope:defender
+						}
+					}
+				}
+				every_character_struggle = {
+					involvement = involved
+					limit = {
+						activate_struggle_catalyst_secondary_character_involvement_involved_trigger = {
+							CATALYST = catalyst_supporter_declare_unfair_war_within_the_region
+							CHAR = scope:defender
+						}
+					}
+					activate_struggle_catalyst = {
+						catalyst = catalyst_supporter_declare_unfair_war_within_the_region
+						character = scope:attacker
+					}
+					scope:war = { set_variable = used_for_struggle_catalyst_on_war_started }
+					log_debug_variable_for_persian_struggle_effect = { VAR = stabil_catalyst_supporter_declare_unfair_war_within_the_region }
+				}
+			}
+			## Fair wars.
+			else_if = {
+				limit = {
+					has_trait = fp3_struggle_supporter
+					highest_held_title_tier <= scope:defender.highest_held_title_tier
+					scope:war = {
+						NOT = { has_variable = used_for_struggle_catalyst_on_war_started }
+					}
+					any_character_struggle = {
+						involvement = involved
+						activate_struggle_catalyst_secondary_character_involvement_involved_trigger = {
+							CATALYST = catalyst_supporter_declare_fair_war_within_the_region
+							CHAR = scope:defender
+						}
+					}
+				}
+				every_character_struggle = {
+					involvement = involved
+					limit = {
+						activate_struggle_catalyst_secondary_character_involvement_involved_trigger = {
+							CATALYST = catalyst_supporter_declare_fair_war_within_the_region
+							CHAR = scope:defender
+						}
+					}
+					activate_struggle_catalyst = {
+						catalyst = catalyst_supporter_declare_fair_war_within_the_region
+						character = scope:attacker
+					}
+					scope:war = { set_variable = used_for_struggle_catalyst_on_war_started }
+					log_debug_variable_for_persian_struggle_effect = { VAR = stabil_catalyst_supporter_declare_fair_war_within_the_region }
+				}
+			}
+			# During the Persian Struggle, a detractor wins any war in the region.
+			## Unfair wars.
+			else_if = {
+				limit = {
+					has_trait = fp3_struggle_detractor
+					highest_held_title_tier > scope:defender.highest_held_title_tier
+					scope:war = {
+						NOT = { has_variable = used_for_struggle_catalyst_on_war_started }
+					}
+					any_character_struggle = {
+						involvement = involved
+						activate_struggle_catalyst_secondary_character_involvement_involved_trigger = {
+							CATALYST = catalyst_detractor_declare_unfair_war_within_the_region
+							CHAR = scope:defender
+						}
+					}
+				}
+				every_character_struggle = {
+					involvement = involved
+					limit = {
+						activate_struggle_catalyst_secondary_character_involvement_involved_trigger = {
+							CATALYST = catalyst_detractor_declare_unfair_war_within_the_region
+							CHAR = scope:defender
+						}
+					}
+					activate_struggle_catalyst = {
+						catalyst = catalyst_detractor_declare_unfair_war_within_the_region
+						character = scope:attacker
+					}
+					scope:war = { set_variable = used_for_struggle_catalyst_on_war_started }
+					log_debug_variable_for_persian_struggle_effect = { VAR = unrest_catalyst_detractor_declare_unfair_war_within_the_region }
+				}
+			}
+			## Fair wars.
+			else_if = {
+				limit = {
+					has_trait = fp3_struggle_detractor
+					highest_held_title_tier <= scope:defender.highest_held_title_tier
+					scope:war = {
+						NOT = { has_variable = used_for_struggle_catalyst_on_war_started }
+					}
+					any_character_struggle = {
+						involvement = involved
+						activate_struggle_catalyst_secondary_character_involvement_involved_trigger = {
+							CATALYST = catalyst_detractor_declare_fair_war_within_the_region
+							CHAR = scope:defender
+						}
+					}
+				}
+				every_character_struggle = {
+					involvement = involved
+					limit = {
+						activate_struggle_catalyst_secondary_character_involvement_involved_trigger = {
+							CATALYST = catalyst_detractor_declare_fair_war_within_the_region
+							CHAR = scope:defender
+						}
+					}
+					activate_struggle_catalyst = {
+						catalyst = catalyst_detractor_declare_fair_war_within_the_region
+						character = scope:attacker
+					}
+					scope:war = { set_variable = used_for_struggle_catalyst_on_war_started }
+					log_debug_variable_for_persian_struggle_effect = { VAR = unrest_catalyst_detractor_declare_fair_war_within_the_region }
 				}
 			}
 		}
@@ -225,6 +552,178 @@ on_war_started = {
 			}
 			# If they're in an activity, let them decide whether or not to cancel 
 			activity_on_war_declared_events_effect  = yes
+			# BP2 Defender has attacker's hostage
+			if = {
+				limit = {
+					any_warden_hostage = { home_court ?= scope:attacker }
+				}
+				trigger_event = { id = bp2_hostage_system.0110 days = 3 }
+			}
+			# Enroute hostage invalidation
+			if = {
+				limit = {
+					any_close_family_member = {
+						is_travelling = yes
+						var:hostage_travelling_to_warden ?= { is_at_war_with = scope:defender }
+					}
+				}
+				every_close_family_member = {
+					limit = {
+						is_travelling = yes
+						var:hostage_travelling_to_warden ?= { is_at_war_with = scope:defender }
+					}
+					save_scope_as = invalidated_hostage
+					scope:defender = {
+						send_interface_toast = {
+							title = hostage_invalidated_during_travel_title
+							left_icon = scope:invalidated_hostage
+							right_icon = scope:invalidated_hostage.var:hostage_travelling_to_warden
+							show_as_tooltip = {
+								scope:invalidated_hostage.current_travel_plan = { cancel_travel_plan = yes }
+							}
+						}
+					}
+					scope:invalidated_hostage.var:hostage_travelling_to_warden = {
+						send_interface_toast = {
+							title = hostage_invalidated_during_travel_title
+							left_icon = scope:invalidated_hostage
+							right_icon = scope:defender
+							scope:invalidated_hostage = {
+								current_travel_plan = { cancel_travel_plan = yes }
+								remove_variable = hostage_travelling_to_warden
+							}
+						}
+					}
+				}
+			}
+			# BP2 Hostage War Aid request event
+			if = { # Exclude the following CBs
+				limit = {
+					scope:war = {
+						NOR = {
+							using_cb = peasant_war
+							using_cb = populist_war
+							using_cb = undirected_great_holy_war
+							using_cb = directed_great_holy_war
+						}
+					}
+					scope:attacker = {
+						is_ai = yes
+					}
+					scope:defender = {
+						has_bp2_dlc_trigger = yes
+					}
+				}
+				if = {
+					limit = {
+						is_hostage_warden = yes
+						# Check if the defender has any hostages whose home court is not the attacker and is not allied to the attacker
+						any_warden_hostage = {
+							opinion = {
+								target = scope:defender
+								value > 0
+							}
+							age > 9
+							is_imprisoned = no
+							is_incapable = no
+							exists = home_court
+							home_court = {
+								age > 4
+								is_ai = yes
+								is_imprisoned = no
+							}
+							NOR = {
+								home_court = scope:attacker
+								home_court = {
+									is_allied_to = scope:attacker
+									is_allied_to = scope:defender
+									is_at_war_with = scope:defender
+								}
+							}
+						}
+					}
+					random_warden_hostage = {
+						limit = {
+							opinion = {
+								target = scope:defender
+								value > 0
+							}
+							age > 9
+							is_imprisoned = no
+							is_incapable = no
+							exists = home_court
+							home_court = {
+								age > 4
+								is_ai = yes
+								is_imprisoned = no
+							}
+							NOR = {
+								home_court ?= scope:attacker
+								home_court ?= {
+									is_allied_to = scope:attacker
+									is_allied_to = scope:defender
+									is_at_war_with = scope:defender
+								}
+							}
+						}
+						save_scope_as = hostage
+						scope:hostage.home_court = {
+							save_scope_as = home_court
+						}
+					}
+					trigger_event = { id = bp2_yearly.6200 days = { 5 10 } }
+				}
+			}
+			# Struggle Catalysts
+			## Log relative involvement for the war's end (since we may have title changes that mess us up otherwise).
+			### Involved.
+			if = {
+				limit = {
+					any_character_struggle = { involvement = involved }
+				}
+				random_character_struggle = {
+					involvement = involved
+					save_scope_as = struggle
+				}
+				scope:war = {
+					set_variable = {
+						name = struggle_involvement_defender
+						value = flag:involved
+					}
+					set_variable = {
+						name = struggle_scope_defender
+						value = scope:struggle
+					}
+					set_variable = {
+						name = struggle_defender_tier
+						value = scope:defender.highest_held_title_tier
+					}
+				}
+			}
+			### Interloper.
+			else_if = {
+				limit = {
+					any_character_struggle = { involvement = interloper }
+				}
+				random_character_struggle = {
+					involvement = interloper
+					save_scope_as = struggle
+				}
+				scope:war = {
+					set_variable = {
+						name = struggle_involvement_defender
+						value = flag:interloper
+					}
+					set_variable = {
+						name = struggle_scope_defender
+						value = scope:struggle
+					}
+					set_variable = {
+						name = struggle_defender_tier
+						value = scope:defender.highest_held_title_tier
+					}
+				}
+			}
 		}
 	}
 }
@@ -233,7 +732,7 @@ on_war_started = {
 # same scopes are available in these events as in the CBs themselves, this just fires for all CBs instead of a specific CB.
 # note that any events/effects fired here WILL NOT show up in the war summary tooltip; they fire at the same time as the war resolution, but are not actually part of the war resolution itself.
 
-on_war_won_attacker = {
+on_war_won_attacker = { # As in, won BY attacker. Only one of the two on_actions runs when a war ends.
 	# The war notifications are handled in `effect` instead of `events` due to order of operations.
 	# `effect` fires on THIS tick, `events` fires on the NEXT tick, and the war gets destroyed between this tick and the next.
 	effect = {
@@ -289,9 +788,38 @@ on_war_won_attacker = {
 		}
 
 		# Struggle Catalysts
-		scope:attacker = {
+		## Special war checks for the caliph.		
+		scope:defender = {
 			if = {
 				limit = {
+					fp3_struggle_scoped_is_the_arabian_caliph_trigger = yes
+					scope:war = {
+						NOT = { has_variable = used_for_struggle_catalyst_on_war_ended }
+						using_civil_war_cb_trigger = yes
+					}
+				}
+				# Direct scope because this is caliph-specific.
+				struggle:persian_struggle = {
+					if = {
+						limit = { phase_has_catalyst = catalyst_caliph_or_emperor_loses_revolt_war }
+						activate_struggle_catalyst = {
+							catalyst = catalyst_caliph_or_emperor_loses_revolt_war
+							character = scope:defender
+						}
+						scope:war = { set_variable = used_for_struggle_catalyst_on_war_ended }
+						log_debug_variable_for_persian_struggle_effect = { VAR = concession_catalyst_caliph_or_emperor_loses_revolt_war }
+					}
+				}
+			}
+		}
+		## (Mostly) general checks.
+		scope:attacker = {
+			# Win any war in the struggle region.
+			if = {
+				limit = {
+					scope:war = {
+						NOT = { has_variable = used_for_struggle_catalyst_on_war_ended }
+					}
 					any_character_struggle = {
 						involvement = involved
 						activate_struggle_catalyst_secondary_character_involvement_involved_trigger = {
@@ -311,10 +839,15 @@ on_war_won_attacker = {
 						catalyst = catalyst_win_any_war_within_the_region
 						character = scope:attacker
 					}
+					scope:war = { set_variable = used_for_struggle_catalyst_on_war_ended }
 				}
 			}
+			# During the Persian Struggle, a supporter wins any war in the region.
+			fp3_struggle_apply_supporter_detractor_war_won_catalysts_effect = yes
 		}
 		
+		
+		# Memories
 		scope:attacker = {
 			create_character_memory = {
 				type = war_won
@@ -330,7 +863,6 @@ on_war_won_attacker = {
 				OTHER = defender
 			}
 		}
-		
 		scope:defender = {
 			create_character_memory = {
 				type = war_lost
@@ -401,6 +933,34 @@ on_war_won_defender = {
 			}
 		}
 		
+		# Struggle Catalysts
+		## Special war checks for the caliph.
+		scope:attacker = {
+			if = {
+				limit = {
+					fp3_struggle_scoped_is_the_arabian_caliph_trigger = yes
+					scope:war = {
+						NOT = { has_variable = used_for_struggle_catalyst_on_war_ended }
+						using_civil_war_cb_trigger = yes
+					}
+				}
+				# Direct scope because this is caliph-specific.
+				struggle:persian_struggle = {
+					if = {
+						limit = { phase_has_catalyst = catalyst_caliph_or_emperor_loses_revolt_war }
+						activate_struggle_catalyst = {
+							catalyst = catalyst_caliph_or_emperor_loses_revolt_war
+							character = scope:attacker
+						}
+						scope:war = { set_variable = used_for_struggle_catalyst_on_war_ended }
+						log_debug_variable_for_persian_struggle_effect = { VAR = concession_catalyst_caliph_or_emperor_loses_revolt_war }
+					}
+				}
+			}
+		}
+		## During the Persian Struggle, a supporter wins any war in the region.
+		scope:attacker = { fp3_struggle_apply_supporter_detractor_war_won_catalysts_effect = yes }
+		
 		scope:attacker = {
 			create_character_memory = {
 				type = war_lost
@@ -409,6 +969,7 @@ on_war_won_defender = {
 					loser = scope:attacker
 				}
 			}
+
 			set_war_over_memory_casus_belli_effect = {
 				STANCE = offensive
 				OUTCOME = lost
@@ -448,6 +1009,45 @@ on_war_white_peace = {
 				}
 			}
 			fp2_contract_assistance_war_pay_effect = yes # Pay out Contract Assistance money
+
+			# FP3 Struggle
+			if = {
+				limit = {
+					scope:war = {
+						NOT = { has_variable = used_for_struggle_catalyst_on_war_ended }
+					}
+					fp3_struggle_involves_one_supporter_and_one_detractor = {
+						FIRST = scope:attacker
+						SECOND = scope:defender
+					}
+					scope:attacker = {
+						any_character_struggle = {
+							involvement = involved
+							activate_struggle_catalyst_secondary_character_involvement_involved_trigger = {
+								CATALYST = catalyst_war_ends_in_white_peace_between_supporter_detractor
+								CHAR = scope:defender
+							}
+						}
+					}
+				}
+				scope:attacker = {
+					every_character_struggle = {
+						involvement = involved
+						limit = {
+							activate_struggle_catalyst_secondary_character_involvement_involved_trigger = {
+								CATALYST = catalyst_war_ends_in_white_peace_between_supporter_detractor
+								CHAR = scope:defender
+							}
+						}
+						activate_struggle_catalyst = {
+							catalyst = catalyst_war_ends_in_white_peace_between_supporter_detractor
+							character = scope:attacker
+						}
+						scope:war = { set_variable = used_for_struggle_catalyst_on_war_ended }
+						log_debug_variable_for_persian_struggle_effect = { VAR = concession_catalyst_war_ends_in_white_peace_between_supporter_detractor }
+					}
+				}
+			}
 		}
 		scope:attacker = {
 			create_character_memory = {

@@ -138,6 +138,9 @@ travel_danger_events.6000 = { #Animal attack
 				}
 			}
 		}
+		current_travel_plan = {
+			any_entourage_character = { count >= 1 }
+		}
 	}
 	cooldown = { months = 1 }
 
@@ -173,6 +176,7 @@ travel_danger_events.6000 = { #Animal attack
 			#Save travel leader
 			if = {
 				limit = {
+					exists = travel_leader
 					NOT = { travel_leader ?= scope:beast_victim }
 				}
 				travel_leader ?= { save_scope_as = travel_leader }
@@ -440,6 +444,14 @@ travel_danger_events.6010 = { #Siege
 			NOT = {
 				any_army_in_location = { army_owner = root }
 			}
+			any_army_in_location = {
+				OR = {
+					is_army_in_siege = yes
+					is_army_in_raid = yes
+				}
+				exists = army_commander
+				save_temporary_scope_as = battle_army_1_temp
+			}
 		}
 	}
 	
@@ -457,6 +469,7 @@ travel_danger_events.6010 = { #Siege
 						is_army_in_siege = yes
 						is_army_in_raid = yes
 					}
+					exists = army_commander
 				}
 				order_by = army_size
 				save_scope_as = siege_army
@@ -711,11 +724,15 @@ travel_danger_events.6010 = { #Siege
 					}
 				}
 				else = { remove_short_term_gold = minor_gold_value }
+				current_travel_plan = {
+					if = {
+						limit = {
+							any_entourage_character = { is_adult = yes }
+						}
 				random = {
 					chance = 50
 					custom_tooltip = travel_danger_events.6010.c.wound
 					hidden_effect = {
-						current_travel_plan = {
 							random_entourage_character = {
 								limit = { is_adult = yes }
 								weight = {
@@ -732,7 +749,7 @@ travel_danger_events.6010 = { #Siege
 								}
 								save_scope_as = woundee
 							}
-						}
+								root = {
 						send_interface_toast = {
 							title = travel_danger_events.6010.c.wound
 							left_icon = scope:woundee
@@ -741,6 +758,9 @@ travel_danger_events.6010 = { #Siege
 							}
 						}
 					}
+				}
+			}
+		}
 				}
 			}
 		}
@@ -897,10 +917,21 @@ travel_danger_events.6011 = { #Battal
 			NOT = {
 				any_army_in_location = { army_owner = root }
 			}
-			# Removes an occasional hoard of run-time errors.
 			any_army_in_location = { 
-				count >= 2
+				is_army_in_combat = yes
 				exists = army_commander
+				save_temporary_scope_as = battle_army_1_temp
+			}
+			any_army_in_location = {
+				NOT = { this = scope:battle_army_1_temp }
+				is_army_in_combat = yes
+				exists = army_commander
+				army_owner ?= {
+					OR = {
+						is_at_war_with = scope:battle_army_1_temp.army_owner
+						any_hostile_raider = { this = scope:battle_army_1_temp.army_owner }
+					}
+				}
 			}
 		}
 	}
@@ -1411,6 +1442,10 @@ travel_danger_events.6012 = { #Army
 					type = battle
 				}
 			}
+			any_army_in_location = {
+				exists = army_owner
+				exists = army_commander
+			}
 			NOT = {
 				any_army_in_location = { army_owner = root }
 			}
@@ -1654,6 +1689,14 @@ travel_danger_events.6012 = { #Army
 					}
 				}
 				else = { remove_short_term_gold = minor_gold_value }
+				if = {
+					limit = {
+						current_travel_plan = { 
+							any_entourage_character = {
+								is_adult = yes
+							}
+						}
+					}
 				random = {
 					chance = 50
 					custom_tooltip = travel_danger_events.6010.c.wound
@@ -1686,6 +1729,7 @@ travel_danger_events.6012 = { #Army
 					}
 				}
 			}
+		}
 		}
 		stress_impact = {
 			craven = medium_stress_impact_gain
@@ -1807,6 +1851,7 @@ travel_danger_events.6013 = { #Occupation
 		is_location_valid_for_travel_event_on_land = yes
 		location = {
 			exists = province_owner
+			province_owner != barony.barony_controller
 			travel_danger_type = {
 				travel_plan = root.current_travel_plan
 				type = occupation
@@ -3042,6 +3087,11 @@ travel_danger_events.6040 = { #Disease
 		current_travel_plan.days_travelled >= 15
 		is_adult = yes
 		is_healthy = yes
+		NOR = {
+			has_trait = ill
+			has_trait = leper
+			has_trait = cancer
+		}
 		location = {
 			exists = province_owner
 			OR = {
@@ -3068,13 +3118,7 @@ travel_danger_events.6040 = { #Disease
 			next_destination_province = { save_scope_as = destination }
 		}
 		if = { #add a physician if you have one 
-			limit = { 
-				any_court_position_holder = {
-					type = court_physician_court_position
-					is_physically_able_ai_adult = yes
-					is_travel_entourage_character = yes
-				}
-			}
+			limit = { court_physician_available_trigger = yes }
 			save_court_physician_as_effect = { SCOPE_NAME = physician }
 		}
 		hidden_effect = {
@@ -3140,7 +3184,12 @@ travel_danger_events.6040 = { #Disease
 
 	option = { #Treatment
 		name = travel_danger_events.6040.b
-		trigger = { exists = scope:physician }
+		trigger = {
+			custom_tooltip = {
+				text = court_physician_not_employed_or_away_tt
+				court_physician_available_trigger = yes
+			}
+		}
 		show_as_unavailable = { always = yes }
 		safe_disease_treatment_effect = { PATIENT = root TREATMENT_PICKER = root }
 		ai_chance = {
@@ -3150,6 +3199,7 @@ travel_danger_events.6040 = { #Disease
 
 	option = { #Press on
 		name = travel_danger_events.6040.c
+		trigger = { court_physician_available_trigger = no }
 		ai_chance = {
 			base = 25
 			ai_value_modifier = {
