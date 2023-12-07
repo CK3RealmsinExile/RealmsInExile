@@ -4,6 +4,10 @@
 #			dwarven.0100		Erebor Starting Event
 #			dwarven.0200		Balin Starting Event
 #			dwarven.0300		Nordinbad Starting Event
+
+#			dwarven.5000-5099	Dwarven Reincarnation Events
+
+#			dwarven.9000-9002	Dwarven Shaving Events
 #			dwarven.9000		I shave someone
 #			dwarven.9001		I am shaved
 #			dwarven.9002		Bearded again !
@@ -73,6 +77,287 @@ dwarven.0300 = { # Introduction to Gorin of Nordinbad
 		name = dwarven.0300.a
 	}
 }
+
+####################################################
+###  Dwarven Fathers Reincarnation System by Juke ##
+####################################################
+
+dwarven.5000 = { # Game Start Reincarnation System Setup Event
+	hidden = yes
+	scope = none
+	
+	immediate = {
+		### Save the clans to a list and set up scopes
+		dynasty:dynasty_durin	= { # Durin - Longbeards
+			add_to_list = dorfdad_dynasties
+			set_variable = { name = dorfdad value = character:lineofdurin1 }
+		}
+		dynasty:dynasty_uri		= { # Uri - Firebeards
+			add_to_list = dorfdad_dynasties
+			set_variable = { name = dorfdad value = character:lineofuri0 }
+		}
+		dynasty:dynasty_dwalin	= { # Dwalin - Broadbeams
+			add_to_list = dorfdad_dynasties
+			set_variable = { name = dorfdad value = character:lineofdwalin0 }
+		}
+		dynasty:dynasty_thrar	= { # Thrar - Blacklocks
+			add_to_list = dorfdad_dynasties
+			set_variable = { name = dorfdad value = character:lineofthrar0 }
+		}
+		dynasty:dynasty_sindri	= { # Sindri - Ironfists
+			add_to_list = dorfdad_dynasties
+			set_variable = { name = dorfdad value = character:lineofsindri0 }
+		}
+		dynasty:dynasty_thulin	= { # Thulin - Stiffbeards
+			add_to_list = dorfdad_dynasties
+			set_variable = { name = dorfdad value = character:lineofthulin0 }
+		}
+		dynasty:dynasty_bavor	= { # Bavor - Stonefoots
+			add_to_list = dorfdad_dynasties
+			set_variable = { name = dorfdad value = character:lineofbavor0 }
+		}
+		
+		### Set up Dynasty Variables
+		every_in_list = {
+			list = dorfdad_dynasties
+			if = { # Generation 4
+				limit = { current_year >= 3900 }
+				set_variable = {
+					name = dorfdad_incarnations
+					value = 4
+				}
+			}
+			if = { # Generation 5
+				limit = { current_year >= 4900 }
+				change_variable = {
+					name = dorfdad_incarnations
+					add = 1
+				}
+			}
+			if = { # Generation 6
+				limit = { current_year >= 5900 }
+				change_variable = {
+					name = dorfdad_incarnations
+					add = 1
+				}
+			}
+		}
+		
+		debug_log = "Dorfdad Reincarnation System set up!"
+	}
+}
+
+dwarven.5001 = { # On childbirth: Random chance to be a reincarnation
+	type = character_event
+	hidden = yes
+
+	trigger = {
+		# Basic Stuff
+		NOT = { exists = scope:real_father }
+		is_female = no
+		is_lowborn = no
+		is_dwarf = yes
+		NOR = {
+			has_trait = sickly
+			root.father ?= { 
+				house = root.house
+				has_trait = disinherited
+			}
+		}
+		# Must be in royal dynasty
+		dynasty = {
+			is_in_list = dorfdad_dynasties
+			exists = var:dorfdad_incarnations
+			var:dorfdad_incarnations < 7
+		}
+		# Must have reincarnations left
+#		# Parent, grandparent or great grandparent must be my dynasty head
+#		any_ancestor = {
+#			house = root.house
+#			this = root.dynasty.dynast
+#		}
+#		# Parent, grandparent or great grandparent must be a king or higher
+#		any_ancestor = {
+#			is_alive = yes
+#			house = root.house
+#			is_landed = yes
+#			highest_held_title_tier >= tier_kingdom
+#		}
+#		# Should be oldest male child
+#		NOR = {
+#			any_sibling = {
+#				is_female = no
+#				NOT = { has_trait = bastard }
+#				age > root.age
+#			}
+#		}
+#		# Must be heir to a kingdom, or parent must be heir to a kingdom
+#		OR = {
+#			any_ancestor = {
+#				is_alive = yes
+#				is_landed = yes
+#				house = root.house
+#				highest_held_title_tier >= tier_kingdom
+#				player_heir = ROOT
+#			}
+#			any_parent = {
+#				is_alive = yes
+#				house = root.house
+#				any_ancestor = {
+#					is_alive = yes
+#					is_landed = yes
+#					house = root.house
+#					highest_held_title_tier >= tier_kingdom
+#					player_heir = this
+#				}
+#			}
+#		}
+		# Last Incarnation cant be alive or close family member
+		NOT = {
+			dynasty = {
+				any_dynasty_member = {
+					is_alive = yes
+					has_trait = dwarf_father
+				}
+			}
+		}
+		#dynasty.var:dorfdad_latest ?= {
+		#	even_if_dead = yes
+		#	is_alive = no
+		#	NOT = { is_close_family_of = root }
+		#}
+		# No other unconfirmed reincarnations exist
+		NOT = { dynasty.var:current_reincarnation ?= { is_alive = yes } }
+	}
+	
+	immediate = {
+		debug_log = "Testing for dorfdad reincarnation!"
+		random = {
+			chance = 10000
+			modifier = {
+				any_parent = {
+					is_ai = no
+				}
+				factor = 100
+			}
+			create_possible_dorfdad_effect = yes
+			debug_log = "Found a possible Dorfdad Reincarnation!"
+		}
+	}
+}
+
+dwarven.5100 = { # Upon turning 16: Reincarnate realized who they are, is confirmed and renamed
+	content_source = realms
+	type = character_event
+	title = dwarven.5100.t
+	desc = dwarven.5100.desc
+	theme = stewardship_duty_focus
+	override_background = {
+		reference = throne_room_dwarf
+	}
+	
+	left_portrait = {
+		character = root
+		animation = personality_honorable
+	}
+	right_portrait = {
+		character ?= scope:my_dorfdad
+	}
+	
+	trigger = {
+		has_character_flag = is_a_dorfdad
+		dynasty = { var:current_reincarnation ?= root }
+		## He or his family must hold a kingdom
+		OR = {
+			is_landed = yes
+			highest_held_title_tier >= tier_kingdom
+			any_ancestor = {
+				is_alive = yes
+				is_landed = yes
+				house = root.house
+				highest_held_title_tier >= tier_kingdom
+				player_heir ?= ROOT
+			}
+			any_parent = {
+				is_alive = yes
+				house = root.house
+				any_ancestor = {
+					is_alive = yes
+					is_landed = yes
+					house = root.house
+					highest_held_title_tier >= tier_kingdom
+					player_heir ?= this
+				}
+			}
+		}
+	}
+	
+	immediate = {
+		become_dorfdad_effect = yes
+		dynasty = {
+			every_dynasty_member = {
+				limit = {
+					is_ai = no
+					NOT = { this = root }
+				}
+				trigger_event = dwarven.5101 # Close family news
+			}
+		}
+		debug_log = "Confirmed a new Dorfdad Reincarnation!"
+	}
+	option = {
+		name = dwarven.5100.a
+	}
+}
+
+dwarven.5101 = { # News reach close family
+	content_source = realms
+	type = character_event
+	title = dwarven.5101.t
+	desc = dwarven.5101.desc
+	theme = stewardship_duty_focus
+	override_background = {
+		reference = throne_room_dwarf
+	}
+	
+	trigger = {
+		is_dwarf = yes
+	}
+	
+	left_portrait = {
+		character = root
+		animation = shock
+	}
+	
+	lower_center_portrait = {
+		character ?= scope:my_dorfdad
+	}
+	
+	right_portrait = {
+		character = scope:new_dorfdad
+		animation = personality_honorable
+	}
+	
+	
+	option = {
+		#name = {
+		#	first_valid = {
+		#		triggered_desc = {
+		#			trigger = { scope:new_dorfdad = { is_close_or_extended_family_of = root } }
+					name = dwarven.5101.a
+		#		}
+		#		text = dwarven.5101.b
+		#	}
+		#}
+		show_as_tooltip = {
+			scope:new_dorfdad ?= { become_dorfdad_effect = yes }
+		}
+	}
+}
+
+##############################
+### Dwarven Shaving Events ###
+##############################
 
 #I shave someone
 dwarven.9000 = { #by Brice Underhill
@@ -158,7 +443,7 @@ dwarven.9000 = { #by Brice Underhill
 }
 
 #I am shaved
-dwarven.9001 = { #by Mathilda Bjarnehed
+dwarven.9001 = { #by Brice Underhill
 	content_source = realms
 	type = character_event
 	title = dwarven.9000.t
