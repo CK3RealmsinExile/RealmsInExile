@@ -12,7 +12,8 @@ Code [[
 
 	// Max clouds alpha between the first zoom level where
 	// terrain overlays are filled and the first flat map zoom level.
-	static const float GH_FOW_CLOUDS_HIGH_ALPHA   = 0.6f;
+	// static const float GH_FOW_CLOUDS_HIGH_ALPHA   = 0.6f;
+	static const float GH_FOW_CLOUDS_HIGH_ALPHA   = 0.25f;
 
 	// Max clouds alpha on flat map.
 	static const float GH_FOW_CLOUDS_FLAT_MAP_ALPHA = 0.0f;
