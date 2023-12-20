@@ -12,7 +12,10 @@ TextureSampler SnowDiffuseMap
 	MipFilter = "Linear"
 	SampleModeU = "Wrap"
 	SampleModeV = "Wrap"
-	File = "gfx/map/terrain/snow_diffuse.dds"
+	# MOD(lotr)
+	#File = "gfx/map/terrain/snow_diffuse.dds"
+	File = "gfx/map/terrain/lotr_dynamic_snow_diffuse.dds"
+	# END MOD
     sRGB = yes
 }
 #endif
