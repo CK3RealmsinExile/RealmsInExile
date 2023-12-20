@@ -16,19 +16,21 @@ lotr_request_easterling_invasion_interaction = {
 		scope:actor = {
 			is_elf = no
 			is_dwarf = no
-			any_realm_county = { #Invasions available to Rhovanion, Rhûn, Greater Harad holders
+			highest_held_title_tier <= tier_kingdom #No sponsored invasions for empires
+			any_sub_realm_county = { #Invasions available to Rhovanion, Rhûn, Near Harad and Greater Bellakar holders
 				any_county_province = { 
 					OR = {
 						geographical_region = middleearth_west_rhovanion
 						geographical_region = middleearth_rhun
-						geographical_region = middleearth_haradwaith
+						geographical_region = adventure_nearharad
+						geographical_region = custom_bellakar
 					}
 				}
 			}
 		}
 		scope:recipient = {
 			is_landed = yes
-			any_realm_county = { #Invasions targets limited to Rhovanion, Rhûn, Greater Harad and neighbouring duchies
+			any_sub_realm_county = { #Invasions targets limited to Rhovanion, Rhûn, Near Harad, Greater Bellakar and neighbouring duchies
 				any_county_province = {
 					geographical_region = dlc_fp3_region_lotr_easterling_invasion_targets
 					NOR = {
@@ -48,18 +50,22 @@ lotr_request_easterling_invasion_interaction = {
 			limit = { NOT = { has_game_rule = unrestricted_diplomatic_range } }
 			OR = { #Checking that they are within reasonable distance of each other
 				scope:actor = {
-					any_realm_province = {
-						squared_distance = {
-							target = scope:recipient.capital_province
-							value < squared_distance_almost_massive # About 1.5 HREs in length, think about ~1 Khand from top to bottom
+					any_sub_realm_county = {
+						any_county_province = {
+							squared_distance = {
+								target = scope:recipient.capital_province
+								value < squared_distance_almost_massive # About 1.5 HREs in length, think about ~1 Khand from top to bottom
+							}
 						}
 					}
 				}
 				scope:recipient = {
-					any_realm_province = {
-						squared_distance = {
-							target = scope:actor.capital_province
-							value < squared_distance_almost_massive # About 1.5 HREs in length, think about ~1 Khand from top to bottom
+					any_sub_realm_county = {
+						any_county_province = {
+							squared_distance = {
+								target = scope:actor.capital_province
+								value < squared_distance_almost_massive # About 1.5 HREs in length, think about ~1 Khand from top to bottom
+							}
 						}
 					}
 				}
@@ -80,12 +86,15 @@ lotr_request_easterling_invasion_interaction = {
 					is_physically_able = yes
 					has_raised_armies = no
 					in_diplomatic_range = scope:actor
-					# OR = {
-						# government_has_flag = government_is_clan
-						# government_has_flag = government_is_tribal
-					# }
+					capital_province = { # So the invader is within reasonable distance of the target
+						squared_distance = {
+							target = scope:recipient.capital_province
+							value < squared_distance_almost_massive # About 1.5 HREs in length, think about ~1 Khand from top to bottom
+						}
+					}
+					government_has_flag = government_is_clan
 					lotr_steppe_cultures_trigger = yes #All Easterlings eligible
-					NOT = { opposite_alignment = { TARGET = prev } }
+					NOT = { opposite_alignment = { TARGET = scope:actor } }
 					highest_held_title_tier <= tier_kingdom
 					
 					NOR = {
@@ -95,6 +104,17 @@ lotr_request_easterling_invasion_interaction = {
 						has_truce = scope:recipient
 						this = scope:actor
 						this = scope:recipient
+					}
+					
+					NOT = { #Non-cynical Kerkasskian and Tumrakhi won't attack Sauron
+						AND = {
+							scope:recipient = { is_sauron = yes }
+							OR = {
+								faith = faith:faith_kerkassk
+								faith = faith:faith_khandish_sauronic
+							}
+							NOT = { has_trait = cynical }
+						}
 					}
 				}
 				add_to_list = characters
@@ -128,7 +148,7 @@ lotr_request_easterling_invasion_interaction = {
 		is_valid = {
 			custom_description = {
 				text = fp3_please_dont_give_me_negative_gold
-				fp3_request_invasion_troop_value_estimate > 0
+				request_easterling_invasion_troop_value_estimate > 0
 			}
 		}
 	}
@@ -137,22 +157,22 @@ lotr_request_easterling_invasion_interaction = {
 		gold = {
 			value = {
 				value = scope:secondary_recipient.max_military_strength
-				divide = 20
+				divide = 10
 				round = yes
 			}
 			add = {
 				if = {
 					limit = { scope:financial_support = yes }
-					add = fp3_request_invasion_troop_value_estimate
+					add = request_easterling_invasion_troop_value_estimate
 				}
 			}
-			if = { #Less expensive incursions against empires
+			if = { #More expensive incursions against empires
 				limit = {
 					scope:recipient = { 
 						highest_held_title_tier = tier_empire
 					}
 				}
-				divide = 2
+				divide = 0.5
 			}
 		}
 	}
@@ -286,7 +306,7 @@ lotr_request_easterling_invasion_interaction = {
 					add = {
 						if = {
 							limit = { scope:financial_support = yes }
-							add = fp3_request_invasion_troop_value_estimate
+							add = request_easterling_invasion_troop_value_estimate
 						}
 					}
 					if = { #Less expensive incursions against empires
