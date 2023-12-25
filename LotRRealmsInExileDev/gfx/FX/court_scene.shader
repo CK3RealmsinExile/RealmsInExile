@@ -2247,3 +2247,23 @@ Effect SKYX_sky_selection_mapobject
 	PixelShader = "PS_noop"
 }
 # END MOD
+
+# MOD(godherja)
+Effect standard_winter_mapobject
+{
+	VertexShader = "VS_standard"
+	PixelShader = "PS_noop"
+}
+
+Effect standard_winterShadow_mapobject
+{
+	VertexShader = "VS_standard"
+	PixelShader = "PS_noop"
+}
+
+Effect standard_winter_selection_mapobject
+{
+	VertexShader = "VS_standard"
+	PixelShader = "PS_noop"
+}
+# END MOD

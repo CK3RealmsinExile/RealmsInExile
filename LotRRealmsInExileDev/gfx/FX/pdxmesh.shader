@@ -1003,3 +1003,17 @@ Effect courtShadow
 	RasterizerState = ShadowRasterizerState
 }
 
+# MOD(godherja)
+Effect standard_winter_mapobject
+{
+	VertexShader = "VS_mapobject"
+	PixelShader = "PS_standard"
+	Defines = { "APPLY_WINTER" }
+}
+
+Effect standard_winterShadow_mapobject
+{
+	VertexShader = "VS_jomini_mapobject_shadow"
+	PixelShader = "PS_jomini_mapobject_shadow"
+}
+# END MOD
