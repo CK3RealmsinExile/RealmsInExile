@@ -1,0 +1,1352 @@
+﻿#################################
+### Success + Failure chances ###
+#################################
+ 
+base_success_chance = 64
+base_critical_success_chance = 14
+
+base_failure_chance = 14
+base_critical_failure_chance = 8
+
+critical_success_add = -1
+success_add = -4
+critical_failure_add = 4
+failure_add = 1
+
+perk_success_chance_increase = 5
+perk_crit_success_chance_increase = 3
+
+##################################
+### Smithing Lifestyle XP Gain ###
+##################################
+
+advanced_craft_xp_gain = 6
+normal_xp_gain = 4
+failed_craft_xp_gain = 2
+
+##################################
+### Artifact Wealth Value Gain ###
+##################################
+
+base_wealth_gain = 25
+ 
+########################################
+### Success chance to craft artifact ###
+########################################
+
+calc_success_chance = { # Calculate overall success chance (normal success + critical success)
+	value = 0
+	if = { # So that it displays zero percent chance, instead of going into negatives
+		limit = { total_success_chance < 0 }
+		add = 0
+	}
+	else = {
+		add = total_success_chance
+	}
+}
+
+total_chance = { # Adds all the scores together, used to convert chance to be out of 100%
+	value = 0
+
+	add = calc_edited_success_chance
+	add = calc_edited_critical_success_chance
+	add = calc_edited_failure_chance
+	add = calc_edited_critical_failure_chance
+}
+total_success_chance = { # The combined success chances, used in sGUI
+	value = 0
+
+	add = {
+		value = 0
+
+		if = { 
+			limit = { calc_edited_success_chance > 0 }
+			add = calc_edited_success_chance
+		}
+	}
+	add = {
+		value = 0
+
+		if = { 
+			limit = { calc_edited_critical_success_chance > 0 }
+			add = calc_edited_critical_success_chance
+		}
+	}
+}
+critical_failure_chance = { # Critical failure chance, used in sGUI
+	value = 0
+
+	add = {
+		value = 0
+
+		if = { 
+			limit = { calc_edited_success_chance > 0 }
+			add = calc_edited_success_chance
+		}
+	}
+	add = {
+		value = 0
+
+		if = { 
+			limit = { calc_edited_success_chance > 0 }
+			add = calc_edited_critical_success_chance
+		}
+	}
+	add = {
+		value = 0
+
+		if = { 
+			limit = { calc_edited_success_chance > 0 }
+			add = calc_edited_failure_chance
+		}
+	}
+}
+
+#########################################
+### Used to display percentges in GUI ###
+#########################################
+
+gui_success_chance = {
+	value = 0
+
+	if = { 
+		limit = { 
+			calc_edited_success_chance > 0 
+			calc_edited_success_chance <= 100
+		}
+		add = calc_edited_success_chance
+	}
+	if = { 
+		limit = {  
+			calc_edited_success_chance > 100
+		}
+		add = 100
+	}
+}
+gui_crit_success_chance = {
+	value = 0
+
+	if = { 
+		limit = { 
+			calc_edited_critical_success_chance > 0 
+			calc_edited_critical_success_chance <= 100
+		}
+		add = calc_edited_critical_success_chance
+	}
+	if = { 
+		limit = {  
+			calc_edited_critical_success_chance > 100
+		}
+		add = 100
+	}
+}
+gui_failure_chance = {
+	value = 0
+
+	if = { 
+		limit = { 
+			calc_edited_failure_chance > 0 
+			calc_edited_failure_chance <= 100
+		}
+		add = calc_edited_failure_chance
+	}
+	if = { 
+		limit = {  
+			calc_edited_failure_chance > 100
+		}
+		add = 100
+	}
+}
+gui_crit_failure_chance = {
+	value = 0
+
+	if = { 
+		limit = { 
+			calc_edited_critical_failure_chance > 0 
+			calc_edited_critical_failure_chance <= 100
+		}
+		add = calc_edited_critical_failure_chance
+	}
+	if = { 
+		limit = {  
+			calc_edited_critical_failure_chance > 100
+		}
+		add = 100
+	}
+}
+
+#####################################################
+### Below functions adds the additional weighting ###
+#####################################################
+
+calc_edited_success_chance = { # Calculate success chance based off of number of enchants
+	value = base_success_chance
+
+	add = perk_increased_success_chance 
+	# add = artifact_increased_success_chance
+
+	# Trait track XP success chance additions
+	if = { # Weaponsmithing
+		limit = { var:artifact_craft = flag:weapon_artifact }
+		add = weaponsmith_track_xp_success_chance
+	}
+	else_if = { # Armorsmithing
+		limit = {
+			OR = {
+				var:artifact_craft = flag:armor_artifact
+				var:artifact_craft = flag:helmet_artifact
+			}
+		}
+		add = armorsmith_track_xp_success_chance
+	}
+	else_if = { # Jewelsmithing
+		limit = {
+			OR = {
+				var:artifact_craft = flag:trinket_artifact
+				var:artifact_craft = flag:regalia_artifact
+			}
+		}
+		add = jewelsmith_track_xp_success_chance
+	}
+
+	if = { # When enchanting modifiers are added
+		limit = {
+			exists = var:num_enchants_used
+			crafting_lifestyle_material_potential_perk_trigger = yes
+		}
+		add = {
+			value = success_add
+			multiply = var:num_enchants_used 
+		}
+
+		if = {
+			limit = { has_perk = the_knack_perk }
+			if = {
+				limit = { var:num_enchants_used > 1 }
+				add = {
+					value = 1
+					multiply = var:num_enchants_used
+				}
+			}
+		}
+	}
+}
+calc_edited_critical_success_chance = { # Calculate critical success chance based off of number of enchants
+	value = base_critical_success_chance
+
+	add = perk_increased_crit_success_chance
+	add = artifact_increased_success_chance
+
+	if = { # When enchanting modifiers are added
+		limit = {
+			exists = var:num_enchants_used
+			crafting_lifestyle_material_potential_perk_trigger = yes
+		}
+		add = {
+			value = critical_success_add
+			multiply = var:num_enchants_used 
+		}
+
+		if = {
+			limit = { has_perk = the_knack_perk }
+			if = {
+				limit = { var:num_enchants_used > 2 }
+				add = {
+					value = 1
+					multiply = var:num_enchants_used
+				}
+			}
+		}
+	}
+}
+calc_edited_failure_chance = { # Calculate failure chance based off of number of enchants
+	value = base_failure_chance
+
+	subtract = perk_increased_success_chance
+
+	# Trait track XP success chance additions
+	if = { # Weaponsmithing
+		limit = { var:artifact_craft = flag:weapon_artifact }
+		subtract = weaponsmith_track_xp_success_chance
+	}
+	else_if = { # Armorsmithing
+		limit = {
+			OR = {
+				var:artifact_craft = flag:armor_artifact
+				var:artifact_craft = flag:helmet_artifact
+			}
+		}
+		subtract = armorsmith_track_xp_success_chance
+	}
+	else_if = { # Jewelsmithing
+		limit = {
+			OR = {
+				var:artifact_craft = flag:trinket_artifact
+				var:artifact_craft = flag:regalia_artifact
+			}
+		}
+		subtract = jewelsmith_track_xp_success_chance
+	}
+
+	if = { # When enchanting modifiers are added
+		limit = {
+			exists = var:num_enchants_used
+			crafting_lifestyle_material_potential_perk_trigger = yes
+		}
+		add = {
+			value = failure_add
+			multiply = var:num_enchants_used 
+		}
+
+		if = {
+			limit = { has_perk = the_knack_perk }
+			if = {
+				limit = { var:num_enchants_used > 2 }
+				subtract = {
+					value = 1
+					multiply = var:num_enchants_used
+				}
+			}
+		}
+	}
+
+	if = { # Decrease failure 
+		limit = { calc_edited_critical_success_chance <= 0 }
+		add = calc_edited_critical_success_chance
+	}
+	if = { # Decrease failure 
+		limit = { calc_edited_success_chance <= 0 }
+		add = calc_edited_success_chance
+	}
+}
+calc_edited_critical_failure_chance = { # Calculate critical failure chance based off of number of enchants
+	value = base_critical_failure_chance
+
+	subtract = perk_increased_crit_success_chance
+	subtract = artifact_increased_success_chance
+
+	if = { # When enchanting modifiers are added
+		limit = {
+			exists = var:num_enchants_used
+			crafting_lifestyle_material_potential_perk_trigger = yes
+		}
+		add = {
+			value = critical_failure_add
+			multiply = var:num_enchants_used 
+		}
+
+		if = {
+			limit = { has_perk = the_knack_perk }
+			if = {
+				limit = { var:num_enchants_used > 1 }
+				subtract = {
+					value = 1
+					multiply = var:num_enchants_used
+				}
+			}
+		}
+	}
+}
+
+#############################################
+### Extra success chances, based on perks ###
+#############################################
+
+perk_increased_success_chance = { # Adds 5% success chance
+	value = 0
+
+	if = { # Weapon/Regalia artifact
+		limit = { 
+			has_perk = weapons_of_war_perk
+			has_variable = artifact_craft
+			OR = {
+				var:artifact_craft = flag:weapon_artifact
+				var:artifact_craft = flag:regalia_artifact
+			}
+		}
+		add = perk_success_chance_increase
+	}
+	else_if = { # Helmet/Armour artifact
+		limit = { 
+			has_perk = protective_gear_perk
+			has_variable = artifact_craft
+			OR = {
+				var:artifact_craft = flag:armor_artifact
+				var:artifact_craft = flag:helmet_artifact
+			}
+		}	
+		add = perk_success_chance_increase
+	}
+	else = {
+		if = { # Trinket artifact
+			limit = {
+				has_variable = artifact_craft
+				has_perk = decoration_and_ornament_perk
+				var:artifact_craft = flag:trinket_artifact
+			}
+			add = perk_success_chance_increase
+		}
+	}
+}
+
+perk_increased_crit_success_chance = { # Adds an extra 3% crit success chance
+	value = 0
+
+	if = { # Weapon/Regalia artifact
+		limit = { 
+			has_perk = deadly_edge_perk
+			has_variable = artifact_craft
+			OR = {
+				var:artifact_craft = flag:weapon_artifact
+				var:artifact_craft = flag:regalia_artifact
+			}
+		}
+		add = perk_crit_success_chance_increase
+	}
+	else_if = { # Helmet/Armour artifact
+		limit = { 
+			has_perk = expert_protection_perk
+			has_variable = artifact_craft
+			OR = {
+				var:artifact_craft = flag:armor_artifact
+				var:artifact_craft = flag:helmet_artifact
+			}
+		}
+		add = perk_crit_success_chance_increase
+	}
+	else = {
+		if = { # Trinket artifact
+			limit = {
+				has_perk = symbols_of_power_perk
+				has_variable = artifact_craft
+				var:artifact_craft = flag:trinket_artifact
+			}
+			add = perk_crit_success_chance_increase
+		}
+	}
+}
+
+#################################################
+### Extra success chances, based on artifacts ###
+#################################################
+
+artifact_increased_success_chance = {
+	value = 0
+
+	if = {
+		limit = { ## Checking for crafting_tools artifact type
+			any_equipped_character_artifact = {
+				artifact_slot_type = miscellaneous
+				artifact_type = crafting_tools
+				save_temporary_scope_as = tool_artifact
+				count = 1
+			}
+		}
+		## Check what is the rarity of the crafting_tools
+		if = {# legendary_crafting_tool
+			limit = { any_equipped_character_artifact = { has_variable = legendary_crafting_tool } }
+			add = 5
+		}
+		else_if = {
+			limit = { scope:tool_artifact = { rarity = illustrious } }
+			add = 4
+		}
+		else_if = {
+			limit = { scope:tool_artifact = { rarity = famed } }
+			add = 3
+		}
+		else_if = {
+			limit = { scope:tool_artifact = { rarity = masterwork } }
+			add = 2
+		}
+		else = {
+			add = 1
+		}
+	}
+	if = {
+		limit = { ## Checking for crafting_tools artifact type
+			any_equipped_character_artifact = {
+				artifact_slot_type = miscellaneous
+				artifact_type = crafting_tools
+				save_temporary_scope_as = tool_artifact
+				count = 2
+			}
+		}
+		## Check what is the rarity of the crafting_tools
+		if = {# legendary_crafting_tool
+			limit = { any_equipped_character_artifact = { has_variable = legendary_crafting_tool } }
+			add = 5
+		}
+		else_if = {
+			limit = { scope:tool_artifact = { rarity = illustrious } }
+			add = 4
+		}
+		else_if = {
+			limit = { scope:tool_artifact = { rarity = famed } }
+			add = 3
+		}
+		else_if = {
+			limit = { scope:tool_artifact = { rarity = masterwork } }
+			add = 2
+		}
+		else = {
+			add = 1
+		}
+		## Check what is the rarity of the crafting_tools
+		if = {# legendary_crafting_tool
+			limit = { any_equipped_character_artifact = { has_variable = legendary_crafting_tool } }
+			add = 5
+		}
+		else_if = {
+			limit = { scope:tool_artifact = { rarity = illustrious } }
+			add = 4
+		}
+		else_if = {
+			limit = { scope:tool_artifact = { rarity = famed } }
+			add = 3
+		}
+		else_if = {
+			limit = { scope:tool_artifact = { rarity = masterwork } }
+			add = 2
+		}
+		else = {
+			add = 1
+		}
+	}
+	if = {
+		limit = { ## Checking for crafting_tools artifact type
+			any_equipped_character_artifact = {
+				artifact_slot_type = miscellaneous
+				artifact_type = crafting_tools
+				save_temporary_scope_as = tool_artifact
+				count = 3
+			}
+		}
+		## Check what is the rarity of the crafting_tools
+		if = {# legendary_crafting_tool
+			limit = { any_equipped_character_artifact = { has_variable = legendary_crafting_tool } }
+			add = 5
+		}
+		else_if = {
+			limit = { scope:tool_artifact = { rarity = illustrious } }
+			add = 4
+		}
+		else_if = {
+			limit = { scope:tool_artifact = { rarity = famed } }
+			add = 3
+		}
+		else_if = {
+			limit = { scope:tool_artifact = { rarity = masterwork } }
+			add = 2
+		}
+		else = {
+			add = 1
+		}
+		## Check what is the rarity of the crafting_tools
+		if = {# legendary_crafting_tool
+			limit = { any_equipped_character_artifact = { has_variable = legendary_crafting_tool } }
+			add = 5
+		}
+		else_if = {
+			limit = { scope:tool_artifact = { rarity = illustrious } }
+			add = 4
+		}
+		else_if = {
+			limit = { scope:tool_artifact = { rarity = famed } }
+			add = 3
+		}
+		else_if = {
+			limit = { scope:tool_artifact = { rarity = masterwork } }
+			add = 2
+		}
+		else = {
+			add = 1
+		}
+		## Check what is the rarity of the crafting_tools
+		if = {# legendary_crafting_tool
+			limit = { any_equipped_character_artifact = { has_variable = legendary_crafting_tool } }
+			add = 5
+		}
+		else_if = {
+			limit = { scope:tool_artifact = { rarity = illustrious } }
+			add = 4
+		}
+		else_if = {
+			limit = { scope:tool_artifact = { rarity = famed } }
+			add = 3
+		}
+		else_if = {
+			limit = { scope:tool_artifact = { rarity = masterwork } }
+			add = 2
+		}
+		else = {
+			add = 1
+		}
+	}
+	if = {
+		limit = { ## Checking for crafting_tools artifact type
+			any_equipped_character_artifact = {
+				artifact_slot_type = miscellaneous
+				artifact_type = crafting_tools
+				save_temporary_scope_as = tool_artifact
+				count = 4
+			}
+		}
+		## Check what is the rarity of the crafting_tools
+		if = {# legendary_crafting_tool
+			limit = { any_equipped_character_artifact = { has_variable = legendary_crafting_tool } }
+			add = 5
+		}
+		else_if = {
+			limit = { scope:tool_artifact = { rarity = illustrious } }
+			add = 4
+		}
+		else_if = {
+			limit = { scope:tool_artifact = { rarity = famed } }
+			add = 3
+		}
+		else_if = {
+			limit = { scope:tool_artifact = { rarity = masterwork } }
+			add = 2
+		}
+		else = {
+			add = 1
+		}
+		## Check what is the rarity of the crafting_tools
+		if = {# legendary_crafting_tool
+			limit = { any_equipped_character_artifact = { has_variable = legendary_crafting_tool } }
+			add = 5
+		}
+		else_if = {
+			limit = { scope:tool_artifact = { rarity = illustrious } }
+			add = 4
+		}
+		else_if = {
+			limit = { scope:tool_artifact = { rarity = famed } }
+			add = 3
+		}
+		else_if = {
+			limit = { scope:tool_artifact = { rarity = masterwork } }
+			add = 2
+		}
+		else = {
+			add = 1
+		}
+		## Check what is the rarity of the crafting_tools
+		if = {# legendary_crafting_tool
+			limit = { any_equipped_character_artifact = { has_variable = legendary_crafting_tool } }
+			add = 5
+		}
+		else_if = {
+			limit = { scope:tool_artifact = { rarity = illustrious } }
+			add = 4
+		}
+		else_if = {
+			limit = { scope:tool_artifact = { rarity = famed } }
+			add = 3
+		}
+		else_if = {
+			limit = { scope:tool_artifact = { rarity = masterwork } }
+			add = 2
+		}
+		else = {
+			add = 1
+		}
+		## Check what is the rarity of the crafting_tools
+		if = {# legendary_crafting_tool
+			limit = { any_equipped_character_artifact = { has_variable = legendary_crafting_tool } }
+			add = 5
+		}
+		else_if = {
+			limit = { scope:tool_artifact = { rarity = illustrious } }
+			add = 4
+		}
+		else_if = {
+			limit = { scope:tool_artifact = { rarity = famed } }
+			add = 3
+		}
+		else_if = {
+			limit = { scope:tool_artifact = { rarity = masterwork } }
+			add = 2
+		}
+		else = {
+			add = 1
+		}
+	}
+}
+
+######################################################
+### Extra success chances, based on triat track XP ###
+######################################################
+
+weaponsmith_track_xp_success_chance = {
+	value = 0
+
+	if = { # 10-19 XP
+		limit = {
+			has_trait_xp = {
+				trait = lifestyle_artifact_crafting
+				track = weapon_smith
+				value >= 10
+			}
+			has_trait_xp = {
+				trait = lifestyle_artifact_crafting
+				track = weapon_smith
+				value < 20
+			}
+		}
+		add = 1
+	}
+	else_if = { # 20-29 XP
+		limit = {
+			has_trait_xp = {
+				trait = lifestyle_artifact_crafting
+				track = weapon_smith
+				value >= 20
+			}
+			has_trait_xp = {
+				trait = lifestyle_artifact_crafting
+				track = weapon_smith
+				value < 30
+			}
+		}
+		add = 2
+	}
+	else_if = {
+		limit = { # 30-39 XP
+			has_trait_xp = {
+				trait = lifestyle_artifact_crafting
+				track = weapon_smith
+				value >= 30
+			}
+			has_trait_xp = {
+				trait = lifestyle_artifact_crafting
+				track = weapon_smith
+				value < 40
+			}
+		}
+		add = 3
+	}
+	else_if = { # 40-49 XP
+		limit = {
+			has_trait_xp = {
+				trait = lifestyle_artifact_crafting
+				track = weapon_smith
+				value >= 40
+			}
+			has_trait_xp = {
+				trait = lifestyle_artifact_crafting
+				track = weapon_smith
+				value < 50
+			}
+		}
+		add = 4
+	}
+	else_if = { # 50-59 XP
+		limit = {
+			has_trait_xp = {
+				trait = lifestyle_artifact_crafting
+				track = weapon_smith
+				value >= 50
+			}
+			has_trait_xp = {
+				trait = lifestyle_artifact_crafting
+				track = weapon_smith
+				value < 60
+			}
+		}
+		add = 5
+	}
+	else_if = { # 60-69 XP
+		limit = {
+			has_trait_xp = {
+				trait = lifestyle_artifact_crafting
+				track = weapon_smith
+				value >= 60
+			}
+			has_trait_xp = {
+				trait = lifestyle_artifact_crafting
+				track = weapon_smith
+				value < 70
+			}
+		}
+		add = 6
+	}
+	else_if = { # 70-79 XP
+		limit = {
+			has_trait_xp = {
+				trait = lifestyle_artifact_crafting
+				track = weapon_smith
+				value >= 70
+			}
+			has_trait_xp = {
+				trait = lifestyle_artifact_crafting
+				track = weapon_smith
+				value < 80
+			}
+		}
+		add = 7
+	}
+	else_if = { # 80-89 XP
+		limit = {
+			has_trait_xp = {
+				trait = lifestyle_artifact_crafting
+				track = weapon_smith
+				value >= 80
+			}
+			has_trait_xp = {
+				trait = lifestyle_artifact_crafting
+				track = weapon_smith
+				value < 90
+			}
+		}
+		add = 8
+	}
+	else_if = { # 90-99 XP
+		limit = {
+			has_trait_xp = {
+				trait = lifestyle_artifact_crafting
+				track = weapon_smith
+				value >= 90
+			}
+			has_trait_xp = {
+				trait = lifestyle_artifact_crafting
+				track = weapon_smith
+				value < 100
+			}
+		}
+		add = 9
+	}
+	else_if = { # 100 XP
+		limit = {
+			has_trait_xp = {
+				trait = lifestyle_artifact_crafting
+				track = weapon_smith
+				value = 100
+			}
+		}
+		add = 10
+	}
+}
+armorsmith_track_xp_success_chance = {
+	value = 0
+
+	if = { # 10-19 XP
+		limit = {
+			has_trait_xp = {
+				trait = lifestyle_artifact_crafting
+				track = armour_smith
+				value >= 10
+			}
+			has_trait_xp = {
+				trait = lifestyle_artifact_crafting
+				track = armour_smith
+				value < 20
+			}
+		}
+		add = 1
+	}
+	else_if = { # 20-29 XP
+		limit = {
+			has_trait_xp = {
+				trait = lifestyle_artifact_crafting
+				track = armour_smith
+				value >= 20
+			}
+			has_trait_xp = {
+				trait = lifestyle_artifact_crafting
+				track = armour_smith
+				value < 30
+			}
+		}
+		add = 2
+	}
+	else_if = {
+		limit = { # 30-39 XP
+			has_trait_xp = {
+				trait = lifestyle_artifact_crafting
+				track = armour_smith
+				value >= 30
+			}
+			has_trait_xp = {
+				trait = lifestyle_artifact_crafting
+				track = armour_smith
+				value < 40
+			}
+		}
+		add = 3
+	}
+	else_if = { # 40-49 XP
+		limit = {
+			has_trait_xp = {
+				trait = lifestyle_artifact_crafting
+				track = armour_smith
+				value >= 40
+			}
+			has_trait_xp = {
+				trait = lifestyle_artifact_crafting
+				track = armour_smith
+				value < 50
+			}
+		}
+		add = 4
+	}
+	else_if = { # 50-59 XP
+		limit = {
+			has_trait_xp = {
+				trait = lifestyle_artifact_crafting
+				track = armour_smith
+				value >= 50
+			}
+			has_trait_xp = {
+				trait = lifestyle_artifact_crafting
+				track = armour_smith
+				value < 60
+			}
+		}
+		add = 5
+	}
+	else_if = { # 60-69 XP
+		limit = {
+			has_trait_xp = {
+				trait = lifestyle_artifact_crafting
+				track = armour_smith
+				value >= 60
+			}
+			has_trait_xp = {
+				trait = lifestyle_artifact_crafting
+				track = armour_smith
+				value < 70
+			}
+		}
+		add = 6
+	}
+	else_if = { # 70-79 XP
+		limit = {
+			has_trait_xp = {
+				trait = lifestyle_artifact_crafting
+				track = armour_smith
+				value >= 70
+			}
+			has_trait_xp = {
+				trait = lifestyle_artifact_crafting
+				track = armour_smith
+				value < 80
+			}
+		}
+		add = 7
+	}
+	else_if = { # 80-89 XP
+		limit = {
+			has_trait_xp = {
+				trait = lifestyle_artifact_crafting
+				track = armour_smith
+				value >= 80
+			}
+			has_trait_xp = {
+				trait = lifestyle_artifact_crafting
+				track = armour_smith
+				value < 90
+			}
+		}
+		add = 8
+	}
+	else_if = { # 90-99 XP
+		limit = {
+			has_trait_xp = {
+				trait = lifestyle_artifact_crafting
+				track = armour_smith
+				value >= 90
+			}
+			has_trait_xp = {
+				trait = lifestyle_artifact_crafting
+				track = armour_smith
+				value < 100
+			}
+		}
+		add = 9
+	}
+	else_if = { # 100 XP
+		limit = {
+			has_trait_xp = {
+				trait = lifestyle_artifact_crafting
+				track = armour_smith
+				value = 100
+			}
+		}
+		add = 10
+	}
+}
+jewelsmith_track_xp_success_chance = {
+	value = 0
+
+	if = { # 10-19 XP
+		limit = {
+			has_trait_xp = {
+				trait = lifestyle_artifact_crafting
+				track = jewel_smith
+				value >= 10
+			}
+			has_trait_xp = {
+				trait = lifestyle_artifact_crafting
+				track = jewel_smith
+				value < 20
+			}
+		}
+		add = 1
+	}
+	else_if = { # 20-29 XP
+		limit = {
+			has_trait_xp = {
+				trait = lifestyle_artifact_crafting
+				track = jewel_smith
+				value >= 20
+			}
+			has_trait_xp = {
+				trait = lifestyle_artifact_crafting
+				track = jewel_smith
+				value < 30
+			}
+		}
+		add = 2
+	}
+	else_if = {
+		limit = { # 30-39 XP
+			has_trait_xp = {
+				trait = lifestyle_artifact_crafting
+				track = jewel_smith
+				value >= 30
+			}
+			has_trait_xp = {
+				trait = lifestyle_artifact_crafting
+				track = jewel_smith
+				value < 40
+			}
+		}
+		add = 3
+	}
+	else_if = { # 40-49 XP
+		limit = {
+			has_trait_xp = {
+				trait = lifestyle_artifact_crafting
+				track = jewel_smith
+				value >= 40
+			}
+			has_trait_xp = {
+				trait = lifestyle_artifact_crafting
+				track = jewel_smith
+				value < 50
+			}
+		}
+		add = 4
+	}
+	else_if = { # 50-59 XP
+		limit = {
+			has_trait_xp = {
+				trait = lifestyle_artifact_crafting
+				track = jewel_smith
+				value >= 50
+			}
+			has_trait_xp = {
+				trait = lifestyle_artifact_crafting
+				track = jewel_smith
+				value < 60
+			}
+		}
+		add = 5
+	}
+	else_if = { # 60-69 XP
+		limit = {
+			has_trait_xp = {
+				trait = lifestyle_artifact_crafting
+				track = jewel_smith
+				value >= 60
+			}
+			has_trait_xp = {
+				trait = lifestyle_artifact_crafting
+				track = jewel_smith
+				value < 70
+			}
+		}
+		add = 6
+	}
+	else_if = { # 70-79 XP
+		limit = {
+			has_trait_xp = {
+				trait = lifestyle_artifact_crafting
+				track = jewel_smith
+				value >= 70
+			}
+			has_trait_xp = {
+				trait = lifestyle_artifact_crafting
+				track = jewel_smith
+				value < 80
+			}
+		}
+		add = 7
+	}
+	else_if = { # 80-89 XP
+		limit = {
+			has_trait_xp = {
+				trait = lifestyle_artifact_crafting
+				track = jewel_smith
+				value >= 80
+			}
+			has_trait_xp = {
+				trait = lifestyle_artifact_crafting
+				track = jewel_smith
+				value < 90
+			}
+		}
+		add = 8
+	}
+	else_if = { # 90-99 XP
+		limit = {
+			has_trait_xp = {
+				trait = lifestyle_artifact_crafting
+				track = jewel_smith
+				value >= 90
+			}
+			has_trait_xp = {
+				trait = lifestyle_artifact_crafting
+				track = jewel_smith
+				value < 100
+			}
+		}
+		add = 9
+	}
+	else_if = { # 100 XP
+		limit = {
+			has_trait_xp = {
+				trait = lifestyle_artifact_crafting
+				track = jewel_smith
+				value = 100
+			}
+		}
+		add = 10
+	}
+}
+
+#########################################################
+### Decreasing Time and Crafting Cost, based on perks ###
+#########################################################
+
+decrease_crafting_time = { # Used for localization
+	value = 0
+
+	if = {
+		limit = { has_perk = experienced_hands_perk }
+		add = 10
+	}
+}
+
+decrease_gold_cost = { # Used for localization
+	value = 0 
+
+	if = {
+		limit = { has_perk = experienced_hands_perk }
+		add = 10
+	}
+}
+
+###################################
+### Gold cost to craft artifact ###
+###################################
+
+artifact_craft_total_gold_cost = {
+	value = 0
+	
+	if = {
+		limit = { 
+			has_perk = experienced_hands_perk
+		}
+		add = {
+			value = artifact_craft_material_gold_cost
+			multiply = 0.9
+			ceiling = yes
+		}
+		add = {
+			value = artifact_craft_enchanting_gold_cost
+			multiply = 0.9
+			ceiling = yes
+		}
+	}
+	else = {
+		add = artifact_craft_material_gold_cost
+		add = artifact_craft_enchanting_gold_cost
+	}
+}
+
+artifact_craft_material_gold_cost = {
+	value = 0
+	
+	if = {
+		limit = { has_variable = material_gold_value }
+		add = var:material_gold_value
+	}
+	if = {
+		limit = { has_variable = gem_gold_value }
+		add = var:gem_gold_value
+	}
+}
+
+artifact_craft_enchanting_gold_cost = {
+	value = 0
+
+	if = { ## ''has_trait = artificer '' to be replaced with an enchanter perk
+		limit = { 
+			has_perk = archive_frequenter_perk
+			has_variable = num_enchants_used
+			var:num_enchants_used > 1
+		}
+		add = var:gold_value
+		subtract = 45
+	}
+	else = {
+		if = {
+			limit = { has_variable = gold_value }
+			add = var:gold_value
+		}
+	}
+}
+
+#########################################
+### Calculating the XP a player gains ###
+#########################################
+
+artifact_craft_normal_xp = { value = normal_xp_gain }
+
+artifact_craft_failed_xp = { value = failed_craft_xp_gain }
+
+artifact_craft_advanced_xp = { value = advanced_craft_xp_gain }
+
+################################
+### Setting Artifact Quality ###
+################################
+
+crafted_artifact_quality_and_wealth = {
+	value = 0
+
+	if = {
+		limit = { exists = var:num_enchants_used }
+		if = { # Common quality/wealth
+			limit = { 
+				OR = {
+					var:num_enchants_used = 0 
+					var:num_enchants_used = 1
+					var:num_enchants_used = 2 
+					var:num_enchants_used = 3
+				}
+			}
+			add = 15
+		}
+		else_if = { # Masterwork quality/wealth
+			limit = { 
+				OR = {
+					var:num_enchants_used = 4 
+					var:num_enchants_used = 5
+					var:num_enchants_used = 6 
+					var:num_enchants_used = 7
+				}
+			}
+			add = 30
+		}
+		else_if = { # Famed quality/wealth
+			limit = { 
+				OR = {
+					var:num_enchants_used = 8 
+					var:num_enchants_used = 9
+					var:num_enchants_used = 10 
+					var:num_enchants_used = 11
+				}
+			}
+			add = 70
+		}
+		else = { # Illustrious quality/wealth
+			add = 100
+		}
+	}
+	else = { # Common quality/wealth
+		add = 15
+	}
+}
+
+############################
+### Artifact Time Values ###
+############################
+
+artifact_craft_time = { # Current num of days (decreases as time goes on)
+	if = { ### Default value ###
+		limit = { NOT = { has_perk = experienced_hands_perk } }
+		value = 90 # Time is in days, base time will be months 
+	} 
+	else = { ### Changed value due to perk ###
+		value = {
+			value = 90
+			multiply = 0.9
+		}
+	}
+
+	if = { ### Convert Failure chance to crafting time ###
+		limit = { 
+			NOT = { has_perk = experienced_hands_perk } 
+			calc_edited_failure_chance > 0
+		}
+
+		add = {
+			value = calc_edited_failure_chance
+			multiply = 4
+		}
+	}
+	else = {
+		if = {
+			limit = {
+				has_perk = experienced_hands_perk  
+				calc_edited_failure_chance > 0
+			}
+				
+			add = {
+				value = {
+					add = calc_edited_failure_chance
+					multiply = 0.9
+				}
+				multiply = 4
+			}
+		}
+	}
+
+	if = { ### Convert Critical Failure chance to crafting time ###
+		limit = {
+			NOT = { has_perk = experienced_hands_perk } 
+			
+			calc_edited_critical_failure_chance <= 100
+			calc_edited_critical_failure_chance > 0
+		}
+
+		add = {
+			value = calc_edited_critical_failure_chance
+			multiply = 8
+		}
+	}
+	else_if = {
+		limit = { 
+			has_perk = experienced_hands_perk 
+			calc_edited_critical_failure_chance <= 100
+			calc_edited_critical_failure_chance > 0
+		}
+				
+		add = {
+			value = {
+				add = calc_edited_critical_failure_chance
+				multiply = 0.9
+			}
+			multiply = 8
+		}
+	}
+	else = {
+		add = {
+			value = 100
+			multiply = 8
+		}
+	}
+}

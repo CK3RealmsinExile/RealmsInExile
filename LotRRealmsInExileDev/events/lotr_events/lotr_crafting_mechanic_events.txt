@@ -1,0 +1,549 @@
+﻿namespace = crafting_mechanic
+
+crafting_mechanic.0001 = {
+	hidden = yes
+	immediate = {
+		root = { save_scope_as = smith }
+		create_dummy_artifact = yes
+		
+		character:k_wastelands_holder = {
+			random_character_artifact = {
+				limit = {
+					exists = var:crafter
+					var:crafter = scope:smith
+				}
+				scope:smith = {
+					set_variable = {
+						name = artifact_being_edited
+						value = prev # Artifact being edited
+					}
+				}
+			}
+		}
+		set_variable = {
+			name = editing_custom_artifact
+			value = 0
+		}
+	}
+}
+
+crafting_mechanic.0002 = {
+	title = crafting_mechanic.0002.t
+	desc = {}
+	theme = learning
+	immediate = {
+		if = {
+			limit = {
+				NOT = {
+					exists = var:editing_custom_artifact
+				}
+			}
+			start_editing_custom_artifact = { ARTIFACT_NUM = 0 } # Dummy
+		}
+	}
+	widgets = {
+		# Name and Title
+		widget = {
+			gui = "lotr_crafting_mechanic_name_widget"
+			container = "custom_widgets_container"
+			setup_scope = { save_scope_as = text_target }
+			controller = {
+				type = text
+				data = { key = custom_artifact_name default = "" }
+			}
+		}
+		widget = {
+			gui = "lotr_crafting_mechanic_description_widget"
+			container = "custom_widgets_container"
+			setup_scope = { save_scope_as = text_target }
+			controller = {
+				type = text
+				data = { key = custom_artifact_desc default = "" }
+			}
+		}
+	}
+    option = {
+        name = crafting_mechanic.0002.a
+		remove_variable = editing_custom_artifact
+    }
+	after = { character:k_wastelands_holder = { refresh_custom_artifact = yes } }
+}
+
+##########################################
+#	Artifact gets crafted
+#	Quality/Wealth of artifact is set 
+# 	Modifiers are applied to artifact
+##########################################
+
+crafting_mechanic.0003 = {
+	hidden = yes
+
+	immediate = {	
+		root = { save_scope_as = owner }
+		if = {
+			limit = { has_variable = total_gold_cost }
+			remove_short_term_gold = var:total_gold_cost
+		}
+
+		# set_artifact_rarity = yes
+		set_artifact_rarity_common = yes
+		### Crit Success/Success/Crit Failure/Failure Chances ###
+		if = {
+			limit = { exists = var:random_variable }
+			if = { ## Success with crafting artifact
+				limit = { var:random_variable < total_success_chance }
+
+				if = { ### Critical success
+					limit = { var:random_variable < calc_edited_critical_success_chance }
+					artifact_craft_interface_toast = {	
+						XP_GAIN = artifact_craft_normal_xp
+						TOAST = artifact_crafting_critical_success_craft
+						CRAFT_ARTIFACT = 1 # 1 == yes, 0 == no
+					}
+				}
+				else = { ### Normal success
+					if = {
+						limit = { var:random_variable <= total_success_chance }
+						artifact_craft_interface_toast = {
+							XP_GAIN = artifact_craft_normal_xp
+							TOAST = artifact_crafting_normal_success_craft
+							CRAFT_ARTIFACT = 1
+						}
+					}
+				}
+			}
+			else = { ## Failure with crafting artifact
+				if = { ### Critical Failure
+					limit = { var:random_variable > critical_failure_chance }
+					artifact_craft_interface_toast = {
+						XP_GAIN = artifact_craft_normal_xp
+						TOAST = artifact_crafting_critical_failure_craft
+						CRAFT_ARTIFACT = 0
+					}
+				}
+				else = { ### Normal Failure
+					if = {
+						limit = { var:random_variable > total_success_chance }
+						artifact_craft_interface_toast = {
+							XP_GAIN = artifact_craft_failed_xp
+							TOAST = artifact_crafting_normal_failure_craft
+							CRAFT_ARTIFACT = 1
+						}
+						downgrade_effect = yes 
+					}
+				}
+			}
+		}	
+						
+		if = { # Adds modifiers to artifact
+			limit = { exists = scope:newly_crafted_artifact }
+			add_artifact_modifier_effect = yes
+			artifact_craft_prowess_buff = yes
+		}
+		remove_crafting_artifact_variables = yes
+		if = {
+			limit = {
+				exists = var:selected_artifact
+				var:selected_artifact.var:crafter = root
+			}
+			destroy_artifact = var:selected_artifact
+		}
+		remove_variable = custom_artifact_inscriptions
+	}
+}
+
+crafting_mechanic.0004 = {
+	hidden = yes
+	immediate = {
+		if = {
+			limit = {
+				exists = var:selected_artifact
+				var:selected_artifact.var:crafter = root
+			}
+			destroy_artifact = var:selected_artifact
+		}
+		root = { save_scope_as = smith }
+		create_dummy_artifact = yes
+		start_editing_custom_artifact = { ARTIFACT_NUM = 0 }
+	}
+}
+
+### Events to manage trading of resources through interaction
+
+crafting_mechanic.1001 = {
+	content_source = realms
+	type = character_event
+	title = crafting_mechanic.1001.t
+	desc = crafting_mechanic.1001.desc
+	theme = realm
+
+	left_portrait = {
+		character = scope:actor
+		animation = personality_greedy
+	}
+	right_portrait = {
+		character = scope:recipient
+		animation = personality_cynical
+	}
+	
+	option = {
+		name = crafting_mechanic.1001.mithril
+		trigger = {
+			scope:actor = { NOT = { contains_prospecting_modifier = { PROSPECTING_MODIFIER = mining_mithril_province_modifier } } }
+			scope:recipient = { contains_prospecting_modifier = { PROSPECTING_MODIFIER = mining_mithril_province_modifier } }
+		}
+		scope:actor = {
+			create_metal_gem_artifact = {
+				METAL = mithril
+				MODIFIER = artifact_monthly_minor_prestige_3_modifier
+			}
+		}
+		set_metal_gem_variable = { METAL = mithril }
+		hidden_effect = { scope:recipient = { add_gold = 300 } }
+		remove_short_term_gold = 300 
+	}
+
+	option = {
+		name = crafting_mechanic.1001.gold
+		trigger = {
+			scope:actor = { NOT = { contains_prospecting_modifier = { PROSPECTING_MODIFIER = mining_gold_province_modifier } } }
+			scope:recipient = { contains_prospecting_modifier = { PROSPECTING_MODIFIER = mining_gold_province_modifier } }
+		}
+		scope:actor = {
+			create_metal_gem_artifact = {
+				METAL = gold
+				MODIFIER = artifact_monthly_minor_prestige_2_modifier
+			}
+		}
+		set_metal_gem_variable = { METAL = gold }
+		hidden_effect = { scope:recipient = { add_gold = 200 } } 
+		remove_short_term_gold = 200 
+	}
+
+	option = {
+		name = crafting_mechanic.1001.silver
+		trigger = {
+			scope:actor = { NOT = { contains_prospecting_modifier = { PROSPECTING_MODIFIER = mining_silver_province_modifier } } }
+			scope:recipient = { contains_prospecting_modifier = { PROSPECTING_MODIFIER = mining_silver_province_modifier } }
+		}
+		scope:actor = {
+			create_metal_gem_artifact = {
+				METAL = silver
+				MODIFIER = artifact_monthly_minor_prestige_2_modifier
+			}
+		}
+		set_metal_gem_variable = { METAL = silver }
+		hidden_effect = { scope:recipient = { add_gold = 150 } } 
+		remove_short_term_gold = 150 
+	}
+
+	option = {
+		name = crafting_mechanic.1001.lead
+		trigger = {
+			scope:actor = { NOT = { contains_prospecting_modifier = { PROSPECTING_MODIFIER = mining_lead_province_modifier } } }
+			scope:recipient = { contains_prospecting_modifier = { PROSPECTING_MODIFIER = mining_lead_province_modifier } }
+		}
+		scope:actor = {
+			create_metal_gem_artifact = {
+				METAL = lead
+				MODIFIER = artifact_monthly_minor_prestige_1_modifier
+			}
+		}
+		set_metal_gem_variable = { METAL = lead }
+		hidden_effect = { scope:recipient = { add_gold = 100 } } 
+		remove_short_term_gold = 100 
+	}
+
+	option = {
+		name = crafting_mechanic.1001.copper
+		trigger = {
+			scope:actor = { NOT = { contains_prospecting_modifier = { PROSPECTING_MODIFIER = mining_copper_province_modifier } } }
+			scope:recipient = { contains_prospecting_modifier = { PROSPECTING_MODIFIER = mining_copper_province_modifier } }
+		}
+		scope:actor = {
+			create_metal_gem_artifact = {
+				METAL = copper
+				MODIFIER = artifact_monthly_minor_prestige_1_modifier
+			}
+		}
+		set_metal_gem_variable = { METAL = copper }
+		hidden_effect = { scope:recipient = { add_gold = 100 } }
+		remove_short_term_gold = 100 
+	}
+
+	option = {
+		name = crafting_mechanic.1001.tin
+		trigger = {
+			scope:actor = { NOT = { contains_prospecting_modifier = { PROSPECTING_MODIFIER = mining_tin_province_modifier } } }
+			scope:recipient = { contains_prospecting_modifier = { PROSPECTING_MODIFIER = mining_tin_province_modifier } }
+		}
+		scope:actor = {
+			create_metal_gem_artifact = {
+				METAL = tin
+				MODIFIER = artifact_monthly_minor_prestige_1_modifier
+			}
+		}
+		set_metal_gem_variable = { METAL = tin }
+		hidden_effect = { scope:recipient = { add_gold = 100 } }
+		remove_short_term_gold = 100 
+	}
+
+	option = {
+		name = crafting_mechanic.1001.iron
+		trigger = {
+			scope:actor = { NOT = { contains_prospecting_modifier = { PROSPECTING_MODIFIER = mining_iron_province_modifier } } }
+			scope:recipient = { contains_prospecting_modifier = { PROSPECTING_MODIFIER = mining_iron_province_modifier } }
+		}
+		scope:actor = {
+			create_metal_gem_artifact = {
+				METAL = iron
+				MODIFIER = artifact_monthly_minor_prestige_1_modifier
+			}
+		}
+		set_metal_gem_variable = { METAL = iron }
+		hidden_effect = { scope:recipient = { add_gold = 100 } }
+		remove_short_term_gold = 100 
+	}
+
+	option = {
+		name = crafting_mechanic.1001.gems
+		trigger = {
+			OR = { # Does recipient have any gems that I do not have?
+				AND = {
+					scope:actor = { NOT = { contains_prospecting_modifier = { PROSPECTING_MODIFIER = mining_diamond_province_modifier } } }
+					scope:recipient = { contains_prospecting_modifier = { PROSPECTING_MODIFIER = mining_diamond_province_modifier } }
+				}
+				AND = {
+					scope:actor = { NOT = { contains_prospecting_modifier = { PROSPECTING_MODIFIER = mining_ruby_province_modifier } } }
+					scope:recipient = { contains_prospecting_modifier = { PROSPECTING_MODIFIER = mining_ruby_province_modifier } }
+				}
+				AND = {
+					scope:actor = { NOT = { contains_prospecting_modifier = { PROSPECTING_MODIFIER = mining_sapphire_province_modifier } } }
+					scope:recipient = { contains_prospecting_modifier = { PROSPECTING_MODIFIER = mining_sapphire_province_modifier } }
+				}
+				AND = {
+					scope:actor = { NOT = { contains_prospecting_modifier = { PROSPECTING_MODIFIER = mining_emerald_province_modifier } } }
+					scope:recipient = { contains_prospecting_modifier = { PROSPECTING_MODIFIER = mining_emerald_province_modifier } }
+				}
+				AND = {
+					scope:actor = { NOT = { contains_prospecting_modifier = { PROSPECTING_MODIFIER = mining_amethyst_province_modifier } } }
+					scope:recipient = { contains_prospecting_modifier = { PROSPECTING_MODIFIER = mining_amethyst_province_modifier } }
+				}
+				AND = {
+					scope:actor = { NOT = { contains_prospecting_modifier = { PROSPECTING_MODIFIER = mining_onyx_province_modifier } } }
+					scope:recipient = { contains_prospecting_modifier = { PROSPECTING_MODIFIER = mining_onyx_province_modifier } }
+				}
+				AND = {
+					scope:actor = { NOT = { contains_prospecting_modifier = { PROSPECTING_MODIFIER = mining_peridot_province_modifier } } }
+					scope:recipient = { contains_prospecting_modifier = { PROSPECTING_MODIFIER = mining_peridot_province_modifier } }
+				}
+				AND = {
+					scope:actor = { NOT = { contains_prospecting_modifier = { PROSPECTING_MODIFIER = mining_quartz_province_modifier } } }
+					scope:recipient = { contains_prospecting_modifier = { PROSPECTING_MODIFIER = mining_quartz_province_modifier } }
+				}
+			}
+		}
+		trigger_event = crafting_mechanic.1002
+	}
+
+	option = {
+		name = crafting_mechanic.1001.close
+	}
+}
+
+crafting_mechanic.1002 = {
+	content_source = realms
+	type = character_event
+	title = crafting_mechanic.1002.t
+	desc = crafting_mechanic.1002.desc
+	theme = realm
+
+	left_portrait = {
+		character = scope:actor
+		animation = personality_greedy
+	}
+	right_portrait = {
+		character = scope:recipient
+		animation = personality_cynical
+	}
+
+	immediate = {
+	}
+	
+	option = {
+		name = crafting_mechanic.1002.diamond
+		trigger = {
+			scope:actor = { NOT = { contains_prospecting_modifier = { PROSPECTING_MODIFIER = mining_diamond_province_modifier } } }
+			scope:recipient = { contains_prospecting_modifier = { PROSPECTING_MODIFIER = mining_diamond_province_modifier } }
+		}
+		scope:actor = {
+			create_metal_gem_artifact = {
+				METAL = diamond
+				MODIFIER = artifact_monthly_minor_prestige_3_modifier
+			}
+		}
+		set_metal_gem_variable = { METAL = diamond }
+		hidden_effect = { scope:recipient = { add_gold = 300 } }
+		remove_short_term_gold = 300 
+	}
+
+	option = {
+		name = crafting_mechanic.1002.ruby
+		trigger = {
+			scope:actor = { NOT = { contains_prospecting_modifier = { PROSPECTING_MODIFIER = mining_ruby_province_modifier } } }
+			scope:recipient = { contains_prospecting_modifier = { PROSPECTING_MODIFIER = mining_ruby_province_modifier } }
+		}
+		scope:actor = {
+			create_metal_gem_artifact = {
+				METAL = ruby
+				MODIFIER = artifact_monthly_minor_prestige_3_modifier
+			}
+		}
+		set_metal_gem_variable = { METAL = ruby }
+		hidden_effect = { scope:recipient = { add_gold = 200 } }
+		remove_short_term_gold = 200 
+	}
+
+	option = {
+		name = crafting_mechanic.1002.sapphire
+		trigger = {
+			scope:actor = { NOT = { contains_prospecting_modifier = { PROSPECTING_MODIFIER = mining_sapphire_province_modifier } } }
+			scope:recipient = { contains_prospecting_modifier = { PROSPECTING_MODIFIER = mining_sapphire_province_modifier } }
+		}
+		scope:actor = {
+			create_metal_gem_artifact = {
+				METAL = sapphire
+				MODIFIER = artifact_monthly_minor_prestige_3_modifier
+			}
+		}
+		set_metal_gem_variable = { METAL = sapphire }
+		hidden_effect = { scope:recipient = { add_gold = 200 } } 
+		remove_short_term_gold = 200 
+	}
+
+	option = {
+		name = crafting_mechanic.1002.emerald
+		trigger = {
+			scope:actor = { NOT = { contains_prospecting_modifier = { PROSPECTING_MODIFIER = mining_emerald_province_modifier } } }
+			scope:recipient = { contains_prospecting_modifier = { PROSPECTING_MODIFIER = mining_emerald_province_modifier } }
+		}
+		scope:actor = {
+			create_metal_gem_artifact = {
+				METAL = emerald
+				MODIFIER = artifact_monthly_minor_prestige_3_modifier
+			}
+		}
+		set_metal_gem_variable = { METAL = emerald }
+		hidden_effect = { scope:recipient = { add_gold = 200 } }
+		remove_short_term_gold = 200 
+	}
+
+	option = {
+		name = crafting_mechanic.1002.amethyst
+		trigger = {
+			scope:actor = { NOT = { contains_prospecting_modifier = { PROSPECTING_MODIFIER = mining_amethyst_province_modifier } } }
+			scope:recipient = { contains_prospecting_modifier = { PROSPECTING_MODIFIER = mining_amethyst_province_modifier } }
+		}
+		scope:actor = {
+			create_metal_gem_artifact = {
+				METAL = amethyst
+				MODIFIER = artifact_monthly_minor_prestige_3_modifier
+			}
+		}
+		set_metal_gem_variable = { METAL = amethyst }
+		hidden_effect = { scope:recipient = { add_gold = 200 } }
+		remove_short_term_gold = 200 
+	}
+
+	option = {
+		name = crafting_mechanic.1002.onyx
+		trigger = {
+			scope:actor = { NOT = { contains_prospecting_modifier = { PROSPECTING_MODIFIER = mining_onyx_province_modifier } } }
+			scope:recipient = { contains_prospecting_modifier = { PROSPECTING_MODIFIER = mining_onyx_province_modifier } }
+		}
+		scope:actor = {
+			create_metal_gem_artifact = {
+				METAL = onyx
+				MODIFIER = artifact_monthly_minor_prestige_3_modifier
+			}
+		}
+		set_metal_gem_variable = { METAL = onyx }
+		hidden_effect = { scope:recipient = { add_gold = 100 } }
+		remove_short_term_gold = 100 
+	}
+
+	option = {
+		name = crafting_mechanic.1002.peridot
+		trigger = {
+			scope:actor = { NOT = { contains_prospecting_modifier = { PROSPECTING_MODIFIER = mining_peridot_province_modifier } } }
+			scope:recipient = { contains_prospecting_modifier = { PROSPECTING_MODIFIER = mining_peridot_province_modifier } }
+		}
+		scope:actor = {
+			create_metal_gem_artifact = {
+				METAL = peridot
+				MODIFIER = artifact_monthly_minor_prestige_3_modifier
+			}
+		}
+		set_metal_gem_variable = { METAL = peridot }
+		hidden_effect = { scope:recipient = { add_gold = 100 } }
+		remove_short_term_gold = 100 
+	}
+
+	option = {
+		name = crafting_mechanic.1002.quartz
+		trigger = {
+			scope:actor = { NOT = { contains_prospecting_modifier = { PROSPECTING_MODIFIER = mining_quartz_province_modifier } } }
+			scope:recipient = { contains_prospecting_modifier = { PROSPECTING_MODIFIER = mining_quartz_province_modifier } }
+		}
+		scope:actor = {
+			create_metal_gem_artifact = {
+				METAL = quartz
+				MODIFIER = artifact_monthly_minor_prestige_3_modifier
+			}
+		}
+		set_metal_gem_variable = { METAL = quartz }
+		hidden_effect = { scope:recipient = { add_gold = 100 } }
+		remove_short_term_gold = 100 
+	}
+
+	option = {
+		name = crafting_mechanic.1002.metals
+		trigger = {
+			OR = { # Does recipient have any metals that I do not have?
+				AND = {
+					scope:actor = { NOT = { contains_prospecting_modifier = { PROSPECTING_MODIFIER = mining_mithril_province_modifier } } }
+					scope:recipient = { contains_prospecting_modifier = { PROSPECTING_MODIFIER = mining_mithril_province_modifier } }
+				}
+				AND = {
+					scope:actor = { NOT = { contains_prospecting_modifier = { PROSPECTING_MODIFIER = mining_gold_province_modifier } } }
+					scope:recipient = { contains_prospecting_modifier = { PROSPECTING_MODIFIER = mining_gold_province_modifier } }
+				}
+				AND = {
+					scope:actor = { NOT = { contains_prospecting_modifier = { PROSPECTING_MODIFIER = mining_silver_province_modifier } } }
+					scope:recipient = { contains_prospecting_modifier = { PROSPECTING_MODIFIER = mining_silver_province_modifier } }
+				}
+				AND = {
+					scope:actor = { NOT = { contains_prospecting_modifier = { PROSPECTING_MODIFIER = mining_iron_province_modifier } } }
+					scope:recipient = { contains_prospecting_modifier = { PROSPECTING_MODIFIER = mining_iron_province_modifier } }
+				}
+				AND = {
+					scope:actor = { NOT = { contains_prospecting_modifier = { PROSPECTING_MODIFIER = mining_copper_province_modifier } } }
+					scope:recipient = { contains_prospecting_modifier = { PROSPECTING_MODIFIER = mining_copper_province_modifier } }
+				}
+				AND = {
+					scope:actor = { NOT = { contains_prospecting_modifier = { PROSPECTING_MODIFIER = mining_tin_province_modifier } } }
+					scope:recipient = { contains_prospecting_modifier = { PROSPECTING_MODIFIER = mining_tin_province_modifier } }
+				}
+				AND = {
+					scope:actor = { NOT = { contains_prospecting_modifier = { PROSPECTING_MODIFIER = mining_lead_province_modifier } } }
+					scope:recipient = { contains_prospecting_modifier = { PROSPECTING_MODIFIER = mining_lead_province_modifier } }
+				}
+			}
+		}
+		trigger_event = crafting_mechanic.1001
+	}
+
+	option = {
+		name = crafting_mechanic.1002.close
+	}
+}
