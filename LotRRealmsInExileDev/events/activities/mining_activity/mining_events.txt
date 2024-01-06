@@ -7,6 +7,181 @@ namespace = mining
 #	0000 - 0999						#
 #####################################
 
+## Invalidations
+
+# Host Imprisoned
+mining.0002 = {
+	type = character_event
+	title = mining.0002.t
+	desc = {
+		first_valid = { # Summary
+			# Host Imprisoned
+			triggered_desc = {
+				trigger = {
+					scope:host = {
+						is_alive = yes
+						is_imprisoned = yes
+					}
+					this = scope:host
+				}
+				desc = mining.0002.imprisoned_self
+			}
+			triggered_desc = {
+				trigger = {
+					scope:host = {
+						is_alive = yes
+						is_imprisoned = yes
+					}
+				}
+				desc = mining.0002.imprisoned
+			}
+		}
+	}
+	override_background = {
+		reference = mining_activity
+	}
+	left_portrait = {
+		character = scope:host.imprisoner
+		animation = personality_bold
+	}
+	right_portrait = {
+		character = scope:host
+		animation = prisonhouse
+	}
+	lower_left_portrait = scope:host.imprisoner
+	theme = hunt_activity
+	cooldown = { weeks = 1 }
+
+	immediate = {
+		mining_invalidation_event_effect = yes
+		show_as_tooltip = {
+			scope:host.imprisoner = {
+				imprison = {
+					target = scope:host
+					type = house_arrest
+				}
+			}
+		}
+	}
+
+	option = {
+		name = mining.0002.a
+	}
+}
+
+# Assassination Attempt
+mining.0003 = {
+	type = character_event
+	title = mining.0003.t
+	desc = {
+		first_valid = {
+			triggered_desc = {
+				trigger = { exists = scope:invalidated_culprit }
+				desc = mining.0003.assassination_culprit
+			}
+			desc = mining.0003.assassination
+		}
+	}
+	override_background = {
+		reference = mining_activity
+	}
+	left_portrait = {
+		character = root
+		animation = worry
+		trigger = { is_in_list = attendees }
+	}
+	right_portrait = {
+		character = scope:host
+		trigger = {
+			NOR = {
+				this = root
+				this = scope:invalidated_culprit
+			}
+		}
+		animation = stress
+	}
+	lower_right_portrait = {
+		character = scope:invalidated_flavor
+		trigger = {
+			exists = scope:invalidated_flavor
+			NOR = {
+				scope:invalidated_flavor = root
+				scope:invalidated_flavor = scope:host
+			}
+		}
+	}
+	lower_center_portrait = {
+		character = scope:invalidated_culprit
+		trigger = {
+			exists = scope:invalidated_culprit
+			NOT = { scope:invalidated_culprit = root }
+		}
+	}
+	theme = hunt_activity
+	cooldown = { weeks = 1 }
+	
+	trigger = {
+		# No need for invalidation ping for botched scheme targets
+		NOR = {
+			scope:invalidated_flavor ?= root
+			scope:invalidated_culprit ?= root
+		}
+	}
+
+	immediate = {
+		if = {
+			limit = {
+				NOT = { this = scope:host }
+			}
+			mining_invalidation_event_effect = yes
+		}
+		show_as_tooltip = {
+			if = {
+				limit = {
+					exists = scope:invalidated_culprit
+				}
+			scope:invalidated_flavor = {
+				add_opinion = {
+					target = scope:invalidated_culprit
+					modifier = attempted_murder_me_crime
+				}
+			}
+		}
+	}
+	}
+
+	option = {
+		name = mining.0003.a
+		custom_tooltip = mining_ends_tt
+		ai_chance = {
+			base = 100
+		}
+	}
+
+	option = {
+		name = mining.0003.b
+		trigger = { this = scope:host }
+		scope:activity = {
+			set_variable = {
+				name = mining_invalidated
+				value = flag:assassination_attempt
+			}
+			set_variable = {
+				name = mining_invalidated_flavor
+				value = scope:invalidated_flavor
+			}
+			set_variable = {
+				name = mining_invalidated_culprit
+				value = scope:invalidated_culprit
+			}
+		}
+		mining_invalidation_event_effect = yes
+		ai_chance = {
+			base = 25
+		}
+	}
+}
+
 # Select an Overseer of the Mines #
 mining.0100 = {
 	type = activity_event
@@ -341,6 +516,337 @@ mining.0100 = {
 	}
 }
 
+# Select a Stone Singer #
+mining.0101 = {
+	type = activity_event
+	title = mining.0101.t
+	theme = stewardship
+	desc = {
+		desc = mining.0101.desc.intro
+		first_valid = {
+			triggered_desc = {
+				trigger = {
+					OR = {
+						has_relation_rival = scope:stone_singer_candidate_1
+						opinion = {
+							value <= low_negative_opinion
+							target = scope:stone_singer_candidate_1
+						}
+					}
+				}
+				desc = mining.0101.desc.hates_candidate_a
+			}
+			desc = mining.0101.desc.candidate_a
+		}
+		triggered_desc = {
+			trigger = { exists = scope:stone_singer_candidate_2 }
+			desc = mining.0101.desc.nepotism
+		}
+		triggered_desc = {
+			trigger = { exists = scope:stone_singer_candidate_3 }
+			desc = mining.0101.desc.enthusiasm
+		}
+		desc = mining.0101.desc.outro
+	}
+	override_background = {
+		reference = mining_activity
+	}
+	left_portrait = {
+		character = scope:host
+		animation = thinking
+	}
+	center_portrait = {
+		character = scope:stone_singer_candidate_1
+		animation = war_over_win
+	}
+	right_portrait = {
+		character = scope:stone_singer_candidate_3
+		animation = admiration
+	}
+	lower_right_portrait = scope:stone_singer_candidate_2
+
+	trigger = {
+		NOT = { employs_court_position = stone_singer_court_position } #This is a delayed event so it is possible you have picked out a Stone inger after it was set to trigger
+		exists = scope:activity #As it is delayed, the activity might have invalidated in the meanwhile
+		scope:activity = {
+			OR = {
+				any_attending_character = {
+					AND = {
+						OR = {
+							is_vassal_of = root
+							is_courtier_of = root
+						}
+						root = {
+							can_appoint_char_to_court_position = {
+								CHAR = prev
+								COURT_POS = stone_singer_court_position
+							}
+						}
+					}
+					AND = {
+						any_pool_character = {
+							province = scope:activity.activity_location
+							is_physically_able_ai_adult = yes
+						}
+					}
+				}
+			}
+		}
+	}
+
+	immediate = {
+		scope:activity = {
+			ordered_attending_character = { # The best guy for the job
+				limit = {
+					OR = {
+						is_vassal_of = root
+						is_courtier_of = root
+					}
+					root = {
+						can_appoint_char_to_court_position = {
+							CHAR = prev
+							COURT_POS = stone_singer_court_position
+						}
+					}
+				}
+				order_by = aptitude:stone_singer_court_position
+				save_scope_as = stone_singer_candidate_1
+			}
+			if = {
+				limit = {
+					NOT = { exists = scope:stone_singer_candidate_1 }
+				}
+				limit = {
+					any_pool_character = {
+						province = scope:activity.activity_location
+						is_physically_able_ai_adult = yes
+					}
+				}
+				random_pool_character = {
+					province = scope:activity.activity_location
+					limit = {
+						is_physically_able_ai_adult = yes
+					}
+					save_scope_as = stone_singer_candidate_1
+				}
+			}
+			if = {
+				limit = {
+					any_attending_character = {
+						OR = {
+							is_vassal_of = root
+							is_courtier_of = root
+						}
+						OR = {
+							is_close_or_extended_family_of = root
+							has_relation_friend = root
+							has_relation_lover = root
+						}
+						NOT = { has_relation_rival = root }
+						root = {
+							can_appoint_char_to_court_position = {
+								CHAR = prev
+								COURT_POS = stone_singer_court_position
+							}
+						}
+						NOT = { this = scope:stone_singer_candidate_1 }
+					}
+				}
+				random_attending_character = { # The nepotism pick
+					limit = {
+						OR = {
+							is_vassal_of = root
+							is_courtier_of = root
+						}
+						OR = {
+							is_close_or_extended_family_of = root
+							has_relation_friend = root
+							has_relation_lover = root
+						}
+						NOT = { has_relation_rival = root }
+						root = {
+							can_appoint_char_to_court_position = {
+								CHAR = prev
+								COURT_POS = stone_singer_court_position
+							}
+						}
+						NOT = { this = scope:stone_singer_candidate_1 }
+					}
+					save_scope_as = stone_singer_candidate_2
+				}
+			}
+			if = {
+				limit = {
+					any_attending_character = {
+						OR = {
+							is_vassal_of = root
+							is_courtier_of = root
+						}
+						root = {
+							can_appoint_char_to_court_position = {
+								CHAR = prev
+								COURT_POS = stone_singer_court_position
+							}
+						}
+						NOT = { this = scope:stone_singer_candidate_1 }
+						trigger_if = {
+							limit = {
+								exists = scope:stone_singer_candidate_2
+							}
+							NOT = { this = scope:stone_singer_candidate_2 }
+						}
+					}
+				}
+				ordered_attending_character = { # Second best guy for the job
+					limit = {
+						OR = {
+							is_vassal_of = root
+							is_courtier_of = root
+						}
+						root = {
+							can_appoint_char_to_court_position = {
+								CHAR = prev
+								COURT_POS = stone_singer_court_position
+							}
+						}
+						NOT = { this = scope:stone_singer_candidate_1 }
+						trigger_if = {
+							limit = {
+								exists = scope:stone_singer_candidate_2
+							}
+							NOT = { this = scope:stone_singer_candidate_2 }
+						}
+					}
+					order_by = {
+						value = aptitude:stone_singer_court_position
+						add = ai_energy
+					}
+					save_scope_as = stone_singer_candidate_3
+				}
+			}
+		}
+	}
+
+	option = { # Pick the best guy
+		name = mining.0100.a
+		court_position_grant_effect = {
+			CANDIDATE = scope:stone_singer_candidate_1
+			POS = stone_singer_court_position
+			EMPLOYER = root
+		}
+		add_prestige = minor_prestige_gain
+		ai_chance = {
+			base = 10
+			opinion_modifier = {
+				who = root
+				opinion_target = scope:stone_singer_candidate_1
+				min = 0
+				max = 10
+				multiplier = 0.5
+			}
+			modifier = {
+				factor = 0.5
+				has_trait = family_first
+			}
+			modifier = {
+				factor = 0.5
+				has_relation_rival = scope:stone_singer_candidate_1
+				NOT = { has_trait = forgiving }
+			}
+		}
+	}
+
+	option = { # Pick the nepotism target
+		name = mining.0100.b
+		trigger = {
+			exists = scope:stone_singer_candidate_2
+		}
+		court_position_grant_effect = {
+			CANDIDATE = scope:stone_singer_candidate_2
+			POS = stone_singer_court_position
+			EMPLOYER = root
+		}
+		reverse_add_opinion = {
+			target = scope:stone_singer_candidate_2
+	 		modifier = grateful_opinion
+	 		opinion = 15
+		}
+		ai_chance = {
+			base = 10
+			opinion_modifier = {
+				who = root
+				opinion_target = scope:stone_singer_candidate_2
+				min = 0
+				max = 10
+				multiplier = 0.5
+			}
+			modifier = {
+				factor = 2
+				has_trait = family_first
+			}
+		}
+	}
+
+	option = { # Pick the third target
+		name = mining.0100.c
+		trigger = {
+			exists = scope:stone_singer_candidate_3
+		}
+		court_position_grant_effect = {
+			CANDIDATE = scope:stone_singer_candidate_3
+			POS = stone_singer_court_position
+			EMPLOYER = root
+		}
+		random = {
+			chance = 50
+			set_relation_friend = {
+				target = scope:stone_singer_candidate_3
+		 		reason = friend_made_me_ss
+			}
+		}
+		ai_chance = {
+			base = 5
+			opinion_modifier = {
+				who = root
+				opinion_target = scope:stone_singer_candidate_3
+				min = 0
+				max = 10
+				multiplier = 0.5
+			}
+			modifier = {
+				factor = 0.5
+				has_trait = family_first
+			}
+			modifier = {
+				factor = 0.5
+				has_relation_rival = scope:stone_singer_candidate_3
+				NOT = { has_trait = forgiving }
+			}
+		}
+	}
+
+	option = { # Pick nobody
+		name = mining.0100.d
+		ai_chance = { # The AI should always pick someone, unless they're bankrupt
+			base = 0
+			modifier = {
+				add = 100
+				gold < tiny_gold_value
+			}
+		}
+	}
+
+	after = {
+		# Update success chance
+		scope:activity = {
+			set_variable = {
+				name = mining_success_chance
+				value = mining_success_chance_value
+			}
+		}
+	}
+}
+
 #####################################
 #	INVITATION EVENTS	            #
 #	0100 - 0199						#
@@ -415,6 +921,28 @@ mining.0200 = { # Host - kick off - add stress
 						is_ai = yes
 					}
 					save_scope_as = ootm_character
+					save_scope_as = crowd_member_1
+				}
+			}
+		}
+		if = {
+			limit = {
+				employs_court_position = stone_singer_court_position
+				scope:activity = {
+					any_attending_character = {
+						location = scope:activity.activity_location
+						has_court_position = stone_singer_court_position
+					}
+				}
+			}
+			scope:activity = {
+				random_attending_character = {
+					limit = {
+						location = scope:activity.activity_location
+						has_court_position = stone_singer_court_position
+						is_ai = yes
+					}
+					save_scope_as = stone_singer_character
 					save_scope_as = crowd_member_1
 				}
 			}
@@ -675,6 +1203,74 @@ mining.0200 = { # Host - kick off - add stress
 		}
 	}
 
+	option = { # Let my Stone Singer take over
+		trigger = {
+			exists = scope:stone_singer_character
+		}
+		name = mining.0200.f
+		save_scope_as = stone_singer_speaker
+		custom_description_no_bullet = {
+			text = effect_aptitude_challenge
+		}
+		scope:stone_singer_character = {
+			random_list = {
+				3 = {
+					modifier = {
+						add = aptitude:stone_singer_court_position
+					}
+					scope:activity = {
+						set_variable = {
+							name = mining_team_huddle
+							value = flag:stone_singer_success
+						}
+					}
+					custom_tooltip = mining.0200.d.success
+					root = {
+						send_interface_toast = {
+							title = mining_success_chance.stone_singer_success
+							left_icon = scope:stone_singer_character
+							custom_tooltip = mining_activity_success_increase_medium_tt
+						}
+					}
+					add_prestige = 50
+					scope:activity = {
+						add_activity_log_entry = {
+							key = mining_log_prospecting_start_stone_singer_success
+							score = 25
+							tags = { good }
+							character = scope:stone_singer_character
+						}
+					}
+				}
+				3 = {
+					scope:activity = {
+						set_variable = {
+							name = mining_team_huddle
+							value = flag:stone_singer_failure
+						}
+					}
+					custom_tooltip = mining.0200.d.failure
+					root = {
+						send_interface_toast = {
+							title = mining_success_chance.stone_singer_failure
+							left_icon = scope:stone_singer_character
+							custom_tooltip = mining_activity_success_decrease_medium_tt
+						}
+					}
+					add_prestige = -50
+					scope:activity = {
+						add_activity_log_entry = {
+							key = mining_log_prospecting_start_stone_singer_fail
+							score = 25
+							tags = { bad }
+							character = scope:stone_singer_character
+						}
+					}
+				}
+			}
+		}
+	}
+
 	option = { # Leave them to it
 		name = mining.0200.e
 		custom_tooltip = mining.0200.e.tt
@@ -759,6 +1355,18 @@ mining.0201 = { # Guest - kick off result - add stress
 				}
 				desc = mining.0201.t.overseer_failure
 			}
+			triggered_desc = {
+				trigger = { 
+					scope:activity = { var:mining_team_huddle ?= flag:stone_singer_success }
+				}
+				desc = mining.0201.desc.stone_singer_success
+			}
+			triggered_desc = {
+				trigger = { 
+					scope:activity = { var:mining_team_huddle ?= flag:stone_singer_failure }
+				}
+				desc = mining.0201.t.stone_singer_failure
+			}
 			desc = mining.0201.t.get_on_with_it
 		}
 	}
@@ -813,6 +1421,18 @@ mining.0201 = { # Guest - kick off result - add stress
 				}
 				desc = mining.0201.t.overseer_failure
 			}
+			triggered_desc = {
+				trigger = { 
+					scope:activity = { var:mining_team_huddle ?= flag:stone_singer_success }
+				}
+				desc = mining.0201.desc.stone_singer_success
+			}
+			triggered_desc = {
+				trigger = { 
+					scope:activity = { var:mining_team_huddle ?= flag:stone_singer_failure }
+				}
+				desc = mining.0201.t.stone_singer_failure
+			}
 			desc = mining.0201.desc.get_on_with_it
 		}
 	}
@@ -828,6 +1448,7 @@ mining.0201 = { # Guest - kick off result - add stress
 						var:mining_team_huddle ?= flag:pep_talk_success
 						var:mining_team_huddle ?= flag:strategy_success
 						var:mining_team_huddle ?= flag:overseer_success
+						var:mining_team_huddle ?= flag:stone_singer_success
 					}
 				}
 			}
@@ -841,6 +1462,7 @@ mining.0201 = { # Guest - kick off result - add stress
 						var:mining_team_huddle ?= flag:strategy_failure
 						var:mining_team_huddle ?= flag:threaten_failure
 						var:mining_team_huddle ?= flag:overseer_failure
+						var:mining_team_huddle ?= flag:stone_singer_failure
 					}
 				}
 			}
@@ -865,6 +1487,7 @@ mining.0201 = { # Guest - kick off result - add stress
 						var:mining_team_huddle ?= flag:pep_talk_success
 						var:mining_team_huddle ?= flag:strategy_success
 						var:mining_team_huddle ?= flag:overseer_success
+						var:mining_team_huddle ?= flag:stone_singer_success
 					}
 				}
 			}
@@ -878,6 +1501,7 @@ mining.0201 = { # Guest - kick off result - add stress
 						var:mining_team_huddle ?= flag:strategy_failure
 						var:mining_team_huddle ?= flag:threaten_failure
 						var:mining_team_huddle ?= flag:overseer_failure
+						var:mining_team_huddle ?= flag:stone_singer_failure
 					}
 				}
 			}
@@ -902,6 +1526,7 @@ mining.0201 = { # Guest - kick off result - add stress
 						var:mining_team_huddle ?= flag:pep_talk_success
 						var:mining_team_huddle ?= flag:strategy_success
 						var:mining_team_huddle ?= flag:overseer_success
+						var:mining_team_huddle ?= flag:stone_singer_success
 					}
 				}
 			}
@@ -915,6 +1540,7 @@ mining.0201 = { # Guest - kick off result - add stress
 						var:mining_team_huddle ?= flag:strategy_failure
 						var:mining_team_huddle ?= flag:threaten_failure
 						var:mining_team_huddle ?= flag:overseer_failure
+						var:mining_team_huddle ?= flag:stone_singer_failure
 					}
 				}
 			}
@@ -1013,6 +1639,18 @@ mining.0201 = { # Guest - kick off result - add stress
 		}
 		name = {
 			trigger = { 
+				scope:activity = { var:mining_team_huddle ?= flag:stone_singer_success }
+			}
+			text = mining.0201.desc.stone_singer_success
+		}
+		name = {
+			trigger = { 
+				scope:activity = { var:mining_team_huddle ?= flag:stone_singer_failure }
+			}
+			text = mining.0201.t.stone_singer_failure
+		}
+		name = {
+			trigger = { 
 				scope:activity = { var:mining_team_huddle ?= flag:no_speech }
 			}
 			text = mining.0201.a.get_on_with_it
@@ -1059,6 +1697,24 @@ mining.0201 = { # Guest - kick off result - add stress
 				scope:activity = { var:mining_team_huddle ?= flag:overseer_success }
 			}
 			custom_tooltip = mining_activity_success_increase_medium_tt
+		}
+		else_if = {
+			limit = {
+				scope:activity = { var:mining_team_huddle ?= flag:overseer_failure }
+			}
+			custom_tooltip = mining_activity_success_decrease_medium_tt
+		}
+		else_if = {
+			limit = {
+				scope:activity = { var:mining_team_huddle ?= flag:stone_singer_success }
+			}
+			custom_tooltip = mining_activity_success_increase_medium_tt
+		}
+		else_if = {
+			limit = {
+				scope:activity = { var:mining_team_huddle ?= flag:stone_singer_failure }
+			}
+			custom_tooltip = mining_activity_success_decrease_medium_tt
 		}
 		else = {
 			custom_tooltip = mining_activity_success_decrease_medium_tt
@@ -3092,6 +3748,7 @@ mining.1031 = {
 		OR = {
 			involved_activity.activity_host = this
 			has_court_position = overseer_of_the_mines_court_position
+			has_court_position = stone_singer_court_position
 		}
 		scope:activity.activity_location.county = {
 			NOT = { has_county_modifier = mining_punished_locals_modifier }
@@ -3348,6 +4005,568 @@ mining.1031 = {
 	}
 }
 
+scripted_trigger mining_1040_interested_in_hunting = { #POV of the hunter
+	OR = {
+		has_trait = lifestyle_hunter
+		has_lifestyle = martial_lifestyle
+		has_trait = curious
+		has_trait = gluttonous
+		has_trait = lifestyle_reveler
+		AND = {
+			has_court_position = master_of_hunt_court_position
+			aptitude = {
+				court_position = master_of_hunt_court_position
+				value >= 2
+			}
+		}
+	}
+}
+
+scripted_trigger mining_1040_courtier_interested_in_hunting = {
+	NOR = {
+		this = root
+		trigger_if = {
+			limit = { exists = scope:hunt_participant }
+			this = scope:hunt_participant
+		}
+	}
+	mining_1040_interested_in_hunting = yes
+	is_ai = yes
+}
+
+mining.1040 = {
+	type = activity_event
+	title = mining.1040.t
+	desc = {
+		first_valid = {
+			triggered_desc = {
+				trigger = {
+					AND = {
+						exists = scope:master_of_hunt
+						scope:mining_participant = scope:master_of_hunt
+					}
+				}
+				desc = mining.1040.opening_position
+			}
+			desc = mining.1040.opening
+		}
+		first_valid = {
+			triggered_desc = {
+				trigger = {
+					exists = scope:mining_participant_2
+					AND = {
+						exists = scope:master_of_hunt
+						scope:mining_participant = scope:master_of_hunt
+					}
+				}
+				desc = mining.1040.second_position
+			}
+			triggered_desc = {
+				trigger = { exists = scope:mining_participant_2 }
+				desc = mining.1040.second
+			}
+			desc = mining.1040.alone
+		}
+		first_valid = {
+			triggered_desc = {
+				trigger = {
+					exists = scope:master_of_hunt
+					scope:mining_participant = {
+						OR = {
+							this = scope:master_of_hunt
+							has_trait = lifestyle_hunter
+						}
+					}
+				}
+				desc = mining.1040.master_of_hunt
+			}
+			desc = mining.1040.desc
+		}
+	}
+	theme = mining_activity
+	left_portrait = {
+		character = root
+		animation = disapproval
+	}
+	center_portrait = {
+		character = scope:mining_participant_2
+		animation = thinking
+	}
+	right_portrait = {
+		character = scope:mining_participant
+		animation = happiness
+	}
+	lower_right_portrait = {
+		trigger = {
+			exists = scope:master_of_hunt
+			NOR = {
+				scope:master_of_hunt = scope:mining_participant
+				AND = {
+					exists = scope:mining_participant_2
+					scope:master_of_hunt = scope:mining_participant_2
+				}
+			}
+		}
+		character = scope:master_of_hunt
+	}
+	cooldown = { years = 1 }
+
+	trigger = {
+		scope:activity = {
+			any_attending_character = { mining_1040_courtier_interested_in_hunting = yes }
+		}
+	}
+
+	immediate = {
+		if = {
+			limit = { employs_court_position = master_of_hunt_court_position }
+			court_position:master_of_hunt_court_position = { save_scope_as = master_of_hunt }
+		}
+		scope:activity = {
+			every_attending_character = {
+				limit = { mining_1040_courtier_interested_in_hunting = yes }
+				add_to_list = hunt_people
+			}
+		}
+		random_in_list = {
+			list = hunt_people
+			limit = {
+				is_of_major_interest_trigger = { CHARACTER = root }
+			}
+			alternative_limit = {
+				is_of_minor_interest_trigger = { CHARACTER = root }
+			}
+			alternative_limit = { always = yes }
+			weight = {
+				base = 1
+				modifier = {
+					add = 1
+					exists = scope:master_of_hunt
+					this = scope:master_of_hunt
+				}
+			}
+			save_scope_as = mining_participant
+		}
+		if = {
+			limit = {
+				any_in_list = {
+					list = hunt_people
+					NOT = { this = scope:mining_participant }
+				}
+			}
+			hidden_effect = {
+				random = {
+					chance = 33
+					random_in_list = {
+						list = hunt_people
+						limit = {
+							is_of_major_interest_trigger = { CHARACTER = root }
+							NOT = { this = scope:mining_participant }
+						}
+						alternative_limit = {
+							is_of_minor_interest_trigger = { CHARACTER = root }
+							NOT = { this = scope:mining_participant }
+						}
+						alternative_limit = {
+							NOT = { this = scope:mining_participant }
+						}
+						weight = {
+							base = 1
+							modifier = {
+								add = 1
+								exists = scope:master_of_hunt
+								this = scope:master_of_hunt
+							}
+						}
+						save_scope_as = mining_participant_2
+						progress_towards_friend_effect = {
+							REASON = friend_bonded_over_hunting
+							CHARACTER = scope:mining_participant
+							OPINION = default_friend_opinion
+						}
+					}
+				}
+			}
+		}		
+	}
+
+	option = { #Focus on the mining
+		name = {
+			text = mining.1040.a
+			trigger = {
+				NOT = { exists = scope:mining_participant_2 }
+			}
+		}
+		name = {
+			text = mining.1040.a.second
+			trigger = { exists = scope:mining_participant_2 }
+		}
+		flavor = mining.1040.a.flavor
+		scope:activity = {
+			add_activity_log_entry = {
+				key = mining_rats_focus_log
+				score = 25
+				tags = { random neutral social }
+				character = scope:mining_participant
+				target = scope:mining_participant_2
+				
+				#Effect
+				root = {
+					miner_progress_point_gain_effect = { CHANGE = 1 RANDOM_CHANGE = 1 }
+					add_prestige = miniscule_prestige_gain
+					reverse_add_opinion = {
+						modifier = disappointed_opinion
+						target = scope:mining_participant
+						opinion = -10
+					}
+					if = {
+						limit = { exists = scope:mining_participant_2 }
+						reverse_add_opinion = {
+							modifier = disappointed_opinion
+							target = scope:mining_participant_2
+							opinion = -10
+						}
+					}
+					mining_activity_success_change_effect = { CHANGE = increase_medium }
+					stress_impact = {
+						lifestyle_hunter = minor_stress_impact_gain
+						lifestyle_reveler = minor_stress_impact_gain
+						patient = minor_stress_impact_gain
+						content = minor_stress_impact_gain
+					}
+				}
+			}
+		}
+		ai_chance = {
+			base = 25
+			ai_value_modifier = {
+				ai_boldness = 0.5
+				ai_energy = 1
+			}
+			modifier = {
+				factor = 2
+				has_trait = lifestyle_miner
+			}
+		}
+	}
+
+	option = { #catch the mole-rats
+		name = mining.1040.b
+		trigger = {
+			NOR = {
+				has_trait = lifestyle_reveler
+				has_trait = lifestyle_hunter
+			}
+		}
+		scope:activity = {
+			add_activity_log_entry = {
+				key = mining_rats_hunt_log
+				score = 25
+				tags = { random neutral social }
+				character = scope:mining_participant
+				target = scope:mining_participant_2
+				
+				#Effect
+				root = {
+					mining_activity_success_change_effect = { CHANGE = decrease_minor }
+					add_martial_lifestyle_xp = major_lifestyle_xp
+					stress_impact = {
+						lifestyle_miner = minor_stress_impact_gain
+						impatient = minor_stress_impact_gain
+						ambitious = minor_stress_impact_gain
+					}
+				}
+			}
+		}
+		ai_chance = {
+			base = 25
+			ai_value_modifier = {
+				ai_boldness = -0.5
+				ai_energy = -1
+			}
+			modifier = {
+				factor = 2
+				has_lifestyle = martial_lifestyle
+			}
+		}
+	}
+
+	option = { #Hunter bond
+		name = {
+			trigger = {
+				has_trait = lifestyle_hunter
+				NOT = { has_trait = lifestyle_reveler }
+			}
+			text = mining.1040.e.hunter
+		}
+		name = {
+			trigger = {
+				has_trait = lifestyle_reveler
+				NOT = { has_trait = lifestyle_hunter }
+			}
+			text = mining.1040.e.reveler
+		}
+		name = {
+			trigger = {
+				has_trait = lifestyle_reveler
+				has_trait = lifestyle_hunter
+			}
+			text = mining.1040.e
+		}
+		flavor = mining.1040.e.flavor
+		trigger = {
+			OR = {
+				has_trait = lifestyle_reveler
+				has_trait = lifestyle_hunter
+			}
+		}
+		trait = lifestyle_reveler
+		trait = lifestyle_hunter
+		scope:activity = {
+			add_activity_log_entry = {
+				key = mining_rats_bond_log
+				score = 25
+				tags = { random neutral }
+				character = scope:mining_participant
+				target = scope:mining_participant_2
+				
+				#Effect
+				root = {
+					mining_activity_success_change_effect = { CHANGE = decrease_minor }
+					add_character_modifier = {
+						modifier = mining_rat_meat_modifier
+						years = 5 
+					}
+					progress_towards_friend_effect = {
+						REASON = friend_bonded_over_hunting
+						CHARACTER = scope:mining_participant
+						OPINION = default_friend_opinion
+					}
+					if = {
+						limit = { exists = scope:mining_participant_2 }
+						progress_towards_friend_effect = {
+							REASON = friend_bonded_over_hunting
+							CHARACTER = scope:mining_participant_2
+							OPINION = default_friend_opinion
+						}
+					}
+					stress_impact = {
+						impatient = minor_stress_impact_gain
+						ambitious = minor_stress_impact_gain
+						lifestyle_hunter = minor_stress_impact_loss
+						lifestyle_reveler = medium_stress_impact_loss
+					}
+				}
+			}
+		}
+		ai_chance = {
+			base = 25
+			ai_value_modifier = {
+				ai_rationality = 0.5
+				ai_energy = -1
+				ai_sociability = 0.5
+			}
+		}
+	}
+
+	option = { #master_of_hunt cp
+		name = {
+			trigger = {
+				scope:master_of_hunt = { is_participant_in_activity = scope:activity }
+				OR = {
+					scope:mining_participant = scope:master_of_hunt
+					trigger_if = {
+						limit = { exists = scope:mining_participant_2 }
+						scope:mining_participant_2 = scope:master_of_hunt
+					}
+				}
+			}
+			text = mining.1040.g
+		}
+		name = {
+			trigger = {
+				scope:master_of_hunt = { is_participant_in_activity = scope:activity }
+				NOR = {
+					scope:mining_participant = scope:master_of_hunt
+					trigger_if = {
+						limit = { exists = scope:mining_participant_2 }
+						scope:mining_participant_2 = scope:master_of_hunt
+					}
+				}
+			}
+			text = mining.1040.g.present
+		}
+		name = {
+			trigger = {
+				scope:master_of_hunt = {
+					NOT = { is_participant_in_activity = scope:activity }
+				}
+			}
+			text = mining.1040.g.elsewhere
+		}
+		flavor = {
+			first_valid = {
+				triggered_desc = {
+					trigger = {
+						scope:master_of_hunt = { is_participant_in_activity = scope:activity }
+						OR = {
+							scope:mining_participant = scope:master_of_hunt
+							trigger_if = {
+								limit = { exists = scope:mining_participant_2 }
+								scope:mining_participant_2 = scope:master_of_hunt
+							}
+						}
+					}
+					desc = mining.1040.cp_flavor
+				}
+				triggered_desc = {
+					trigger = {
+						scope:master_of_hunt = { is_participant_in_activity = scope:activity }
+						NOR = {
+							scope:mining_participant = scope:master_of_hunt
+							trigger_if = {
+								limit = { exists = scope:mining_participant_2 }
+								scope:mining_participant_2 = scope:master_of_hunt
+							}
+						}
+					}
+					desc = mining.1040.cp_present_flavor
+				}
+				desc = mining.1040.cp_elsewhere_flavor
+			}
+		}
+		trigger = { exists = scope:master_of_hunt }
+		scope:activity = {
+			add_activity_log_entry = {
+				key = mining_rats_hunter_log
+				score = 25
+				tags = { random social neutral }
+				character = scope:mining_participant
+				target = scope:mining_participant_2
+				
+				#Effect
+				root = {
+					add_character_modifier = {
+						modifier = mining_well_stocked_larder_modifier
+						years = 5 
+					}
+					scope:master_of_hunt = {
+						if = {
+							limit = { is_participant_in_activity = scope:activity }
+							remove_from_activity = scope:activity
+							if = {
+								limit = {
+									OR = {
+										has_trait = lifestyle_miner
+										has_trait = lazy
+										NOR = {
+											has_trait = lifestyle_hunter
+											has_trait = lifestyle_reveler
+										}
+									}
+								}
+								add_opinion = {
+									modifier = annoyed_opinion
+									target = root
+									opinion = -10
+								}
+							}
+							else = {
+								add_opinion = {
+									modifier = grateful_opinion
+									target = root
+									opinion = 10
+								}
+							}
+						}
+						else = {
+							scope:mining_participant = {
+								remove_from_activity = scope:activity
+								if = {
+									limit = {
+										OR = {
+											has_trait = lifestyle_miner
+											has_trait = lazy
+											NOR = {
+												has_trait = lifestyle_hunter
+												has_trait = lifestyle_reveler
+											}
+										}
+									}
+									add_opinion = {
+										modifier = annoyed_opinion
+										target = root
+										opinion = -20
+									}
+								}
+								else = {
+									add_opinion = {
+										modifier = annoyed_opinion
+										target = root
+										opinion = -10
+									}
+								}
+							}
+							if = {
+								limit = { exists = scope:mining_participant_2 }
+								scope:mining_participant_2 = {
+									remove_from_activity = scope:activity
+									if = {
+										limit = {
+											OR = {
+												has_trait = lifestyle_miner
+												has_trait = lazy
+												NOR = {
+													has_trait = lifestyle_hunter
+													has_trait = lifestyle_reveler
+												}
+											}
+										}
+										add_opinion = {
+											modifier = annoyed_opinion
+											target = root
+											opinion = -20
+										}
+									}
+									else = {
+										add_opinion = {
+											modifier = annoyed_opinion
+											target = root
+											opinion = -10
+										}
+									}
+								}
+							}
+							add_opinion = {
+								modifier = grateful_opinion
+								target = root
+								opinion = 10
+							}
+						}
+					}
+					stress_impact = {
+						impatient = minor_stress_impact_gain
+						ambitious = minor_stress_impact_gain
+						lifestyle_hunter = miniscule_stress_impact_loss
+						lifestyle_reveler = minor_stress_impact_loss
+					}
+				}
+			}
+		}
+		ai_chance = {
+			base = 25
+			ai_value_modifier = {
+				ai_zeal = 1
+				ai_boldness = 1
+			}
+			modifier = {
+				factor = 2
+				has_trait = paranoid
+			}
+		}
+	}
+}
+
 # Sneak away with your lover
 
 scripted_trigger mining_1041_lover_trigger = {
@@ -3479,6 +4698,346 @@ mining.1041 = {
 			}
 			ai_value_modifier = {
 				ai_honor = 0.25
+			}
+		}
+	}
+}
+
+mining.1050 = { # Chamber of Mazarbul event
+	type = activity_event
+	title = mining.1050.t
+	desc = {
+		first_valid = {
+			triggered_desc = {
+				trigger = {
+					AND = {
+						exists = scope:stone_singer
+						scope:mining_participant = scope:stone_singer
+					}
+				}
+				desc = mining.1050.opening_stone_singer
+			}
+			triggered_desc = {
+				trigger = {
+					AND = {
+						exists = scope:overseer
+						scope:mining_participant = scope:overseer
+					}
+				}
+				desc = mining.1050.opening_overseer
+			}
+			desc = mining.1050.opening
+		}
+		first_valid = {
+			triggered_desc = {
+				trigger = {
+					AND = {
+						is_dwarf = yes
+						NOR = {
+							has_trait = cynical
+							has_trait = callous
+							has_trait = sadistic
+						}
+					}
+				}
+				desc = mining.1050.dwarf
+			}
+			triggered_desc = {
+				trigger = {
+					faith_is_evil = yes
+				}
+				desc = mining.1050.evil
+			}
+			desc = mining.1050.default
+		}
+		desc = mining.1050.desc
+		first_valid = {
+			triggered_desc = {
+				trigger = {
+					exists = scope:stone_singer
+					scope:mining_participant = {
+						is_dwarf = yes
+					}
+				}
+				desc = mining.1050.closing_dwarf
+			}
+			desc = mining.1050.closing_default
+		}
+	}
+	theme = mining_activity
+	left_portrait = {
+		character = root
+		triggered_animation = {
+			trigger = {
+				OR = {
+					AND = {
+						is_dwarf = yes
+						NOR = {
+							has_trait = cynical
+							has_trait = callous
+							has_trait = sadistic
+						}
+					}
+					has_trait = compassionate
+				}
+			}
+			animation = sadness
+		}
+		triggered_animation = {
+			trigger = {
+				is_dwarf = no
+				NOT = { has_trait = compassionate }
+				faith_is_evil = yes
+			}
+			animation = ecstasy
+		}
+		animation = thinking
+	}
+	right_portrait = {
+		character = scope:mining_participant
+		triggered_animation = {
+			trigger = {
+				OR = {
+					AND = {
+						is_dwarf = yes
+						NOR = {
+							has_trait = cynical
+							has_trait = callous
+							has_trait = sadistic
+						}
+					}
+					has_trait = compassionate
+				}
+			}
+			animation = grief
+		}
+		animation = shock
+	}
+	cooldown = { years = 1 }
+
+	immediate = {
+		if = {
+			limit = { employs_court_position = stone_singer_court_position }
+			court_position:stone_singer_court_position = { save_scope_as = stone_singer }
+		}
+		else_if = {
+			limit = { employs_court_position = overseer_of_the_mines_court_position }
+			court_position:overseer_of_the_mines_court_position = { save_scope_as = overseer }
+		}
+		scope:activity = {
+			every_attending_character = {
+				add_to_list = chamber_people
+			}
+		}
+		random_in_list = {
+			list = chamber_people
+			limit = {
+				is_of_major_interest_trigger = { CHARACTER = root }
+			}
+			alternative_limit = {
+				is_of_minor_interest_trigger = { CHARACTER = root }
+			}
+			alternative_limit = { always = yes }
+			weight = {
+				base = 1
+				modifier = {
+					add = 1
+					exists = scope:stone_singer
+					this = scope:stone_singer
+				}
+			}
+			weight = {
+				base = 1
+				modifier = {
+					add = 1
+					exists = scope:overseer
+					this = scope:overseer
+				}
+			}
+			save_scope_as = mining_participant
+		}	
+	}
+
+	option = { #Focus on the mining
+		name =  mining.1040.a
+		flavor = mining.1040.a.flavor
+		scope:activity = {
+			add_activity_log_entry = {
+				key = mining_chamber_focus_log
+				score = 25
+				tags = { random neutral social }
+				character = scope:mining_participant
+				
+				#Effect
+				root = {
+					miner_progress_point_gain_effect = { CHANGE = 1 RANDOM_CHANGE = 1 }
+					add_prestige = miniscule_prestige_gain
+					if = {
+						limit = { is_dwarf = yes }
+						add_piety = minor_piety_loss
+					}
+					reverse_add_opinion = {
+						modifier = disappointed_opinion
+						target = scope:mining_participant
+						opinion = -10
+					}
+					mining_activity_success_change_effect = { CHANGE = increase_medium }
+					stress_impact = {
+						lifestyle_mystic = minor_stress_impact_gain
+						patient = minor_stress_impact_gain
+						content = minor_stress_impact_gain
+						compassionate = minor_stress_impact_gain
+					}
+				}
+			}
+		}
+		ai_chance = {
+			base = 25
+			ai_value_modifier = {
+				ai_boldness = 0.5
+				ai_energy = 1
+			}
+			modifier = {
+				factor = 2
+				has_trait = lifestyle_miner
+			}
+		}
+	}
+
+	option = { #Give them a proper burial
+		name = {
+			trigger = {
+				is_dwarf = yes
+			}
+			text = mining.1050.b.dwarf
+		}
+		name = {
+			trigger = {
+				is_dwarf = no
+				faith_is_evil = no
+			}
+			text = mining.1050.b.not_evil_not_dwarf
+		}
+		name = {
+			trigger = {
+				is_dwarf = no
+				faith_is_evil = yes
+			}
+			text = mining.1050.b.evil_not_dwarf
+		}
+		
+		trigger = { is_orc = no }
+		
+		scope:activity = {
+			add_activity_log_entry = {
+				key = mining_chamber_burial_log
+				score = 25
+				tags = { random social good }
+				character = scope:mining_participant
+				
+				#Effect
+				root = {
+					mining_activity_success_change_effect = { CHANGE = decrease_minor }
+					if = {
+						limit = { is_dwarf = yes }
+						add_piety = minor_piety_gain
+					}
+					else = {
+						add_piety = miniscule_piety_gain
+					}
+					stress_impact = {
+						impatient = minor_stress_impact_gain
+						ambitious = minor_stress_impact_gain
+						greedy = minor_stress_impact_gain
+						cynical = minor_stress_impact_gain
+						callous = minor_stress_impact_gain
+					}
+				}
+			}
+		}
+		ai_chance = {
+			base = 25
+			ai_value_modifier = {
+				ai_boldness = -0.5
+				ai_energy = -1
+				ai_zeal = 1
+				ai_compassion = 1
+			}
+			modifier = {
+				factor = 2
+				is_dwarf = yes
+			}
+		}
+	}
+
+	option = { #Strip them of valuables
+		name = {
+			trigger = {
+				is_dwarf = yes
+			}
+			text = mining.1050.c.dwarf
+		}
+		name = {
+			trigger = {
+				is_dwarf = no
+				faith_is_evil = no
+			}
+			text = mining.1050.c.not_evil_not_dwarf
+		}
+		name = {
+			trigger = {
+				is_dwarf = no
+				faith_is_evil = yes
+			}
+			text = mining.1050.c.evil_not_dwarf
+		}
+		
+		scope:activity = {
+			add_activity_log_entry = {
+				key = mining_chamber_plunder_log
+				score = 25
+				tags = { random social bad }
+				character = scope:mining_participant
+				
+				#Effect
+				root = {
+					mining_activity_success_change_effect = { CHANGE = decrease_minor }
+					add_character_modifier = {
+						modifier = mining_plundered_dwarven_bodies_modifier
+						years = 5 
+					}
+					if = {
+						limit = { is_dwarf = yes }
+						add_piety = medium_piety_loss
+					}
+					else = {
+						add_piety = minor_piety_loss
+					}
+					add_gold = medium_gold_value
+					stress_impact = {
+						impatient = minor_stress_impact_gain
+						ambitious = minor_stress_impact_gain
+						generous = minor_stress_impact_gain
+						compassionate = minor_stress_impact_gain
+					}
+				}
+			}
+		}
+		ai_chance = {
+			base = 25
+			ai_value_modifier = {
+				ai_rationality = 0.5
+				ai_greed = 1
+				ai_zeal = -1
+				ai_compassion = -1
+			}
+			modifier = {
+				factor = -2
+				is_dwarf = yes
+			}
+			modifier = {
+				factor = 2
+				is_orc = yes
 			}
 		}
 	}
@@ -5162,7 +6721,7 @@ mining.8003 = {
 		mining_all_attendee_xp_effect = { CHANGE = 2 RANDOM = 1 } # Guest XP gain for success
 	}
 
-	option = { # Find a random resource
+	option = {
 		name = mining.8003.a
 		scope:activity = {
 			add_activity_log_entry = {
