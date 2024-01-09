@@ -5,6 +5,24 @@
 		limit = { scope:host = { has_variable = host_is_vassal } }
 		scope:host.liege = { save_scope_as = host_liege }
 	}
+	# Create new dwarf if ruler dies on his way to journey
+	if = {
+		limit = {
+			$RULER$ = scope:host.var:opportunistic_dwarf
+			scope:host.var:opportunistic_dwarf = { is_alive = no }
+		}
+		create_character = {
+			template = dwarf_expedition_template
+			employer = scope:host
+			save_temporary_scope_as = opportunistic_dwarf
+		}
+		scope:host = {
+			set_variable = {
+				name = opportunistic_dwarf
+				value = scope:opportunistic_dwarf
+			}
+		}
+	}
 
 	create_title_and_vassal_change = {
 		type = created
@@ -17,6 +35,7 @@
 		set_county_culture = $RULER$.culture
 		set_county_faith = $RULER$.faith
 	}
+
 	if = {
 		limit = { scope:activity = { has_activity_option = { category = special_type option = expedition_type_standard } } }
 		county = {
@@ -34,23 +53,33 @@
 			}
 		}
 	}
-	resolve_title_and_vassal_change = scope:change
-		
-	county = { generate_coa = yes }
-	county = { $RULER$ = { set_realm_capital = prev } }
 
+	resolve_title_and_vassal_change = scope:change
 
 	# If satellite hold, make them permanent tributary
 	if = {
-		limit = { NOT = { $RULER$ ?= scope:host } }
-		$RULER$ = { becomes_independent = { change = scope:change } }
+		limit = {
+			OR = {
+				$RULER$ = scope:host.var:opportunistic_dwarf
+				$RULER$ = { is_alive = no }
+			}
+		}
+		create_title_and_vassal_change = {
+			type = independency
+			save_scope_as = change
+			add_claim_on_loss = no
+		}
+		scope:host.var:opportunistic_dwarf = { becomes_independent = { change = scope:change } }
 		make_tributary = {
 			TYPE = tributary_permanent
 			SUZERAIN = scope:host
 			TRIBUTARY = scope:host.var:opportunistic_dwarf
 		}
+		resolve_title_and_vassal_change = scope:change
 	}
-	
+
+	county = { generate_coa = yes }
+	county = { $RULER$ = { set_realm_capital = prev } }
 
 	# Give titles away if moving realm
 	if = {
