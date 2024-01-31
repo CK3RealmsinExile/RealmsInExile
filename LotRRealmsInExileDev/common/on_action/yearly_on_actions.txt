@@ -181,12 +181,172 @@ yearly_playable_pulse = {
 			}
 			assign_court_type_traits_to_courtiers_effect = yes
 		}
+
+		# Yearly house head opinion update: to change into only one log maybe?
+		if = {
+			limit = {
+				government_has_flag = government_is_clan
+				exists = house
+				is_house_head = yes
+			}
+			save_scope_as = unity_target
+			if = {
+				limit = {
+					OR = {
+						has_character_flag = steer_unity_towards_harmonious_passive_gain
+						has_character_flag = steer_unity_towards_antagonistic_passive_loss
+					}
+				}
+				house = {
+					add_unity_value = {
+						value = {
+							if = {
+								limit = { root = { has_character_flag = steer_unity_towards_harmonious_passive_gain } }
+								add = medium_unity_gain
+							}
+							else = {
+								add = medium_unity_loss
+							}
+						}
+						character = root
+						desc = clan_unity_steer_direction_passive_change.desc
+					}
+				}
+			}
+			else = {
+				house = {
+					set_variable = {
+						name = house_opinion_unity_impact
+						value = 0
+					}
+					every_house_member = {
+						limit = {
+							is_house_head = no
+							is_adult = yes
+						}
+						if = {
+							limit = {
+								opinion = {
+									target = scope:unity_target
+									value >= low_positive_opinion
+								}
+							}
+							prev = {
+								change_variable = {
+									name = house_opinion_unity_impact
+									add = miniscule_unity_value
+								}
+							}
+							if = {
+								limit = {
+									opinion = {
+										target = scope:unity_target
+										value >= high_positive_opinion
+									}
+								}
+								prev = {
+									change_variable = {
+										name = house_opinion_unity_impact
+										add = minor_unity_value
+									}
+								}
+
+							}
+						}
+						else = {
+							prev = {
+								change_variable = {
+									name = house_opinion_unity_impact
+									subtract = miniscule_unity_value
+								}
+							}
+
+							if = {
+								limit = {
+									opinion = {
+										target = scope:unity_target
+										value <= high_negative_opinion
+									}
+								}
+								prev = {
+									change_variable = {
+										name = house_opinion_unity_impact
+										subtract = minor_unity_value
+									}
+								}
+							}
+						}
+					}
+					if = {
+						limit = { var:house_opinion_unity_impact != 0 }
+						add_unity_value = {
+							value = {
+								if = {
+									limit = { var:house_opinion_unity_impact > 0 }
+									add = minor_unity_gain
+								}
+								else = {
+									add = minor_unity_loss
+								}
+							}
+							character = root
+							desc = clan_unity_generic_average_yearly_opinion_house_head.desc
+						}
+					}
+				}
+			}
+		}
+
+		### If wastelands tracker is wrong, correct the count
+		if = {
+			limit = {
+				any_held_title = { title_province ?= { has_holding_type = settlement_holding } }
+			}
+			if = {
+				limit = { has_variable = correct_settlement_count }
+				remove_variable = correct_settlement_count
+			}
+			every_held_title = {
+				limit = { title_province ?= { has_holding_type = settlement_holding } }
+				holder = {
+					increase_variable = {
+						NAME = correct_settlement_count
+						AMOUNT = 1
+					}
+				}
+			}
+			set_variable = {
+				name = correct_settlement_count
+				value = var:correct_settlement_count.div2
+			}
+			if = {
+				limit = { NOT = { var:num_settled_wilderness = var:correct_settlement_count } }
+				set_variable = {
+					name = num_settled_wilderness
+					value = var:correct_settlement_count
+				}
+			}
+			remove_variable = correct_settlement_count
+			remove_upkeep_modifier = yes
+			trigger_event = wastelands.0007
+		}
+		else_if = { # Remove the upkeep modifier in-case 
+			limit = {
+				has_variable = num_settled_wilderness
+				NOT = {
+					any_held_title = { title_province ?= { has_holding_type = settlement_holding } }
+				}
+			}
+			remove_variable = num_settled_wilderness
+			remove_upkeep_modifier = yes
+		}
 	}
 	events = {
 		adultery.0001 #Suspected spouse/soulmate of cheating (increased chance when there is a lover, but can also trigger otherwise)
 		hold_court.3050 #Warning the ruler that it's been some time since they Held Court
 		court_maintenance.0012 # Dynasty banner improves with renown
 		court_maintenance.0013 # Remove duplicate dynasty banners
+		wastelands.0020
 	}
 	on_actions = {
 		ai_character_pulse
@@ -194,6 +354,9 @@ yearly_playable_pulse = {
 
 		pagan_conversion_pulse
 		colonisation_random_events #LotR
+
+		delay = { days = { 1 180 } }
+		balrog_events
 	}
 }
 
@@ -394,6 +557,10 @@ five_year_playable_pulse = {
 						}
 					}
 					if = {
+						limit = { terrain = halls }
+						set_holding_type = dwarven_holding
+					}
+					else_if = {
 						limit = {
 							root = { government_has_flag = government_is_elven }
 						}
@@ -409,6 +576,17 @@ five_year_playable_pulse = {
 						set_holding_type = castle_holding
 					}
 					
+				}
+				if = { 
+					limit = { root = { var:num_settled_wilderness > 0 } }
+					root = {
+						decrease_variable = {
+							NAME = num_settled_wilderness
+							AMOUNT = 1
+						}
+						remove_wastelands_tracker_variable = yes
+						trigger_event = wastelands.0007
+					}
 				}
 			}
 		}
@@ -476,6 +654,7 @@ random_yearly_playable_pulse = {
 		6 = on_yearly_events
 		5 = fp1_yearly_events
 		4 = fp2_yearly_events
+		4 = fp3_yearly_events
 		2 = bp1_yearly_events
 	}
 	on_actions = {
@@ -497,8 +676,12 @@ random_yearly_playable_pulse = {
 		bp2_child_pulse
 		delay = { days = { 181 240 } }
 		bp2_parent_guardian_hostage_taker_pulse
-		delay = { days = { 241 300 } }
+		delay = { days = { 241 290 } }
 		bp2_adult_followups
+		delay = { days = { 291 310 } }
+		court_scholar_ongoing
+		delay = { days = { 25 44 } }
+		clan_events_on_action
 	}
 }
 
@@ -731,6 +914,9 @@ on_yearly_common_events = {
 
 		#Rohan events 
 		2000 = rohan.2100
+
+		# Dwarven Events
+		500 = dwarven.2000
 	}
 }
 
@@ -751,8 +937,6 @@ on_yearly_invisible_events = {
 		50 = secrets.1005 #A Courtier learns another courtier's major secret
 	}
 }
-
-
 
 on_yearly_events = {
 	events = {
@@ -814,6 +998,13 @@ on_yearly_events = {
 		# Abandon darkness events (Post-Sauron)
 		2000 = abdark.0001	# Khäz-Gramaze gets option to convert to Nadi-Manye
 		2000 = abdark.0002	# Kerkassk gets option to convert to Rhunnic
+		
+		# Elven events
+		200 = elven_yearly.0001 # Garden Gnome event
+		
+		# Dwarven events
+		200 = dwarven_yearly.0001 # Hazardous Quaffing event
+		100 = dwarven_yearly.0002 # A Humerous debate
 		
 		50 = yearly.0001 	#Skill Tutoring
 		100 = yearly.0002	#Indiscreet Councillor
@@ -1180,21 +1371,21 @@ on_yearly_events = {
 		
 		# FP2 - Fate of Iberia Events
 		#180 = fp2_yearly.2020	# Horchata colonialism event
-		#160 = fp2_yearly.8000	# Burning the Vineyards
+		160 = fp2_yearly.8000	# Burning the Vineyards
 		#180 = fp2_yearly.8001	# Assembling the Cortes
 		#180 = fp2_yearly.8002	# A Dietary Dilemma
-		#180 = fp2_yearly.8003	# Flight of Fancy				
+		180 = fp2_yearly.8003	# Flight of Fancy				
 		#180 = fp2_yearly.8004	# Translation School 
-		#180 = fp2_yearly.8005	# Under the Stone Pine 
+		180 = fp2_yearly.8005	# Under the Stone Pine 
 		#180 = fp2_yearly.8006	# Saqaliba Settlers 
 		#180 = fp2_struggle.1002	# Xenophilic Advancment
-		#160 = fp2_struggle.1050	# Dreams of Destruction
+		160 = fp2_struggle.1050	# Dreams of Destruction
 		#150 = fp2_struggle.2000	# Disorderly Market
 		#140 = fp2_struggle.2008	# Misdeeds of the Councillor
-		#300 = fp2_struggle.2013	# The Secret to Freedom
-		#130 = fp2_struggle.2015	# Letter on the Back
+		300 = fp2_struggle.2013	# The Secret to Freedom
+		130 = fp2_struggle.2015	# Letter on the Back
 		#180 = fp2_yearly.2025	# Suffering from Success
-		#150 = fp2_yearly.4001	# You fancy a little siesta
+		150 = fp2_yearly.4001	# You fancy a little siesta
 		#150 = fp2_yearly.4002	# A county is increasingly religiously intertwined
 		#150 = fp2_yearly.4003	# The road to Santiago is under threat from bandits
 		#150 = fp2_yearly.4007 	# Finding a shell on the road to Santiago
@@ -1202,13 +1393,10 @@ on_yearly_events = {
 		#300 = fp2_yearly.4009 	# Visiting the Malato Tree
 		#150 = fp2_yearly.4010 	# Finding a Verraco
 		#300 = fp2_yearly.3000 	# Neighboring Muslims are growing rice, adopt the practice yourself?
-		#150 = fp2_yearly.3001 	# Choosing your epitaph
-		#150 = fp2_yearly.3002 	# And They Were Roommates
-		#150 = fp2_yearly.3003 	# A Flavorful Evening
-		#150 = fp2_yearly.4007 	# Finding a shell on the road to Santiago
-		#150 = fp2_yearly.4008 	# Folk stories around the fireside
-		#300 = fp2_yearly.4009 	# Visiting the Malato Tree
-		#150 = fp2_yearly.4010 	# Finding a Verraco
+		150 = fp2_yearly.3001 	# Choosing your epitaph
+		150 = fp2_yearly.3002 	# And They Were Roommates
+		150 = fp2_yearly.3003 	# A Flavorful Evening
+		# 180 = fp2_struggle.2003 #Band of Lost Birds
 
 		#BP1 - Bontent Pack One Events
 		100 = bp1_yearly.1000 # Best friend introduces you to a new hobby
@@ -1324,6 +1512,42 @@ on_yearly_events = {
 		250 = bp1_house_feud.0008 # Consider starting feud against house who imprisoned family a while
 		250 = bp1_house_feud.0012 # Consider starting feud against house who cuckolded you
 
+		# FP3 - Frontier Events
+		250 = fp3_yearly.8000 # Ghazi Gone Bad
+		250 = fp3_yearly.8001 # Frontier Fortress Benefactor
+		250 = fp3_yearly.8002 # Faith at the Frontier
+		# 350 = fp3_yearly.8003 # Exotic Espand
+		350 = fp3_yearly.8004 # The Frontier Beckons
+		# 350 = fp3_yearly.8009 # Caliphal Concerns
+		# 250 = fp3_yearly.8010 # Abode of War
+		# 250 = fp3_yearly.8014 # Secrets of the Teapot
+		250 = fp3_yearly.8016 # Forgotten Stones & Hyrcanian Havoc
+		500 = fp3_yearly.8018 # Heavenly Horses
+		100 = fp3_yearly.8888 #A Grazing Grievance (start of the Nomads Story Cycle)
+
+		# FP3 - Heritage Events
+		# 250 = fp3_yearly.8019 # Refuge of Light
+		# 250 = fp3_yearly.8020 # The Lady of the Land
+		350 = fp3_yearly.8021 # An Acidic Accident
+		500 = fp3_yearly.8024 # The Return to the Sky
+		# 350 = fp3_yearly.8027 # Nine-Hundred Ninety Chapters of Gold
+		# 250 = fp3_yearly.8033 # Frozen Delights
+		550 = fp3_yearly.8034 # The Hephthalite Hoard
+		# 250 = fp3_yearly.8035 # The Heart and the Creator
+		250 = fp3_yearly.8036 # The City of the Mouthless
+		500 = fp3_yearly.8037 # A Cure for Acedia (the Melancholia Chain)
+		# 300 = fp3_scholarship.1000	# Request Indian mathematician courtiers
+		200 = fp3_scholarship.8500
+		200 = fp3_scholarship.8600
+
+		#FP3 - Extra Yearly Events
+		150 = fp3_yearly.8045 #The Mysterious Bundle (the Buzina Chain)
+		500 = false_conversion.2000 # A Moment of Weakness
+		
+		# FP3 - Zoroastrian Events
+		# 200 = fp3_yearly.8050 #The Fate of the Dead
+		# 200 = fp3_yearly.8051 # The Purest Fire 
+
 		# Guardianship Events
 		200 = childhood.2400 # Ward approaches guardian with theological doubts
 
@@ -1336,6 +1560,10 @@ on_yearly_events = {
 		#50 = hajj.0500 # Promise your dying Hajjaj relative to go on the Hajj
 
 		#BP2 - Bontent Pack Two Events
+		50 = pet_rock.0001 #You find a neat-looking rock
+		10 = destiny_child.0001 #Destiny Child Story Cycle
+
+		100 = bp2_yearly_extra.0001 #My favorite councilor
 		
 		200 = bp2_yearly.0601 # Ruling Rightly - Regent tries to teach you about state.
 		100 = bp2_yearly.0611 # PrimaryTitle's Second Capital - Far away regent never seems to visit.
@@ -1401,11 +1629,37 @@ on_yearly_events = {
 		100 = bp2_yearly.8100 # You develop feelings for another kid, is this a crush?
 		400 = bp2_yearly.8110 # Sacred childbirth, people want to pamper you
 		200 = bp2_yearly.8120 # Sacred childbirth, offer to take care of your pregnant spouse
-
 		50 = pet_rock.0001 #You find a neat-looking rock
 		10 = destiny_child.0001 #Destiny Child Story Cycle
 		25 = bp2_yearly.2010 # Imaginary Friend Story Cycle Start
 
 		100 = bp2_yearly_extra.0001 #My favorite councilor
+
+		#FP3 - Clan Events
+		250 = fp3_clan.8000 # Usury against Unity, by Ola Jentzsch 
+		250 = fp3_clan.8001 # Clan Quarrel, by Ola Jentzsch
+		250 = fp3_clan.8002 # Bonds of Faith, by Ola Jentzsch
+		#250 = fp3_clan.8003 # The Power of a Name, by Ola Jentzsch
+		250 = fp3_clan.8004 # Bonds of Fear, by Ola Jentzsch
+		250 = fp3_clan.8005 # A Proper Position, by Ola Jentzsch
+ 		250 = fp3_clan.8006 # Small Spies, by Ola Jentzsch
+ 		250 = fp3_clan.8008 # Bleeding them Dry, by Ola Jentzsch
+		250 = fp3_clan.8009 # Popular with the People, by Ola Jentzsch
+		250 = fp3_clan.8010 # Competent Qadis / More Magistrates, by Ola Jentzsch
+		250 = fp3_clan.8011 # A Proper Paymaster, by Ola Jentzsch
+		250 = fp3_clan.8012 # Auspicious Avarice, by Ola Jentzsch
+		240 = fp3_clan.8013 # The Burden of Tax Farming, by Ola Jentzsch
+		250 = fp3_clan.8015 # Scandalous Scion, by Ola Jentzsch
+		250 = fp3_clan.8016 # Hammam Havoc, by Ola Jentzsch
+		250 = fp3_clan.8017 # A Questionable Position, by Ola Jentzsch 
+		175 = fp3_clan.3000 # Ravaged Tulips, by Hugo Cortell
+
+		# FP3 - Eren Events
+		250 = fp3_yearly.2000 # Daylight Censors
+		250 = fp3_yearly.2001 # Public Intoxication
+		100 = fp3_yearly.2011 # Maunds of Wheat no royal court
+		250 = fp3_yearly.2020 # Set the Scale, Vassal Version
+		250 = fp3_yearly.2021 # Set the Scale, Liege Version
+		500 = fp3_yearly.2040 # Commander of the Faithful
 	}
 }

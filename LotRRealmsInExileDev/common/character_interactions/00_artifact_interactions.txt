@@ -159,6 +159,39 @@ gift_artifact_interaction = {
 					}
 				}
 			}
+			limit = {
+				fp3_struggle_involves_one_supporter_and_one_detractor = {
+					FIRST = scope:actor
+					SECOND = scope:recipient
+				}
+				scope:actor = {
+					any_character_struggle = {
+						#involvement = involved
+						activate_struggle_catalyst_secondary_character_involvement_either_trigger = {
+							CATALYST = catalyst_gift_supporter_detractor_ruler
+							CHAR = scope:recipient
+						}
+					}
+				}
+			}
+			hidden_effect = {
+				scope:actor = {
+					every_character_struggle = {
+						#involvement = involved
+						limit = {
+							activate_struggle_catalyst_secondary_character_involvement_either_trigger = {
+								CATALYST = catalyst_gift_supporter_detractor_ruler
+								CHAR = scope:recipient
+							}
+						}
+						activate_struggle_catalyst = {
+							catalyst = catalyst_gift_supporter_detractor_ruler
+							character = scope:actor
+						}
+						log_debug_variable_for_persian_struggle_effect = { VAR = concession_catalyst_gift_supporter_detractor_ruler }
+					}
+				}
+			}
 		}
 
 		scope:target = {
@@ -187,35 +220,42 @@ gift_artifact_interaction = {
 				right_icon = scope:target
 				scope:recipient = {
 					if = {
-						limit = {
-							scope:target = { can_be_claimed_by = scope:recipient }
-						}
+						limit = { scope:target = { can_be_claimed_by = scope:recipient } }
 						if = {
-							limit = {
-								any_personal_claimed_artifact = { this = scope:target }
-							}
+							limit = { any_personal_claimed_artifact = { this = scope:target } }
 							show_as_tooltip = { remove_personal_artifact_claim = scope:target }
 						}
-						else = {
-							show_as_tooltip = { remove_house_artifact_claim = scope:target }
-						}
+						else = { show_as_tooltip = { remove_house_artifact_claim = scope:target } }
 					}
 				}
-				scope:target = {
-					set_owner = scope:recipient
-				}
+				
+				scope:target = { set_owner = scope:recipient }
+
+				
 				if = {
 					limit = {
 						scope:target = { is_unique = yes }
+					}
+					add_clan_unity_interaction_effect = {
+						CHARACTER = scope:actor
+						TARGET = scope:recipient
+						VALUE = medium_unity_gain
+						DESC = clan_unity_given_artifact.desc
+						REVERSE_NON_HOUSE_TARGET = no
 					}
 					stress_impact = {
 						greedy = major_stress_impact_gain
 						generous = major_stress_impact_loss
 					}
 				}
-				else_if = {
-					limit = {
-						scope:target = { rarity = masterwork }
+				else_if = {# Unity goes here, too!
+					limit = { scope:target = { rarity = masterwork } }
+					add_clan_unity_interaction_effect = {
+						CHARACTER = scope:actor
+						TARGET = scope:recipient
+						VALUE = minor_unity_gain
+						DESC = clan_unity_given_artifact.desc
+						REVERSE_NON_HOUSE_TARGET = no
 					}
 					stress_impact = {
 						greedy = minor_stress_impact_gain
@@ -223,17 +263,27 @@ gift_artifact_interaction = {
 					}
 				}
 				else_if = {
-					limit = {
-						scope:target = { rarity = famed }
+					limit = { scope:target = { rarity = famed } }
+					add_clan_unity_interaction_effect = {
+						CHARACTER = scope:actor
+						TARGET = scope:recipient
+						VALUE = minor_unity_gain
+						DESC = clan_unity_given_artifact.desc
+						REVERSE_NON_HOUSE_TARGET = no
 					}
-				stress_impact = {
-					greedy = medium_stress_impact_gain
+					stress_impact = {
+						greedy = medium_stress_impact_gain
 						generous = medium_stress_impact_loss
 					}
 				}
 				else_if = {
-					limit = {
-						scope:target = { rarity = illustrious }
+					limit = { scope:target = { rarity = illustrious } }
+					add_clan_unity_interaction_effect = {
+						CHARACTER = scope:actor
+						TARGET = scope:recipient
+						VALUE = minor_unity_gain
+						DESC = clan_unity_given_artifact.desc
+						REVERSE_NON_HOUSE_TARGET = no
 					}
 					stress_impact = {
 						greedy = major_stress_impact_gain
@@ -241,14 +291,45 @@ gift_artifact_interaction = {
 					}
 				}
 				if = {
-					limit = {
-						scope:recipient = { is_ai = yes }
-					}
+					limit = { scope:recipient = { is_ai = yes } }
 					reverse_add_opinion = {
 						target = scope:recipient
 						modifier = gift_artifact_opinion
 						opinion = gift_artifact_opinion
 					}
+				}
+				#FP3 Tenet Communal Possessions Perk - piety gain for gift giving. 
+				if = { 
+					limit = {
+						scope:actor = {
+								faith = {
+					 			has_doctrine_parameter = piety_from_gifts_active
+					 		}
+					 	}
+					}
+					scope:actor = {
+						if = {
+							limit = { #the better the artifact, the more piety you gain
+								scope:target = { rarity = illustrious }
+							}
+							add_piety = massive_piety_gain 
+						}
+						else_if = {
+							limit = {
+								scope:target = { rarity = famed }
+							}
+							add_piety = major_piety_gain 
+						}
+						else_if = {
+							limit = {
+								scope:target = { rarity = masterwork }
+							}
+							add_piety = medium_piety_gain 
+						}
+						else = {
+							add_piety = minor_piety_gain
+						}				 
+					}		
 				}
 			}
 
@@ -327,15 +408,45 @@ gift_artifact_interaction = {
 					right_icon = scope:target
 
 					show_as_tooltip = {
-						scope:target = {
-							set_owner = scope:recipient
-						}
+						scope:target = { set_owner = scope:recipient }
 						if = {
 							limit = { is_ai = yes }
 							add_opinion = {
 								target = scope:actor
 								modifier = gift_artifact_opinion
 								opinion = gift_artifact_opinion
+							}
+						}
+
+						# Unity stuff, scales with tier # If we're a clan this interaction affects unity
+						if = { # In a better world, this would be a switch
+							limit = { scope:target = { rarity = Masterwork } } # todo_cd_polish, make the UI show this before you gift
+							add_clan_unity_interaction_effect = {
+								CHARACTER = scope:actor
+								TARGET = scope:recipient
+								VALUE = minor_unity_gain
+								DESC = clan_unity_given_artifact.desc
+								REVERSE_NON_HOUSE_TARGET = no
+							}
+						}
+						else_if = {
+							limit = { scope:target = { rarity = Famed } }
+							add_clan_unity_interaction_effect = {
+								CHARACTER = scope:actor
+								TARGET = scope:recipient
+								VALUE = medium_unity_gain
+								DESC = clan_unity_given_artifact.desc
+								REVERSE_NON_HOUSE_TARGET = no
+							}
+						}
+						else_if = {
+							limit = { scope:target = { rarity = Illustrious } }
+							add_clan_unity_interaction_effect = {
+								CHARACTER = scope:actor
+								TARGET = scope:recipient
+								VALUE = major_unity_gain
+								DESC = clan_unity_given_artifact.desc
+								REVERSE_NON_HOUSE_TARGET = no
 							}
 						}
 					}
@@ -668,6 +779,44 @@ gift_artifact_interaction = {
 			}
 			desc = ARTIFACT_USELESS_BANNER_REASON
 		}
+		# Struggle motive
+		modifier = {
+			desc = AI_STRUGGLE_INTENT
+			scope:recipient = {
+				is_independent_ruler = yes
+				any_character_struggle = {
+					involvement = involved
+				}
+			}
+			add = {
+				value = 0
+				if = {
+					limit = {
+						scope:recipient = {
+							any_character_struggle = {
+								phase_has_catalyst = catalyst_gift_independent_ruler
+							}
+							has_character_flag = agenda_towards_escalation
+						}
+					}
+					add = -100
+				}
+				else_if = {
+					limit = {
+						scope:recipient = {
+							any_character_struggle = {
+								phase_has_catalyst = catalyst_gift_independent_ruler
+							}
+						}
+					}
+					add = 200
+				}
+			}
+		}
+		# Unity modifiers
+		evaluate_action_increasing_house_unity = {
+			VALUE = 100
+		}
 	}
 	
 	ai_potential = {
@@ -685,7 +834,7 @@ gift_artifact_interaction = {
 		}
 		trigger_else = {
 			is_adult = yes
-			not = { this = title:k_rivendell.holder }	#change back later
+			not = { this = title:k_imladris.holder }	#change back later
 			not = { this =  character:linefinwe27 }
 			ai_greed <= high_positive_ai_value
 			# the AI shouldn't give away equipped artifacts
@@ -957,6 +1106,47 @@ gift_artifact_interaction = {
 			}
 		}
 		
+		# Struggle
+		modifier = {
+			scope:recipient = {
+				is_independent_ruler = yes
+			}
+			scope:actor = {
+				any_character_struggle = {
+					involvement = involved
+				}
+			}
+			add = {
+				value = 0
+				if = {
+					limit = {
+						scope:actor = {
+							any_character_struggle = {
+								phase_has_catalyst = catalyst_gift_independent_ruler
+							}
+							has_character_flag = agenda_towards_escalation
+						}
+					}
+					add = -100
+				}
+				else_if = {
+					limit = {
+						scope:actor = {
+							any_character_struggle = {
+								phase_has_catalyst = catalyst_gift_independent_ruler
+							}
+						}
+					}
+					add = 200
+				}
+			}
+		}
+
+		# Unity modifiers
+		evaluate_action_increasing_house_unity = {
+			VALUE = 100
+		}
+		
 		modifier = {
 			factor = 2
 			scope:recipient = {
@@ -1106,8 +1296,8 @@ demand_artifact_interaction = {
 				any_character_artifact = {
 					can_be_claimed_by = scope:actor
 					#those shouldn't be given
-					not = { has_variable = ring_of_power }
-					not = { has_variable = silmaril }
+					NOT = { has_variable = ring_of_power }
+					NOT = { has_variable = silmaril }
 				}
 			}
 		}
@@ -1213,6 +1403,14 @@ demand_artifact_interaction = {
 				}
 			}
 		}
+
+		add_clan_unity_interaction_effect = {
+			CHARACTER = scope:actor
+			TARGET = scope:recipient
+			VALUE = minor_unity_loss
+			DESC = clan_unity_demanded_artifact.desc
+			REVERSE_NON_HOUSE_TARGET = no
+		}
 	}
 
 	auto_accept = {
@@ -1300,6 +1498,9 @@ demand_artifact_interaction = {
 			add = 100
 			desc = SCHEME_WEAK_HOOK_USED
 		}
+
+		# Unity modifiers
+		evaluate_action_decreasing_house_unity = { VALUE = 100 }
 	}
 	
 	ai_potential = {
@@ -1400,6 +1601,12 @@ demand_artifact_interaction = {
 				}
 			}
 		}
+
+		# Unity modifiers
+		evaluate_action_decreasing_house_unity = {
+				VALUE = 100
+			}
+
 		modifier = { # A Cowed character will never take this interaction
 			factor = 0
 			scope:actor = {
@@ -1822,12 +2029,13 @@ challenge_for_artifact_interaction = {
 					can_be_claimed_by = scope:actor
 					#those shouldn't be stolen
 					NOR = {
-						has_variable = elven_ring
-						AND = {
-							has_variable = ring_of_men
-							has_game_rule = default_ai_behavior
-						}
 						has_variable = silmaril
+						has_variable = elven_ring
+						and = {
+							has_variable = ring_of_mortals
+							has_game_rule = default_ai_behavior
+							scope:recipient = { is_sauron = no }
+						}
 					}
 				}
 			}
@@ -1837,12 +2045,13 @@ challenge_for_artifact_interaction = {
 	can_be_picked_artifact = {
 		scope:target = {
 			NOR = {
-				has_variable = elven_ring
-				AND = {
-					has_variable = ring_of_men
-					has_game_rule = default_ai_behavior
-				}
 				has_variable = silmaril
+				has_variable = elven_ring
+				and = {
+					has_variable = ring_of_mortals
+					has_game_rule = default_ai_behavior
+					scope:recipient = { is_sauron = no }
+				}
 			}
 		}
 	}
@@ -1914,9 +2123,25 @@ challenge_for_artifact_interaction = {
 			OUTPUT_EVENT = artifact.2001
 			INVALIDATION_EVENT = fp1_tbc.0021
 		}
+
+		add_clan_unity_interaction_effect = {
+			CHARACTER = scope:actor
+			TARGET = scope:recipient
+			VALUE = major_unity_loss
+			DESC = clan_unity_challenge_artifact.desc
+			REVERSE_NON_HOUSE_TARGET = no
+		}
 	}
 
 	on_decline = {
+		add_clan_unity_interaction_effect = {
+			CHARACTER = scope:actor
+			TARGET = scope:recipient
+			VALUE = minor_unity_gain
+			DESC = clan_unity_challenge_artifact_refusal.desc
+			REVERSE_NON_HOUSE_TARGET = no
+		}
+
 		# Scope:recipient declines processing.
 		scope:actor = {
 			# Inform them of the decline & scope:recipient loses some prestige.
@@ -2075,6 +2300,11 @@ challenge_for_artifact_interaction = {
 			trigger = { scope:recipient.prestige < challenge_for_artifact_prestige_limit_value } # 1/3rd of potential loss
 			add = 30
 		}
+
+		# Unity modifiers
+		evaluate_action_decreasing_house_unity = {
+				VALUE = 100
+			}
 	}
 
 	# AI
@@ -2188,6 +2418,13 @@ challenge_for_artifact_interaction = {
 				}
 			}
 		}
+
+		# Unity modifiers
+		evaluate_action_decreasing_house_unity = {
+			VALUE = 100
+		}
+
+
 		modifier = { # A Cowed character will never take this interaction
 			factor = 0
 			scope:actor = {
@@ -2555,12 +2792,13 @@ start_stealing_back_artifact = {
 				can_be_claimed_by = scope:actor
 				#those shouldn't be stolen
 				NOR = {
-					has_variable = elven_ring
-					AND = {
-						has_variable = ring_of_men
-						has_game_rule = default_ai_behavior
-					}
 					has_variable = silmaril
+					has_variable = elven_ring
+					and = {
+						has_variable = ring_of_mortals
+						has_game_rule = default_ai_behavior
+						scope:recipient = { is_sauron = no }
+					}
 				}
 			}
 		}
@@ -2569,12 +2807,13 @@ start_stealing_back_artifact = {
 	can_be_picked_artifact = {
 		scope:target = {
 			NOR = {
-				has_variable = elven_ring
-				AND = {
-					has_variable = ring_of_men
-					has_game_rule = default_ai_behavior
-				}
 				has_variable = silmaril
+				has_variable = elven_ring
+				and = {
+					has_variable = ring_of_mortals
+					has_game_rule = default_ai_behavior
+					scope:recipient = { is_sauron = no }
+				}
 			}
 		}
 	}
@@ -3159,12 +3398,13 @@ buy_artifact_claim = {
 					# This is the only way I have found to exclude dynastic banners
 					artifact_type = wall_big
 					#those shouldn't be stolen
+					has_variable = silmaril
 					has_variable = elven_ring
 					and = {
-						has_variable = ring_of_men
+						has_variable = ring_of_mortals
 						has_game_rule = default_ai_behavior
+						scope:recipient = { is_sauron = no }
 					}
-					has_variable = silmaril
 				}
 			}
 		}
@@ -3179,12 +3419,13 @@ buy_artifact_claim = {
 				has_variable = pope_hat
 				artifact_type = wall_big
 				#those shouldn't be stolen
+				has_variable = silmaril
 				has_variable = elven_ring
 				and = {
-					has_variable = ring_of_men
+					has_variable = ring_of_mortals
 					has_game_rule = default_ai_behavior
+					scope:recipient = { is_sauron = no }
 				}
-				has_variable = silmaril
 			}
 		}
 	}
@@ -3405,6 +3646,15 @@ buy_artifact_claim = {
 				set_relation_potential_rival = scope:actor
 			}
 		}
+
+		# If we're a clan this interaction affects unity
+		add_clan_unity_interaction_effect = {
+			CHARACTER = scope:actor
+			TARGET = scope:recipient
+			VALUE = minor_unity_loss
+			DESC = clan_unity_bought_artifact_claim.desc
+			REVERSE_NON_HOUSE_TARGET = no
+		}
 	}
 
 	# AI STUFF
@@ -3435,6 +3685,11 @@ buy_artifact_claim = {
 
 	ai_will_do = {
 		base = 30
+
+		# Unity modifiers
+		evaluate_action_decreasing_house_unity = {
+			VALUE = 100
+		}
 
 		# Make it more likely for AI characters to buy claims if they have a royal court
 		modifier = {
@@ -3468,7 +3723,7 @@ buy_artifact_claim = {
 				OR = {
 					has_relation_friend = scope:actor
 					has_relation_lover = scope:actor
-#					is_close_or_extended_family_of = scope:actor
+					# is_close_or_extended_family_of = scope:actor
 				}
 			}
 			factor = 0
@@ -3605,6 +3860,73 @@ demand_dynasty_banner_interaction = {
 				}
 			}
 		}
+
+		# If we're a clan this interaction affects unity
+		add_clan_unity_interaction_effect = {
+			CHARACTER = scope:actor
+			TARGET = scope:recipient
+			VALUE = minor_unity_gain
+			DESC = clan_unity_received_banner.desc
+			REVERSE_NON_HOUSE_TARGET = no
+		}
+	}
+
+	on_decline = {
+		scope:target = {
+			save_scope_as = demanded_artifact
+		}
+		if = {
+			limit = {
+				exists = scope:demanded_artifact
+			}
+			scope:actor = {
+				set_variable = {
+					name = demanded_this_artifact_interaction_recently
+					value = scope:demanded_artifact
+					years = 5
+				}
+			}
+		}
+		scope:actor = {
+			send_interface_toast = {
+				type = event_generic_bad
+				title = demand_artifact_interaction_notification
+				left_icon = scope:recipient
+				right_icon = scope:target
+				custom_tooltip = demand_artifact_interaction_notification_refused
+
+				scope:recipient = {
+					add_opinion = {
+						target = scope:actor
+						modifier = insult_opinion
+						opinion = -60
+					}
+				}
+			}
+		}
+		if = {
+			limit = {
+				scope:actor = {
+					is_ai = yes
+				}
+			}
+			scope:actor = {
+				add_opinion = {
+					target = scope:recipient
+					modifier = refusal_opinion
+					opinion = -60
+				}
+			}
+		}
+
+		# If we're a clan this interaction affects unity
+		add_clan_unity_interaction_effect = {
+			CHARACTER = scope:actor
+			TARGET = scope:recipient
+			VALUE = minor_unity_loss
+			DESC = clan_unity_refused_banner.desc
+			REVERSE_NON_HOUSE_TARGET = no
+		}
 	}
 
 	auto_accept = {
@@ -3683,6 +4005,10 @@ demand_dynasty_banner_interaction = {
 			add = 100
 			desc = SCHEME_WEAK_HOOK_USED
 		}
+		# Unity modifiers
+		evaluate_action_increasing_house_unity = {
+			VALUE = 100
+		}
 	}
 	
 	ai_potential = {
@@ -3692,54 +4018,7 @@ demand_dynasty_banner_interaction = {
 		has_outstanding_artifact_claims = yes
 	}
 
-	on_decline = {
-		scope:target = {
-			save_scope_as = demanded_artifact
-		}
-		if = {
-			limit = {
-				exists = scope:demanded_artifact
-			}
-			scope:actor = {
-				set_variable = {
-					name = demanded_this_artifact_interaction_recently
-					value = scope:demanded_artifact
-					years = 5
-				}
-			}
-		}
-		scope:actor = {
-			send_interface_toast = {
-				type = event_generic_bad
-				title = demand_artifact_interaction_notification
-				left_icon = scope:recipient
-				right_icon = scope:target
-				custom_tooltip = demand_artifact_interaction_notification_refused
 
-				scope:recipient = {
-					add_opinion = {
-						target = scope:actor
-						modifier = insult_opinion
-						opinion = -60
-					}
-				}
-			}
-		}
-		if = {
-			limit = {
-				scope:actor = {
-					is_ai = yes
-				}
-			}
-			scope:actor = {
-				add_opinion = {
-					target = scope:recipient
-					modifier = refusal_opinion
-					opinion = -60
-				}
-			}
-		}
-	}
 	
 	ai_min_reply_days = 7
 	ai_max_reply_days = 14
@@ -3773,6 +4052,10 @@ demand_dynasty_banner_interaction = {
 				}
 			}
 		}
+		# Unity modifiers
+		evaluate_action_increasing_house_unity = {
+			VALUE = 100
+		}
 		modifier = { # A Cowed character will never take this interaction
 			factor = 0
 			scope:actor = {
@@ -3798,8 +4081,10 @@ demand_dynasty_banner_interaction = {
 destroy_artifact_interaction = {
 	interface_priority = 30
 	common_interaction = yes
+	icon = artifact
 	category = interaction_category_friendly
 	desc = destroy_artifact_interaction_desc
+	icon = artifact
 
 	target_type = artifact
 	target_filter = actor_artifacts
@@ -3813,13 +4098,23 @@ destroy_artifact_interaction = {
 		scope:recipient = scope:actor
 		scope:actor = {
 			has_any_artifact = yes
+			NOT = { has_culture = culture:wastelands }
+		}
+		scope:recipient = {
+			NOT = { has_culture = culture:wastelands }
 		}
 	}
 
 	can_be_picked_artifact = {
 		NOT = {
-			has_variable = ring_of_power
-			has_variable = silmaril
+			custom_tooltip = {
+				text = artifact_has_ring_of_power_var
+				scope:target = { has_variable = ring_of_power }
+			}
+			custom_tooltip = {
+				text = artifact_has_silmaril_var
+				scope:target = { has_variable = silmaril }
+			}
 		}
 	}
 
@@ -3853,6 +4148,67 @@ destroy_artifact_interaction = {
 	}
 
 	on_accept = {
+		if = { # Mithril ingot
+			limit = { scope:target = { has_variable = mithril } }
+			scope:actor = { remove_metal_gem_variable = { METAL = mithril } }
+		}
+		if = { # Gold ingot
+			limit = { scope:target = { has_variable = gold } }
+			scope:actor = { remove_metal_gem_variable = { METAL = gold } }
+		}
+		if = { # Silver ingot
+			limit = { scope:target = { has_variable = silver } }
+			scope:actor = { remove_metal_gem_variable = { METAL = silver } }
+		}
+		if = { # Lead ingot
+			limit = { scope:target = { has_variable = lead } }
+			scope:actor = { remove_metal_gem_variable = { METAL = lead } }
+		}
+		if = { # Copper ingot
+			limit = { scope:target = { has_variable = copper } }
+			scope:actor = { remove_metal_gem_variable = { METAL = copper } }
+		}
+		if = { # Tin ingot
+			limit = { scope:target = { has_variable = tin } }
+			scope:actor = { remove_metal_gem_variable = { METAL = tin } }
+		}
+		if = { # Iron ingot
+			limit = { scope:target = { has_variable = iron } }
+			scope:actor = { remove_metal_gem_variable = { METAL = iron } }
+		}
+		if = { # Diamond Gem
+			limit = { scope:target = { has_variable = diamond } }
+			scope:actor = { remove_metal_gem_variable = { METAL = diamond } }
+		}
+		if = { # Ruby Gem
+			limit = { scope:target = { has_variable = ruby } }
+			scope:actor = { remove_metal_gem_variable = { METAL = ruby } }
+		}
+		if = { # Sapphire Gem
+			limit = { scope:target = { has_variable = sapphire } }
+			scope:actor = { remove_metal_gem_variable = { METAL = sapphire } }
+		}
+		if = { # Emerald Gem
+			limit = { scope:target = { has_variable = emerald } }
+			scope:actor = { remove_metal_gem_variable = { METAL = emerald } }
+		}
+		if = { # Amethyst Gem
+			limit = { scope:target = { has_variable = amethyst } }
+			scope:actor = { remove_metal_gem_variable = { METAL = amethyst } }
+		}
+		if = { # Onyx Gem
+			limit = { scope:actor = { has_variable = onyx } }
+			scope:actor = { remove_metal_gem_variable = { METAL = onyx } }
+		}
+		if = { # Peridot Gem
+			limit = { scope:target = { has_variable = peridot } }
+			scope:actor = { remove_metal_gem_variable = { METAL = peridot } }
+		}
+		if = { # Quartz Gem
+			limit = { scope:target = { has_variable = quartz } }
+			scope:actor = { remove_metal_gem_variable = { METAL = quartz } }
+		}
+		
 		destroy_artifact_aniconist_effect = { ARTIFACT = scope:target DESTROYER = scope:actor }
 	}
 

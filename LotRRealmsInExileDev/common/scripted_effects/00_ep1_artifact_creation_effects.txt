@@ -646,6 +646,42 @@ change_artifact_quality_effect = {
 	}
 	if = {
 		limit = {
+			scope:inspiration = { has_inspiration_type = research_inspiration }
+		}
+		if = {
+			limit = {
+				$AMOUNT$ > 3
+			}
+			custom_tooltip = fp3_scholarship_research_success_gain_effect
+		}
+		else_if = {
+			limit = {
+				$AMOUNT$ < -3
+			}
+			custom_tooltip = fp3_scholarship_research_success_loss_effect
+		}
+		else_if = {
+			limit = {
+				$AMOUNT$ > 0
+			}
+			custom_tooltip = fp3_scholarship_research_success_slight_gain_effect
+		}
+		else_if = {
+			limit = {
+				$AMOUNT$ < 0
+			}
+			custom_tooltip = fp3_scholarship_research_success_slight_loss_effect
+		}
+		scope:inspiration_owner = {
+			change_variable = {
+				name = research_success_chance
+				add = $AMOUNT$
+			}	
+		}
+	}
+	else = {
+		if = {
+			limit = {
 			$AMOUNT$ > 3
 		}
 		custom_tooltip = change_artifact_quality_effect_gain
@@ -686,6 +722,7 @@ change_artifact_quality_effect = {
 				add = $AMOUNT$
 			}
 		}
+	}
 	}
 }
 
@@ -8705,8 +8742,8 @@ set_weapon_artifact_type_effect = {
 							or = {
 								has_culture = culture:variag
 								culture = { has_cultural_pillar = heritage_lomiquendi }
-								culture = { has_cultural_pillar = heritage_daen }
-								culture = { has_cultural_pillar = heritage_dunlending }
+								culture = { has_cultural_pillar = heritage_daen_coentis }
+								culture = { has_cultural_pillar = heritage_daen_lintis }
 								culture = { has_cultural_pillar = heritage_northron }
 							}
 						}
@@ -9299,6 +9336,24 @@ create_artifact_weapon_effect = {
 			}
 			else = {
 				random_list = {
+					3 = {
+						trigger = {
+							has_fp3_dlc_trigger = yes
+							scope:smith = { artifact_should_use_gfx_type_trigger = { TYPE = iranian_building } }
+						}
+						create_artifact = {
+							name = artifact_sassanian_replica_sword_name
+							description = placeholder # Will be re-generated once decorations are added in the post-creation effects.
+							visuals = sassanian_sword
+							type = sword
+							modifier = artifact_prowess_1_modifier
+							wealth = scope:wealth
+							quality = scope:quality
+							save_scope_as = newly_created_artifact
+							history = { type = created_before_history }
+						}
+						scope:newly_created_artifact = { set_variable = replica_sassanian_sword }
+					}
 					1 = {
 						trigger = { sword_could_be_longsword_trigger = yes }
 						create_artifact = {
@@ -9328,11 +9383,35 @@ create_artifact_weapon_effect = {
 					}
 				}
 			}
+			if = {
+				limit = { scope:newly_created_artifact = { has_variable = replica_sassanian_sword } }
+				if = {
+					limit = {
+						scope:newly_created_artifact = {
+							OR = { 
+								rarity = famed
+								rarity = illustrious
+							}
+						}
+					}
+					scope:newly_created_artifact = { set_artifact_description = famed_replica_sassanian_sword_description }
+				}
+				else_if = {
+					limit = { scope:newly_created_artifact = { rarity = masterwork } }
+					scope:newly_created_artifact = { set_artifact_description = masterwork_replica_sassanian_sword_description }	
+				}				
+				else = {
+					scope:newly_created_artifact = { set_artifact_description = common_replica_sassanian_sword_description }
+				}
+			}
+
+			else = {
 			scope:newly_created_artifact = {
 				get_sword_decoration_effect = yes
 				get_artifact_feature_references_effect = yes
 				set_artifact_description = artifact_sword_description
 			}
+		}
 		}
 
 		scope:newly_created_artifact = {
@@ -10349,6 +10428,81 @@ create_artifact_brooch_effect = {
 				}
 				add_scaled_artifact_modifier_rulership_effect = yes
 			}
+
+			set_variable = {
+				name = quality
+				value = scope:quality
+			}
+			set_variable = {
+				name = wealth
+				value = scope:wealth
+			}
+		}
+	}
+}
+
+create_artifact_crafting_tools_effect = {
+	# Get the character the artifact is being made for.
+	$OWNER$ = { save_scope_as = owner }
+	$SMITH$ = { save_scope_as = goldsmith }
+
+	hidden_effect_new_object = {
+		# Get artifact quality, wealth, materials, and decorations
+		get_artifact_quality_effect = yes
+		get_artifact_wealth_effect = yes
+
+		# Create the artifact
+		if = {
+			limit = { exists = scope:adventurer }
+			create_artifact = {	
+				name = artifact_crafting_tools_name
+				description = placeholder # Will be updated in the post-creation effects
+				visuals = crafting_tools
+				type = crafting_tools
+				modifier = artifact_placeholder_modifier
+				wealth = scope:wealth
+				quality = scope:quality
+				save_scope_as = newly_created_artifact
+				history = {
+					location = ROOT.capital_province
+					actor = scope:adventurer
+					recipient = scope:owner
+					type = given
+				}
+			}
+		}
+		else = {
+			create_artifact = {	
+				name = artifact_crafting_tools_name
+				creator = scope:goldsmith
+				description = placeholder # Will be updated in the post-creation effects
+				visuals = crafting_tools
+				type = crafting_tools
+				modifier = artifact_placeholder_modifier
+				wealth = scope:wealth
+				quality = scope:quality
+				save_scope_as = newly_created_artifact
+			}
+		}
+
+		scope:newly_created_artifact = {
+			# Get gem type if necessary and update description
+			get_artifact_feature_references_effect = yes
+			set_artifact_description = artifact_crafting_tools_description
+			
+			# Add a Majesty-related modifier based on the Quality of the artifact.
+			if = {
+				limit = { # Add a second Majesty-related modifier for high rarity artifacts.
+					OR = {
+						rarity = famed
+						rarity = illustrious
+					}
+				}
+				add_scaled_artifact_modifier_dynasty_prestige_effect = yes
+			}
+			
+			add_scaled_artifact_modifier_stress_gain_effect = yes
+			add_scaled_artifact_modifier_scholarship_effect = yes
 
 			set_variable = {
 				name = quality

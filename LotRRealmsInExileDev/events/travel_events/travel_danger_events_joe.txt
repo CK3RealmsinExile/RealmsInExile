@@ -138,6 +138,9 @@ travel_danger_events.6000 = { #Animal attack
 				}
 			}
 		}
+		current_travel_plan = {
+			any_entourage_character = { count >= 1 }
+		}
 	}
 	cooldown = { months = 1 }
 
@@ -173,6 +176,7 @@ travel_danger_events.6000 = { #Animal attack
 			#Save travel leader
 			if = {
 				limit = {
+					exists = travel_leader
 					NOT = { travel_leader ?= scope:beast_victim }
 				}
 				travel_leader ?= { save_scope_as = travel_leader }
@@ -440,6 +444,14 @@ travel_danger_events.6010 = { #Siege
 			NOT = {
 				any_army_in_location = { army_owner = root }
 			}
+			any_army_in_location = {
+				OR = {
+					is_army_in_siege = yes
+					is_army_in_raid = yes
+				}
+				exists = army_commander
+				save_temporary_scope_as = battle_army_1_temp
+			}
 		}
 	}
 	
@@ -457,6 +469,7 @@ travel_danger_events.6010 = { #Siege
 						is_army_in_siege = yes
 						is_army_in_raid = yes
 					}
+					exists = army_commander
 				}
 				order_by = army_size
 				save_scope_as = siege_army
@@ -711,11 +724,15 @@ travel_danger_events.6010 = { #Siege
 					}
 				}
 				else = { remove_short_term_gold = minor_gold_value }
+				current_travel_plan = {
+					if = {
+						limit = {
+							any_entourage_character = { is_adult = yes }
+						}
 				random = {
 					chance = 50
 					custom_tooltip = travel_danger_events.6010.c.wound
 					hidden_effect = {
-						current_travel_plan = {
 							random_entourage_character = {
 								limit = { is_adult = yes }
 								weight = {
@@ -732,7 +749,7 @@ travel_danger_events.6010 = { #Siege
 								}
 								save_scope_as = woundee
 							}
-						}
+								root = {
 						send_interface_toast = {
 							title = travel_danger_events.6010.c.wound
 							left_icon = scope:woundee
@@ -741,6 +758,9 @@ travel_danger_events.6010 = { #Siege
 							}
 						}
 					}
+				}
+			}
+		}
 				}
 			}
 		}
@@ -897,10 +917,21 @@ travel_danger_events.6011 = { #Battal
 			NOT = {
 				any_army_in_location = { army_owner = root }
 			}
-			# Removes an occasional hoard of run-time errors.
 			any_army_in_location = { 
-				count >= 2
+				is_army_in_combat = yes
 				exists = army_commander
+				save_temporary_scope_as = battle_army_1_temp
+			}
+			any_army_in_location = {
+				NOT = { this = scope:battle_army_1_temp }
+				is_army_in_combat = yes
+				exists = army_commander
+				army_owner ?= {
+					OR = {
+						is_at_war_with = scope:battle_army_1_temp.army_owner
+						any_hostile_raider = { this = scope:battle_army_1_temp.army_owner }
+					}
+				}
 			}
 		}
 	}
@@ -1411,6 +1442,10 @@ travel_danger_events.6012 = { #Army
 					type = battle
 				}
 			}
+			any_army_in_location = {
+				exists = army_owner
+				exists = army_commander
+			}
 			NOT = {
 				any_army_in_location = { army_owner = root }
 			}
@@ -1662,40 +1697,39 @@ travel_danger_events.6012 = { #Army
 							}
 						}
 					}
-					random = {
-						chance = 50
-						custom_tooltip = travel_danger_events.6010.c.wound
-						hidden_effect = {
-							current_travel_plan = {
-								random_entourage_character = {
-									limit = { is_adult = yes }
-									weight = {
-										base = 1
-										modifier = { add = prowess }
-										modifier = {
-											add = 10
-											has_court_position = bodyguard_court_position
-										}
-										modifier = {
-											add = 10
-											is_knight_of = root
-										}
+				random = {
+					chance = 50
+					custom_tooltip = travel_danger_events.6010.c.wound
+					hidden_effect = {
+						current_travel_plan = {
+							random_entourage_character = {
+								limit = { is_adult = yes }
+								weight = {
+									base = 1
+									modifier = { add = prowess }
+									modifier = {
+										add = 10
+										has_court_position = bodyguard_court_position
 									}
-									save_scope_as = woundee
+									modifier = {
+										add = 10
+										is_knight_of = root
+									}
 								}
 								save_scope_as = woundee
 							}
-							send_interface_toast = {
-								title = travel_danger_events.6010.c.wound
-								left_icon = scope:woundee
-								scope:woundee = {
-									increase_wounds_effect = { REASON = battle }
-								}
+						}
+						send_interface_toast = {
+							title = travel_danger_events.6010.c.wound
+							left_icon = scope:woundee
+							scope:woundee = {
+								increase_wounds_effect = { REASON = battle }
 							}
 						}
 					}
 				}
 			}
+		}
 		}
 		stress_impact = {
 			craven = medium_stress_impact_gain
@@ -1817,6 +1851,7 @@ travel_danger_events.6013 = { #Occupation
 		is_location_valid_for_travel_event_on_land = yes
 		location = {
 			exists = province_owner
+			province_owner != barony.barony_controller
 			travel_danger_type = {
 				travel_plan = root.current_travel_plan
 				type = occupation
@@ -2528,32 +2563,32 @@ travel_danger_events.6030 = { #Spoiled food
 				scope:highest_learning_entourage_member.learning > learning
 			}
 			scope:highest_learning_entourage_member = {
-		duel = {
-			skill = learning
+				duel = {
+					skill = learning
 					value = medium_skill_rating
 					15 = { # Find something
-				desc = travel_danger_events.6030.b.success
-				compare_modifier = {
-					value = scope:duel_value
-					multiplier = 1
-					min = -49
-				}
-				modifier = {
-					add = {
+						desc = travel_danger_events.6030.b.success
+						compare_modifier = {
+							value = scope:duel_value
+							multiplier = 1
+							min = -49
+						}
+						modifier = {
+							add = {
 								value = root.learning
 								divide = 2
-					}
-				}
-				modifier = {
-					is_elf = yes
-					add = 20
-				}
-				modifier = {
-					location = {
-						OR = {
-							terrain = taiga
-							terrain = forest
-							terrain = jungle
+							}
+						}
+						modifier = {
+							is_elf = yes
+							add = 20
+						}
+						modifier = {
+							location = {
+								OR = {
+									terrain = taiga
+									terrain = forest
+									terrain = jungle
 									terrain = mountains
 									terrain = desert
 									terrain = desert_mountains
@@ -2586,82 +2621,82 @@ travel_danger_events.6030 = { #Spoiled food
 								}
 							}
 							add = 10
-				}
-				modifier = {
-					OR = {
-						AND = {
-							location = {
-								OR = {
-									terrain = forest
-									terrain = taiga
-								}
-							}
-									OR = {
-							has_trait = forest_fighter
-										root = { has_trait = forest_fighter }
-									}
 						}
-						AND = {
-							location = {
-								OR = {
-									terrain = plains
-									terrain = steppe
-								}
-							}
+						modifier = {
+							OR = {
+								AND = {
+									location = {
+										OR = {
+											terrain = forest
+											terrain = taiga
+										}
+									}
 									OR = {
 										has_trait = forest_fighter
 										root = { has_trait = forest_fighter }
 									}
-							has_trait = forest_fighter
-						}
-						AND = {
-							location = {
-								OR = {
-									terrain = hills
-									terrain = mountains
-									terrain = wetlands
 								}
-							}
+								AND = {
+									location = {
+										OR = {
+											terrain = plains
+											terrain = steppe
+										}
+									}
 									OR = {
-							has_trait = rough_terrain_expert
+										has_trait = forest_fighter
+										root = { has_trait = forest_fighter }
+									}
+									has_trait = forest_fighter
+								}
+								AND = {
+									location = {
+										OR = {
+											terrain = hills
+											terrain = mountains
+											terrain = wetlands
+										}
+									}
+									OR = {
+										has_trait = rough_terrain_expert
 										root = { has_trait = rough_terrain_expert }
 									}
-						}
-						AND = {
-							location = {
-								OR = {
-									terrain = drylands
-									terrain = desert
-									terrain = desert_mountains
-									terrain = oasis
-									terrain = dune_sea
 								}
-							}
+								AND = {
+									location = {
+										OR = {
+											terrain = drylands
+											terrain = desert
+											terrain = desert_mountains
+											terrain = oasis
+											terrain = dune_sea
+										}
+									}
 									OR = {
-							has_trait = desert_warrior
+										has_trait = desert_warrior
 										root = { has_trait = desert_warrior }
 									}
-						}
-						AND = {
-							location = { terrain = jungle }
+								}
+								AND = {
+									location = { terrain = jungle }
 									OR = {
-							has_trait = jungle_stalker
+										has_trait = jungle_stalker
 										root = { has_trait = jungle_stalker }
-						}
-					}
-				}
+									}
+								}
+							}
 							add = 20
 						}
-				min = 1
-			}
+						min = 1
+					}
 					5 = { # Poison self
-				desc = travel_danger_events.6030.b.critical
-				min = 1
-				compare_modifier = {
-					value = scope:duel_value
-					multiplier = -1
-					min = -49
-				}
+						desc = travel_danger_events.6030.b.critical
+						min = 1
+						compare_modifier = {
+							value = scope:duel_value
+							multiplier = -1
+							min = -49
+						}
 
 						modifier = {
 							current_travel_plan = {
@@ -2672,23 +2707,25 @@ travel_danger_events.6030 = { #Spoiled food
 							add = -10
 						}
 						root = {
-				contract_disease_effect = { DISEASE = ill TREATMENT_EVENT = yes }
-			}
+							contract_disease_effect = { DISEASE = ill TREATMENT_EVENT = yes }
+						}
 					}
-			1 = { # Poison self real bad
-				desc = travel_danger_events.6030.b.death
-				min = 1
-				trigger = {
-					is_location_valid_for_travel_event_on_land = yes
-					cannot_be_killed = no
-					is_elf = no
-				}
-					#Chances of finding a deadly poisonous fish on the game map is low
-				compare_modifier = {
-					value = scope:duel_value
-					multiplier = -1
-					min = -49
-				}
+					1 = { # Poison self real bad
+						trigger = {
+							is_location_valid_for_travel_event_on_land = yes
+							cannot_be_killed = no
+							is_elf = no
+							lotr_canon_safe_from_harm_trigger = no
+							NOT = {
+								this = character:lineisildur42
+							}
+						} #Chances of finding a deadly poisonous fish on the game map is low
+						min = 1
+						compare_modifier = {
+							value = scope:duel_value
+							multiplier = -1
+							min = -49
+						}
 						modifier = {
 							current_travel_plan = {
 								any_entourage_character = {
@@ -2713,10 +2750,11 @@ travel_danger_events.6030 = { #Spoiled food
 							root = { has_trait = physique_good_3 }
 							add = -2
 						}
+						desc = travel_danger_events.6030.b.death
 						root = {
-				death = { death_reason = death_poisonous_forage }
-			}
-		}
+							death = { death_reason = death_poisonous_forage }
+						}
+					}
 				}
 			}
 		}
@@ -2862,13 +2900,16 @@ travel_danger_events.6030 = { #Spoiled food
 					contract_disease_effect = { DISEASE = ill TREATMENT_EVENT = yes }
 				}
 				1 = { # Poison self real bad
-					desc = travel_danger_events.6030.b.death
-					min = 1
 					trigger = {
 						is_location_valid_for_travel_event_on_land = yes
 						cannot_be_killed = no
 						is_elf = no
+						lotr_canon_safe_from_harm_trigger = no
+						NOT = {
+							this = character:lineisildur42
+						}
 					} #Chances of finding a deadly poisonous fish on the game map is low
+					min = 1
 					compare_modifier = {
 						value = scope:duel_value
 						multiplier = -1
@@ -2898,6 +2939,7 @@ travel_danger_events.6030 = { #Spoiled food
 						has_trait = physique_good_3
 						add = -2
 					}
+					desc = travel_danger_events.6030.b.death
 					death = { death_reason = death_poisonous_forage }
 				}
 			}
@@ -3083,13 +3125,7 @@ travel_danger_events.6040 = { #Disease
 			next_destination_province = { save_scope_as = destination }
 		}
 		if = { #add a physician if you have one 
-			limit = { 
-				any_court_position_holder = {
-					type = court_physician_court_position
-					is_physically_able_ai_adult = yes
-					is_travel_entourage_character = yes
-				}
-			}
+			limit = { court_physician_available_trigger = yes }
 			save_court_physician_as_effect = { SCOPE_NAME = physician }
 		}
 		hidden_effect = {
@@ -3155,7 +3191,12 @@ travel_danger_events.6040 = { #Disease
 
 	option = { #Treatment
 		name = travel_danger_events.6040.b
-		trigger = { exists = scope:physician }
+		trigger = {
+			custom_tooltip = {
+				text = court_physician_not_employed_or_away_tt
+				court_physician_available_trigger = yes
+			}
+		}
 		show_as_unavailable = { always = yes }
 		safe_disease_treatment_effect = { PATIENT = root TREATMENT_PICKER = root }
 		ai_chance = {
@@ -3165,6 +3206,7 @@ travel_danger_events.6040 = { #Disease
 
 	option = { #Press on
 		name = travel_danger_events.6040.c
+		trigger = { court_physician_available_trigger = no }
 		ai_chance = {
 			base = 25
 			ai_value_modifier = {

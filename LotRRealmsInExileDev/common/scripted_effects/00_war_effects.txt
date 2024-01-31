@@ -30,6 +30,62 @@ on_declared_war = {
 		}
 		scope:attacker = { play_music_cue = mx_cue_crusade_starts }
 	}
+	else_if = { # Main LotR theme
+		limit = {
+			exists = scope:war
+			scope:attacker = {
+				religion = { is_in_family = rf_eruhini }
+			}
+			scope:defender = {
+				religion = { is_in_family = rf_forcesofevil }
+			}
+		}
+		scope:attacker = { play_music_cue = lotr_action_good_01 }
+	}
+	else_if = { # Saruman and Isengard
+		limit = {
+			exists = scope:war
+			scope:attacker = {
+				religion = { is_in_family = rf_forcesofevil }
+			}
+			scope:defender = {
+				religion = { is_in_family = rf_eruhini }
+			}
+		}
+		scope:attacker = { play_music_cue = lotr_action_evil_01 }
+	}
+	#else_if = {
+	#	limit = {
+	#		exists = scope:war
+	#		OR = {
+	#			scope:attacker = { fp3_character_any_involvement_persian_struggle_trigger = yes }
+	#			scope:defender = { fp3_character_any_involvement_persian_struggle_trigger = yes }
+	#		}
+	#	}
+	#	scope:attacker = { play_music_cue = strugglewar_cue }
+	#}
+	else_if = { # Iberia War Music
+		limit = {
+			exists = scope:war
+			OR = {
+				scope:attacker = {
+					has_fp2_dlc_trigger = yes
+					OR = {
+						culture = { has_cultural_pillar = heritage_bellakari }
+						culture = { has_cultural_pillar = heritage_southern_apysaic }
+					}
+				}
+				scope:defender = {
+					has_fp2_dlc_trigger = yes
+					OR = {
+						culture = { has_cultural_pillar = heritage_bellakari }
+						culture = { has_cultural_pillar = heritage_southern_apysaic }
+					}
+				}
+			}
+		}
+		scope:attacker = { play_music_cue = mx_IberiaWar }
+	}
 	#else_if = {
 	#	limit = {
 	#		exists = scope:war
@@ -53,6 +109,30 @@ on_declared_war = {
 	###############################
 	##### Defender music
 	###############################
+	if = { # LotR main theme
+		limit = {
+			exists = scope:war
+			scope:attacker = {
+				religion = { is_in_family = rf_eruhini }
+			}
+			scope:defender = {
+				religion = { is_in_family = rf_forcesofevil }
+			}
+		}
+		scope:defender = { play_music_cue = lotr_action_good_01 }
+	}
+	else_if = { # Saruman and Isengard
+		limit = {
+			exists = scope:war
+			scope:attacker = {
+				religion = { is_in_family = rf_forcesofevil }
+			}
+			scope:defender = {
+				religion = { is_in_family = rf_eruhini }
+			}
+		}
+		scope:defender = { play_music_cue = lotr_action_evil_01 }
+	}
 	#if = {
 	#	limit = {
 	#		exists = scope:war
@@ -63,7 +143,39 @@ on_declared_war = {
 	#	}
 	#	scope:defender = { play_music_cue = mx_IberiaWar }
 	#}
-	if = {
+	else_if = {
+		limit = {
+			exists = scope:war
+			OR = {
+				scope:attacker = {
+					has_fp2_dlc_trigger = yes
+					OR = {
+						culture = { has_cultural_pillar = heritage_bellakari }
+						culture = { has_cultural_pillar = heritage_southern_apysaic }
+					}
+				}
+				scope:defender = {
+					has_fp2_dlc_trigger = yes
+					OR = {
+						culture = { has_cultural_pillar = heritage_bellakari }
+						culture = { has_cultural_pillar = heritage_southern_apysaic }
+					}
+				}
+			}
+		}
+		scope:defender = { play_music_cue = mx_IberiaWar }
+	}
+	#else_if = {
+	#	limit = {
+	#		exists = scope:war
+	#		OR = {
+	#			scope:attacker = { fp3_character_any_involvement_persian_struggle_trigger = yes }
+	#			scope:defender = { fp3_character_any_involvement_persian_struggle_trigger = yes }
+	#		}
+	#	}
+	#	scope:defender = { play_music_cue = strugglewar_cue }
+	#}
+	else_if = {
 		limit = {
 			exists = scope:war
 			scope:attacker = { fp1_is_norse_tribal = yes }
@@ -312,6 +424,15 @@ on_declared_war = {
 				}
 			}
 		}
+	}
+	
+	# If we're a clan this interaction affects unity
+	add_clan_unity_interaction_effect = {
+		CHARACTER = scope:attacker
+		TARGET = scope:defender
+		VALUE = massive_unity_loss
+		DESC = clan_unity_declared_war.desc
+		REVERSE_NON_HOUSE_TARGET = no
 	}
 }
 
@@ -608,7 +729,15 @@ on_lost_faction_revolt_war = {
 				else = {
 					add_faction_cooldown_effect = { YEARS = faction_war_defeat_cooldown }
 				}
-
+			}
+		}
+	}
+	war = {
+		every_war_attacker = {
+			limit = {
+				exists = liege
+				any_liege_or_above = { this = scope:defender }
+			}
 				if = { # Imprison them if they aren't imprisoned.
 					limit = {
 						is_imprisoned = no
@@ -624,22 +753,10 @@ on_lost_faction_revolt_war = {
 						modifier = vassal_lost_faction_revolt_war
 					}
 				}
-			}
-		}
-	}
-	else = {
-		war = {
-			every_war_attacker = {
+			#block them from joining factions if they aren't blocked yet
+			if = {
 				limit = {
-					exists = liege
-					liege = scope:defender
-				}
-				if = {
-					limit = { is_imprisoned = no }
-					hard_imprison_character_effect = {
-						TARGET = this
-						IMPRISONER = scope:defender
-					}
+					NOT = { has_character_flag = joining_faction_block }
 				}
 				add_faction_cooldown_effect = { YEARS = faction_war_defeat_cooldown }
 			}
@@ -816,6 +933,17 @@ on_claimant_faction_war_win_common = {
 					target = $ATTACKER$.joined_faction.special_character
 				}
 			}	
+			# Struggle boost
+			if = {
+				limit = {
+					culture = $ATTACKER$.joined_faction.special_character.culture
+					any_character_struggle = {
+						involvement = involved
+						has_struggle_phase_parameter = struggle_prestige_install_same_culture_claimant
+					}
+				}
+				add_prestige = major_prestige_gain
+			}
 		}
 	}
 
@@ -1116,7 +1244,7 @@ add_truce_attacker_victory_effect = {
 				}
 			}
 			custom_tooltip = glory_hound_approves_war_victory
-	hidden_effect = {
+			hidden_effect = {
 				every_vassal = {
 					limit = {
 						has_vassal_stance = glory_hound
@@ -1124,6 +1252,27 @@ add_truce_attacker_victory_effect = {
 					add_opinion = {
 						target = scope:attacker
 						modifier = glory_hound_approves_war_victory_opinion
+					}
+				}
+			}
+		}
+		if = {
+			limit = {
+				government_has_flag = government_is_clan
+				house ?= { has_house_unity_stage = antagonistic }	
+				any_vassal = {
+					house ?= scope:attacker.house
+				}
+			}
+			custom_tooltip = antagonistic_house_approves_war_victory
+			hidden_effect = {
+				every_vassal = {
+					limit = {
+						house ?= scope:attacker.house
+					}
+					add_opinion = {
+						target = scope:attacker
+						modifier = antagonistic_house_approves_war_victory_opinion
 					}
 				}
 			}
@@ -1145,6 +1294,27 @@ add_truce_attacker_victory_effect = {
 					add_opinion = {
 						target = scope:defender
 						modifier = glory_hound_disapproves_war_defeat_opinion
+					}
+				}
+			}
+		}
+		if = {
+			limit = {
+				government_has_flag = government_is_clan
+				house ?= { has_house_unity_stage = antagonistic }	
+				any_vassal = {
+					house ?= scope:defender.house
+				}
+			}
+			custom_tooltip = antagonistic_house_disapproves_war_defeat_defender
+			hidden_effect = {
+				every_vassal = {
+					limit = {
+						house ?= scope:defender.house
+					}
+					add_opinion = {
+						target = scope:defender
+						modifier = antagonistic_house_disapproves_war_defeat_opinion
 					}
 				}
 			}
@@ -1242,6 +1412,27 @@ add_truce_white_peace_effect = {
 		}
 		if = {
 			limit = {
+				government_has_flag = government_is_clan
+				house ?= { has_house_unity_stage = antagonistic }	
+				any_vassal = {
+					house ?= scope:attacker.house
+				}
+			}
+			custom_tooltip = antagonistic_house_disapproves_war_white_peace
+			hidden_effect = {
+				every_vassal = {
+					limit = {
+						house ?= scope:attacker.house
+					}
+					add_opinion = {
+						target = scope:attacker
+						modifier = antagonistic_house_disapproves_war_white_peace_opinion
+					}
+				}
+			}
+		}
+		if = {
+			limit = {
 				any_active_accolade = {
 					has_accolade_parameter = accolade_champions_white_peace
 				}
@@ -1265,6 +1456,27 @@ add_truce_white_peace_effect = {
 					add_opinion = {
 						target = scope:defender
 						modifier = glory_hound_disapproves_war_white_peace_opinion
+					}
+				}
+			}
+		}
+		if = {
+			limit = {
+				government_has_flag = government_is_clan
+				house ?= { has_house_unity_stage = antagonistic }	
+				any_vassal = {
+					house ?= scope:defender.house
+				}
+			}
+			custom_tooltip = antagonistic_house_disapproves_war_white_peace_defender
+			hidden_effect = {
+				every_vassal = {
+					limit = {
+						house ?= scope:defender.house
+					}
+					add_opinion = {
+						target = scope:defender
+						modifier = antagonistic_house_disapproves_war_white_peace_opinion
 					}
 				}
 			}
@@ -1344,6 +1556,27 @@ add_truce_attacker_defeat_effect = {
 				}
 			}
 		}
+		if = {
+			limit = {
+				government_has_flag = government_is_clan
+				house ?= { has_house_unity_stage = antagonistic }	
+				any_vassal = {
+					house ?= scope:attacker.house
+				}
+			}
+			custom_tooltip = antagonistic_house_disapproves_war_defeat
+			hidden_effect = {
+				every_vassal = {
+					limit = {
+						house ?= scope:attacker.house
+					}
+					add_opinion = {
+						target = scope:attacker
+						modifier = antagonistic_house_disapproves_war_defeat_opinion
+					}
+				}
+			}
+		}
 	}
 	hidden_effect = {
 		scope:attacker = {
@@ -1407,6 +1640,28 @@ add_truce_attacker_defeat_effect = {
 						right_icon = scope:attacker
 						title = msg_house_feud_victory
 						desc = msg_house_feud_victory_desc
+					}
+				}
+			}
+		}
+		
+		if = {
+			limit = {
+				government_has_flag = government_is_clan
+				house ?= { has_house_unity_stage = antagonistic }
+				any_vassal = {
+					house ?= scope:defender.house
+				}
+			}
+			custom_tooltip = antagonistic_house_approves_war_victory_defensive
+			hidden_effect = {
+				every_vassal = {
+					limit = {
+						house ?= scope:defender.house
+					}
+					add_opinion = {
+						target = scope:defender
+						modifier = antagonistic_house_approves_war_victory_defensive_opinion
 					}
 				}
 			}
