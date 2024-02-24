@@ -156,7 +156,18 @@ decision_gondorian_renaissance = { # Little Gondorian Renaissance post Mordor De
 decision_claim_gondor_kingship = { # Allows native Gondorians to restore the Kingdom of Gondor and claim the throne (in case Aragorn doesn't come back)
 	sort_order = 21
 	picture = "gfx/interface/illustrations/decisions/decision_minas_tirith_01.dds"
-	desc = decision_claim_gondor_kingship_desc
+	desc = {
+		first_valid = {
+			triggered_desc = {
+				trigger = {				
+					has_primary_title = title:e_gondor_steward
+				}
+				desc = decision_claim_gondor_kingship_stewards_desc
+			}
+		desc = decision_claim_gondor_kingship_desc
+		}
+	}
+	
 	selection_tooltip = decision_claim_gondor_kingship_tooltip
 	confirm_text = decision_claim_gondor_kingship_confirm
 	major = yes
@@ -178,10 +189,32 @@ decision_claim_gondor_kingship = { # Allows native Gondorians to restore the Kin
 				name = unavailable_unique_decisions
 				target = flag:flag_claim_gondor_kingship
 			}
-			AND = {
+			is_target_in_global_variable_list = { # If Aragorn has returned to Gondor... disable
+				name = unavailable_unique_decisions
+				target = flag:aragorn_returned_to_gondor
+			}
+			is_target_in_global_variable_list = { # If the Reunited Kingdom has formed... disable
+				name = unavailable_unique_decisions
+				target = flag:decision_reunited_kingdom
+			}
+			title:e_reunitedkingdom = {
+				is_title_created = yes # If the Reunited Kingdom somehow exists but the decision WASN'T taken... disable
+			}
+			title:e_gondor = {
+				OR = {
+					is_title_created = yes # If there is a King of Gondor already, you can claim it the traditional way
+					is_titular = no # If Gondor is no longer titular... disable
+				}
+			}
+			AND = { # If you're the house of Hurin and hold the stewardship... no King-claiming for you!
 				has_title = title:e_gondor_steward
 				house = house:dynasty_gondorstewards
+				NOR = { # Boromir, you ambitious rascal... for you, an exception. 
+					this = character:linesteward39
+					#has_trait = ambitious # And any other would-be ambitious stewards?
+				}
 			}
+			
 			government_has_flag = government_is_theocracy
 			government_has_flag = government_is_clan
 			government_has_flag = government_is_tribal
@@ -190,13 +223,10 @@ decision_claim_gondor_kingship = { # Allows native Gondorians to restore the Kin
 
 	is_valid = {
 		OR = { # No Steward of Gondor or you have the title but are not the House of Hurin # DOES NOT WORK ATM
-			title:e_gondor_steward = { exists = no }
-			AND = {
-				has_title = title:e_gondor_steward
-				NOT = {
-					house = house:dynasty_gondorstewards
-				}
+			NOT = {
+				exists = title:e_gondor_steward.holder 
 			}
+			has_title = title:e_gondor_steward
 		}
 		is_independent_ruler = yes
 		sub_realm_size >= 75
@@ -207,6 +237,16 @@ decision_claim_gondor_kingship = { # Allows native Gondorians to restore the Kin
 				opinion = {
 					target = root
 					value >= 100
+				}
+				#scope:root = { has_strong_hook = scope:prev }
+			}
+		}
+		any_vassal = {
+			count = all
+			OR = {
+				opinion = {
+					target = root
+					value >= 75
 				}
 				#scope:root = { has_strong_hook = scope:prev }
 			}
@@ -231,11 +271,25 @@ decision_claim_gondor_kingship = { # Allows native Gondorians to restore the Kin
 	}
 
 	effect = {
+		get_title = title:e_gondor
+		set_primary_title_to = title:e_gondor
 		hidden_effect = {
 			add_to_global_variable_list = {
 				name = unavailable_unique_decisions
 				target = flag:flag_claim_gondor_kingship
 			}
+			destroy_title = title:e_gondor_steward # Get rid of this if it exists
+			#if = {
+			#	limit = { # If the Steward isn't titular
+			#		title:e_gondor_steward = { is_titular = no }
+			#	}
+				title:e_gondor_steward = {
+					every_in_de_jure_hierarchy = {
+						limit = { tier = tier_kingdom }
+						set_de_jure_liege_title = title:e_gondor
+					}
+				}
+			#}
 		}
 	}
 
