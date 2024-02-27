@@ -38,10 +38,6 @@ decision_gondor_regnal_names = {
 			id = gondor.1100
 		}		
 	}
-	
-	ai_will_do = {
-		base = 0
-	}
 }
 
 decision_gondorian_renaissance = { # Little Gondorian Renaissance post Mordor Destroyed
@@ -151,6 +147,160 @@ decision_gondorian_renaissance = { # Little Gondorian Renaissance post Mordor De
 
 	ai_will_do = {
 		base = 15
+		ai_value_modifier = {
+			ai_boldness = 1.0
+		}
+	}
+}
+
+decision_claim_gondor_kingship = { # Allows native Gondorians to restore the Kingdom of Gondor and claim the throne (in case Aragorn doesn't come back)
+	sort_order = 21
+	picture = "gfx/interface/illustrations/decisions/decision_minas_tirith_01.dds"
+	desc = {
+		first_valid = {
+			triggered_desc = {
+				trigger = {				
+					has_primary_title = title:e_gondor_steward
+				}
+				desc = decision_claim_gondor_kingship_stewards_desc
+			}
+		desc = decision_claim_gondor_kingship_desc
+		}
+	}
+	
+	selection_tooltip = decision_claim_gondor_kingship_tooltip
+	confirm_text = decision_claim_gondor_kingship_confirm
+	major = yes
+	ai_goal = no
+	ai_check_interval = 12
+	ai_potential = {
+		always = yes
+	}
+	is_shown = {
+		current_year >= 6083 # After Earnur's Death
+
+		culture = { has_cultural_pillar = heritage_dunedain }
+		capital_province = { geographical_region = middleearth_west_gondor }
+		faith_is_good = yes
+		is_ruler = yes
+		is_landed = yes
+		#has_trait = ambitious # Maybe only for ambitious Gondorians?
+		NOR = {  #Can only do it once.
+			is_target_in_global_variable_list = {
+				name = unavailable_unique_decisions
+				target = flag:flag_claim_gondor_kingship
+			}
+			is_target_in_global_variable_list = { # If Aragorn has returned to Gondor... disable
+				name = unavailable_unique_decisions
+				target = flag:aragorn_returned_to_gondor
+			}
+			is_target_in_global_variable_list = { # If the Reunited Kingdom has formed... disable
+				name = unavailable_unique_decisions
+				target = flag:decision_reunited_kingdom
+			}
+			title:e_reunitedkingdom = {
+				is_title_created = yes # If the Reunited Kingdom somehow exists but the decision WASN'T taken... disable
+			}
+			title:e_gondor = {
+				OR = {
+					is_title_created = yes # If there is a King of Gondor already, you can claim it the traditional way
+					is_titular = no # If Gondor is no longer titular... disable
+				}
+			}
+			AND = { # If you're the house of Hurin... no King-claiming for you!
+				house = house:dynasty_gondorstewards
+				NOR = { # Boromir, you ambitious rascal... for you, an exception. 
+					AND = {
+						this = character:linesteward39
+						has_title = title:e_gondor_steward
+					}
+					#has_trait = ambitious # And any other would-be ambitious stewards?
+				}
+			}
+			
+			government_has_flag = government_is_theocracy
+			government_has_flag = government_is_clan
+			government_has_flag = government_is_tribal
+		}
+	}
+
+	is_valid = {
+		OR = {
+			NOT = { exists = title:e_gondor_steward.holder }
+			has_title = title:e_gondor_steward
+		}
+		OR = { # No Steward of Gondor or you have the title but are not the House of Hurin # DOES NOT WORK ATM
+			NOT = { exists = title:e_gondor_steward.holder }
+			has_title = title:e_gondor_steward
+		}
+		is_independent_ruler = yes
+		sub_realm_size >= 75
+		highest_held_title_tier >= tier_kingdom
+		any_powerful_vassal = {
+			count = all
+			OR = {
+				opinion = {
+					target = root
+					value >= 100
+				}
+				#scope:root = { has_strong_hook = scope:prev }
+			}
+		}
+		any_vassal = {
+			count = all
+			OR = {
+				opinion = {
+					target = root
+					value >= 75
+				}
+				#scope:root = { has_strong_hook = scope:prev }
+			}
+		}
+		completely_controls = title:c_minas_tirith
+		completely_controls = title:c_osgiliath
+		completely_controls = title:c_pelargir
+		completely_controls = title:c_dol_amroth
+		piety_level >= 5
+		prestige_level >= 5
+	}
+
+	is_valid_showing_failures_only = {
+		is_capable_adult = yes
+		is_imprisoned = no
+		is_at_war = no
+	}
+
+	cost = {
+		gold = 800
+		prestige = 5000
+	}
+
+	effect = {
+		get_title = title:e_gondor
+		set_primary_title_to = title:e_gondor
+		create_artifact_crown_of_gondor_effect = { OWNER = this }
+		hidden_effect = {
+			add_to_global_variable_list = {
+				name = unavailable_unique_decisions
+				target = flag:flag_claim_gondor_kingship
+			}
+			destroy_title = title:e_gondor_steward # Get rid of this if it exists
+			#if = {
+			#	limit = { # If the Steward isn't titular
+			#		title:e_gondor_steward = { is_titular = no }
+			#	}
+				title:e_gondor_steward = {
+					every_in_de_jure_hierarchy = {
+						limit = { tier = tier_kingdom }
+						set_de_jure_liege_title = title:e_gondor
+					}
+				}
+			#}
+		}
+	}
+
+	ai_will_do = {
+		base = 10
 		ai_value_modifier = {
 			ai_boldness = 1.0
 		}
@@ -512,7 +662,8 @@ decision_destroy_mordor = {
 	}
 }
 
-decision_destroy_mordor_AI = { # Unused
+decision_destroy_mordor_AI = {
+	sort_order = 100
 	title = decision_destroy_mordor
 	picture = "gfx/interface/illustrations/decisions/decision_gondor_01.dds"
 	major = yes
@@ -532,7 +683,7 @@ decision_destroy_mordor_AI = { # Unused
 	is_shown = {
 		is_ai = yes
 		#always = no #JUKE NOTE: (temporarily) removing band-aid fix for gondor agression for testing purposes
-		current_year > 7058
+#		current_year > 7058
 		is_ruler = yes
 		is_landed = yes
 		OR = {
@@ -561,7 +712,7 @@ decision_destroy_mordor_AI = { # Unused
 			subject = this
 			faith_is_evil = no
 		}
-		lotr_armies_are_outnumbered = no
+#		lotr_armies_are_outnumbered = no
 	}
 	is_valid = {
 		completely_controls = title:d_emyn_arnen
@@ -573,22 +724,22 @@ decision_destroy_mordor_AI = { # Unused
 		completely_controls = title:k_lebennin
 		completely_controls = title:k_belfalas
 		
-		can_declare_war = {
-			casus_belli = minor_religious_war
-			claimant = root
-			defender = title:e_mordor.holder
-		}
+#		can_declare_war = {
+#			casus_belli = minor_religious_war
+#			claimant = root
+#			defender = title:e_mordor.holder
+#		}
 	}
 	effect = {
 		custom_tooltip = destroy_mordor_decision
 		trigger_event = {
 			id = gondor.2100
 		}
-		add_gold = 1000
+		add_gold = 700
 	}
-	cost = {
-		gold = 300
-	}
+#	cost = {
+#		gold = 300
+#	}
 }
 
 decision_search_orthanc = {
