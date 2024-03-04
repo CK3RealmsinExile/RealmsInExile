@@ -205,6 +205,17 @@ on_declared_war = {
 				text = attack_breaking_truce_text
 			}
 
+			# Remove the war target from the bought_truce_list if they're in it
+			if = {
+				limit = {
+					has_purchased_truce_with_char = { TARGET = scope:defender }
+				}
+				remove_list_variable = {
+					name = bought_truce_list
+					target = scope:recipient
+				}
+			}
+
 			if = {
 				limit = {
 					NOT = { has_perk = flexible_truces_perk }
@@ -1020,6 +1031,76 @@ on_claimant_faction_war_win_common = {
 
 	resolve_title_and_vassal_change = scope:change
 	
+	# We give you decent Legitimacy so you don't get immediately deposed - people _really_ want you in the throne
+	# Can you even get Legitimacy?
+	if = {
+		limit = {
+			exists = dynasty
+			# Exclude unplayable for now
+			NOR = {
+				government_has_flag = government_is_republic
+				government_has_flag = government_is_theocracy
+			}
+			OR = {
+				scope:title.tier = tier_county
+				any_held_title = { tier = tier_county }
+			}
+		}
+	}
+	# Per tier
+	if = {
+		limit = {
+			scope:target_title.tier = tier_empire
+		}
+		$CLAIMANT$ = {
+			add_legitimacy = massive_legitimacy_gain
+		}
+	}
+	else_if = {
+		limit = {
+			scope:target_title.tier = tier_kingdom
+		}
+		$CLAIMANT$ = {
+			add_legitimacy = major_legitimacy_gain
+		}
+	}
+	else_if = {
+		limit = {
+			scope:target_title.tier = tier_duchy
+		}
+		$CLAIMANT$ = {
+			add_legitimacy = medium_legitimacy_gain
+		}
+	}
+	else_if = {
+		limit = {
+			scope:target_title.tier = tier_county
+		}
+		$CLAIMANT$ = {
+			add_legitimacy = minor_legitimacy_gain
+		}
+	}
+	# Per number of faction members
+	$ATTACKER$.joined_faction = {
+		every_faction_member = {
+			add_to_list = num_faction_members
+		}
+	}
+	if = {
+		limit = {
+			list_size:num_faction_members > 0
+			$CLAIMANT$ = {
+				is_valid_for_legitimacy_change = yes
+			}
+		}
+		$CLAIMANT$ = {
+			add_legitimacy = {
+				value = list_size:num_faction_members
+				multiply = 100
+			}
+		}
+	}
+
 	# Add Appropriate Grandeur
 	if = {
 		limit = { exists = scope:claimant_scope }
@@ -1386,6 +1467,11 @@ add_truce_attacker_victory_effect = {
 	}
 	# Tooltips for hostage exchange, handled here as it's shared between casus belli
 	bp2_hostage_war_end_tooltip_effect = yes
+
+	war_end_legitimacy_effect = {
+		WINNER = scope:attacker
+		LOSER = scope:defender
+	}
 }
 
 # Add white peace truce
@@ -1669,6 +1755,11 @@ add_truce_attacker_defeat_effect = {
 	}
 	# Tooltips for hostage exchange, handled here as it's shared between casus belli
 	bp2_hostage_war_end_tooltip_effect = yes
+	
+	war_end_legitimacy_effect = { 
+		WINNER = scope:defender
+		LOSER = scope:attacker
+	}
 }
 
 # Add GHW truces on attacker victory.

@@ -8,8 +8,8 @@ TextureSampler DecalDiffuseArray
 	MagFilter = "Linear"
 	MinFilter = "Linear"
 	MipFilter = "Linear"
-	SampleModeU = "Clamp"
-	SampleModeV = "Clamp"
+	SampleModeU = "Wrap"
+	SampleModeV = "Wrap"
 	type = "2darray"
 }
 
@@ -19,8 +19,8 @@ TextureSampler DecalNormalArray
 	MagFilter = "Linear"
 	MinFilter = "Linear"
 	MipFilter = "Linear"
-	SampleModeU = "Clamp"
-	SampleModeV = "Clamp"
+	SampleModeU = "Wrap"
+	SampleModeV = "Wrap"
 	type = "2darray"
 }
 
@@ -30,8 +30,8 @@ TextureSampler DecalPropertiesArray
 	MagFilter = "Linear"
 	MinFilter = "Linear"
 	MipFilter = "Linear"
-	SampleModeU = "Clamp"
-	SampleModeV = "Clamp"
+	SampleModeU = "Wrap"
+	SampleModeV = "Wrap"
 	type = "2darray"
 }
 
@@ -64,6 +64,7 @@ Code
 
 		uint2 _AtlasPos;
 		float2 _UVOffset;
+		uint2 _UVTiling;
 
 		uint _AtlasSize;
 	};
