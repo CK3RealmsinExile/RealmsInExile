@@ -85,6 +85,7 @@ ep2_wedding.0001 = {
 	lower_center_portrait = scope:spouse_2
 
 	trigger = {
+		exists = var:promised_grand_wedding_marriage_countdown
 		has_variable = promised_grand_wedding_marriage_countdown
 		var:promised_grand_wedding_marriage_countdown = { is_alive = yes }
 		exists = var:promised_grand_wedding_marriage_countdown.betrothed
@@ -94,7 +95,33 @@ ep2_wedding.0001 = {
 				activity_host = root
 			}
 		}
+		var:promised_grand_wedding_marriage_countdown = { age >= 19 }
+		var:promised_grand_wedding_marriage_countdown.betrothed = { age >= 19 }
 	}
+
+	# This event shouldn't trigger unless the spouses have been adult and marriable for at least 3 years in any case, but to prevent edge cases, we check that they are adult, and if they are not or have not been for at least 3 years, we try again one year later
+	on_trigger_fail = {
+        if = {
+            limit = { 
+                has_variable = promised_grand_wedding_marriage_countdown
+            }
+            if = {
+                limit = { exists = var:promised_grand_wedding_marriage_countdown }
+                trigger_event = {
+                    id = ep2_wedding.0001
+                    days = 365
+                }
+                set_variable = {
+                    name = promised_grand_wedding_marriage_countdown
+                    value = var:promised_grand_wedding_marriage_countdown
+                    years = grand_wedding_timeout
+                }
+            }
+            else = {
+                remove_variable = promised_grand_wedding_marriage_countdown
+            }
+        }
+    }
 
 	immediate = {
 		var:promised_grand_wedding_marriage_countdown = {
@@ -297,6 +324,29 @@ ep2_wedding.0100 = {
 				save_scope_as = spouse_2_portrait
 			}
 		}
+		if = { # Set up Aragorn's and Arwen's relationship
+			limit = {
+				and = {
+					root = character:lineisildur42
+					scope:activity.special_guest:spouse_1 = character:lineisildur42
+					scope:activity.special_guest:spouse_2 = character:linefinwe30
+				}
+			}
+			
+			#So Aragorn doesn't have multiple lovers/soulmates
+			every_relation = {
+				type = lover
+				remove_relation_lover = root
+			}
+			every_relation = {
+				type = soulmate
+				remove_relation_soulmate = root
+			}
+			
+			set_relation_lover = character:linefinwe30
+			set_relation_friend = character:linefinwe30
+			set_relation_soulmate = character:linefinwe30
+		}
 	}
 
 	option = {
@@ -395,6 +445,7 @@ ep2_wedding.0150 = {
 				save_scope_as = spouse_2_portrait
 			}
 		}
+		base_legitimacy_intent_reward = yes
 	}
 
 	option = {
@@ -426,8 +477,10 @@ ep2_wedding.0151 = {
 						OR = {
 							has_trait = education_diplomacy_3
 							has_trait = education_diplomacy_4
+							has_trait = education_diplomacy_5
 							has_trait = education_stewardship_3
 							has_trait = education_stewardship_4
+							has_trait = education_stewardship_5
 							has_trait = diplomat
 							has_trait = administrator
 							has_trait = ambitious
@@ -440,6 +493,7 @@ ep2_wedding.0151 = {
 						OR = {
 							has_trait = education_learning_3
 							has_trait = education_learning_4
+							has_trait = education_learning_5
 							has_trait = scholar
 							has_trait = theologian
 							has_trait = zealous
@@ -692,47 +746,6 @@ ep2_wedding.0151 = {
 				add_character_modifier = { modifier = wedding_fertility_delay_modifier }
 			}
 		}
-		# The spouse should not head back home where they came from if they are unlanded!
-		hidden_effect = {
-			if = {
-				limit = {
-					scope:spouse_2.court_owner = scope:spouse_1
-				}
-				if = {
-					limit = {
-						exists = scope:spouse_2.current_travel_plan
-					}
-					if = {
-						limit = {
-							NOT = { scope:spouse_2.current_travel_plan.travel_plan_owner = scope:spouse_2 }
-						}
-						scope:spouse_2.current_travel_plan = { remove_character = scope:spouse_2 }
-						scope:spouse_1.current_travel_plan ?= {
-							add_companion = scope:spouse_2
-						}
-					}
-				}
-			}
-			else_if = {
-				limit = {
-					scope:spouse_1.court_owner = scope:spouse_2
-				}
-				if = {
-					limit = {
-						exists = scope:spouse_1.current_travel_plan
-					}
-					if = {
-						limit = {
-							NOT = { scope:spouse_2.current_travel_plan.travel_plan_owner = scope:spouse_1 }
-						}
-						scope:spouse_1.current_travel_plan = { remove_character = scope:spouse_1 }
-						scope:spouse_2.current_travel_plan ?= {
-							add_companion = scope:spouse_1
-						}
-					}
-				}
-			}
-		}
 		# Progress to next phase
 		hidden_effect = {
 			scope:activity = { progress_activity_phase_after = { days = 1 } }
@@ -752,6 +765,21 @@ ep2_wedding.0151 = {
 		ai_chance = {
 			base = 0
 		}
+	}
+}
+
+scripted_effect ep2_wedding_cleanup_jitter_modifier_effect = {
+	if = {
+		limit = { has_character_modifier = wedding_confident_groom }
+		remove_character_modifier = wedding_confident_groom
+	}
+	if = {
+		limit = { has_character_modifier = wedding_confident_bride }
+		remove_character_modifier = wedding_confident_bride
+	}
+	if = {
+		limit = { has_character_modifier = wedding_jitters }
+		remove_character_modifier = wedding_jitters
 	}
 }
 
@@ -796,6 +824,10 @@ ep2_wedding.0152 = {
 			participants = {
 				spouse = scope:spouse_2
 			}
+		}
+		ep2_wedding_cleanup_jitter_modifier_effect = yes
+		scope:spouse_2 = {
+			ep2_wedding_cleanup_jitter_modifier_effect = yes
 		}
 	}
 
@@ -1479,7 +1511,41 @@ ep2_wedding.0950 = {
 	}
 
 	option = {
-		name = ep2_wedding.0950.a		
+		name = ep2_wedding.0950.a
+		if = {
+			limit = {
+				and = {
+					scope:activity.special_guest:spouse_1 = character:lineisildur42
+					scope:activity.special_guest:spouse_2 = character:linefinwe30
+				}
+			}
+			trigger_event = {
+				id = gondor.0508 
+				days = 100
+			}
+			if = { # Elrond and Arwen's last parting
+				limit = { scope:activity = { any_attending_character = { has_character_flag = is_elrond } } }
+				character:linefinwe27 = {
+					trigger_event = {
+						id = lotr_wedding.0001 
+						days = 1
+					}
+				}
+			}
+			if = { # If Galadriel missed the wedding, she still gives Aragorn the Elessar
+				limit = { scope:activity = { NOT = { any_attending_character = { has_character_flag = is_galadriel } } } }
+				character:linefinwe36 = {
+					trigger_event = {
+						id = elven.0101
+						days = 1
+					}
+				}
+			}
+		}
+		if = {
+			limit = { has_character_flag = aragorn_gw }
+			remove_character_flag = aragorn_gw
+		}
 	}
 }
 
@@ -3667,6 +3733,11 @@ ep2_wedding.1030 = {
 		}
 
 		add_character_flag = busy_in_ceremony_event
+		
+		random = {
+			chance = legend_seed_chance_low
+			add_character_flag = wedding_legend_seed
+		}
 	}
 
 	#Option A: good omen - excellent!
@@ -3768,6 +3839,40 @@ ep2_wedding.1030 = {
 		}
 		ai_chance = {
 			base = 100
+		}
+	}
+
+	#Option D: good omen - you get a legend seed!
+	option = {
+		name = ep2_wedding.1030.d
+		trigger = {
+			has_character_flag = good_thing_flag
+			NOR = {
+				has_personal_legend_seed = heroic
+				has_personal_legend_seed = holy
+				has_personal_legend_seed = legitimizing
+			}
+			has_character_flag = wedding_legend_seed
+			OR = {
+				scope:spouse_2.dynasty = root.dynasty
+				scope:spouse_1.dynasty = root.dynasty
+			} 
+		}
+
+		scope:activity = {
+			add_activity_log_entry = {
+				key = wedding_omen_good_log
+				tags = { good }
+				score = 50
+				character = root
+				target = scope:spouse_2
+			}
+		}
+
+		legend_seed_great_deed_dynasty_effect = yes
+
+		ai_chance = { #AI can into legend seeds
+			base = 200
 		}
 	}
 
@@ -8086,7 +8191,7 @@ ep2_wedding.1210 = {
 				trigger = {
 					scope:talk_to = {
 						any_sub_realm_county = {
-							any_province = {
+							any_county_province = {
 								has_province_modifier = recently_looted_modifier
 							}
 						}
@@ -12244,7 +12349,7 @@ ep2_wedding.1111 = {
 		ep2_wedding_1111_valid_drunk_trigger = yes
 
 		scope:host = {	#There must be alcohol at the party!
-			drinks_alcohol_trigger = yes
+			drinks_alcohol_trigger = yes 
 		}
 		scope:activity = {	
 			NOT = { has_variable = has_had_1110_event }
@@ -12255,7 +12360,11 @@ ep2_wedding.1111 = {
 		}
 		trigger_if = {
 			limit = {
-				this = scope:host
+				OR = {
+					this = scope:host
+					scope:host = scope:activity.special_guest:spouse_1
+					scope:host = scope:activity.special_guest:spouse_2
+				}
 			}
 			scope:activity = {
 				any_attending_character = {
@@ -14615,7 +14724,6 @@ ep2_wedding.1320 = {
 				}
 			}
 		}
-		add_dread = minor_dread_gain
 		if = {
 			limit = {
 				has_activity_intent = banquet_mischief_intent
@@ -18629,6 +18737,20 @@ ep2_wedding.3200 = {
 			scope:activity.special_guest:spouse_1 ?= this
 			scope:activity.special_guest:spouse_2 ?= this
 		}
+		NOR = {
+			scope:activity.special_guest:spouse_1 ?= {
+				OR = {
+					is_elf = yes
+					culture = { has_cultural_pillar = heritage_dunedain }
+				}
+			}
+			scope:activity.special_guest:spouse_2 ?= {
+				OR = {
+					is_elf = yes
+					culture = { has_cultural_pillar = heritage_dunedain }
+				}
+			}
+		}
 		OR = {
 			scope:activity.special_guest:spouse_1 ?= {
 				NOT = { has_trait = gregarious }
@@ -19224,6 +19346,20 @@ ep2_wedding.3300 = {
 			this = scope:activity.special_guest:spouse_1
 			this = scope:activity.special_guest:spouse_2
 		}
+		NOR = {
+			scope:activity.special_guest:spouse_1 ?= {
+				OR = {
+					is_elf = yes
+					culture = { has_cultural_pillar = heritage_dunedain }
+				}
+			}
+			scope:activity.special_guest:spouse_2 ?= {
+				OR = {
+					is_elf = yes
+					culture = { has_cultural_pillar = heritage_dunedain }
+				}
+			}
+		}
 	}
 
 	immediate = {
@@ -19816,7 +19952,7 @@ scripted_trigger wedding_3400_shared_trigger = {
 	is_participant_in_activity = scope:activity
 	NOR = {
 		this = root
-		any_relation = { this = root }
+		has_relation_to = root
 		scope:activity.special_guest:spouse_1 ?= this
 		scope:activity.special_guest:spouse_2 ?= this
 		is_child_of = root
@@ -20337,7 +20473,7 @@ ep2_wedding.3400 = {
 						REASON = lover_wedding_relation_bond
 						CHARACTER = scope:other_family_relative
 						OPINION = default_lover_opinion
-					}	
+					}
 					if = {
 						limit = {
 							might_cheat_on_every_partner_trigger = yes
@@ -21042,7 +21178,7 @@ ep2_wedding.3420 = {
 						this = root
 						this = scope:activity.special_guest:spouse_1
 						this = scope:activity.special_guest:spouse_2
-						any_relation = { this = root }
+						has_relation_to = root
 					}
 					opinion = {
 						target = root
@@ -21799,10 +21935,10 @@ ep2_wedding.3420 = {
 			limit = {
 				NOT = { root = scope:blab_guest }
 			}
-		reverse_add_opinion = {
-			target = scope:blab_guest
-			modifier = exposed_my_secret_opinion
-		}
+			reverse_add_opinion = {
+				target = scope:blab_guest
+				modifier = exposed_my_secret_opinion
+			}	
 		}
 		scope:blab_secret = { expose_secret = root }
 		stress_impact = {
@@ -21991,49 +22127,49 @@ scripted_effect wedding_3500_save_family_effect = {
 	else = {
 		scope:activity.special_guest:spouse_1 = { save_scope_as = other_family_spouse }
 	}
-		while = {
-			count = 2
-			random_close_or_extended_family_member = {
-				limit = {
-					trigger_if = {
-						limit = {
+	while = {
+		count = 2
+		random_close_or_extended_family_member = {
+			limit = {
+				trigger_if = {
+					limit = {
 						root = { is_close_family_of = scope:my_family_spouse }
-						}
+					}
 					is_close_family_of = scope:my_family_spouse
-					}
+				}
 				trigger_else = { is_extended_family_of = scope:my_family_spouse }
-					wedding_3500_shared_trigger = yes
-					NOR = {
+				wedding_3500_shared_trigger = yes
+				NOR = {
 					has_relation_rival = scope:other_family_spouse
-						opinion = {
+					opinion = {
 						target = scope:other_family_spouse
-							value <= -25
-						}
+						value <= -25
 					}
 				}
-				alternative_limit = {
-					wedding_3500_shared_trigger = yes
-					NOR = {
-					has_relation_rival = scope:other_family_spouse
-						opinion = {
-						target = scope:other_family_spouse
-							value <= -25
-						}
-					}
-				}
-				weight = {
-					base = 1
-					wedding_family_member_compatibility_modifier = yes
-					is_of_minor_interest_to_weight_up_modifier = { CHARACTER = root }
-					is_of_major_interest_to_weight_up_modifier = { CHARACTER = root }
-				}
-				if = {
-					limit = { exists = scope:my_family_relative_1 }
-					save_scope_as = my_family_relative_2
-				}
-				else = { save_scope_as = my_family_relative_1 }
 			}
+			alternative_limit = {
+				wedding_3500_shared_trigger = yes
+				NOR = {
+					has_relation_rival = scope:other_family_spouse
+					opinion = {
+						target = scope:other_family_spouse
+						value <= -25
+					}
+				}
+			}
+			weight = {
+				base = 1
+				wedding_family_member_compatibility_modifier = yes
+				is_of_minor_interest_to_weight_up_modifier = { CHARACTER = root }
+				is_of_major_interest_to_weight_up_modifier = { CHARACTER = root }
+			}
+			if = {
+				limit = { exists = scope:my_family_relative_1 }
+				save_scope_as = my_family_relative_2
+			}
+			else = { save_scope_as = my_family_relative_1 }
 		}
+	}
 }
 
 scripted_trigger ep2_wedding_3500_active_bedroom_trigger = {

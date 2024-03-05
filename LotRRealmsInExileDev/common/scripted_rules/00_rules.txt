@@ -166,18 +166,17 @@ allowed_to_be_granted_titles_by = {
 			}
 		}
 	}
-	# trigger_if = {
-	# 	limit = { scope:landed_title.tier = tier_county }
-	# 	trigger_if = {
-	# 		limit = { exists = scope:landed_title.title_province }
-	# 		scope:landed_title.title_province = { 
-	# 			NOR = {
-	# 				has_holding_type = wastelands_holding
-	# 				has_holding_type = settlement_holding
-	# 			}
-	# 		}
-	# 	}
-	# }
+	trigger_if = {
+		limit = { scope:landed_title.tier <= tier_county }
+		trigger_if = {
+		   	limit = { exists = scope:landed_title.title_province }
+			scope:landed_title.title_province = { 
+				NOT = {
+					has_holding_type = settlement_holding
+				}
+			}
+		}
+	}
 }
 
 is_character_allowed_to_be_player = {
@@ -354,6 +353,29 @@ is_alliance_valid = {
 			}
 			}
 		}
+		#childhood friendship with hostage event, where they swear to be friends forever
+		AND = {
+			OR = {
+				has_relation_friend = scope:second
+				has_relation_best_friend = scope:second
+			}
+			OR = {
+				any_memory = {
+					has_memory_type = hostage_oath_of_friendship
+					has_memory_participant = scope:second
+				}
+				scope:second = {
+					any_memory = {
+						has_memory_type = hostage_oath_of_friendship
+						has_memory_participant = root
+					}
+				}
+			}
+		}
+		# FP3 struggle case
+		has_character_flag = fp3_is_a_loyalist_puppet
+		scope:second = { has_character_flag = fp3_is_a_loyalist_puppet }
+		
 		scope:second = { #LotR - White Council alliance
 			has_character_flag = white_council_ally
 		}
@@ -827,7 +849,6 @@ can_hybridize_culture = {
 		CHARACTER = root
 	}
 	NOT = { has_culture = culture:wastelands }	
-	is_elf = no
 }
 
 # Is this character allowed to diverge their culture?
@@ -941,6 +962,11 @@ can_be_activity_guest = {
 				is_diarch = yes
 				is_designated_diarch = yes
 			}
+			#If you have promised a grand wedding, you must be able to go through with it!
+			NOR = {
+				has_promised_a_grand_wedding = yes
+				has_been_promised_grand_wedding = yes
+			}
 		}
 		scope:host.involved_activity.activity_location.county.holder ?= {
 			OR = {
@@ -980,6 +1006,7 @@ is_diarch_valid = { is_diarch_valid_trigger = yes }
 should_have_diarchy = {
 	basic_eligible_for_diarchy_trigger = yes
 	regency_for_personal_reasons_trigger = yes
+	NOT = { culture = culture:wastelands } #LotR - no diarchies for Wastelands
 }
 
 # Does target character fulfil the basic requirements to be an Acclaimed Knight
@@ -987,4 +1014,69 @@ should_have_diarchy = {
 can_be_acclaimed_knight = {
 	is_knight = yes
 	highest_held_title_tier <= tier_barony
+}
+
+# Can target character be considered a valuable hostage
+# It's checked on an already taken hostages, so regular links to warden and home court
+# can be used to check the relations between these 3 people
+# root - hostage being evaluated
+is_hostage_valid = {
+	OR = {
+		is_child_of = home_court
+		is_grandchild_of = home_court
+		is_sibling_of = home_court
+		is_nibling_of = home_court
+		AND = {
+			age < 16
+			OR = {
+				mother = {
+					is_hostage_of = root.warden
+				}
+				father = {
+					is_hostage_of = root.warden
+				}
+			}
+		}
+	}
+}
+
+# root = the character creating a legend
+can_create_legend = {
+	age >= 12
+}
+
+# root = the character promoting a legend
+# scope:legend = the legend to promote
+can_promote_legend = {
+	is_landed = yes
+	age >= 12
+	custom_tooltip = {
+		text = legend_can_not_promote_tt
+		OR = {
+			root.dynasty = scope:legend.legend_owner.dynasty
+			knows_language_of_culture = scope:legend.legend_owner.culture
+			scope:legend.legend_owner = {
+				has_friendly_relationship_with_character_trigger = { CHARACTER = root }
+			}
+			any_character_to_title_neighboring_county = {
+				any_county_province = {
+					any_province_legend = {
+						this = scope:legend
+					}
+				}
+			}
+			scope:legend.legend_owner = {
+				knows_language_of_culture = root.culture
+			}
+		}
+	}
+}
+
+# If the ai character wants to create their own legend as well as just supporting another one
+# root = the character creating a legend
+# scope:num_legends = The number of existing legends this character could support
+ai_wants_to_create_own_legend = {
+	is_independent_ruler = yes
+	highest_held_title_tier >= tier_kingdom
+	scope:num_legends <= 5
 }

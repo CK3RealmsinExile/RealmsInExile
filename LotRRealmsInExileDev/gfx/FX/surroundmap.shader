@@ -139,9 +139,9 @@ PixelShader =
 		{				
 			float Mask = PdxTex2D( SurroundMask, UV ).b;
 			
-			
-			
-			float3 Tile = PdxTex2D( SurroundTile, UV * TileFactor ).rgb;
+			// We no longer use the surround 'woodgrain' tiling (keeping this here for some mods backward compat hint)
+			// float3 Tile = PdxTex2D( SurroundTile, UV * TileFactor ).rgb;
+			float3 Tile = float3(0, 0, 0);
 			
 			return float4( Tile, Mask );
 		}

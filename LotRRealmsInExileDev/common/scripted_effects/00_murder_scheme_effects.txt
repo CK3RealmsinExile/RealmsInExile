@@ -100,6 +100,33 @@ murder_outcome_roll_effect = {
 # Used in the immediate of the Scheme Owner's success event
 murder_success_effect = {
 	play_music_cue = mx_cue_murder
+	# Achievement Score Keeping
+	hidden_effect = {
+		if = {
+			limit = {
+				exists = scope:target
+				scope:scheme.scheme_owner = { 
+					is_ai = no 
+					faith = {
+						has_doctrine = tenet_fp3_fedayeen
+					}
+				}
+			}
+			if = {
+				limit = { scope:target = { highest_held_title_tier = tier_empire } }
+				scope:scheme.scheme_owner = { add_character_flag = fp3_assassinated_tier3 }
+			}
+			else_if = {
+				limit = { scope:target = { highest_held_title_tier = tier_kingdom } }
+				scope:scheme.scheme_owner = { add_character_flag = fp3_assassinated_tier2 }
+			}
+			else_if = {
+				limit = { scope:target = { is_lowborn  = yes } }
+				scope:scheme.scheme_owner = { add_character_flag = fp3_assassinated_tier1 }
+			}
+		}
+	}
+
 	#Check if it is a Rival being murdered
 	if = {
 		limit = {
@@ -132,6 +159,17 @@ murder_success_effect = {
 		scope:scheme.scheme_owner = {
 			stress_impact = {
 				sadistic = minor_stress_impact_loss
+			}
+		}
+	}
+	# If the murder was completed as part of the imaginary friend story cycle, we give them a break on stress
+	if = {
+		limit = {
+			scope:scheme.scheme_owner.var:imaginary_friend_murder_target ?= scope:scheme.scheme_target
+		}
+		scope:scheme.scheme_owner = {
+			stress_impact = {
+				base = major_stress_impact_loss
 			}
 		}
 	}
@@ -313,6 +351,28 @@ murder_failure_effect = {
 		limit = {
 			exists = scope:scheme_discovered
 		}
+		# If we're a clan this affects unity
+		if = {
+			limit = { # If the victim is landed
+				scope:target = { is_landed = yes }
+			}
+			add_clan_unity_interaction_effect = {
+				CHARACTER = scope:owner
+				TARGET = scope:target
+				VALUE = medium_unity_loss
+				DESC = clan_unity_murder_attempted.desc
+				REVERSE_NON_HOUSE_TARGET = no
+			}
+		}
+		else = { # For unlanded characters, we don't care as much, but you still lose some unity
+			add_clan_unity_interaction_effect = {
+				CHARACTER = scope:owner
+				TARGET = scope:target
+				VALUE = minor_unity_loss
+				DESC = clan_unity_murder_attempted.desc
+				REVERSE_NON_HOUSE_TARGET = no
+			}
+		}
 		scope:owner = {
 			save_scope_as = owner_to_reveal
 			add_dread = minor_dread_gain
@@ -337,6 +397,23 @@ murder_failure_effect = {
 		}
 		scope:target = {
 			trigger_event = murder_outcome.5002
+		}
+	}
+	
+	if = {
+		limit = {
+			scope:owner = {
+				any_owned_story = {
+					story_type = story_cycle_imaginary_friend
+					var:imaginary_friend_murder_target ?= scope:target
+				}
+			}
+		}
+		scope:owner = {
+			trigger_event = {
+				id = bp2_yearly.2024
+				days = 4
+			}
 		}
 	}
 }
@@ -391,7 +468,7 @@ successful_murder_outcome_event_option_effect = {
 		dread_from_discovered_murder_effect = yes
 	}
 	
-	hidden_effect = { #TODO_CD: for debugging reasons. Did this stop the errors in the murder scheme success effect?
+	hidden_effect = {
 		trigger_event = {
 			id = murder_outcome.9999
 			days = 1
@@ -468,6 +545,26 @@ murder_entourage_list_effect = {
 					}
 				}
 			}
+		}
+	}
+}
+
+# Adds either "Plush and Unremarkable Carpet" modifier if character is Iranian, otherwise adds "Plush and Exotic Carpet"
+add_carpet_modifier_effect = {
+	if = {
+		limit = {
+			has_fp3_dlc_trigger = yes
+			# culture = { has_cultural_pillar = heritage_iranian } # LotR
+		}
+		add_character_modifier = {
+			modifier = persian_has_plush_carpet_modifier
+			days = 3650
+		}
+	}
+	else = {
+		add_character_modifier = {
+			modifier = has_plush_carpet_modifier
+			days = 3650
 		}
 	}
 }

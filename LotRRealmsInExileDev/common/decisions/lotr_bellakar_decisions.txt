@@ -13,6 +13,7 @@ decision_reclaim_mardruak = {
 	confirm_text = decision_reclaim_mardruak_confirm
 	
 	is_shown = {
+		current_year >= 5630 # After it becomes dejure Umbar
 		culture = { has_cultural_pillar = heritage_bellakari }
 		is_landed = yes
 		has_title = title:e_bellakar
@@ -79,6 +80,7 @@ decision_bellakar_felayan_rapprochement = {
 	confirm_text = decision_bellakar_felayan_rapprochement_confirm
 	
 	is_shown = {
+		current_year >= 6000
 		culture = { has_cultural_pillar = heritage_bellakari }
 		has_title = title:e_bellakar
 		title:k_felaya.holder = {
@@ -124,20 +126,7 @@ decision_bellakar_felayan_rapprochement = {
         }
 		resolve_title_and_vassal_change = scope:change
 		
-		title:k_felaya.holder = {
-                vassal_contract_set_obligation_level = {
-                    type = title_revocation_rights
-                    level = 1
-                }
-                vassal_contract_set_obligation_level = {
-                    type = religious_rights 
-                    level = 1
-                }
-                vassal_contract_set_obligation_level = {
-                    type = council_rights 
-                    level = 1
-                }
-        }
+		trigger_event = bellakar.1000
 		
 		add_to_global_variable_list = {
 			name = unavailable_unique_decisions
@@ -156,13 +145,99 @@ decision_bellakar_felayan_rapprochement = {
 			}
 		}
 	}
-	
 
 	ai_will_do = {
 		base = 100
 	}
 }
 
+### Pharazain Decisions ###
+decision_proclaim_pharazain = {
+	title = decision_proclaim_pharazain
+	picture = "gfx/interface/illustrations/decisions/decision_adunai_01.dds"
+	major = yes
+	ai_goal = yes
+	ai_potential = {
+		always = yes
+	}
+
+	selection_tooltip = decision_proclaim_pharazain_tooltip
+	desc = decision_proclaim_pharazain_desc
+	confirm_text = decision_proclaim_pharazain_confirm
+	
+	is_shown = {
+		culture = { 
+			OR = {
+				has_cultural_pillar = heritage_southern_adunaic 
+				has_cultural_pillar = heritage_bellakari
+			}
+		}
+		is_landed = yes
+		NOR = {
+			is_target_in_global_variable_list = {
+				name = unavailable_unique_decisions
+				target = flag:proclaim_pharazain_decision
+			}
+		}
+		any_county_in_region = {
+			region = special_pharazain
+			OR = {
+				holder = { is_vassal_or_below_of = root }
+				holder = root
+			}
+			percent >= 0.6
+		}
+		
+	}
+	is_valid = {
+		custom_tooltip = {
+			text = control_of_pharazain_desc
+			any_county_in_region = {
+				region = special_pharazain
+				OR = {
+					holder = { is_vassal_or_below_of = root }
+					holder = root
+				}
+				percent >= 0.85
+			}
+		}
+	}
+	
+	is_valid_showing_failures_only = {
+		is_imprisoned = no
+		is_available_adult = yes
+		is_at_war = no
+	}
+	
+	effect = {
+		get_title = title:e_pharazain
+		set_primary_title_to = title:e_pharazain
+		
+		every_county_in_region = { # Works
+			region = special_pharazain
+			add_to_list = pharazain_counties
+		}
+
+		every_kingdom = {
+			limit = { 
+				any_de_jure_county = {
+					count > 0
+					is_in_list = pharazain_counties
+				}
+			} 
+			set_de_jure_liege_title = title:e_pharazain
+		}
+
+		add_to_global_variable_list = {
+			name = unavailable_unique_decisions
+			target = flag:proclaim_pharazain_decision
+		}
+	}
+	
+	ai_will_do = {
+		base = 100
+	}
+}
 
 ### Tedjin Decisions ###
 decision_refound_qadjajar = {
@@ -179,6 +254,7 @@ decision_refound_qadjajar = {
 	confirm_text = decision_refound_qadjajar_confirm
 	
 	is_shown = {
+		current_year >= 4974 # Qadjajar destroyed
 		culture = { has_cultural_pillar = heritage_tedjin }
 		is_landed = yes
 		highest_held_title_tier >= tier_duchy
@@ -192,7 +268,23 @@ decision_refound_qadjajar = {
 	}
 	is_valid = {
 		completely_controls = title:k_mardruak
-		completely_controls = title:k_felaya
+		trigger_if = {	
+			limit = {
+				NOT = {
+					is_target_in_global_variable_list = {
+						name = unavailable_unique_decisions
+						target = flag:option_a
+					}
+				}
+			}
+			completely_controls = title:k_felaya	#juke note: moved felaya to this decision
+		} trigger_else = {
+			completely_controls = title:d_hazaj_tollin
+			completely_controls = title:d_adazayin
+			completely_controls = title:d_rothurush
+			completely_controls = title:d_kes_ebb
+			completely_controls = title:d_hulja
+		}
 	}
 	
 	is_valid_showing_failures_only = {
@@ -473,6 +565,7 @@ decision_greater_faithful_tedjin_kingdom = {
 	confirm_text = decision_greater_faithful_tedjin_kingdom_confirm
 	
 	is_shown = {
+		current_year >= 4974 # Qadjajar destroyed
 		culture = { has_cultural_pillar = heritage_tedjin }
 		is_landed = yes
 		highest_held_title_tier >= tier_duchy
@@ -577,7 +670,7 @@ decision_bellakar_x_gondor = {
 	is_shown = {
 		has_title = title:e_bellakar
 		exists = title:e_gondor.holder # Checks if aragorn has returned
-		title:e_gondor.holder ?= { faith_is_good = yes }
+		title:e_bellakar.holder ?= { faith_is_good = yes }
 		title:e_bellakar.holder ?= { in_diplomatic_range = title:e_gondor.holder }
 		title:e_bellakar.holder.dynasty = dynasty:dynasty_tumakveh
 		NOT = {
@@ -590,13 +683,18 @@ decision_bellakar_x_gondor = {
 				target = flag:bellakar_x_gondor
 			}
 		}
+		NOT = { 
+			title:e_bellakar.holder = {
+				is_allied_to = title:e_gondor.holder
+			}
+		} 
 	}
 
 	# IS VALID
 	is_valid = {
 		prestige_level >= 4
 		sauron_is_alive = yes
-		title:e_bellakar.holder = { faith_is_good = yes }
+		title:e_gondor.holder = { faith_is_good = yes }
 
 		title:e_gondor.holder.dynasty ?= dynasty:dynasty_elros
 

@@ -323,6 +323,30 @@ tournament_events.0700 = { # AI Accidental Death
 			factor = 0.5
 			is_landed = yes
 		}
+		modifier = {
+			factor = 0.5
+			OR = {
+				has_trait = blood_of_numenor_1
+				has_trait = blood_of_numenor_2
+				is_hobbit = yes
+			}
+		}
+		modifier = {
+			factor = 0.5
+			has_trait = skinchanger
+		}
+		modifier = {
+			factor = 0.25
+			OR = {
+				has_trait = blood_of_numenor_3
+				has_trait = blood_of_numenor_4
+				is_dwarf = yes
+			}
+		}
+		modifier = {
+			factor = 0.1
+			is_elf = yes
+		}
 		# Reduce chance proportionally for each previous accident
 		modifier = {
 			exists = scope:activity.var:accident_death_count
@@ -535,7 +559,7 @@ tournament_events.0800 = { # No Longer Valid Contestant
 				limit = {
 					is_ai = no
 					OR = {
-						any_relation = { this = scope:contest_withdrawal }
+						has_relation_to = scope:contest_withdrawal
 						is_close_family_of = scope:contest_withdrawal
 						is_consort_of = scope:contest_withdrawal
 						scope:host = scope:contest_withdrawal
@@ -822,6 +846,22 @@ tournament_events.0150 = {
 				}
 				desc = tournament_events.0150.winsuccess
 			}
+			triggered_desc = { #CE1 legend seed drop
+				trigger = {
+					has_activity_intent = win_contest_intent 
+					scope:activity = {
+						any_guest_subset = {
+							name = winner
+							this = root
+						}
+					}
+					AND = {
+						has_variable = tournaments_won_count
+						var:tournaments_won_count = 3
+					}
+				}
+				desc = tournament_events.0150.legendseeddrop
+			}
 			triggered_desc = {
 				trigger = { has_activity_intent = win_contest_intent }
 				desc = tournament_events.0150.winfailure
@@ -895,6 +935,52 @@ tournament_events.0150 = {
 			}
 			add_character_modifier = { modifier = tournament_contest_spectator_modifier years = 5 }
 		}
+		if = { #win tracker for legend seeds
+			limit = {
+				has_activity_intent = win_contest_intent 
+				scope:activity = {
+					any_guest_subset = {
+						name = winner
+						this = root
+					}
+				}
+			}
+			if = {
+				limit = {
+					has_variable = tournaments_won_count
+				}
+				change_variable = {
+					name = tournaments_won_count
+					add = 1
+				}
+			}
+			else = {
+				set_variable = {
+					name = tournaments_won_count
+					value = 1
+				}
+			}
+		}
+		if = { #CE1 legend seed drop
+			limit = {
+				has_variable = tournaments_won_count
+				var:tournaments_won_count = 3
+				NOT = { has_character_flag = tournament_won_legend }
+			}
+			create_legend_seed = {
+				type = heroic
+				quality = famed
+				chronicle = tournament_won
+
+				properties = {
+					winner = root
+					location = root.location
+				}
+			}
+			add_character_flag = tournament_won_legend
+		}
+		# LEGITIMACY GAIN FOR GRAND ACTIVITY PARTICIPATION - TOURNAMENT
+		grand_activity_participation_legitimacy_effect = yes
 	}
 
 	option = { #Celebrate the end 
@@ -1150,7 +1236,10 @@ scripted_effect tournament_marriage_prize_effect = {
 scripted_effect tournament_marriage_prize_winner_scope_effect = {
 	if = {
 		limit = {
-			scope:$CONTEST$_winner ?= { can_marry_character_trigger = { CHARACTER = scope:marriage_prize } }
+			scope:$CONTEST$_winner ?= { 
+				can_marry_character_trigger = { CHARACTER = scope:marriage_prize }
+				lotr_marriage_to_allowed = { TARGET = scope:marriage_prize }
+			}
 		}
 		scope:$CONTEST$_winner = { add_to_list = bachelors }
 	}
@@ -2305,7 +2394,10 @@ tournament_events.1101 = { # Start - Exotic
 	
 	option = { # You're impressed
 		name = tournament_events.1101.c
+		if = {
+			limit = { activity_is_competing_trigger = yes }
 		activity_tournament_change_contestant_score_effect = { SCORE = increase_minor }
+		}
 		scope:pas_darmes_instigator = {
 			accolade_minor_glory_gain_with_checks_effect = yes
 		}
@@ -3095,7 +3187,6 @@ tournament_events.1140 = { # Host Challenge - Start
 		character = scope:pas_darmes_instigator
 		animation = happiness
 	}
-	# TODO_CD_EP2: replace with proper art
 	override_background = {
 		trigger = {
 			scope:activity.activity_location = { geographical_region = graphical_western }
@@ -3328,7 +3419,10 @@ tournament_events.1140 = { # Host Challenge - Start
 
 	option = { # That's enough
 		name = tournament_events.1140.c
+		if = {
+			limit = { activity_is_competing_trigger = yes }
 		activity_tournament_change_contestant_score_effect = { SCORE = increase_medium }
+		}
 		add_prestige = minor_prestige_loss
 		reverse_add_opinion = {
 			target = scope:pas_darmes_instigator
@@ -3340,6 +3434,7 @@ tournament_events.1140 = { # Host Challenge - Start
 		stress_impact = {
 			brave = medium_stress_impact_gain
 			just = medium_stress_impact_gain
+			eccentric = medium_stress_impact_gain
 		}
 		ai_chance = {
 			base = 25
@@ -3360,6 +3455,7 @@ tournament_events.1140 = { # Host Challenge - Start
 		stress_impact = {
 			craven = medium_stress_impact_gain
 			shy = medium_stress_impact_gain
+			eccentric = medium_stress_impact_gain
 		}
 		ai_chance = {
 			base = 25
@@ -4227,7 +4323,10 @@ tournament_events.1200 = {
 
 	option = { # Let me persuade you
 		name = tournament_events.1200.b
+		if = {
+			limit = { activity_is_competing_trigger = yes }
 		activity_tournament_change_contestant_score_effect = { SCORE = increase_minor }
+		}
 		random_list = {
 			10 = {
 				modifier = {
@@ -4457,7 +4556,6 @@ tournament_events.1230 = {
 			dynasty = none
 			save_scope_as = battle_peasant
 		}
-		scope:battle_peasant = { visit_court_of = scope:host }
 		if = {
 			limit = { employs_court_position = champion_court_position }
 			random_court_position_holder = {
@@ -4569,6 +4667,12 @@ tournament_events.1230 = {
 
 	option = { # Recruit
 		name = tournament_events.1230.b
+		trigger = {
+			number_of_knights < max_number_of_knights
+			scope:battle_peasant = {
+				can_be_knight_trigger = { ARMY_OWNER = root }
+			}
+		}
 		every_knight = {
 			custom = custom.every_knight
 			add_opinion = {
@@ -4592,9 +4696,10 @@ tournament_events.1230 = {
 				}
 			}
 		}
-		hidden_effect = { add_courtier = scope:battle_peasant }
 		scope:battle_peasant = {
 			hidden_effect = {
+				set_employer = root
+				set_knight_status = force
 				add_to_activity = scope:activity
 				scope:activity = {
 					add_to_guest_subset = {
@@ -4602,7 +4707,6 @@ tournament_events.1230 = {
 						target = scope:battle_peasant						
 					}
 				}
-				set_knight_status = force
 			}
 			custom_tooltip = tournament_events.1230.b.tt
 			custom_tooltip = tournament_events.1230.c.tt
@@ -4612,6 +4716,7 @@ tournament_events.1230 = {
 			}
 			try_to_create_recurring_character_effect = { CHARACTER = root }
 		}
+		hidden_effect = { current_travel_plan = { add_companion = scope:battle_peasant } }
 		reverse_add_opinion = {
 			modifier = grateful_opinion
 			target = scope:battle_peasant
@@ -4687,7 +4792,9 @@ tournament_events.1230 = {
 	option = { # Do nothing 
 		name = tournament_events.1230.d
 		custom_tooltip = tournament_events.1230.d.tt
-		activity_tournament_change_contestant_score_effect = { SCORE = increase_miniscule }
+		if = {
+			limit = { activity_is_competing_trigger = yes } activity_tournament_change_contestant_score_effect = { SCORE = increase_miniscule }
+		}
 		hidden_effect = {
 			scope:battle_peasant = {
 				death = { death_reason = death_disappearance }
@@ -4726,6 +4833,7 @@ scripted_trigger tournament_1240_prize_child_trigger = {
 	NOT = {
 		can_be_combatant_based_on_gender_trigger = { ARMY_OWNER = root }
 	}
+	is_elf = no
 }
 
 scripted_effect tournament_1240_prize_child_effect = {
@@ -4943,7 +5051,10 @@ tournament_events.1240 = {
 
 	option = { # No
 		name = tournament_events.1240.d
+		if = {
+			limit = { activity_is_competing_trigger = yes }
 		activity_tournament_change_contestant_score_effect = { SCORE = increase_miniscule }
+		}
 		stress_impact = {
 			generous = medium_stress_impact_gain
 			arbitrary = medium_stress_impact_gain
@@ -5521,11 +5632,13 @@ tournament_events.1251 = {
 					limit = {
 						scope:favor_recipient = { is_ai = yes }
 					}
+					scope:favor_recipient = {
 					add_opinion = {
 						target = scope:favor_giver
 						modifier = tournament_received_favor_opinion
 						opinion = 10
 					}
+				}
 				}
 				hidden_effect = {
 					if = {
@@ -6291,8 +6404,10 @@ tournament_events.1260 = {
 
 	option = { # Expel them
 		name = tournament_events.1260.c
-		# TODO_CD_EP2: remove from activity
+		if = {
+			limit = { activity_is_competing_trigger = yes }
 		activity_tournament_change_contestant_score_effect = { SCORE = increase_miniscule }
+		}
 		every_in_list = {
 			list = duelists
 			add_opinion = {
@@ -6300,6 +6415,7 @@ tournament_events.1260 = {
 				modifier = tournament_expelled_opinion
 				opinion = -15
 			}
+			remove_from_activity = scope:activity
 		}
 		stress_impact = {
 			just = medium_stress_impact_gain
@@ -7643,7 +7759,10 @@ tournament_events.1300 = {
 				OPINION = 20
 			}
 
+			if = {
+				limit = { activity_is_competing_trigger = yes }
 			activity_tournament_change_contestant_score_effect = { SCORE = increase_miniscule }
+		}
 		}
 		scope:old_knight = {
 			accolade_minor_glory_gain_with_checks_effect = yes
@@ -7847,7 +7966,10 @@ tournament_events.1300 = {
 		}
 		try_to_create_recurring_character_effect = { CHARACTER = scope:old_knight }
 
+		if = {
+			limit = { activity_is_competing_trigger = yes }
 		activity_tournament_change_contestant_score_effect = { SCORE = increase_miniscule }
+		}
 
 		progress_towards_friend_effect = {
 			REASON = friend_tournament_tutor
@@ -8026,7 +8148,7 @@ tournament_events.1310 = {
 	# Learn from them
 	option = {
 		name = tournament_events.1310.b
-
+		trigger = { activity_is_competing_trigger = yes }
 		duel = {
 			skills = { diplomacy learning }
 			value = high_skill_rating
@@ -8268,7 +8390,10 @@ tournament_events.1311 = {
 				years = 10
 			}
 
+			if = {
+				limit = { activity_is_competing_trigger = yes }
 			activity_tournament_change_contestant_score_effect = { SCORE = increase_miniscule }
+		}
 		}
 
 		progress_towards_friend_effect = {
@@ -8329,7 +8454,10 @@ tournament_events.1311 = {
 
 		add_courtier = scope:knight_herald
 
+		if = {
+			limit = { activity_is_competing_trigger = yes }
 		activity_tournament_change_contestant_score_effect = { SCORE = decrease_miniscule }
+		}
 
 		add_character_modifier = {
 			modifier = tournament_poorly_announced_modifier
@@ -8350,6 +8478,7 @@ tournament_events.1311 = {
 			scope:activity = {
 				every_attending_character = {
 					limit = {
+						NOT = { this = root }
 						has_trait = compassionate				
 					}
 
@@ -8381,7 +8510,10 @@ tournament_events.1311 = {
 	# Laugh at them
 	option = {
 		name = tournament_events.1311.c
+		if = {
+			limit = { activity_is_competing_trigger = yes }
 		activity_tournament_change_contestant_score_effect = { SCORE = increase_miniscule }
+		}
 		progress_towards_rival_effect = {
 			REASON = rival_tournament_herald_knight
 			CHARACTER = scope:forgotten_knight
@@ -8575,7 +8707,10 @@ tournament_events.1312 = {
 					left_icon = scope:foreign_knight
 					right_icon = scope:foreign_knight_liege
 					scope:foreign_knight = { set_knight_status = force }
+					if = {
+						limit = { activity_is_competing_trigger = yes }
 					activity_tournament_change_contestant_score_effect = { SCORE = increase_miniscule }
+					}
 
 					reverse_add_opinion = {
 						target = scope:foreign_knight
@@ -8829,6 +8964,7 @@ tournament_events.1320 = {
 			impatient = miniscule_stress_impact_loss
 			trusting = medium_stress_impact_gain
 			patient = medium_stress_impact_gain
+			eccentric = medium_stress_impact_gain
 		}
 
 		ai_chance = {
@@ -8860,11 +8996,24 @@ tournament_events.1321 = {
 
 	trigger = {
 		has_character_flag = red_coin_flag
+		scope:activity = {
+			any_attending_character = {
+				has_character_flag = red_coin_origin
+			}
+		}
 	}
 
 	immediate = {
 		scope:activity.activity_location.county = {
 			save_scope_as = county
+		}
+		scope:activity = {
+			random_attending_character = {
+				limit = {
+					has_character_flag = red_coin_origin 
+				}
+				save_scope_as = unusual_stranger
+			}
 		}
 	}
 
@@ -9261,30 +9410,21 @@ tournament_events.1331 = {
 
 	trigger = {
 		this = scope:host
-		scope:activity = {
-			any_guest_subset_current_phase = {
-				name = contestant
-				is_dynast = yes
-				dynasty = root.dynasty
-				NOT = {
-					this = root
-				}
-			}
+		dynasty.dynast ?= {
+			NOT = { this = root }
+			involved_activity = scope:activity
+			activity_is_competing_trigger = yes
 		}
 	}
 
 	immediate = {
+		dynasty.dynast = { save_scope_as = dynast }
 		scope:activity = {
 			random_guest_subset_current_phase = {
 				name = contestant
-				limit = {
-					is_heir_of = root
-				}
+				limit = { activity_is_competing_trigger = yes }
 				save_scope_as = heir
 			}
-		}
-		dynasty.dynast = {
-			save_scope_as = dynast 
 		}
 	}
 
@@ -9463,7 +9603,18 @@ tournament_events.1331 = {
 	option = {
 		name = tournament_events.1331.e
 
-		tournament_contest_knocked_out_effect = { CHARACTER = root }
+		add_character_flag = tournament_not_competing
+		custom_tooltip = tournament_not_competing_tt
+		scope:activity = {
+			remove_from_guest_subset = {
+				name = contestant
+				target = root
+			}
+			add_to_guest_subset = {
+				name = spectator
+				target = root
+			}
+		}
 
 		scope:dynast = {
 			activity_tournament_change_contestant_score_effect = { SCORE = increase_medium }
@@ -9511,11 +9662,9 @@ tournament_events.1332 = {
 
 	trigger = {
 		this = scope:host
-		scope:activity = {
-			any_guest_subset_current_phase = {
-				name = contestant
-				is_powerful_vassal_of = root
-			}
+		any_powerful_vassal = {
+			involved_activity = scope:activity
+			activity_is_competing_trigger = yes
 		}
 	}
 
@@ -9523,7 +9672,7 @@ tournament_events.1332 = {
 		random_powerful_vassal = {
 			limit = {
 				involved_activity = scope:activity
-				is_in_guest_subset = { name = contestant }
+				activity_is_competing_trigger = yes
 			}
 			save_scope_as = powerful_vassal
 		}
@@ -9939,6 +10088,7 @@ tournament_events.1400 = {
 			scope:tall_person = { #Make sure they're recruitable
 				is_knight = no
 				is_landed = no
+				is_ruler = no
 				can_be_combatant_based_on_gender_trigger = { ARMY_OWNER = root }
 			}
 			is_landed = yes
@@ -11297,19 +11447,14 @@ tournament_events.1407 = {
 	cooldown = { years = 1 }
 
 	trigger = {
-		scope:activity = {
-			any_guest_subset_current_phase = {
-				name = spectator
-				root = this
-			}
-			any_guest_subset_current_phase = { # You have a family member participant
-				name = qualified
-				is_healthy = yes
-				is_adult = yes
-				is_close_family_of = root
+		activity_is_competing_trigger = no
+		any_close_family_member = {
 				NOT = { this = root }
+			involved_activity = scope:activity
+			activity_is_competing_trigger = yes
 				save_temporary_scope_as = competing_family
 			}
+		scope:activity = {
 			any_guest_subset_current_phase = { # There is a member of the crowd who dislikes their performance
 				name = spectator
 				NOR = {
@@ -11340,17 +11485,15 @@ tournament_events.1407 = {
 	}
 
 	immediate = {
-		scope:activity = {
-			random_guest_subset_current_phase = {
-				name = qualified
+		random_close_family_member = {
 				limit = {
-					is_healthy = yes
-					is_adult = yes
-					is_close_family_of = root
 					NOT = { this = root }
+				involved_activity = scope:activity
+				activity_is_competing_trigger = yes
 				}
 				save_scope_as = competing_family
 			}
+		scope:activity = {
 			random_guest_subset_current_phase = {
 				name = spectator
 				limit = {

@@ -1,0 +1,868 @@
+﻿namespace = fp3_yearly
+
+scripted_trigger suitable_nomad_settling_province_trigger = {
+	has_holding_type = castle_holding
+	barony = {
+		is_under_holy_order_lease = no
+		#is_capital_barony = no
+	}
+}
+
+
+fp3_yearly.8888 = { #Nomads story cycle
+	type = character_event
+	title = fp3_yearly.8888.t
+	desc = fp3_yearly.8888.desc
+	theme = vassal
+	left_portrait = {
+		character = scope:upset_vassal
+		animation = anger
+	}
+	right_portrait = {
+		character = root
+		animation = personality_rational
+		triggered_animation = {
+			trigger = {
+				diplomacy >= decent_skill_rating
+			}
+			animation = personality_honorable
+		}
+	}
+	lower_left_portrait = {
+		character = scope:possibly_capable_marshal
+	}
+	lower_right_portrait = {
+		character = scope:turkic_leader
+	}
+
+	trigger = {
+
+		#standard checks
+		has_fp3_dlc_trigger = yes
+		# root.capital_province = { geographical_region = world_persian_empire }
+		is_available_at_peace_adult = yes
+
+		#event fluff triggers
+		lotr_steppe_cultures_trigger = no
+
+		NOT = { has_character_flag = had_turkic_tribe_story } #since this event starts the story
+
+		exists = cp:councillor_marshal
+
+		cp:councillor_marshal = {
+			NOT = { has_trait = craven }
+			is_ai = yes 
+		}
+
+		any_vassal = {
+			lotr_steppe_cultures_trigger = no
+			is_ai = yes
+			NOT = {	
+				this = root.cp:councillor_marshal
+			}
+			any_held_county = {
+				any_county_province = {
+					geographical_region = middleearth_rhun 
+					NOT = { terrain = steppe }
+				}
+			}
+		}
+
+		any_held_county = { any_county_province = {	suitable_nomad_settling_province_trigger = yes } }
+	}
+
+	cooldown = { years = 50 }
+
+	immediate = {
+
+		random_vassal = {
+			limit = {
+				lotr_steppe_cultures_trigger = no
+				is_ai = yes
+				NOT = {	
+					this = root.cp:councillor_marshal
+				}
+				any_held_county = {
+				any_county_province = {
+					geographical_region = middleearth_rhun 
+					NOT = { terrain = steppe }
+				}
+			}
+			}
+			save_scope_as = upset_vassal 
+			random_held_county = {
+				limit = {
+					any_county_province = {
+						geographical_region = middleearth_rhun 
+						NOT = { terrain = steppe }
+					}
+				}
+				save_scope_as = nomads_county 
+			}
+		}
+
+		random_held_county = {
+			limit = {
+				any_county_province = {	suitable_nomad_settling_province_trigger = yes }		
+			}
+			save_scope_as = nomads_new_county #for use in the claim the former_master might get
+		}
+
+		scope:nomads_new_county = {
+			random_county_province = { 
+				limit = { suitable_nomad_settling_province_trigger = yes }
+				barony = { save_scope_as = nomads_barony }
+			}
+		}
+
+		cp:councillor_marshal = { save_scope_as = possibly_capable_marshal 	}	
+
+		scope:nomads_county = {
+			add_county_modifier = {
+				modifier = fp3_nomad_friction_county_modifier
+				years = 50
+			}
+		}
+			
+		create_character = { 
+			location = root.capital_province
+			#General
+			age = { 24 40 }
+			culture = culture:logath
+			faith = faith:faith_logath
+			dynasty = generate
+			#Education
+			random_traits_list = {
+				education_martial_2 = {
+					weight = { base = 20 }
+				}
+				education_martial_3 = {
+					weight = { base = 30 }
+				}
+				education_martial_4 = {
+					weight = { base = 10}
+				}
+			}
+			trait = ambitious
+			trait = flexible_leader
+			random_traits_list = {
+				count = 2
+				brave = {}
+				greedy = {}
+				gregarious = {}
+				trusting = {}
+				wrathful = {}
+			}
+			random_traits_list = {
+				count = 1
+				athletic = {}
+				loyal = {}
+				reaver = {}
+			}
+			random_traits_list = {
+				count = 1
+				lifestyle_hunter = {}
+				strong = {}
+			}
+			random_traits = no
+			gender_female_chance = root_soldier_female_chance
+			#Skills
+			diplomacy = { min_template_low_skill max_template_decent_skill }
+			martial = { min_template_decent_skill max_template_high_skill }
+			stewardship = { min_template_low_skill max_template_decent_skill }
+			intrigue = { min_template_low_skill max_template_decent_skill }
+			learning = { min_template_low_skill max_template_decent_skill }
+			prowess = { min_template_decent_skill max_template_high_skill }
+			after_creation = {
+				add_random_tiered_trait_track_xp_effect = {
+					TRAIT = lifestyle_hunter
+					TRACK = hunter
+					LEVEL_1 = yes
+					LEVEL_3 = no
+				}
+			}
+			save_scope_as = turkic_leader		
+		}	
+	}
+
+	option = {
+		name = fp3_yearly.8888.a
+
+		duel = {
+		skill = diplomacy
+		value = average_skill_rating
+
+			20 = {
+				compare_modifier = {
+					value = scope:duel_value
+					multiplier = 2
+				}
+				root = {
+					custom_tooltip = fp3_treating_with_turks.success.tt
+					trigger_event = {
+						id = fp3_yearly.8889
+						days = { 2 3 }
+					}
+				}	
+			}
+			20 = {
+				compare_modifier = {
+					value = scope:duel_value
+					multiplier = -1
+				}
+				
+				custom_tooltip = fp3_treating_with_turks.failure.tt
+				send_interface_toast = {
+					title = fp3_treating_with_turks_toast.failure
+					left_icon = root		
+				}		
+			}
+		}
+
+		scope:upset_vassal = {
+			if = {
+				limit = {
+					OR = { #if he's diplomatically minded, he'll appreciate this
+						has_trait = forgiving
+						has_trait = trusting
+						has_trait = compassionate
+						has_diplomacy_lifestyle_trait_trigger = yes
+					}
+				}
+				add_opinion = {
+					target = root
+					opinion = 20
+					modifier = respect_opinion
+				}
+			}
+			else = { 
+				add_opinion = { #but otherwise, they're not on board
+					target = root
+					opinion = -10
+					modifier = fp3_treats_with_barbarians_opinion
+				}
+			}
+		}
+
+		scope:possibly_capable_marshal = {
+			add_opinion = {
+				target = root
+				opinion = -10
+				modifier = disappointed_opinion
+			}
+		}
+
+		stress_impact = { 
+   			craven = medium_stress_impact_gain
+   			lazy = medium_stress_impact_gain
+   			shy = medium_stress_impact_gain
+   			gregarious = minor_stress_impact_loss 
+   		}
+
+   		ai_chance = { 
+        	base = 100
+        	ai_value_modifier = {
+           		ai_sociability = 0.5
+            	ai_boldness = 1
+            	ai_compassion = 0.5
+        	}
+   		}	
+	}
+
+	option = {
+		name = fp3_yearly.8888.b
+
+		scope:upset_vassal = {
+			add_opinion = {
+				target = root
+				opinion = 20
+				modifier = grateful_opinion
+			}
+		}
+
+		scope:possibly_capable_marshal = {
+			add_opinion = {
+				target = root
+				opinion = 10
+				modifier = trusted_me_opinion
+			}
+		}
+
+		scope:possibly_capable_marshal = {
+			duel = {
+			skill = martial
+			value = average_skill_rating
+
+				20 = {
+					compare_modifier = {
+						value = scope:duel_value
+						multiplier = 2
+					}
+					root = {
+						custom_tooltip = fp3_fighting_turks.success.tt
+						trigger_event = {
+							id = fp3_yearly.8890
+							days = { 2 3 }
+						}
+					}	
+				}
+				20 = {
+					compare_modifier = {
+						value = scope:duel_value
+						multiplier = -1
+					}
+					root = {
+						custom_tooltip = fp3_fighting_turks.failure.tt
+						send_interface_toast = {
+							title = fp3_fighting_turks_toast.failure
+							left_icon = scope:possibly_capable_marshal
+						}
+					}
+				}
+			}
+		}
+
+		stress_impact = { 
+   			compassionate = medium_stress_impact_gain
+   		}
+
+   		ai_chance = { 
+        	base = 100
+        	ai_value_modifier = {
+            	ai_boldness = 1
+            	ai_vengefulness = 0.5
+        	}
+   		}	
+	}
+
+	option = { #Ignore the issue
+		name = fp3_yearly.8888.c
+
+		scope:upset_vassal = {
+			add_opinion = {
+				target = root
+				opinion = -20
+				modifier = angry_opinion
+			}
+		}
+
+		scope:possibly_capable_marshal = {
+			add_opinion = {
+				target = root
+				opinion = -10
+				modifier = disappointed_opinion
+			}
+		}
+
+		stress_impact = { 
+   			ambitious = minor_stress_impact_gain
+   			diligent = minor_stress_impact_gain
+   			just = minor_stress_impact_gain 
+   		}
+
+   		ai_chance = { 
+        	base = 100
+        	ai_value_modifier = {
+            	ai_energy = -1
+        	}
+   		}		
+	}
+}
+
+fp3_yearly.8889 = { #Nomads story cycle
+	type = character_event
+	title = fp3_yearly.8889.t
+	desc = fp3_yearly.8889.desc
+	theme = vassal
+	left_portrait = {
+		character = scope:turkic_leader
+		animation = disapproval
+	}
+	right_portrait = {
+		character = root
+		animation = drink_goblet
+		triggered_animation = {
+			trigger = {
+				diplomacy >= decent_skill_rating
+				NOR = { 
+					has_trait = callous
+					has_trait = wrathful 
+					has_trait = vengeful
+				}
+			}
+			animation = personality_compassionate
+		}
+	}
+	lower_left_portrait = {
+		character = scope:upset_vassal
+	}
+
+	override_background = { reference = wilderness }
+
+	trigger = {
+
+		#standard checks
+		is_available_adult = yes
+
+		#event not breaking sanity triggers
+		exists = scope:upset_vassal
+		scope:upset_vassal = { is_alive = yes }
+
+		exists = scope:turkic_leader
+		scope:turkic_leader = { is_alive = yes }
+
+		exists = scope:nomads_county
+
+		exists = scope:nomads_new_county
+	}
+
+	option = {
+		name = fp3_yearly.8889.a
+
+
+		if = {
+			limit = {
+				scope:upset_vassal = {
+					NOT = {
+						has_relation_rival = root
+						has_relation_nemesis = root
+					}
+				}
+			}
+			root = {
+				progress_towards_rival_effect = {
+					CHARACTER = scope:upset_vassal
+					REASON = rival_let_hostile_nomads_roam_free 
+					OPINION = -20 
+				}
+			}
+		}
+		else = {
+			scope:upset_vassal = {
+				add_opinion = {
+					target = root
+					opinion = -40
+					modifier = hate_opinion
+				}
+			}
+		}
+
+		add_courtier = scope:turkic_leader
+
+		spawn_army = {
+			men_at_arms = {
+				type = horse_archers
+				stacks = 1
+			}
+			location = root.capital_province
+			war_keep_on_attacker_victory = yes
+			uses_supply = yes
+  	 		inheritable = no
+			save_scope_as = horsemen_army
+			name = turkic_tribal_event_troops
+		}
+
+		#This is needed to make the story cycle able to pick up the scopes
+		set_variable = {
+			name = turkic_leader
+			value = scope:turkic_leader
+		}
+		set_variable = {
+			name = upset_vassal
+			value = scope:upset_vassal 
+		}
+		set_variable = {
+			name = nomads_county
+			value = scope:nomads_county 
+		}
+		set_variable = {
+			name = nomads_new_county 
+			value = scope:nomads_new_county
+		}
+
+		create_story = turkic_tribe_story
+
+		stress_impact = { 
+   			paranoid = medium_stress_impact_gain
+   		}
+
+   		ai_chance = { 
+        	base = 100
+        	ai_value_modifier = {
+            	ai_sociability = 0.4
+            	ai_boldness = 0.7
+            	ai_vengefulness = 0.3
+        	}
+   		}	
+	}
+
+	option = {
+		name = fp3_yearly.8889.b
+
+		scope:upset_vassal = {
+			add_opinion = {
+				target = root
+				opinion = -10
+				modifier = disappointed_opinion
+			}
+		}
+
+		add_courtier = scope:turkic_leader
+
+		spawn_army = {
+			men_at_arms = {
+				type = horse_archers
+				stacks = 1
+			}
+			location = root.capital_province
+			war_keep_on_attacker_victory = yes
+			uses_supply = yes
+  	 		inheritable = no
+			save_scope_as = horsemen_army
+			name = turkic_tribal_event_troops
+		}
+
+		#This is needed to make the story cycle able to pick up the scopes
+		set_variable = {
+			name = turkic_leader
+			value = scope:turkic_leader
+		}
+		set_variable = {
+			name = upset_vassal
+			value = scope:upset_vassal 
+		}
+		set_variable = {
+			name = nomads_county
+			value = scope:nomads_county 
+		}
+		set_variable = {
+			name = nomads_new_county 
+			value = scope:nomads_new_county
+		}
+
+		create_story = turkic_tribe_story
+
+		scope:nomads_county = {
+			remove_county_modifier = fp3_nomad_friction_county_modifier
+		}
+
+		scope:nomads_new_county = {
+			add_county_modifier = {
+				modifier = fp3_nomad_friction_county_modifier
+				years = 30
+			}
+		}
+
+		stress_impact = { 
+   			generous = medium_stress_impact_loss 
+   			content = medium_stress_impact_gain
+   			paranoid = medium_stress_impact_gain
+   		}
+
+   		ai_chance = { 
+        	base = 100
+        	ai_value_modifier = {
+            	ai_sociability = 0.6
+            	ai_boldness = 1
+            	ai_compassion = 0.2
+        	}
+   		}	
+	}
+
+	option = { #no deal
+		name = fp3_yearly.8889.c
+
+		scope:upset_vassal = {
+			add_opinion = {
+				target = root
+				opinion = 20
+				modifier = pleased_opinion
+			}
+		}
+
+		stress_impact = { 
+   			ambitious = medium_stress_impact_gain 
+   		}
+
+   		ai_chance = { 
+        	base = 100
+        	ai_value_modifier = {
+            	ai_greed = -0.5
+            	ai_vengefulness = 0.5
+        	}
+   		}	
+	}
+}
+
+
+
+
+fp3_yearly.8890 = { #Nomads story cycle
+	type = character_event
+	title = fp3_yearly.8890.t
+	desc = {
+		desc = fp3_yearly.8890.desc_beginning
+		first_valid = {
+			triggered_desc = {
+				trigger = {
+					scope:upset_vassal = {
+						AND = { 
+							ai_compassion < medium_positive_ai_value
+							ai_vengefulness > medium_positive_ai_value	 
+						}
+					}
+				}
+				desc = fp3_yearly.8890_brutal_demands
+			}
+			desc = fp3_yearly.8890_nonbrutal_demands		
+		}
+		desc = fp3_yearly.8890.desc_ending
+	}
+
+
+	theme = vassal
+	left_portrait = {
+		character = scope:turkic_leader
+		animation = prisonhouse
+	}
+	right_portrait = {
+		character = root
+		animation = personality_rational
+		triggered_animation = {
+			trigger = {
+				diplomacy < high_skill_rating
+				NOR = { 
+					has_trait = compassionate
+					has_trait = forgiving
+					has_trait = just
+				}
+			}
+			animation = personality_callous
+		}
+	}
+	lower_left_portrait = {
+		character = scope:upset_vassal 
+	}
+
+	lower_right_portrait = {
+		character = scope:possibly_capable_marshal
+	}
+
+	trigger = {
+
+		#standard checks
+		is_available_adult = yes
+
+		#event not breaking sanity triggers
+		exists = scope:upset_vassal
+		scope:upset_vassal = { is_alive = yes }
+
+		exists = scope:turkic_leader
+		scope:turkic_leader = { is_alive = yes }
+
+		exists = scope:nomads_county
+
+		exists = scope:nomads_new_county	
+	}
+
+	option = {
+		name = fp3_yearly.8890.a
+
+		
+		scope:upset_vassal = {
+			add_opinion = {
+				target = root
+				opinion = -15
+				modifier = fp3_suspicious_motives_opinion
+			}
+		}
+
+		add_courtier = scope:turkic_leader
+
+		add_hook = {
+  			type = indebted_hook
+   			target = scope:turkic_leader 
+    	}
+
+		spawn_army = {
+			men_at_arms = {
+				type = horse_archers
+				stacks = 1
+			}
+			location = root.capital_province
+			war_keep_on_attacker_victory = yes
+			uses_supply = yes
+  	 		inheritable = no
+			save_scope_as = horsemen_army
+			name = turkic_tribal_event_troops
+		}
+
+		#This is needed to make the story cycle able to pick up the scopes
+		set_variable = {
+			name = turkic_leader
+			value = scope:turkic_leader
+		}
+		set_variable = {
+			name = upset_vassal
+			value = scope:upset_vassal 
+		}
+		set_variable = {
+			name = nomads_county
+			value = scope:nomads_county 
+		}
+		set_variable = {
+			name = nomads_new_county 
+			value = scope:nomads_new_county
+		}
+		
+		create_story = turkic_tribe_story
+
+		scope:nomads_county = {
+			remove_county_modifier = fp3_nomad_friction_county_modifier
+		}
+
+		scope:nomads_new_county = {
+			add_county_modifier = {
+				modifier = fp3_nomad_friction_county_modifier
+				years = 30
+			}
+		}
+
+		stress_impact = { 
+   			content = medium_stress_impact_gain 
+   			paranoid = medium_stress_impact_gain 
+   		}
+
+   		ai_chance = { 
+        	base = 100
+        	ai_value_modifier = {
+            	ai_boldness = 0.5
+            	ai_rationality = 0.5
+        	}
+   		}	
+	}
+
+	option = { #execute the nomad leader
+		name = fp3_yearly.8890.b
+
+		add_dread = medium_dread_gain
+
+		scope:upset_vassal = {
+			if = {
+				limit = {
+					AND = { #if they're cruel, he'll enjoy this
+						ai_compassion < 0
+						ai_vengefulness > medium_positive_ai_value
+					}	 
+				}
+				add_opinion = {
+					target = root
+					opinion = 30
+					modifier = fp3_very_very_pleased_opinion
+				}
+			}
+			else = { 
+				add_opinion = { #but otherwise, they're not on board
+					target = root
+					opinion = -10
+					modifier = fp3_went_too_far_opinion
+				}
+			}
+		}
+
+	
+		scope:turkic_leader = {
+			death = {
+				death_reason = death_execution
+				killer = root
+			}
+		}
+
+		random_list = {
+			50 = {
+				send_interface_toast = {
+					title = nomad_friction_gone.tt
+					left_icon = root
+					
+					scope:nomads_county = { remove_county_modifier = fp3_nomad_friction_county_modifier }	
+				}	
+			}
+			50 = {
+				send_interface_toast = {
+					title = nomad_friction_active.tt
+					left_icon = root
+
+					scope:nomads_county = {
+						add_county_modifier = {
+							modifier = fp3_vengeful_nomads_county_modifier
+							years = 10
+						}
+					}
+				}		
+			}
+		}
+
+		stress_impact = { 
+   			compassionate = medium_stress_impact_gain 
+   			just = medium_stress_impact_gain 
+   			arbitrary = medium_stress_impact_loss
+   			sadistic = minor_stress_impact_loss 
+   		}
+
+   		ai_chance = { 
+        	base = 100
+        	ai_value_modifier = {
+            	ai_vengefulness = 0.5
+            	ai_compassion = -1
+        	}
+   		}	
+	}
+
+	option = {
+		name = fp3_yearly.8890.c
+
+		add_dread = minor_dread_gain
+
+		scope:turkic_leader = { 
+			hard_imprison_character_effect = {
+				TARGET = this
+				IMPRISONER = root
+			}
+		}
+
+		scope:upset_vassal = {
+			add_opinion = {
+				target = root
+				opinion = 20
+				modifier = pleased_opinion
+			}
+		}
+
+		random = {
+			chance = 75
+			send_interface_toast = {
+				title = nomad_friction_gone.tt
+				left_icon = root
+					
+				scope:nomads_county = { remove_county_modifier = fp3_nomad_friction_county_modifier }			
+			}
+		}	
+			
+
+		stress_impact = { 
+   			compassionate = minor_stress_impact_gain 
+   			just = minor_stress_impact_gain 
+   			arbitrary = minor_stress_impact_loss
+   			cynical = minor_stress_impact_loss 
+   		}
+
+   		ai_chance = { 
+        	base = 100
+        	ai_value_modifier = {
+            	ai_vengefulness = 0.5
+            	ai_rationality = 1
+            	ai_compassion = -0.5
+        	}
+   		}
+   	}	
+}

@@ -1,4 +1,31 @@
-﻿### RACIAL VALUES ###
+﻿# Standard colonization costs
+@count_colonize_cost = 75
+@duke_colonize_cost = 100
+@king_colonize_cost = 125
+@emporer_colonize_cost = 150
+
+count_colonize_cost = @count_colonize_cost
+duke_colonize_cost = @duke_colonize_cost
+king_colonize_cost = @king_colonize_cost
+emporer_colonize_cost = @emporer_colonize_cost
+
+count_base_limit = 1
+duke_base_limit = 2
+king_base_limit = 3
+emporer_base_limit = 4
+
+base_colony_upkeep = 1
+
+
+
+### COLONIZATION VALUE MODIFIERS ###
+
+mult3 = {
+	value = this
+	multiply = 3
+}
+
+### RACIAL VALUES ###
 
 is_elf_bool = { #Used for fertility filter in marriage gui
   if = {
@@ -35,6 +62,46 @@ elf_target_ai_score_value = {
 			multiply = 1
 		}
 		if = { # AI should not be declaring war against elves if they're weaker - they'll be crushed
+			limit = { scope:attacker.total_strength < scope:defender.total_strength }
+			multiply = 0
+		}
+	}
+}
+
+### Underground CB AI Values
+
+underground_target_ai_score_value = {
+	value = 1
+	if = {
+		limit = { 
+			scope:defender = { 
+				OR = {
+					is_dwarf = yes 
+					is_orc = yes
+					is_nazgul = yes
+				}
+			} 
+		}
+		if = { # Good-aligned faiths shouldn't really be seeking many wars with dwarves
+			limit = { scope:attacker = { faith_is_good = yes } }
+			multiply = 0.25
+		}
+		if = { # Neutral-aligned faiths should be slightly discouraged be seeking many wars with dwarves
+			limit = { scope:attacker = { faith_is_neutral = yes } }
+			multiply = 0.75
+		}
+		if = { # AI feel slightly uncomfortable against dwarves if they only slightly outnumber them
+			limit = { scope:attacker.total_strength < scope:defender.total_strength_times_two }
+			multiply = 0.60
+		}
+		else_if = { # AI feel more comfortable against dwarves if they outnumber them more
+			limit = { scope:attacker.total_strength < scope:defender.total_strength_times_three }
+			multiply = 0.80
+		}
+		else = { # AI should feel fine against dwarves if they outnumber them three to one or greater
+			multiply = 1
+		}
+		if = { # AI should not be declaring war against dwarves if they're weaker - they'll be crushed
 			limit = { scope:attacker.total_strength < scope:defender.total_strength }
 			multiply = 0
 		}
@@ -113,184 +180,191 @@ elven_city_additional_required = {
 	add = 10
 }
 
-### Colonisation Cost ###
-# root = landed_title (county)
-colonisation_cost_value = {
+### WILDERNESS SCRIPT VALUES ###
+# Used to display colonisation cost in sGUI.
+colonise_cost = { 
 	value = 0
+
+	add = colonise_cost_val
+	add = colonise_island_cost_val
+}
+
+# Determines cost for colonisation for provinces on mainland.
+colonise_cost_val = { 
+	value = 0
+
+	if = { # Adding cost for count
+		limit = { highest_held_title_tier = tier_county }
+		if = {
+			limit = { dynasty = { has_dynasty_modifier = easy_arnor_settle } }
+			add = {
+				value = count_colonize_cost.bitshift
+				desc = "colonisation_cost_lord_tier"
+				format = "BASE_VALUE_FORMAT"
+			}
+		} 
+		else = {
+			add = { # Adding base cost for count
+				value = count_colonize_cost
+				desc = "colonisation_cost_lord_tier"
+				format = "BASE_VALUE_FORMAT"
+			}
+		}
+	}
+	else_if = { # Adding cost for duke
+		limit = { highest_held_title_tier = tier_duchy }
+		if = {
+			limit = { dynasty = { has_dynasty_modifier = easy_arnor_settle } }
+			add = {
+				value = duke_colonize_cost.bitshift
+				desc = "colonisation_cost_lord_tier"
+				format = "BASE_VALUE_FORMAT"
+			}
+		} 
+		else = {
+			add = {
+				value = duke_colonize_cost
+				desc = "colonisation_cost_lord_tier"
+				format = "BASE_VALUE_FORMAT"
+			}
+		}
+	}
+	else_if = {# Adding cost for king
+		limit = { highest_held_title_tier = tier_kingdom }	
+		if = {
+			limit = { dynasty = { has_dynasty_modifier = easy_arnor_settle } }
+			add = {
+				value = king_colonize_cost.bitshift
+				desc = "colonisation_cost_lord_tier"
+				format = "BASE_VALUE_FORMAT"
+			}
+		} 
+		else = {
+			add = {
+				value = king_colonize_cost
+				desc = "colonisation_cost_lord_tier"
+				format = "BASE_VALUE_FORMAT"
+			}
+		}
+	}
+	else_if = { # Adding cost for emporer if has special modifier
+		limit = { 
+			highest_held_title_tier = tier_empire 
+			dynasty = { has_dynasty_modifier = easy_arnor_settle }
+		}
+		add = {
+			value = emporer_colonize_cost.bitshift
+			desc = "colonisation_cost_lord_tier"
+			format = "BASE_VALUE_FORMAT"
+		}
+	}
+	else = { # Adding base cost for emporer
+		add = {
+			value = emporer_colonize_cost
+			desc = "colonisation_cost_lord_tier"
+			format = "BASE_VALUE_FORMAT"
+		}
+	}
+
 	if = {
 		limit = {
-			title_province = {
-				OR = {
-					terrain = farmlands
-					terrain = halls
+			exists = scope:wastelands.county
+			OR = {
+				title:d_andunaloni = {
+					any_in_de_jure_hierarchy = {
+						this = scope:wastelands.county
+					}
+				}
+				title:d_tolfalas = {
+					any_in_de_jure_hierarchy = {
+						this = scope:wastelands.county
+					}
 				}
 			}
+			not_has_county_on_island_region = yes # Checks for county on island | If county present, whether fully upgraded
 		}
-		add = {
-			value = 100
-			desc = "colonisation_cost_terrain"
-			format = "BASE_VALUE_FORMAT"
-		}
-	}
-	else_if = {
-		limit = {
-			title_province = {
-				OR = {
-					terrain = plains
-				}
+		if = {
+			limit = { highest_held_title_tier = tier_county }
+			add = {
+				value = count_colonize_cost.mult3
+				desc = "colonisation_cost_over_water"
+				format = "BASE_VALUE_FORMAT"
+			}
+		} 
+		else_if = {
+			limit = { highest_held_title_tier = tier_duchy }
+			add = {
+				value = duke_colonize_cost.mult3
+				desc = "colonisation_cost_over_water"
+				format = "BASE_VALUE_FORMAT"
 			}
 		}
-		add = {
-			value = 150
-			desc = "colonisation_cost_terrain"
-			format = "BASE_VALUE_FORMAT"
-		}
-	}
-	else_if = {
-		limit = {
-			title_province = {
-				OR = {
-					terrain = oasis
-					terrain = steppe
-					terrain = floodplains
-				}
+		else_if = {
+			limit = { highest_held_title_tier = tier_kingdom }
+			add = {
+				value = king_colonize_cost.mult3
+				desc = "colonisation_cost_over_water"
+				format = "BASE_VALUE_FORMAT"
 			}
 		}
-		add = {
-			value = 200
-			desc = "colonisation_cost_terrain"
-			format = "BASE_VALUE_FORMAT"
-		}
-	}
-	else_if = {
-		limit = {
-			title_province = {
-				OR = {
-					terrain = hills
-					terrain = forest
-					terrain = savanna
-					terrain = drylands
-					terrain = mallorn_forest
-				}
+		else = {
+			add = {
+				value = emporer_colonize_cost.mult3
+				desc = "colonisation_cost_over_water"
+				format = "BASE_VALUE_FORMAT"
 			}
 		}
-		add = {
-			value = 250
-			desc = "colonisation_cost_terrain"
-			format = "BASE_VALUE_FORMAT"
-		}
 	}
-	else_if = {
-		limit = {
-			title_province = {
-				OR = {
-					terrain = wetlands
-					terrain = taiga
-					terrain = mountains
-					terrain = saltflats
-					terrain = caverns
-					terrain = littoral
-				}
-			}
-		}
-		add = {
-			value = 300
-			desc = "colonisation_cost_terrain"
-			format = "BASE_VALUE_FORMAT"
-		}
-	}
-	else_if = {
-		limit = {
-			title_province = {
-				OR = {
-					terrain = desert
-					terrain = jungle
-					terrain = deep_forest
-					terrain = myrtle_forest
-					terrain = mangrove
-				}
-			}
-		}
-		add = {
-			value = 350
-			desc = "colonisation_cost_terrain"
-			format = "BASE_VALUE_FORMAT"
-		}
-	}
-	else_if = {
-		limit = {
-			title_province = {
-				OR = {
-					terrain = desert_mountains
-					terrain = red_desert
-					terrain = dune_sea
-					terrain = volcanic_plains
-					terrain = arctic
-					terrain = pathsofthedead
-				}
-			}
-		}
-		add = {
-			value = 400
-			desc = "colonisation_cost_terrain"
-			format = "BASE_VALUE_FORMAT"
-		}
-	}
+}
+
+# Adds additional cost for colonisation for provinces located on islands.
+colonise_island_cost_val = { 
+	value = 0
+
 	if = {
-		limit = {
-			title_province = {
-				has_building_with_flag = {
-					flag = obstacle
-					count = 1
-				}
-			}
+		limit = { 
+			highest_held_title_tier = tier_county 
+			not_has_county_on_island_region = yes
 		}
 		add = {
-			value = 100
-			desc = "colonisation_cost_blockers"
+			value = count_colonize_cost.mult3
+			desc = "colonisation_cost_over_water"
+			format = "BASE_VALUE_FORMAT"
+		}
+	} 
+	else_if = {
+		limit = { 
+			highest_held_title_tier = tier_duchy
+			not_has_county_on_island_region = yes
+		}
+		add = {
+			value = duke_colonize_cost.mult3
+			desc = "colonisation_cost_over_water"
+			format = "BASE_VALUE_FORMAT"
 		}
 	}
 	else_if = {
-		limit = {
-			title_province = {
-				has_building_with_flag = {
-					flag = obstacle
-					count = 2
-				}
-			}
+		limit = { 
+			highest_held_title_tier = tier_kingdom
+			not_has_county_on_island_region = yes
 		}
 		add = {
-			value = 200
-			desc = "colonisation_cost_blockers"
-			format = "BREAKDOWN_FORMAT_POSITIVE_IS_BAD"
+			value = king_colonize_cost.mult3
+			desc = "colonisation_cost_over_water"
+			format = "BASE_VALUE_FORMAT"
 		}
 	}
-	else_if = {
-		limit = {
-			title_province = {
-				has_building_with_flag = {
-					flag = obstacle
-					count = 3
-				}
+	else = {
+		if = {
+			limit = { 
+				highest_held_title_tier = tier_empire 
+				not_has_county_on_island_region = yes
 			}
-		}
-		add = {
-			value = 300
-			desc = "colonisation_cost_blockers"
-		}
-	}
-	else_if = {
-		limit = {
-			title_province = {
-				has_building_with_flag = {
-					flag = obstacle
-					count >= 4
-				}
+			add = {
+				value = emporer_colonize_cost.mult3
+				desc = "colonisation_cost_over_water"
+				format = "BASE_VALUE_FORMAT"
 			}
-		}
-		add = {
-			value = 400
-			desc = "colonisation_cost_blockers"
 		}
 	}
 }
@@ -324,6 +398,7 @@ total_strength = {
 	if = { # Add strength of non-permanent tributaries that could be called in
 		limit = {
 			exists = this
+			exists = root
 			any_independent_ruler = {
 				exists = var:my_suzerain
 				var:my_suzerain = root
@@ -354,6 +429,7 @@ total_strength_times_two = {
 	}
 	if = { # Add strength of non-permanent tributaries that could be called in
 		limit = {
+			exists = root
 			exists = this
 			any_independent_ruler = {
 				exists = var:my_suzerain
@@ -388,7 +464,8 @@ total_strength_times_three = {
 		limit = {
 			any_independent_ruler = {
 				exists = var:my_suzerain
-				var:my_suzerain = root
+				exists = root
+				root = var:my_suzerain
 				root = {
 					is_target_in_variable_list = { name = non_permanent_tributaries target = prev }
 				}
@@ -474,7 +551,7 @@ get_numenorean_blood_tier = {
 
 numenorean_blood_tier = { value = get_numenorean_blood_tier }
 
-### MEN-AT-ARMS VALUES ###
+## MEN-AT-ARMS VALUES ###
 culture_ai_weight_monsters = {
 	value = -10
 	
@@ -483,6 +560,7 @@ culture_ai_weight_monsters = {
 			OR = {
 				culture = { has_cultural_pillar = heritage_ainur }
 				culture = { has_cultural_pillar = heritage_orc }
+				culture = { has_cultural_pillar = heritage_goblin }
 				culture = { has_cultural_pillar = heritage_nafarati }
 				culture = { has_cultural_pillar = heritage_undead }
 			}
@@ -502,5 +580,464 @@ culture_ai_weight_monsters = {
 			}
 		}
 		add = -100
+	}
+}
+
+settle_settlement_holding_interaction_cost = {
+	value = 150
+}
+
+settlement_title_tier_limit = {
+	value = 0 
+
+	if = {
+		limit = { highest_held_title_tier = tier_county }
+		value = 1
+	}
+	if = {
+		limit = { highest_held_title_tier = tier_duchy }
+		value = 2
+	}
+	if = {
+		limit = { highest_held_title_tier = tier_kingdom }
+		value = 3
+	}
+	if = {
+		limit = { highest_held_title_tier = tier_empire }
+		value = 4
+	}
+}
+
+number_of_held_colonies = {
+	value = 0
+	every_held_title = {
+		limit = { 
+			tier = tier_county
+			title_province = { has_holding_type = settlement_holding }
+		}
+		add = 1
+	}
+}
+
+## Easterling invasion values
+request_easterling_invasion_troop_value_estimate = {
+	value = scope:recipient.max_military_strength
+	subtract = scope:secondary_recipient.max_military_strength
+	divide = 10
+	round = yes
+}
+
+tributary_gold_being_recieved = {
+	value = 0
+
+	if = {
+		limit = {
+			exists = root
+			any_in_list = {
+				variable = non_permanent_tributaries
+				exists = this
+			}
+		} 
+		every_in_list = {
+			variable = non_permanent_tributaries
+			add = var:tribute_gold_amount
+		}
+	}
+	if = {
+		limit = {
+			exists = root
+			any_in_list = {
+				variable = permanent_tributaries
+				exists = this
+			}
+		}
+		every_in_list = {
+			variable = permanent_tributaries
+			add = var:tribute_gold_amount
+		}
+	}
+}
+
+tributary_gold_being_paid = {
+	value = 0
+
+	if = {
+		limit = { is_tributary = yes } 
+		add = var:tribute_gold_amount
+	}
+}
+
+held_counties_value = {
+	value = 0
+
+	if = {
+		limit = {
+		   save_temporary_scope_value_as = {
+			  name = current_value
+			  value = 0
+		   }
+		}
+	}
+
+	if = { # 1
+		limit = {
+			any_sub_realm_title = { 
+				tier = tier_county 
+				count < 2
+				OR = {
+					title_province = { has_holding_type = dwarven_holding }
+					title_province = { has_holding_type = settlement_holding }
+				}
+			}
+			save_temporary_scope_value_as = {
+				name = current_value
+				value = 1
+			}
+		}
+	}
+	else_if = { # 2
+		limit = {
+			any_sub_realm_title = { 
+				tier = tier_county 
+				count < 3
+				OR = {
+					title_province = { has_holding_type = dwarven_holding }
+					title_province = { has_holding_type = settlement_holding }
+				}
+			}
+			save_temporary_scope_value_as = {
+				name = current_value
+				value = 2
+			}
+		}
+	}
+	else_if = { # 3
+		limit = {
+			any_sub_realm_title = { 
+				tier = tier_county 
+				count < 4
+				OR = {
+					title_province = { has_holding_type = dwarven_holding }
+					title_province = { has_holding_type = settlement_holding }
+				}
+			}
+			save_temporary_scope_value_as = {
+				name = current_value
+				value = 3
+			}
+		}
+	}
+	else_if = { # 4
+		limit = {
+			any_sub_realm_title = { 
+				tier = tier_county 
+				count < 5
+				OR = {
+					title_province = { has_holding_type = dwarven_holding }
+					title_province = { has_holding_type = settlement_holding }
+				}
+			}
+			save_temporary_scope_value_as = {
+				name = current_value
+				value = 4
+			}
+		}
+	}
+	else_if = { # 5
+		limit = {
+			any_sub_realm_title = { 
+				tier = tier_county 
+				count < 6
+				OR = {
+					title_province = { has_holding_type = dwarven_holding }
+					title_province = { has_holding_type = settlement_holding }
+				}
+			}
+			save_temporary_scope_value_as = {
+				name = current_value
+				value = 5
+			}
+		}
+	}
+	else_if = { # 6
+		limit = {
+			any_sub_realm_title = { 
+				tier = tier_county 
+				count < 7
+				OR = {
+					title_province = { has_holding_type = dwarven_holding }
+					title_province = { has_holding_type = settlement_holding }
+				}
+			}
+			save_temporary_scope_value_as = {
+				name = current_value
+				value = 6
+			}
+		}
+	}
+	else_if = { # 7
+		limit = {
+			any_sub_realm_title = { 
+				tier = tier_county 
+				count < 8
+				OR = {
+					title_province = { has_holding_type = dwarven_holding }
+					title_province = { has_holding_type = settlement_holding }
+				}
+			}
+			save_temporary_scope_value_as = {
+				name = current_value
+				value = 7
+			}
+		}
+	}
+	else_if = { # 8
+		limit = {
+			any_sub_realm_title = { 
+				tier = tier_county 
+				count < 9
+				OR = {
+					title_province = { has_holding_type = dwarven_holding }
+					title_province = { has_holding_type = settlement_holding }
+				}
+			}
+			save_temporary_scope_value_as = {
+				name = current_value
+				value = 8
+			}
+		}
+	}
+	else_if = { # 9
+		limit = {
+			any_sub_realm_title = { 
+				tier = tier_county 
+				count < 10
+				OR = {
+					title_province = { has_holding_type = dwarven_holding }
+					title_province = { has_holding_type = settlement_holding }
+				}
+			}
+			save_temporary_scope_value_as = {
+				name = current_value
+				value = 9
+			}
+		}
+	}
+	else_if = { # 10
+		limit = {
+			any_sub_realm_title = { 
+				tier = tier_county 
+				count < 11
+				OR = {
+					title_province = { has_holding_type = dwarven_holding }
+					title_province = { has_holding_type = settlement_holding }
+				}
+			}
+			save_temporary_scope_value_as = {
+				name = current_value
+				value = 10
+			}
+		}
+	}
+	else_if = { # 11
+		limit = {
+			any_sub_realm_title = { 
+				tier = tier_county 
+				count < 12
+				OR = {
+					title_province = { has_holding_type = dwarven_holding }
+					title_province = { has_holding_type = settlement_holding }
+				}
+			}
+			save_temporary_scope_value_as = {
+				name = current_value
+				value = 11
+			}
+		}
+	}
+	else_if = { # 12
+		limit = {
+			any_sub_realm_title = { 
+				tier = tier_county 
+				count < 13
+				OR = {
+					title_province = { has_holding_type = dwarven_holding }
+					title_province = { has_holding_type = settlement_holding }
+				}
+			}
+			save_temporary_scope_value_as = {
+				name = current_value
+				value = 12
+			}
+		}
+	}
+	else_if = { # 13
+		limit = {
+			any_sub_realm_title = { 
+				tier = tier_county 
+				count < 14
+				OR = {
+					title_province = { has_holding_type = dwarven_holding }
+					title_province = { has_holding_type = settlement_holding }
+				}
+			}
+			save_temporary_scope_value_as = {
+				name = current_value
+				value = 13
+			}
+		}
+	}
+	else_if = { # 14
+		limit = {
+			any_sub_realm_title = { 
+				tier = tier_county 
+				count < 15
+				OR = {
+					title_province = { has_holding_type = dwarven_holding }
+					title_province = { has_holding_type = settlement_holding }
+				}
+			}
+			save_temporary_scope_value_as = {
+				name = current_value
+				value = 14
+			}
+		}
+	}
+	else_if = { # 15
+		limit = {
+			any_sub_realm_title = { 
+				tier = tier_county 
+				count < 16
+				OR = {
+					title_province = { has_holding_type = dwarven_holding }
+					title_province = { has_holding_type = settlement_holding }
+				}
+			}
+			save_temporary_scope_value_as = {
+				name = current_value
+				value = 15
+			}
+		}
+	}
+	else_if = { # 16
+		limit = {
+			any_sub_realm_title = { 
+				tier = tier_county 
+				count < 17 
+				OR = {
+					title_province = { has_holding_type = dwarven_holding }
+					title_province = { has_holding_type = settlement_holding }
+				}
+			}
+			save_temporary_scope_value_as = {
+				name = current_value
+				value = 16
+			}
+		}
+	}
+	else_if = { # 17
+		limit = {
+			any_sub_realm_title = { 
+				tier = tier_county 
+				count < 18 
+				OR = {
+					title_province = { has_holding_type = dwarven_holding }
+					title_province = { has_holding_type = settlement_holding }
+				}
+			}
+			save_temporary_scope_value_as = {
+				name = current_value
+				value = 17
+			}
+		}
+	}
+	else_if = { # 18
+		limit = {
+			any_sub_realm_title = { 
+				tier = tier_county 
+				count < 19 
+				OR = {
+					title_province = { has_holding_type = dwarven_holding }
+					title_province = { has_holding_type = settlement_holding }
+				}
+			}
+			save_temporary_scope_value_as = {
+				name = current_value
+				value = 18
+			}
+		}
+	}
+	else_if = { # 19
+		limit = {
+			any_sub_realm_title = { 
+				tier = tier_county 
+				count < 20 
+				OR = {
+					title_province = { has_holding_type = dwarven_holding }
+					title_province = { has_holding_type = settlement_holding }
+				}
+			}
+			save_temporary_scope_value_as = {
+				name = current_value
+				value = 19
+			}
+		}
+	}
+	else_if = { # 20
+		limit = {
+			any_sub_realm_title = { 
+				tier = tier_county 
+				count > 19
+				OR = {
+					title_province = { has_holding_type = dwarven_holding }
+					title_province = { has_holding_type = settlement_holding }
+				}
+			}
+			save_temporary_scope_value_as = {
+				name = current_value
+				value = 20
+			}
+		}
+	}
+
+	add = scope:current_value
+}
+
+friends_with_elves = { # 5%
+	value = 0
+
+	if = {
+		limit = {
+			OR = {
+				any_relation = { type = friend }
+				any_relation = { type = best_friend }
+			}
+		}
+		add = 5
+	}
+}
+
+prowess_martial_value = { # 20%
+	value = 0
+
+	add = {
+		value = root.prowess
+		divide = 10
+		floor = yes
+	}
+	add = {
+		value = root.martial
+		divide = 10
+		floor = yes
+	}
+}
+
+durins_helm_value = { # 5%
+	value = 0
+	if = {
+		limit = { 
+			any_equipped_character_artifact = { has_variable = durins_helm }
+		}
+		add = 5
 	}
 }

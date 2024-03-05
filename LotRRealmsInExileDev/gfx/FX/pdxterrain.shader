@@ -14,7 +14,10 @@ Includes = {
 	"standardfuncsgfx.fxh"
 	"bordercolor.fxh"
 	"lowspec.fxh"
+	"legend.fxh"
+	"cw/lighting.fxh"
 	"dynamic_masks.fxh"
+	"disease.fxh"
 }
 
 VertexStruct VS_OUTPUT_PDX_TERRAIN
@@ -34,6 +37,16 @@ VertexStruct VS_OUTPUT_PDX_TERRAIN_LOW_SPEC
 	float3 ColorMap			: TEXCOORD5;		
 	float3 FlatMap			: TEXCOORD6;
 	float3 Normal			: TEXCOORD7;
+};
+
+# Limited JominiEnvironment data to get nicer transitions between the Flatmap lighting and Terrain lighting
+# Only used in terrain shader while lerping between flatmap and terrain.
+ConstantBuffer( FlatMapLerpEnvironment )
+{
+	float	FlatMapLerpCubemapIntensity;
+	float3	FlatMapLerpSunDiffuse;
+	float	FlatMapLerpSunIntensity;
+	float4x4 FlatMapLerpCubemapYRotation;
 };
 
 VertexShader =
@@ -369,6 +382,43 @@ PixelShader =
 		SampleModeV = "Clamp"
 		Type = "Cube"
 	}
+	TextureSampler FlatMapEnvironmentMap
+	{
+		Ref = FlatMapEnvironmentMap
+		MagFilter = "Linear"
+		MinFilter = "Linear"
+		MipFilter = "Linear"
+		SampleModeU = "Clamp"
+		SampleModeV = "Clamp"
+		Type = "Cube"
+	}
+	TextureSampler SurroundFlatMapMask
+	{
+		Ref = SurroundFlatMapMask
+		MagFilter = "Linear"
+		MinFilter = "Linear"
+		MipFilter = "Linear"
+		SampleModeU = "Border"
+		SampleModeV = "Border"
+		Border_Color = { 1 1 1 1 }
+		File = "gfx/map/surround_map/surround_mask.dds"
+	}
+
+	Code
+	[[
+		SLightingProperties GetFlatMapLerpSunLightingProperties( float3 WorldSpacePos, float ShadowTerm )
+		{
+			SLightingProperties LightingProps;
+			LightingProps._ToCameraDir = normalize( CameraPosition - WorldSpacePos );
+			LightingProps._ToLightDir = ToSunDir;
+			LightingProps._LightIntensity = FlatMapLerpSunDiffuse * 5;
+			LightingProps._ShadowTerm = ShadowTerm;
+			LightingProps._CubemapIntensity = FlatMapLerpCubemapIntensity;
+			LightingProps._CubemapYRotation = FlatMapLerpCubemapYRotation;
+
+			return LightingProps;
+		}
+	]]
 	
 	MainCode PixelShader
 	{
@@ -435,19 +485,19 @@ PixelShader =
 
 				float ShadowTerm = CalculateShadow( Input.ShadowProj, ShadowMap );
 
+				#ifdef TERRAIN_FLAT_MAP_LERP
+				if ( HasFlatMapLightingEnabled == 1 )
+				{
+ 					SMaterialProperties FlatMapMaterialProps = GetMaterialProperties( FlatMap, float3( 0.0, 1.0, 0.0 ), 1.0, 0.0, 0.0 );
+ 					SLightingProperties FlatMapLightingProps = GetFlatMapLerpSunLightingProperties( Input.WorldSpacePos, ShadowTerm );
+ 					FlatMap = CalculateSunLighting( FlatMapMaterialProps, FlatMapLightingProps, FlatMapEnvironmentMap );
+				}
+				#endif
+
 				SMaterialProperties MaterialProps = GetMaterialProperties( Diffuse, ReorientedNormal, DetailMaterial.a, DetailMaterial.g, DetailMaterial.b );
 				SLightingProperties LightingProps = GetSunLightingProperties( Input.WorldSpacePos, ShadowTerm );
 
 				float3 FinalColor = CalculateSunLighting( MaterialProps, LightingProps, EnvironmentMap );
-
-				// MOD(godherja)
-				// Moved below application of border and highlight colors,
-				// otherwise our nice FoW clouds from Vic3 get obscured by them.
-				// #ifndef UNDERWATER
-				// 	FinalColor = ApplyFogOfWar( FinalColor, Input.WorldSpacePos, FogOfWarAlpha );
-				// 	FinalColor = ApplyDistanceFog( FinalColor, Input.WorldSpacePos );
-				// #endif
-				// END MOD
 
 				#ifdef TERRAIN_COLOR_OVERLAY
 					FinalColor.rgb = lerp( FinalColor.rgb, BorderColor, BorderPostLightingBlend );
@@ -457,16 +507,22 @@ PixelShader =
 					ApplyHighlightColor( FinalColor.rgb, ColorMapCoords, 0.25 );
 				#endif
 
-				#ifdef TERRAIN_FLAT_MAP_LERP
-					FinalColor = lerp( FinalColor, FlatMap, FlatMapLerp );
+				#ifdef TERRAIN_COLOR_OVERLAY
+					ApplyDiseaseDiffuse( FinalColor, ColorMapCoords );
+					ApplyLegendDiffuse( FinalColor, ColorMapCoords );
 				#endif
 
 				// MOD(godherja)
 				#ifndef UNDERWATER
+					// FinalColor = ApplyFogOfWar( FinalColor, Input.WorldSpacePos, FogOfWarAlpha );
 					FinalColor = GH_ApplyAtmosphericEffects( FinalColor, Input.WorldSpacePos, FogOfWarAlpha );
 					FinalColor = ApplyDistanceFog( FinalColor, Input.WorldSpacePos );
 				#endif
 				// END MOD
+
+				#ifdef TERRAIN_FLAT_MAP_LERP
+					FinalColor = lerp( FinalColor, FlatMap, FlatMapLerp );
+				#endif
 
 				float Alpha = 1.0;
 				#ifdef UNDERWATER
@@ -576,6 +632,10 @@ PixelShader =
 		[[
 			PDX_MAIN
 			{
+				#ifdef TERRAIN_SKIRT
+					return float4( 0, 0, 0, 0 );
+				#endif
+
 				clip( vec2(1.0) - Input.WorldSpacePos.xz * WorldSpaceToTerrain0To1 );
 
 				float2 ColorMapCoords = Input.WorldSpacePos.xz * WorldSpaceToTerrain0To1;
@@ -592,6 +652,15 @@ PixelShader =
 				#endif
 
 				float3 FinalColor = FlatMap;
+				#ifdef TERRAIN_FLATMAP_LIGHTING
+					if ( HasFlatMapLightingEnabled == 1 )
+					{
+						float ShadowTerm = CalculateShadow( Input.ShadowProj, ShadowMap );
+						SMaterialProperties FlatMapMaterialProps = GetMaterialProperties( FlatMap, float3( 0.0, 1.0, 0.0 ), 1.0, 0.0, 0.0 );
+						SLightingProperties FlatMapLightingProps = GetSunLightingProperties( Input.WorldSpacePos, ShadowTerm );
+						FinalColor = CalculateSunLighting( FlatMapMaterialProps, FlatMapLightingProps, EnvironmentMap );
+					}
+				#endif
 
 				#ifdef TERRAIN_COLOR_OVERLAY
 					ApplyHighlightColor( FinalColor, ColorMapCoords, 0.5 );
@@ -601,8 +670,11 @@ PixelShader =
 					TerrainDebug( FinalColor, Input.WorldSpacePos );
 				#endif
 
-				//DebugReturn( FinalColor, lightingProperties, ShadowTerm );
-				return float4( FinalColor, 1 );
+				// Make flatmap transparent based on the SurroundFlatMapMask
+				float SurroundMapAlpha = 1 - PdxTex2D( SurroundFlatMapMask, float2( ColorMapCoords.x, 1.0 - ColorMapCoords.y ) ).b;
+				SurroundMapAlpha *= FlatMapLerp;
+
+				return float4( FinalColor, SurroundMapAlpha );
 			}
 		]]
 	}
@@ -614,47 +686,52 @@ Effect PdxTerrain
 	VertexShader = "VertexShader"
 	PixelShader = "PixelShader"
 
-	#Defines = { "PDX_HACK_ToSpecularLightDir WaterToSunDir" }
+	Defines = { "TERRAIN_FLAT_MAP_LERP" }
 }
 
 Effect PdxTerrainLowSpec
 {
 	VertexShader = "VertexShaderLowSpec"
 	PixelShader = "PixelShaderLowSpec"
-
-	#Defines = { "PDX_HACK_ToSpecularLightDir WaterToSunDir" }
 }
 
 Effect PdxTerrainSkirt
 {
 	VertexShader = "VertexShaderSkirt"
 	PixelShader = "PixelShader"
-
-	#Defines = { "PDX_HACK_ToSpecularLightDir WaterToSunDir" }
 }
 
 Effect PdxTerrainLowSpecSkirt
 {
 	VertexShader = "VertexShaderLowSpecSkirt"
 	PixelShader = "PixelShaderLowSpec"
+}
 
-	#Defines = { "PDX_HACK_ToSpecularLightDir WaterToSunDir" }
+### FlatMap Effects
+
+BlendState BlendStateAlpha
+{
+	BlendEnable = yes
+	SourceBlend = "SRC_ALPHA"
+	DestBlend = "INV_SRC_ALPHA"
 }
 
 Effect PdxTerrainFlat
 {
 	VertexShader = "VertexShader"
 	PixelShader = "PixelShaderFlatMap"
+	BlendState = BlendStateAlpha
 
-	Defines = { "TERRAIN_FLAT_MAP" }
+	Defines = { "TERRAIN_FLAT_MAP" "TERRAIN_FLATMAP_LIGHTING" }
 }
 
 Effect PdxTerrainFlatSkirt
 {
 	VertexShader = "VertexShaderSkirt"
 	PixelShader = "PixelShaderFlatMap"
+	BlendState = BlendStateAlpha
 
-	Defines = { "TERRAIN_FLAT_MAP" }
+	Defines = { "TERRAIN_FLAT_MAP" "TERRAIN_SKIRT" }
 }
 
 # Low Spec flat map the same as regular effect
@@ -662,6 +739,7 @@ Effect PdxTerrainFlatLowSpec
 {
 	VertexShader = "VertexShader"
 	PixelShader = "PixelShaderFlatMap"
+	BlendState = BlendStateAlpha
 
 	Defines = { "TERRAIN_FLAT_MAP" }
 }
@@ -670,6 +748,7 @@ Effect PdxTerrainFlatLowSpecSkirt
 {
 	VertexShader = "VertexShaderSkirt"
 	PixelShader = "PixelShaderFlatMap"
+	BlendState = BlendStateAlpha
 
-	Defines = { "TERRAIN_FLAT_MAP" }
+	Defines = { "TERRAIN_FLAT_MAP" "TERRAIN_SKIRT" }
 }

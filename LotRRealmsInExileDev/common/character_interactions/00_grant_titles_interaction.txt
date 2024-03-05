@@ -43,9 +43,33 @@
 					can_be_granted_theocratic_titles_by = { RULER = scope:actor }
 				}
 			}
+			NOT = { is_at_war_with = scope:actor }
+			NOT = { has_trait = devoted } # Monks are disinherited, and should not have land granted to them
+			bp2_valid_for_standard_interactions_trigger = yes
+			is_busy_in_events_localised = yes
+			trigger_if = {
+				limit = { is_ruler = no }
+				is_imprisoned = no
+			}
+			# DON'T TAKE OTHER PLAYERS' ACCLAIMED KNIGHTS
+			custom_description = {
+				text = grant_title_stealing_acclaimed_knight
+				subject = scope:recipient
+				NOR = {
+					AND = {
+						is_acclaimed = yes
+						liege ?= {
+							is_ai = no
+							NOT = { this = scope:actor }
+						}
+					}
+					AND = {
+						is_acclaimed = yes
+						scope:actor = { is_ai = yes }
+					}
+				}
+			}
 		}
-		NOT = { scope:actor = { is_at_war_with = scope:recipient } }
-		NOT = { scope:recipient = { has_trait = devoted } } # Monks are disinherited, and should not have land granted to them
 		custom_description = {
 			text = is_not_theocratic_court_chaplain
 			subject = scope:recipient
@@ -67,47 +91,45 @@
 				count > 1
 			}
 		}
-		scope:recipient = { is_busy_in_events_localised = yes }
+
 		trigger_if = {
 			limit = {
-				scope:recipient = {
-					is_ruler = no
+				any_in_list = {
+					list = target_titles
+					title_province ?= { terrain = halls }
 				}
 			}
 			scope:recipient = {
-				is_imprisoned = no
-			}
-		}
-		# DON'T TAKE OTHER PLAYERS' ACCLAIMED KNIGHTS
-		custom_description = {
-			text = grant_title_stealing_acclaimed_knight
-			subject = scope:recipient
-			NOR = {
-				AND = {
-					scope:recipient = {
-						is_acclaimed = yes
-					}
-					scope:recipient.liege ?= {
-						is_ai = no
-						NOT = { this = scope:actor }
-					}
-				}
-				AND = {
-					scope:recipient = {
-						is_acclaimed = yes
-					}
-					scope:actor = {
-						is_ai = yes
-					}
+				OR = {
+					is_dwarf = yes
+					is_orc = yes
 				}
 			}
 		}
 	}
-	
+
+	can_send = {
+		trigger_if = {
+			limit = {
+				scope:actor = {
+					highest_held_title_tier >= tier_kingdom
+					has_diarchy_active_parameter = primeminister_requires_duchy
+					diarch = scope:recipient
+				}
+			}
+			custom_tooltip = {
+				text = primeminister_requires_duchy.tt.blocked_grant
+				any_in_list = {
+					list = target_titles
+					tier >= tier_duchy
+				}
+			}
+		}
+	}
+
 	can_be_picked_title = {
 		scope:target = {
 			is_leased_out = no
-
 
 			trigger_if = {
 				limit = {
@@ -116,7 +138,7 @@
 						scope:recipient.faith.religious_head = scope:actor.faith.religious_head
 					}
 				}
-			custom_tooltip = {
+				custom_tooltip = {
 					text = GRANT_TITLES_ITEM_CANT_HEAD_OF_FAITH_TO_INFIDEL
 					scope:recipient.faith.religious_head = scope:actor.faith.religious_head
 				}
@@ -148,7 +170,7 @@
 					scope:target = {
 						AND = {
 							exists = title_province
-							title_province = {
+							title_province ?= {
 								has_holding_type = elven_holding
 							}
 							tier < tier_duchy
@@ -168,7 +190,7 @@
 					scope:target = {
 						AND = {
 							exists = title_province
-							title_province = {
+							title_province ?= {
 								NOT = { has_holding_type = elven_holding }
 							}
 							tier < tier_duchy
@@ -184,8 +206,18 @@
 			limit = { scope:target = { exists = title_province } }
 			scope:target = {
 				NOR = { 
-					title_province = { has_building = wilderness_01 }
-					title_province = { has_building_or_higher = settlement_01 }
+					title_province ?= { has_building = wilderness_01 }
+					title_province ?= { has_building_or_higher = settlement_01 }
+				}
+			}
+		}
+
+		trigger_if = { #LotR - Underground counties can't be given to above-ground races
+			limit = { scope:target = { title_province ?= { terrain = halls } } }
+			scope:recipient = {
+				OR = {
+					is_dwarf = yes
+					is_orc = yes
 				}
 			}
 		}
@@ -217,7 +249,7 @@
 					}
 					scope:target = {
 						tier = tier_barony
-						title_province = { has_building_with_flag = temple }
+						title_province ?= { has_building_with_flag = temple }
 					}
 				}
 				AND = {
@@ -227,7 +259,7 @@
 					scope:target = {
 						tier = tier_county 
 
-						title_province = { 
+						title_province ?= { 
 							is_county_capital = yes
 							has_building_with_flag = temple 
 						}
@@ -289,11 +321,9 @@
 						is_diff_faith_or_culture_trigger = {
 							CHAR = scope:actor
 							STATUS = involved
-							STRUGGLE_TYPE = iberian_struggle
 						}
 						any_character_struggle = {
 							involvement = involved
-							is_struggle_type = iberian_struggle
 							has_struggle_phase_parameter = struggle_grant_titles_diff_faith_culture_to_leads_to_friendship
 						}
 					}
@@ -666,6 +696,64 @@
 			}
 		}
 
+		# Viziers may be booted from their job.
+		scope:actor = {
+			if = {
+				limit = {
+					# Assuming this is relevant at all.
+					diarch ?= scope:recipient
+					# And that scope:actor can do without a supervisor atm.
+					can_leave_diarchy_trigger = yes
+					# Aaaaand that their diarchy supports this type of thing.
+					OR = {
+						has_diarchy_parameter = primeminister_requires_county
+						has_diarchy_parameter = primeminister_requires_duchy
+					}
+				}
+				# Is this a duchy?
+				if = {
+					limit = {
+						any_in_list = {
+							list = target_titles
+							tier >= tier_duchy
+						}
+					}
+					custom_tooltip = grant_titles_interaction.tt.primeminister_title_grant.duchy_sufficient
+					end_diarchy = yes
+				}
+				# Is this a county?
+				else_if = {
+					limit = {
+						any_in_list = {
+							list = target_titles
+							tier = tier_county
+						}
+					}
+					# Is that insufficient?
+					if = {
+						limit = { has_diarchy_active_parameter = primeminister_requires_duchy }
+						custom_tooltip = grant_titles_interaction.tt.primeminister_title_grant.county_insufficient
+					}
+					# Is that sufficient?
+					else = {
+						custom_tooltip = grant_titles_interaction.tt.primeminister_title_grant.county_sufficient
+						end_diarchy = yes
+					}
+				}
+				# Is this a barony?
+				else_if = {
+					limit = {
+						any_in_list = {
+							list = target_titles
+							count = all
+							tier = tier_barony
+						}
+					}
+					custom_tooltip = grant_titles_interaction.tt.primeminister_title_grant.barony_doesnt_end
+				}
+			}
+		}
+
 		if = {
 			limit = {
 				any_in_list = {
@@ -713,10 +801,13 @@
 		}
 		if = {
 			limit = {
+				trigger_if = {
+					limit = { scope:actor = { is_ai = yes } }
 				scope:actor = {
 					any_vassal = {
 						has_vassal_stance = courtly
 					}
+				}
 				}
 				scope:recipient = {
 					is_lowborn = yes
@@ -1032,11 +1123,9 @@
 								is_diff_faith_or_culture_trigger = {
 									CHAR = scope:recipient
 									STATUS = involved
-									STRUGGLE_TYPE = iberian_struggle
 								}
 								any_character_struggle = {
 									involvement = involved
-									is_struggle_type = iberian_struggle
 									has_struggle_phase_parameter = struggle_grant_titles_diff_faith_culture_gives_prestige
 
 								}
@@ -1154,7 +1243,6 @@
 						is_diff_faith_or_culture_trigger = {
 							CHAR = scope:recipient
 							STATUS = involved
-							STRUGGLE_TYPE = iberian_struggle
 						}
 						any_character_struggle = {
 							involvement = involved
@@ -1183,6 +1271,22 @@
 			}
 		}
 
+		scope:actor = {
+			if = { 
+				limit = { 
+					scope:target = { title_province ?= { has_building_or_higher = settlement_01 } }
+					has_variable = num_settled_wilderness 
+					var:num_settled_wilderness > 0
+				}
+				decrease_variable = {
+					NAME = num_settled_wilderness
+					AMOUNT = 1
+				}
+				remove_wastelands_tracker_variable = yes
+				trigger_event = wastelands.0007
+			}
+		}
+		
 		# Achievements.
 		# scope:actor = { #LotR
 		# 	if = {

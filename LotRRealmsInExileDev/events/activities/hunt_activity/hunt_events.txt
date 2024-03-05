@@ -38,6 +38,7 @@ namespace = hunt
 #hunt.4015 - You walk in (out?) on lovers
 #hunt.4016 - You fake a catch
 #hunt.4018 - You get another glimpse of the mystical white animal
+#hunt.4020 - Rally your clan to fell a large beast
 #hunt.5001 - You get the urge to pick herbs and flowers
 #hunt.5002 - Someone in your hunting party gets the urge to pick herbs and
 #hunt.5060 - Find an eyas
@@ -47,7 +48,7 @@ namespace = hunt
 
 ############################
 ## LotR: Realms in Exile - additional random hunting events
-## 4019-4031
+## 4019-4041
 ############################
 
 ############################
@@ -2159,6 +2160,7 @@ hunt.0540 = {
 
 	trigger = {
 		NOT = { employs_court_position = master_of_hunt_court_position } #This is a delayed event so it is possible you have picked out a master of hunt after it was set to trigger
+		exists = scope:activity #As it is delayed, the activity might have invalidated in the meanwhile
 	}
 
 	immediate = {
@@ -2823,10 +2825,12 @@ hunt.1002 = {
 	left_portrait = {
 		character = root
 		animation = jockey_gallop
+		camera = camera_event_horse_left
 	}
 	right_portrait = {
 		character = scope:hunt_participant
 		animation = jockey_gallop
+		camera = camera_event_horse_right
 	}
 
 	trigger = {
@@ -3808,7 +3812,7 @@ hunt.1003 = {
 		hunt_no_pelt_effect = yes # No pelt trophies
 		set_variable = {
 			name = captive_animal_type
-			value = root.var:animal_type
+			value = scope:activity.var:animal_type
 			years = 5
 		}
 		scope:activity = { set_variable = captive_animal }
@@ -7410,7 +7414,7 @@ hunt.1080 = {
 					scheme_owner = { is_participant_in_activity = scope:activity }
 					any_scheme_agent = { is_participant_in_activity = scope:activity }
 				}
-				scheme_success_chance >= 50
+				scheme_power >= 50
 			}
 			factor = 1.5
 		}
@@ -7536,6 +7540,13 @@ hunt.1080 = {
 						add = 5
 						aptitude = {
 							court_position = master_of_hunt_court_position
+							value >= 1
+						}
+					}
+					modifier = {
+						add = 5
+						aptitude = {
+							court_position = master_of_hunt_court_position
 							value >= 2
 						}
 					}
@@ -7551,13 +7562,6 @@ hunt.1080 = {
 						aptitude = {
 							court_position = master_of_hunt_court_position
 							value >= 4
-						}
-					}
-					modifier = {
-						add = 5
-						aptitude = {
-							court_position = master_of_hunt_court_position
-							value >= 5
 						}
 					}
 					save_scope_as = bodyguard_appears
@@ -8176,14 +8180,22 @@ hunt.1081 = {
 						limit = {
 							scope:murderer = { is_alive = yes }
 						}
-						unknown_murder_effect = { VICTIM = scope:murderer MURDERER = root REASON = death_hunting_mysterious }
+						unknown_murder_effect = {
+							VICTIM = scope:murderer
+							MURDERER = root
+							REASON = death_hunting_mysterious
+						}
 					}
 					if = {
 						limit = {
 							exists = scope:accomplice
 							scope:accomplice = { is_alive = yes }
 						}
-						unknown_murder_effect = { VICTIM = scope:accomplice MURDERER = root REASON = death_hunting_mysterious }
+						unknown_murder_effect = {
+							VICTIM = scope:accomplice
+							MURDERER = root
+							REASON = death_hunting_mysterious
+						}
 					}
 					if = {
 						limit = {
@@ -9701,6 +9713,7 @@ hunt.2000 = {
 					random_in_list = {
 						list = realm_list
 						random_realm_county = {
+							limit = { is_wastelands = no }
 							culture = { save_scope_as = merchant_culture }
 							faith = { save_scope_as = merchant_faith }
 						}
@@ -9725,6 +9738,7 @@ hunt.2000 = {
 						limit = { 
 							is_lowborn = yes
 							has_trait = lifestyle_hunter
+							is_wastelands = no
 						}
 						weight = {
 							base = 1
@@ -9946,7 +9960,10 @@ hunt.2001 = {
 			random_list = {
 				10 = {
 					add_to_list = realm_list
-					every_neighboring_and_across_water_top_liege_realm_owner = { add_to_list = realm_list }
+					every_neighboring_and_across_water_top_liege_realm_owner = { 
+						limit = { NOT = { culture = culture:wastelands } }
+						add_to_list = realm_list 
+					}
 					random_in_list = {
 						list = realm_list
 						random_realm_county = {
@@ -10126,6 +10143,7 @@ hunt.2500 = {
 		NOT = {
 			any_sub_realm_county = { has_county_modifier = hunt_sighting_standard_modifier }
 		}
+		any_sub_realm_county = { is_underground_county = no }
 	}
 
 	weight_multiplier = {
@@ -10138,7 +10156,10 @@ hunt.2500 = {
 	immediate = {
 		hunt_activity_sighting_master_effect = { TYPE = hunter }
 		random_sub_realm_county = {
-			limit = { hunt_activity_recent_hunt_sighting_trigger = no }
+			limit = { 
+				hunt_activity_recent_hunt_sighting_trigger = no
+				is_underground_county = no
+			}
 			weight = {
 				base = 1
 				hunt_activity_sighting_county_modifier = yes
@@ -10154,19 +10175,11 @@ hunt.2500 = {
 			}
 			save_scope_as = sighting_county
 			hunt_activity_standard_game_effect = { PROVINCE = scope:sighting_province HUNTER = root }
-			set_variable = {
-				name = recent_sighting
-				years = 10
-			}
-			add_county_modifier = {
-				modifier = hunt_sighting_standard_modifier
-				years = 3
-				desc = hunt_sighting_standard_modifier_custom_desc
-			}
-			set_variable = {
-				name = sighting_owner
-				years = 3
-				value = root
+			# Create new sighting
+			hunt_create_sighting_effect = {
+				TYPE = standard
+				ANIMAL = var:animal_type
+				OWNER = root
 			}
 		}
 	}
@@ -10248,7 +10261,7 @@ hunt.2510 = {
 	trigger = {
 		# Must be available, and a hunter/employ one
 		OR = {
-		hunt_sighting_event_trigger = yes
+			hunt_sighting_event_trigger = yes
 			AND = {
 				is_available_adult = yes
 				any_owned_story = { story_type = story_cycle_hunt_mystical_animal }
@@ -10272,6 +10285,7 @@ hunt.2510 = {
 				var:sighting_owner ?= root
 			}
 		}
+		any_sub_realm_county = { is_underground_county = no }
 	}
 
 	weight_multiplier = {
@@ -10316,12 +10330,15 @@ hunt.2510 = {
 			var:legendary_county = { save_scope_as = sighting_county }
 		}
 		else = {
-		random_sub_realm_county = {
-			limit = { hunt_activity_recent_hunt_sighting_trigger = no }
-			weight = {
-				base = 1
-				hunt_activity_sighting_county_modifier = yes
-			}
+			random_sub_realm_county = {
+				limit = { 
+					hunt_activity_recent_hunt_sighting_trigger = no
+					is_underground_county = no
+				}
+				weight = {
+					base = 1
+					hunt_activity_sighting_county_modifier = yes
+				}
 				save_scope_as = sighting_county
 			}
 		}
@@ -10353,19 +10370,11 @@ hunt.2510 = {
 					}
 				}
 			}
-			set_variable = {
-				name = recent_sighting
-				years = 10
-			}
-			add_county_modifier = {
-				modifier = hunt_sighting_legendary_modifier
-				years = 3
-				desc = hunt_sighting_legendary_modifier_custom_desc
-			}
-			set_variable = {
-				name = sighting_owner
-				years = 3
-				value = root
+			# Create new sighting
+			hunt_create_sighting_effect = {
+				TYPE = legendary
+				ANIMAL = var:animal_type
+				OWNER = root
 			}
 		}
 	}
@@ -10448,6 +10457,7 @@ hunt.2520 = {
 		NOT = {
 			any_sub_realm_county = { has_county_modifier = hunt_sighting_dangerous_modifier }
 		}
+		any_sub_realm_county = { is_underground_county = no }
 	}
 
 	weight_multiplier = {
@@ -10460,7 +10470,10 @@ hunt.2520 = {
 	immediate = {
 		hunt_activity_sighting_master_effect = { TYPE = hunter }
 		random_sub_realm_county = {
-			limit = { hunt_activity_recent_hunt_sighting_trigger = no }
+			limit = { 
+				hunt_activity_recent_hunt_sighting_trigger = no
+				is_underground_county = no
+			}
 			weight = {
 				base = 1
 				hunt_activity_sighting_county_modifier = yes
@@ -10476,19 +10489,11 @@ hunt.2520 = {
 			}
 			save_scope_as = sighting_county
 			hunt_activity_dangerous_game_effect = { PROVINCE = scope:sighting_province }
-			set_variable = {
-				name = recent_sighting
-				years = 10
-			}
-			add_county_modifier = {
-				modifier = hunt_sighting_dangerous_modifier
-				years = 3
-				desc = hunt_sighting_dangerous_modifier_custom_desc
-			}
-			set_variable = {
-				name = sighting_owner
-				years = 3
-				value = root
+			# Create new sighting
+			hunt_create_sighting_effect = {
+				TYPE = dangerous
+				ANIMAL = var:animal_type
+				OWNER = root
 			}
 		}
 	}
@@ -10567,6 +10572,7 @@ hunt.2530 = {
 		NOT = {
 			any_sub_realm_county = { has_county_modifier = hunt_sighting_falconry_modifier }
 		}
+		any_sub_realm_county = { is_underground_county = no }
 	}
 
 	weight_multiplier = {
@@ -10579,7 +10585,10 @@ hunt.2530 = {
 	immediate = {
 		hunt_activity_sighting_master_effect = { TYPE = falconer }
 		random_sub_realm_county = {
-			limit = { hunt_activity_recent_hunt_sighting_trigger = no }
+			limit = { 
+				hunt_activity_recent_hunt_sighting_trigger = no
+				is_underground_county = no
+			}
 			weight = {
 				base = 1
 				hunt_activity_sighting_county_modifier = yes
@@ -10594,21 +10603,13 @@ hunt.2530 = {
 				save_scope_as = sighting_province
 			}
 			save_scope_as = sighting_county
-			hunt_activity_falconry_game_effect = { PROVINCE = scope:sighting_province }
-			set_variable = {
-				name = recent_sighting
-				years = 10
-			}
-			add_county_modifier = {
-				modifier = hunt_sighting_falconry_modifier
-				years = 3
-				desc = hunt_sighting_falconry_modifier_custom_desc
-			}
-			set_variable = {
-				name = sighting_owner
-				years = 3
-				value = root
-			}
+		}
+		hunt_activity_falconry_game_effect = { PROVINCE = scope:sighting_province }
+		# Create new sighting
+		hunt_create_sighting_effect = {
+			TYPE = falconry
+			ANIMAL = var:animal_type
+			OWNER = root
 		}
 	}
 
@@ -10699,6 +10700,7 @@ hunt.2540 = {
 				has_county_modifier = hunt_sighting_dangerous_modifier
 				has_county_modifier = hunt_sighting_legendary_modifier	
 			}
+			exists = var:animal_type
 			var:sighting_owner ?= root
 			any_neighboring_county = {
 				holder.top_liege = root.top_liege
@@ -10743,16 +10745,19 @@ hunt.2540 = {
 				}
 			}
 			save_scope_as = old_sighting_county
+			# Save new sighting county
 			random_neighboring_county = {
 				limit = {
 					holder.top_liege = root.top_liege
 					hunt_activity_recent_hunt_sighting_trigger = no
+					is_underground_county = no
 				}
 				save_scope_as = sighting_county
 			}
+			# Save and update story if relevant
 			if = {
 				limit = {
-					scope:old_sighting_county = { has_county_modifier = hunt_sighting_legendary_modifier }
+					has_county_modifier = hunt_sighting_legendary_modifier
 					root = {
 						any_owned_story = { story_type = story_cycle_hunt_mystical_animal }
 					}
@@ -10763,15 +10768,12 @@ hunt.2540 = {
 						save_scope_as = story
 					}
 				}
+				# Remove old sighting
+				var:legendary_county = { hunt_remove_sighting_effect = yes }
+			    # Update legendary location
 				set_variable = {
-					name = animal_type
-					value = scope:story.var:animal_type
-				}
-			}
-			else = {
-				set_variable = {
-					name = animal_type
-					value = scope:old_sighting_county.var:animal_type
+			        name = legendary_county
+			        value = scope:sighting_county
 				}
 			}
 			set_variable = {
@@ -10783,34 +10785,27 @@ hunt.2540 = {
 					name = animal_type
 					value = scope:old_sighting_county.var:animal_type
 				}
-				set_variable = {
-					name = sighting_owner
-					years = 3
-					value = scope:old_sighting_county.var:sighting_owner
-				}
-			}
-			scope:old_sighting_county = {
-				remove_variable = animal_type
+			# Add relevant sighting modifiers and trackers
 				switch = {
 					trigger = has_county_modifier
 					hunt_sighting_standard_modifier = {
-						remove_county_modifier = hunt_sighting_standard_modifier
+					# Create new sighting
 						scope:sighting_county = {
-							add_county_modifier = {
-								modifier = hunt_sighting_standard_modifier
-								years = 3
-								desc = hunt_sighting_standard_modifier_custom_desc
+						hunt_create_sighting_effect = {
+							TYPE = standard
+							ANIMAL = scope:old_sighting_county.var:animal_type
+							OWNER = root
 							}
 						}
 						
 					}
 					hunt_sighting_dangerous_modifier = {
-						remove_county_modifier = hunt_sighting_dangerous_modifier
+					# Create new sighting
 						scope:sighting_county = {
-							add_county_modifier = {
-								modifier = hunt_sighting_dangerous_modifier
-								years = 3
-								desc = hunt_sighting_dangerous_modifier_custom_desc
+						hunt_create_sighting_effect = {
+							TYPE = dangerous
+							ANIMAL = scope:old_sighting_county.var:animal_type
+							OWNER = root
 							}
 						}
 					}
@@ -10827,6 +10822,8 @@ hunt.2540 = {
 				}
 				remove_variable = sighting_owner
 			}			
+			# Clean up old location variables
+			hunt_remove_sighting_effect = yes
 		}
 	}
 
@@ -11666,7 +11663,10 @@ hunt.4001 = {
 		# Upset/please attendees based on faith tenets
 		scope:activity = {
 			every_attending_character = {
-				limit = { hunt_dharmic_pacificist_trigger = yes }
+				limit = {
+					hunt_dharmic_pacificist_trigger = yes
+					NOT = { this = root }
+				}
 				custom = every_non_cynical_dharmic_attendee_tt
 				add_opinion = {
 					target = root
@@ -11676,7 +11676,7 @@ hunt.4001 = {
 			}
 			every_attending_character = {
 				limit = {
-					NOT = { this = scope:host }
+					NOT = { this = root }
 					hunt_dharmic_pacificist_trigger = no
 				}
 				custom = every_non_cynical_dharmic_attendee_reverse_tt
@@ -11711,7 +11711,10 @@ hunt.4001 = {
 		scope:activity = {
 			set_variable = animal_spared
 			every_attending_character = {
-				limit = { is_ai = no }
+				limit = {
+					
+					is_ai = no
+				}
 				trigger_event = hunt.1201
 			}
 		}
@@ -12376,7 +12379,7 @@ hunt.4004 = {
 				SCOPE = hunt_participant
 			}
 			hunt_all_attendee_xp_effect = { CHANGE = 3 RANDOM = 2 }
-			scope:activity.activity_location.county = { remove_county_modifier = hunt_sighting_legendary_modifier }
+			scope:activity.activity_location.county = { hunt_remove_sighting_effect = yes }
 		}
 		# Show personal rewards if guest
 		else = { hunt_individual_guest_awards_effect = yes }
@@ -12597,6 +12600,7 @@ hunt.4004 = {
 			}
 		}
 		stress_impact = {
+			eccentric = medium_stress_impact_loss
 			craven = medium_stress_impact_gain
 			content = minor_stress_impact_gain
 		}
@@ -16718,16 +16722,11 @@ hunt.4013 = {
 					}
 					activity_location.county = {
 						save_scope_as = sighting_county
-						set_variable = { name = animal_type value = root.var:animal_type }
-						add_county_modifier = {
-							modifier = hunt_sighting_legendary_modifier
-							years = 3
-							desc = hunt_sighting_legendary_modifier_custom_desc
-						}
-						set_variable = {
-							name = sighting_owner
-							years = 3
-							value = root
+						# Create new sighting
+						hunt_create_sighting_effect = {
+							TYPE = legendary
+							ANIMAL = root.var:animal_type
+							OWNER = root
 						}
 					}
 				}
@@ -16902,10 +16901,7 @@ hunt.4013 = {
 				character = root
 
 				# Effect
-				activity_location.county = {
-					remove_county_modifier = hunt_sighting_legendary_modifier
-					remove_variable = animal_type
-				}
+				activity_location.county = { hunt_remove_sighting_effect = yes }
 				every_attending_character = {
 					limit = {
 						NOT = { this = root }
@@ -19182,1142 +19178,1203 @@ hunt.4019 = {
 # #	by Kyrenic
 # #######################
 
-# hunt.4020 = {
-# 	type = character_event
-# 	title = hunt.4020.t
-# 	desc = hunt.4020.desc
-# 	theme = hunt_activity
-# 	left_portrait = root
+hunt.4020 = {
+	type = activity_event
+	content_source = realms_dlc
+	title = hunt.4020.t
+	desc = hunt.4020.desc
+	theme = hunt_activity
+	left_portrait = {
+		character = root
+		scripted_animation = bow_drawn
+	}
+	trigger = {
+		is_elf = yes
+		scope:activity.activity_location = { geographical_region = middleearth_west_rhovanion_mirkwood }
+ 	}
 	
-# 	trigger = {
-# 		is_elf = yes
-# 		activity = {
-# 			activity_province = {
-# 				geographical_region = middleearth_west_rhovanion_mirkwood
-# 			}
-# 		}
-# 	}
+	cooldown = { years = 10 }
+ 
+ 	option = { # Fight the spider!
+		name = hunt.4020.a
 
-# 	option = { # Fight the spider!
-# 		name = hunt.4020.a
+		duel = {
+		    skill = prowess
+		 	value = 10
 
-# 		duel = {
-# 			skill = prowess
-# 			value = 10
+		 	50 = {
+		 		desc = hunt.4020.a.success
+		 		custom_tooltip = hunt.4020.a.success.tt
+		 		compare_modifier = {
+		 			value = scope:duel_value
+		 			multiplier = 3
+		 			min = -50
+		 			max = 50
+		 		}
+		 		trigger_event = hunt.4021
+		 	}
 
-# 			50 = {
-# 				desc = hunt.4020.a.success
-# 				custom_tooltip = hunt.4020.a.success.tt
-# 				compare_modifier = {
-# 					value = scope:duel_value
-# 					multiplier = 3
-# 					min = -50
-# 					max = 50
-# 				}
-# 				trigger_event = hunt.4021
-# 			}
+		 	50 = {
+		 		desc = hunt.4020.a.failure
+		 		custom_tooltip = hunt.4020.a.failure.tt
+		 		compare_modifier = {
+		 			value = scope:duel_value
+		 			multiplier = -3
+		 			min = -50
+		 			max = 50
+		 		}
+		 		trigger_event = hunt.4022
+		 	}
+		}
 
-# 			50 = {
-# 				desc = hunt.4020.a.failure
-# 				custom_tooltip = hunt.4020.a.failure.tt
-# 				compare_modifier = {
-# 					value = scope:duel_value
-# 					multiplier = -3
-# 					min = -50
-# 					max = 50
-# 				}
-# 				trigger_event = hunt.4022
-# 			}
-# 		}
+		ai_chance = {
+			base = 100
+			modifier = {
+				add = 50
+				OR = {
+					has_trait = brave
+				}
+			}
+			modifier = {
+				add = 25
+				OR = {
+					has_trait = vengeful
+					has_trait = stubborn
+				}
+			}
+		}
+ 	}
+ 
+ 	option = { # Quietly retreat
+		name = hunt.4020.b
+		add_prestige = medium_prestige_loss
+		ai_chance = {
+			base = 100
+			modifier = {
+				add = 50
+				OR = {
+					has_trait = craven
+				}
+			}
+			modifier = {
+				add = 25
+				OR = {
+					has_trait = vengeful
+					has_trait = stubborn
+				}
+			}
+		}
+ 	}
+}
 
-# 		ai_chance = {
-# 			base = 100
-# 			modifier = {
-# 				add = 50
-# 				OR = {
-# 					has_trait = brave
-# 				}
-# 			}
-# 			modifier = {
-# 				add = 25
-# 				OR = {
-# 					has_trait = vengeful
-# 					has_trait = stubborn
-# 				}
-# 			}
-# 		}
-# 	}
+#######################
+#	You slay the spider
+#	by Kyrenic
+#######################
 
-# 	option = { # Quietly retreat
-# 		name = hunt.4020.b
-# 		add_prestige = medium_prestige_loss
-# 		trigger_event = {
-# 			id = hunt.9001 #To complete the activity
-# 			days = { 14 20 }
-# 		}
-# 		ai_chance = {
-# 			base = 100
-# 			modifier = {
-# 				add = 50
-# 				OR = {
-# 					has_trait = craven
-# 				}
-# 			}
-# 			modifier = {
-# 				add = 25
-# 				OR = {
-# 					has_trait = vengeful
-# 					has_trait = stubborn
-# 				}
-# 			}
-# 		}
-# 	}
-# }
+hunt.4021 = {
+ 	type = activity_event
+	content_source = realms_dlc
+ 	title = hunt.4021.t
+ 	desc = hunt.4021.desc
+ 	theme = hunt_activity
+ 	left_portrait = root
+ 	
+ 	trigger = { is_elf = yes }
 
-# #######################
-# #	You slay the spider
-# #	by Kyrenic
-# #######################
+ 	immediate = { hunt_activity_success_change_effect = { CHANGE = increase_medium } }
 
-# hunt.4021 = {
-# 	type = character_event
-# 	title = hunt.4021.t
-# 	desc = hunt.4021.desc
-# 	theme = hunt_activity
-# 	left_portrait = root
+ 	option = { # Triumph!
+ 		name = hunt.4021.a
+ 		add_prestige = medium_prestige_gain
+ 		add_gold = minor_gold_value
+ 		random_list = {
+ 			pick = 1
+ 			unique = yes
+			95 = {
+ 			} 			
+			5 = {
+ 			}
+ 		}
+
+ 		ai_chance = {
+ 			base = 100
+ 		}
+ 	}
+
+ 	after = {
+ 	}
+}
+
+#######################
+#	You are beaten by the spiders
+#	by Kyrenic
+#######################
+
+hunt.4022 = {
+ 	type = activity_event
+	content_source = realms_dlc
+ 	title = hunt.4022.t
+ 	desc = hunt.4022.desc
+ 	theme = hunt_activity
+ 	left_portrait = root	
+
+ 	trigger = { is_elf = yes }
+
+ 	immediate = { hunt_activity_success_change_effect = { CHANGE = decrease_minor } }
+ 	option = { # Defeated...
+ 		name = hunt.4022.a
+ 		add_prestige = minor_prestige_loss
+ 		add_stress = minor_stress_impact_gain
+ 		add_trait = wounded_1
+ 		ai_chance = {
+ 			base = 100
+ 		}
+ 	}
+ 	after = {
+ 	}
+}
+
+#######################
+#	You come across another hunting party
+#	by Kyrenic
+#######################
+
+hunt.4024 = {
+ 	type = activity_event
+	content_source = realms_dlc
+ 	title = hunt.4024.t
+ 	desc = hunt.4024.desc
+ 	theme = hunt_activity
+ 	left_portrait = root
 	
-# 	trigger = {
-# 		is_elf = yes
-# 	}
+ 	trigger = { is_elf = yes }
+	
+	cooldown = { years = 10 }
 
-# 	immediate = {
-# 		change_variable = {
-# 			name = hunt_outcome
-# 			add = 2
-# 		}
-# 	}
+ 	option = { # Go meet them
+ 		name = hunt.4024.a
+ 		add_prestige = minor_prestige_gain
+ 		if = {
+ 			limit = { has_trait = shy }
+ 			add_stress = minor_stress_impact_gain
+ 		}
+ 		if = {
+ 			limit = { has_trait = gregarious }
+ 			add_stress = minor_stress_impact_loss
+ 		}
+ 		trigger_event = hunt.4025
 
-# 	option = { # Triumph!
-# 		name = hunt.4021.a
-# 		add_prestige = medium_prestige_gain
-# 		add_gold = minor_gold_value
-# 		random_list = {
-# 			pick = 1
-# 			unique = yes
+ 		ai_chance = {
+ 			base = 100
+ 			modifier = {
+ 				add = 100
+ 				OR = {
+ 					has_trait = gregarious
+ 				}
+ 			}
+ 		}
+ 	}
 
-# 			95 = {
+ 	option = { # Leave them alone
+ 		name = hunt.4024.b
+ 		add_piety = minor_piety_gain
 
-# 			}
-# 			5 = {
+ 		if = {
+ 			limit = { has_trait = shy }
+ 			add_stress = minor_stress_impact_loss
+ 		}
+
+ 		if = {
+ 			limit = { has_trait = gregarious }
+ 			add_stress = minor_stress_impact_gain
+ 		}
+
+ 		ai_chance = {
+ 			base = 100
+ 			modifier = {
+ 				add = 100
+ 				OR = {
+ 					has_trait = shy
+ 				}
+ 			}
+ 		}
+ 	}
+}
+
+#######################
+#	Meeting the other hunting party
+#	by Kyrenic
+#######################
+
+hunt.4025 = {
+ 	type = activity_event
+	content_source = realms_dlc
+ 	title = hunt.4025.t
+ 	desc = hunt.4025.desc
+ 	theme = hunt_activity
+	left_portrait = {
+		character = root
+		animation = laugh
+	}
+	
+ 	trigger = { is_elf = yes }
+
+ 	immediate = { hunt_activity_success_change_effect = { CHANGE = increase_minor } }
+
+ 	option = { # Say your goodbyes
+ 		name = hunt.4025.a
+
+ 		ai_chance = {
+ 			base = 100
+		}
+	}
+
+ 	after = { }
+}
+
+#######################
+#	You meet a Huorn
+#	by Kyrenic
+#######################
+
+hunt.4026 = {
+ 	type = activity_event
+	content_source = realms_dlc
+ 	title = hunt.4026.t
+ 	desc = hunt.4026.desc
+	theme = hunt_activity
+ 	left_portrait = root
+	
+	trigger = {
+		is_elf = yes
+		scope:activity.activity_location = { geographical_region = middleearth_west_rhovanion_mirkwood }
+ 	}
+	
+	cooldown = { years = 10 }
+
+ 	option = { # Try to reason with the Huorn
+ 		name = hunt.4026.a
+		
+ 		duel = {
+ 			skill = diplomacy
+ 			value = 10
+
+ 			50 = {
+ 				desc = hunt.4026.a.success
+ 				custom_tooltip = hunt.4026.a.success.tt
+ 				compare_modifier = {
+ 					value = scope:duel_value
+ 					multiplier = 3
+ 					min = -50
+ 					max = 50
+ 				}
+ 				trigger_event = hunt.4027
+ 			}
+
+ 			50 = {
+ 				desc = hunt.4026.a.failure
+ 				custom_tooltip = hunt.4026.a.failure.tt
+ 				compare_modifier = {
+ 					value = scope:duel_value
+ 					multiplier = -3
+ 					min = -50
+ 					max = 50
+ 				}
+ 				trigger_event = hunt.4028
+ 			}
+ 		}
+
+ 		if = { limit = { has_trait = brave } add_stress = medium_stress_impact_gain }
+ 		if = { limit = { OR = { has_trait = impatient has_trait = wrathful } } add_stress = minor_stress_impact_gain }
+
+ 		ai_chance = {
+ 			base = 100
+ 			modifier = {
+ 				add = 100
+ 				OR = {
+ 					has_trait = calm
+ 					has_trait = craven
+ 					has_trait = patient
+ 				}
+ 			}
+ 			modifier = {
+ 				add = 100
+ 				diplomacy > 14
+ 			}
+ 		}
+ 	}
+
+ 	option = { # Slay the beast!
+ 		name = hunt.4026.b
+
+ 		duel = {
+ 			skill = prowess
+ 			value = 10
+
+ 			50 = {
+ 				desc = hunt.4026.b.success
+ 				custom_tooltip = hunt.4026.b.success.tt
+ 				compare_modifier = {
+ 					value = scope:duel_value
+ 					multiplier = 3
+ 					min = -50
+ 					max = 50
+ 				}
+ 				trigger_event = hunt.4029
+ 			}
+
+ 			50 = {
+ 				desc = hunt.4026.b.failure
+ 				custom_tooltip = hunt.4026.b.failure.tt
+ 				compare_modifier = {
+ 					value = scope:duel_value
+ 					multiplier = -3
+ 					min = -50
+ 					max = 50
+ 				}
+ 				trigger_event = hunt.4030
+ 			}
+ 		}
+
+ 		if = { limit = { has_trait = craven } add_stress = medium_stress_impact_gain }
+ 		if = { limit = { OR = { has_trait = patient has_trait = calm } } add_stress = minor_stress_impact_gain }
+
+ 		ai_chance = {
+ 			base = 100
+ 			modifier = {
+ 				add = 100
+ 				OR = {
+ 					has_trait = wrathful
+ 					has_trait = brave
+ 					has_trait = impatient
+ 				}
+ 			}
+ 			modifier = {
+ 				add = 100
+ 				prowess > 14
+ 			}
+ 		}
+ 	}
+}
+
+#######################
+#	You diplomacy'd the Huorn
+#	by Kyrenic
+#######################
+
+hunt.4027 = {
+ 	type = activity_event
+	content_source = realms_dlc
+ 	title = hunt.4027.t
+ 	desc = hunt.4027.desc
+ 	theme = hunt_activity
+ 	left_portrait = root
+	
+	trigger = {
+		is_elf = yes
+		scope:activity.activity_location = { geographical_region = middleearth_west_rhovanion_mirkwood }
+ 	}
+
+    immediate = { hunt_activity_success_change_effect = { CHANGE = increase_medium } }
+
+ 	option = { # You diplomacy'd the Huorn
+ 		name = hunt.4027.a
+
+ 		add_prestige = medium_prestige_gain
+ 		add_piety = minor_piety_gain
+
+ 		ai_chance = {
+ 			base = 100
+ 		}
+ 	}
+
+ 	after = { }
+}
+
+#######################
+#	The Huorn takes one of your party
+#	by Kyrenic
+#######################
+
+hunt.4028 = {
+ 	type = activity_event
+	content_source = realms_dlc
+ 	title = hunt.4028.t
+ 	desc = hunt.4028.desc
+ 	theme = hunt_activity
+ 	left_portrait = root
+	
+	trigger = {
+		is_elf = yes
+		scope:activity.activity_location = { geographical_region = middleearth_west_rhovanion_mirkwood }
+		always = no # Jamie-san - disabling until someone localises 4029 and 4030
+ 	}
+
+ 	immediate = { hunt_activity_success_change_effect = { CHANGE = decrease_medium } }
+
+ 	option = { # :(
+ 		name = hunt.4028.a
+
+ 		add_prestige = minor_prestige_loss
+ 		add_trait = wounded_1
+
+ 		if = {
+ 			limit = { NOR = { has_trait = callous has_trait = sadistic has_trait = depressed_1 has_trait = depressed_genetic } }
+ 			random_list = {
+ 				pick = 1
+ 				unique = yes
+
+ 				95 = {
+ 					custom_tooltip = hunt.4028.a.tt
+ 				}
+
+ 				5 = {
+ 					add_trait = depressed_1
+ 				}
+ 			}
+ 		}
+
+ 		ai_chance = {
+ 			base = 100
+ 		}
+ 	}
+
+ 	after = { }
+}
+
+#######################
+#	You fight off the Huorn
+#	by Kyrenic
+#######################
+
+hunt.4029 = {
+	type = activity_event
+	content_source = realms_dlc
+	title = hunt.4029.t
+	desc = hunt.4029.desc
+	theme = hunt_activity
+	left_portrait = root
+	
+	trigger = {
+		is_elf = yes
+		scope:activity.activity_location = { geographical_region = middleearth_west_rhovanion_mirkwood }
+	}
+
+	immediate = {
+		hunt_activity_success_change_effect = { CHANGE = increase_minor } }
+
+	option = { # You fought off the Huorn
+		name = hunt.4029.a
+
+		ai_chance = {
+			base = 100
+		}
+	}
+
+ 	after = { }
+}
+
+#######################
+#	You cannot compete with the Huorn
+#	by Kyrenic
+#######################
+
+hunt.4030 = {
+	type = activity_event
+	content_source = realms_dlc
+	title = hunt.4030.t
+	desc = hunt.4030.desc
+	theme = hunt_activity
+	left_portrait = root
+	
+	trigger = {
+		is_elf = yes
+		scope:activity.activity_location = { geographical_region = middleearth_west_rhovanion_mirkwood }
+	}
+
+	immediate = { hunt_activity_success_change_effect = { CHANGE = decrease_medium } }
+
+	option = { # You are defeated
+		name = hunt.4030.a
+
+		ai_chance = {
+			base = 100
+		}
+	}
+
+ 	after = { }
+}
+
+#######################
+#	Your Meara finds a mate
+#	by Brice Underhill
+#######################
+
+hunt.4031 = {
+	type = activity_event
+	content_source = realms_dlc
+	title = hunt.4031.t
+	desc = hunt.4031.desc
+	theme = hunt_activity
+	left_portrait = root
+	
+	trigger = {
+		and = {
+			has_character_modifier = meara_story_modifier
+			not = {
+				has_character_flag = meara_mate
+			}
+		}
+	}
+
+	option = { # Let your horse have fun
+		name = hunt.4031.a
+		scope:activity = {
+			add_activity_log_entry = {
+				key = hunt_meara_mate_log
+				character = root
 				
-# 			}
-# 		}
+				#Effect
+				root = {
+					hunt_activity_success_change_effect = { CHANGE = decrease_minor }
+					stress_impact = {
+						chaste = minor_stress_impact_gain
+						compassionate = minor_stress_impact_loss
+					}
+					add_character_flag = {
+						flag = meara_mate
+						years = 10
+					}
+				}
+			}
+		}
+		trigger_event = {
+			id = warhorse.1502 #A foal is born
+			days = { 330 365 }
+		}
 
-# 		ai_chance = {
-# 			base = 100
-# 		}
-# 	}
+		ai_chance = {
+			base = 100
+			modifier = {
+				add = 50
+				OR = {
+					has_trait = compassionate
+					has_trait = lustful
+				}
+			}
+			modifier = {
+				add = 100
+				has_character_modifier = bonded_with_meara_modifier
+			}
+		}
+	}
 
-# 	after = {
-# 		trigger_event = {
-# 			id = hunt.9001 #To complete the activity
-# 			days = { 14 20 }
-# 		}
-# 	}
-# }
+	option = { # No time to frolick
+		name = hunt.4031.b
+		scope:activity = {
+			add_activity_log_entry = {
+				key = hunt_meara_focus_log
+				character = root
+				
+				#Effect
+				root = {
+					hunter_progress_point_gain_effect = { CHANGE = 1 RANDOM_CHANGE = 1 }
+					add_prestige = minor_prestige_gain
+					hunt_activity_success_change_effect = { CHANGE = increase_minor }
+					stress_impact = {
+						compassionate = minor_stress_impact_gain
+						chaste = minor_stress_impact_loss
+						diligent = minor_stress_impact_loss
+					}
+				}
+			}
+		}
+		ai_chance = {
+			base = 100
+			modifier = {
+				add = 50
+				OR = {
+					has_trait = chaste
+					has_trait = diligent
+				}
+			}
+		}
+	}
+}
 
-# #######################
-# #	You are beaten by the spiders
-# #	by Kyrenic
-# #######################
 
-# hunt.4022 = {
-# 	type = character_event
-# 	title = hunt.4022.t
-# 	desc = hunt.4022.desc
-# 	theme = hunt_activity
-# 	left_portrait = root
+######################
+# Marauding band of Mountain Orcs
+# by Fredsch
+# Compatched to version 1.9 by FilivsTerrae
+######################
+
+hunt.4040 = {
+	type = activity_event
+	title = hunt.4040.t
+	desc = {
+		desc = hunt.4040.desc
+		desc = hunt.4040.desc.a
+	}
+	theme = hunt_activity
 	
-# 	trigger = {
-# 		is_elf = yes
-# 	}
+	left_portrait = {
+		character = root
+		animation = shock
+	}
+	right_portrait = {
+		character = scope:enemy_commander
+		animation = anger
+	}
+	lower_left_portrait = {
+		character = scope:similar_participant
+	}
 
-# 	immediate = {
-# 		change_variable = {
-# 			name = hunt_outcome
-# 			add = -2
-# 		}
-# 	}
+	trigger = {
+		faith_is_evil = no
+		is_ai = no
 
-# 	option = { # Defeated...
-# 		name = hunt.4022.a
-# 		add_prestige = minor_prestige_loss
-# 		add_stress = minor_stress_impact_gain
-# 		add_trait = wounded_1
+		scope:activity = {	#Test if a suitable companion is in the hunting party
+			any_attending_character = {
+				NOT = { this = root }
+				is_ai = yes
+				is_adult = yes
+				is_physically_able_ai_adult = yes
+                can_be_knight_trigger = { ARMY_OWNER = scope:host }
+			}
+		}
 
-# 		ai_chance = {
-# 			base = 100
-# 		}
-# 	}
+		OR = {	#Test if there is an orc county within a range of 4 counties
+			scope:activity.activity_location.county = {
+				any_neighboring_county = {
+					culture = { is_orc_culture = yes } 
+				}
+			}
 
-# 	after = {
-# 		trigger_event = {
-# 			id = hunt.9001 #To complete the activity
-# 			days = { 14 20 }
-# 		}
-# 	}
-# }
+			scope:activity.activity_location.county = {
+				any_neighboring_county = {
+					
+					any_neighboring_county = {
+						culture = { is_orc_culture = yes } 
+					}
+				}
+			}
 
-# #######################
-# #	You come across another hunting party
-# #	by Kyrenic
-# #######################
+			scope:activity.activity_location.county = {
+				any_neighboring_county = {
+					
+					any_neighboring_county = {
+						
+						any_neighboring_county = {
+							culture = { is_orc_culture = yes } 
+						}
+					}
+				}
+			}
 
-# hunt.4024 = {
-# 	type = character_event
-# 	title = hunt.4024.t
-# 	desc = hunt.4024.desc
-# 	theme = hunt_activity
-# 	left_portrait = root
-	
-# 	trigger = {
-# 		is_elf = yes
-# 	}
+			scope:activity.activity_location.county = {
+				any_neighboring_county = {
+					
+					any_neighboring_county = {
+						
+						any_neighboring_county = {
 
-# 	option = { # Go meet them
-# 		name = hunt.4024.a
-# 		add_prestige = minor_prestige_gain
-# 		if = {
-# 			limit = { has_trait = shy }
-# 			add_stress = minor_stress_impact_gain
-# 		}
-# 		if = {
-# 			limit = { has_trait = gregarious }
-# 			add_stress = minor_stress_impact_loss
-# 		}
-# 		trigger_event = hunt.4025
+							any_neighboring_county = {
+								culture = { is_orc_culture = yes } 
+							}
+						}
+					}
+				}
+			}
+		}
+	}
 
-# 		ai_chance = {
-# 			base = 100
-# 			modifier = {
-# 				add = 100
-# 				OR = {
-# 					has_trait = gregarious
-# 				}
-# 			}
-# 		}
-# 	}
+	cooldown = { years = 10 }
 
-# 	option = { # Leave them alone
-# 		name = hunt.4024.b
-# 		add_piety = minor_piety_gain
+	weight_multiplier = {
+		base = 1
+		modifier = {
+			add = -0.5
+			employs_court_position = master_of_hunt_court_position
+		}
+	}
 
-# 		if = {
-# 			limit = { has_trait = shy }
-# 			add_stress = minor_stress_impact_loss
-# 		}
+	immediate = {
+		scope:activity = { #Find a suitable character for root to hang out with on his hunt
+			every_attending_character = { 
+				limit = {
+					NOT = { this = root }
+					is_ai = yes
+					is_adult = yes
+					is_alive = yes
+					is_physically_able_ai_adult = yes
+					can_be_knight_trigger = { ARMY_OWNER = scope:host }
+				}
+				add_to_list = similar_participants
+			}
+		}
+		random_in_list = {
+			list = similar_participants
 
-# 		if = {
-# 			limit = { has_trait = gregarious }
-# 			add_stress = minor_stress_impact_gain
-# 		}
+			limit = { is_knight = yes } #Preferably a knight.
 
-# 		trigger_event = {
-# 			id = hunt.9001 #To complete the activity
-# 			days = { 14 20 }
-# 		}
+			alternative_limit = { is_adult = yes } #Find someone. Anyone.
+				
+			save_scope_as = similar_participant
+		}
+			
+		scope:activity.activity_location.county = {
+			every_neighboring_county = {
+				if = { 
+					limit = { culture = { is_orc_culture = yes } } 
+					add_to_list = orc_county_list
+				}
+				
+				every_neighboring_county = {
+					if = { 
+						limit = { culture = { is_orc_culture = yes } } 
+						add_to_list = orc_county_list
+					}
+					
+					every_neighboring_county = {
+						if = { 
+							limit = { culture = { is_orc_culture = yes } } 
+							add_to_list = orc_county_list
+						}
 
-# 		ai_chance = {
-# 			base = 100
-# 			modifier = {
-# 				add = 100
-# 				OR = {
-# 					has_trait = shy
-# 				}
-# 			}
-# 		}
-# 	}
-# }
-
-# #######################
-# #	Meeting the other hunting party
-# #	by Kyrenic
-# #######################
-
-# hunt.4025 = {
-# 	type = character_event
-# 	title = hunt.4025.t
-# 	desc = hunt.4025.desc
-# 	theme = hunt_activity
-# 	left_portrait = root
-	
-# 	trigger = {
-# 		is_elf = yes
-# 	}
-
-# 	immediate = {
-# 		change_variable = {
-# 			name = hunt_outcome
-# 			add = 2
-# 		}
-# 	}
-
-# 	option = { # Say your goodbyes
-# 		name = hunt.4025.a
-
-# 		ai_chance = {
-# 			base = 100
-# 		}
-# 	}
-
-# 	after = {
-# 		trigger_event = {
-# 			id = hunt.9001 #To complete the activity
-# 			days = { 14 20 }
-# 		}
-# 	}
-# }
-
-# #######################
-# #	You meet a Huorn
-# #	by Kyrenic
-# #######################
-
-# hunt.4026 = {
-# 	type = character_event
-# 	title = hunt.4026.t
-# 	desc = hunt.4026.desc
-# 	theme = hunt_activity
-# 	left_portrait = root
-	
-# 	trigger = {
-# 		is_elf = yes
-# 		activity = {
-# 			activity_province = {
-# 				geographical_region = middleearth_west_rhovanion_mirkwood
-# 			}
-# 		}
-# 	}
-
-# 	option = { # Try to reason with the Huorn
-# 		name = hunt.4026.a
+						every_neighboring_county = {
+							if = { 
+								limit = { culture = { is_orc_culture = yes } } 
+								add_to_list = orc_county_list
+							}
+						}
+					}
+				}
+			}
+			
+			random_in_list = {
+				list = orc_county_list
+				save_scope_as = orc_county
+			}
+		}
 		
-# 		duel = {
-# 			skill = diplomacy
-# 			value = 10
+		create_character = {
+			template = new_commander_character				
+			culture = scope:orc_county.culture
+			faith = scope:orc_county.faith
+			gender_female_chance = 50
+			location = scope:activity.activity_location
+			after_creation = {
+				save_scope_as = enemy_commander
+			}
+		}
+	}
 
-# 			50 = {
-# 				desc = hunt.4026.a.success
-# 				custom_tooltip = hunt.4026.a.success.tt
-# 				compare_modifier = {
-# 					value = scope:duel_value
-# 					multiplier = 3
-# 					min = -50
-# 					max = 50
-# 				}
-# 				trigger_event = hunt.4027
-# 			}
+	option = { # Fight the Orc Captain
+		name = hunt.4040.a
+		configure_start_single_combat_effect = {
+			SC_INITIATOR = root
+			SC_ATTACKER = root
+			SC_DEFENDER = scope:enemy_commander
+			FATALITY = always
+			FIXED = no
+			LOCALE = terrain_scope
+			OUTPUT_EVENT = hunt.4041
+			INVALIDATION_EVENT = fp1_tbc.0102
+		}
 
-# 			50 = {
-# 				desc = hunt.4026.a.failure
-# 				custom_tooltip = hunt.4026.a.failure.tt
-# 				compare_modifier = {
-# 					value = scope:duel_value
-# 					multiplier = -3
-# 					min = -50
-# 					max = 50
-# 				}
-# 				trigger_event = hunt.4028
-# 			}
-# 		}
+		stress_impact = {
+			craven = major_stress_impact_gain
+			brave = minor_stress_impact_loss
+			zealous = minor_stress_impact_loss
+		}
 
-# 		if = { limit = { has_trait = brave } add_stress = medium_stress_impact_gain }
-# 		if = { limit = { OR = { has_trait = impatient has_trait = wrathful } } add_stress = minor_stress_impact_gain }
+		ai_chance = {
+			modifier = {
+				add = {
+					value = root.prowess
+				}
+			}
+			modifier = {
+				add = {
+					value = scope:enemy_commander.prowess
+					multiply = -1
+				}
+			}
+			modifier = {
+				add = {
+					value = root.ai_boldness
+				}
+			}
+		}
+	}
 
-# 		ai_chance = {
-# 			base = 100
-# 			modifier = {
-# 				add = 100
-# 				OR = {
-# 					has_trait = calm
-# 					has_trait = craven
-# 					has_trait = patient
-# 				}
-# 			}
-# 			modifier = {
-# 				add = 100
-# 				diplomacy > 14
-# 			}
-# 		}
-# 	}
+	option = { # Fight together + Hunter || Relevant Terrain Expert
+		name = hunt.4040.b
+		trigger = {
+			OR = {
+				AND = {
+					has_trait = lifestyle_hunter
+					has_trait_xp = {
+						trait = lifestyle_hunter
+						value >= 50
+					}
+				}
+				AND = {
+					has_trait = open_terrain_expert
+					scope:activity.activity_location = {
+						OR = {
+							terrain = steppe
+							terrain = plains
+							terrain = farmlands
+						}
+					}	
+				}
+				AND = {
+					has_trait = rough_terrain_expert
+					scope:activity.activity_location = {
+						OR = {
+							terrain = hills
+							terrain = mountains
+							terrain = wetlands
+							terrain = volcanic_plains
+						}
+					}	
+				}
+				AND = {
+					has_trait = forest_fighter
+					scope:activity.activity_location = {
+						OR = {
+							terrain = forest
+							terrain = taiga
+						}
+					}	
+				}
+				AND = {
+					has_trait = jungle_stalker
+					scope:activity.activity_location = { terrain = jungle }	
+				}
+			}
+		}
 
-# 	option = { # Slay the beast!
-# 		name = hunt.4026.b
+		duel = {
+			skills = { martial prowess }
+			target = scope:enemy_commander
+			8 = {
+				desc = hunt.4040.b.critical_success
+				compare_modifier = {
+					value = scope:duel_value
+					multiplier = 2
+					min = 1
+				}
+				send_interface_toast = {		
+					title = hunt.4040.b.critical_success			
+					add_prestige = medium_prestige_gain
+			 		add_gold = minor_gold_value
+					scope:similar_participant = {
+						add_prestige = medium_prestige_gain
+					}
+					scope:enemy_commander = {
+						death = {
+							death_reason = death_battle
+							killer = root
+						}
+					}
+				}
 
-# 		duel = {
-# 			skill = prowess
-# 			value = 10
+				hunt_activity_success_change_effect = { CHANGE = increase_minor }
+			}
+			
+			2 = {
+				desc = hunt.4040.b.success
+				compare_modifier = {
+					value = scope:duel_value
+					multiplier = 0.5
+					min = 0.5
+				}
+				send_interface_toast = {	
+					title = hunt.4040.b.success
+					add_prestige = medium_prestige_gain
+			 		add_gold = minor_gold_value
+					increase_wounds_no_death_effect = { REASON = battle }
+					scope:similar_participant = {
+						death = {
+							death_reason = death_battle
+							killer = scope:enemy_commander
+						}
+					}
+					scope:enemy_commander = {
+						death = {
+							death_reason = death_battle
+							killer = root
+						}
+					}
+				}
 
-# 			50 = {
-# 				desc = hunt.4026.b.success
-# 				custom_tooltip = hunt.4026.b.success.tt
-# 				compare_modifier = {
-# 					value = scope:duel_value
-# 					multiplier = 3
-# 					min = -50
-# 					max = 50
-# 				}
-# 				trigger_event = hunt.4029
-# 			}
+				hunt_activity_success_change_effect = { CHANGE = decrease_minor }
+			}
 
-# 			50 = {
-# 				desc = hunt.4026.b.failure
-# 				custom_tooltip = hunt.4026.b.failure.tt
-# 				compare_modifier = {
-# 					value = scope:duel_value
-# 					multiplier = -3
-# 					min = -50
-# 					max = 50
-# 				}
-# 				trigger_event = hunt.4030
-# 			}
-# 		}
+			2 = {
+				desc = hunt.4040.b.failure
+				compare_modifier = {
+					value = scope:duel_value
+					multiplier = -0.5
+				}
+				send_interface_toast = {	
+					title = hunt.4040.b.failure
+					add_prestige = medium_prestige_loss
+					increase_wounds_no_death_effect = { REASON = battle }
+					scope:similar_participant = {
+						add_prestige = medium_prestige_loss
+						increase_wounds_no_death_effect = { REASON = battle }
+					}
+				}
 
-# 		if = { limit = { has_trait = craven } add_stress = medium_stress_impact_gain }
-# 		if = { limit = { OR = { has_trait = patient has_trait = calm } } add_stress = minor_stress_impact_gain }
+				scope:activity.activity_location.county = {
+					add_county_modifier = {
+						modifier = recently_looted_modifier
+						months = 3
+					}
+				}
 
-# 		ai_chance = {
-# 			base = 100
-# 			modifier = {
-# 				add = 100
-# 				OR = {
-# 					has_trait = wrathful
-# 					has_trait = brave
-# 					has_trait = impatient
-# 				}
-# 			}
-# 			modifier = {
-# 				add = 100
-# 				prowess > 14
-# 			}
-# 		}
-# 	}
-# }
-
-# #######################
-# #	You diplomacy'd the Huorn
-# #	by Kyrenic
-# #######################
-
-# hunt.4027 = {
-# 	type = character_event
-# 	title = hunt.4027.t
-# 	desc = hunt.4027.desc
-# 	theme = hunt_activity
-# 	left_portrait = root
-	
-# 	trigger = {
-# 		is_elf = yes
-# 		activity = {
-# 			activity_province = {
-# 				geographical_region = middleearth_west_rhovanion_mirkwood
-# 			}
-# 		}
-# 	}
-
-# 	immediate = {
-# 		change_variable = {
-# 			name = hunt_outcome
-# 			add = 2
-# 		}
-# 	}
-
-# 	option = { # You diplomacy'd the Huorn
-# 		name = hunt.4027.a
-
-# 		add_prestige = medium_prestige_gain
-# 		add_piety = minor_piety_gain
-
-# 		ai_chance = {
-# 			base = 100
-# 		}
-# 	}
-
-# 	after = {
-# 		trigger_event = {
-# 			id = hunt.9001 #To complete the activity
-# 			days = { 14 20 }
-# 		}
-# 	}
-# }
-
-# #######################
-# #	The Huorn takes one of your party
-# #	by Kyrenic
-# #######################
-
-# hunt.4028 = {
-# 	type = character_event
-# 	title = hunt.4028.t
-# 	desc = hunt.4028.desc
-# 	theme = hunt_activity
-# 	left_portrait = root
-	
-# 	trigger = {
-# 		is_elf = yes
-# 		activity = {
-# 			activity_province = {
-# 				geographical_region = middleearth_west_rhovanion_mirkwood
-# 			}
-# 		}
-# 	}
-
-# 	immediate = {
-# 		change_variable = {
-# 			name = hunt_outcome
-# 			add = -2
-# 		}
-# 	}
-
-# 	option = { # :(
-# 		name = hunt.4028.a
-
-# 		add_prestige = minor_prestige_loss
-# 		add_trait = wounded_1
-
-# 		if = {
-# 			limit = { NOR = { has_trait = callous has_trait = sadistic has_trait = depressed_1 has_trait = depressed_genetic } }
-# 			random_list = {
-# 				pick = 1
-# 				unique = yes
-
-# 				95 = {
-# 					custom_tooltip = hunt.4028.a.tt
-# 				}
-
-# 				5 = {
-# 					add_trait = depressed_1
-# 				}
-# 			}
-# 		}
-
-# 		ai_chance = {
-# 			base = 100
-# 		}
-# 	}
-
-# 	after = {
-# 		trigger_event = {
-# 			id = hunt.9001 #To complete the activity
-# 			days = { 14 20 }
-# 		}
-# 	}
-# }
-
-# #######################
-# #	You fight off the Huorn
-# #	by Kyrenic
-# #######################
-
-# hunt.4029 = {
-# 	type = character_event
-# 	title = hunt.4029.t
-# 	desc = hunt.4029.desc
-# 	theme = hunt_activity
-# 	left_portrait = root
-	
-# 	trigger = {
-# 		is_elf = yes
-# 		activity = {
-# 			activity_province = {
-# 				geographical_region = middleearth_west_rhovanion_mirkwood
-# 			}
-# 		}
-# 	}
-
-# 	immediate = {
-# 		change_variable = {
-# 			name = hunt_outcome
-# 			add = 2
-# 		}
-# 	}
-
-# 	option = { # You fought off the Huorn
-# 		name = hunt.4029.a
-
-# 		ai_chance = {
-# 			base = 100
-# 		}
-# 	}
-
-# 	after = {
-# 		trigger_event = {
-# 			id = hunt.9001 #To complete the activity
-# 			days = { 14 20 }
-# 		}
-# 	}
-# }
-
-# #######################
-# #	You cannot compete with the Huorn
-# #	by Kyrenic
-# #######################
-
-# hunt.4030 = {
-# 	type = character_event
-# 	title = hunt.4030.t
-# 	desc = hunt.4030.desc
-# 	theme = hunt_activity
-# 	left_portrait = root
-	
-# 	trigger = {
-# 		is_elf = yes
-# 		activity = {
-# 			activity_province = {
-# 				geographical_region = middleearth_west_rhovanion_mirkwood
-# 			}
-# 		}
-# 	}
-
-# 	immediate = {
-# 		change_variable = {
-# 			name = hunt_outcome
-# 			add = -2
-# 		}
-# 	}
-
-# 	option = { # You are defeated
-# 		name = hunt.4030.a
-
-# 		ai_chance = {
-# 			base = 100
-# 		}
-# 	}
-
-# 	after = {
-# 		trigger_event = {
-# 			id = hunt.9001 #To complete the activity
-# 			days = { 14 20 }
-# 		}
-# 	}
-# }
-
-# #######################
-# #	Your Meara finds a mate
-# #	by Brice Underhill
-# #######################
-
-# hunt.4031 = {
-# 	type = character_event
-# 	title = hunt.4031.t
-# 	desc = hunt.4031.desc
-# 	theme = hunt_activity
-# 	left_portrait = root
-	
-# 	trigger = {
-# 		and = {
-# 			has_character_modifier = meara_story_modifier
-# 			not = {
-# 				has_character_flag = meara_mate
-# 			}
-# 		}
-# 	}
-
-# 	option = { # Let your horse have fun
-# 		name = hunt.4031.a
+				hunt_activity_success_change_effect = { CHANGE = decrease_major }
+			}
+		}
 		
-# 		add_character_flag = {
-# 			flag = meara_mate
-# 			years = 10
-# 		}
-# 		trigger_event = {
-# 			id = hunt.9001 #To complete the activity
-# 			days = { 14 20 }
-# 		}
-# 		trigger_event = {
-# 			id = warhorse.1502 #A foal is born
-# 			days = { 330 365 }
-# 		}
+		stress_impact = {
+			craven = minor_stress_impact_gain
+			brave = minor_stress_impact_loss
+			zealous = minor_stress_impact_loss
+		}
+
+		ai_chance = {
+			base = 5
+			modifier = {
+                add = {
+					value = root.prowess
+				}
+            }
+            modifier = {
+                add = {
+					value = scope:enemy_commander.prowess
+					multiply = -1
+				} 
+            }
+			modifier = {
+				add = {
+					value = root.martial
+				}
+			}
+			modifier = {
+				add = {
+					value = scope:enemy_commander.martial
+					multiply = -1
+				}
+			}
+		}
+	}
+
+	option = { # Fight together
+		name = hunt.4040.c
 		
+		duel = {
+			skills = { martial prowess }
+			target = scope:enemy_commander
+			4 = {
+				desc = hunt.4040.c.critical_success
+				compare_modifier = {
+					value = scope:duel_value
+					min = 0.5
+				}
+				send_interface_toast = {		
+					title = hunt.4040.c.critical_success			
+					add_prestige = medium_prestige_gain
+			 		add_gold = minor_gold_value
+					scope:similar_participant = {
+						add_prestige = medium_prestige_gain
+					}
+					scope:enemy_commander = {
+						death = {
+							death_reason = death_battle
+							killer = root
+						}
+					}
+				}
 
-# 		ai_chance = {
-# 			base = 100
-# 			modifier = {
-# 				add = 50
-# 				OR = {
-# 					has_trait = compassionate
-# 					has_trait = lustful
-# 				}
-# 			}
-# 			modifier = {
-# 				add = 100
-# 				has_character_modifier = bonded_with_meara_modifier
-# 			}
-# 		}
-# 	}
+				hunt_activity_success_change_effect = { CHANGE = increase_minor }
+			}
+			
+			2 = {
+				desc = hunt.4040.c.success
+				compare_modifier = {
+					value = scope:duel_value
+					multiplier = 0.5
+					min = 0.5
+				}
+				send_interface_toast = {	
+					title = hunt.4040.c.success
+					add_prestige = medium_prestige_gain
+			 		add_gold = minor_gold_value
+					increase_wounds_no_death_effect = { REASON = battle }
+					scope:similar_participant = {
+						death = {
+							death_reason = death_battle
+							killer = scope:enemy_commander
+						}
+					}
+					scope:enemy_commander = {
+						death = {
+							death_reason = death_battle
+							killer = root
+						}
+					}
+				}
 
-# 	option = { # No time to frolick
-# 		name = hunt.4031.b
-# 		add_prestige = minor_prestige_gain
-# 		change_variable = {
-# 			name = hunt_outcome
-# 			add = 2
-# 		}
-# 		trigger_event = {
-# 			id = hunt.9001 #To complete the activity
-# 			days = { 14 20 }
-# 		}
-# 		ai_chance = {
-# 			base = 100
-# 			modifier = {
-# 				add = 50
-# 				OR = {
-# 					has_trait = chaste
-# 					has_trait = callous
-# 				}
-# 			}
-# 		}
-# 	}
-# }
+				hunt_activity_success_change_effect = { CHANGE = decrease_minor }
+			}
+			
+			4 = {
+				desc = hunt.4040.c.failure
+				compare_modifier = {
+					value = scope:duel_value
+					multiplier = -0.5
+				}
+				send_interface_toast = {	
+					title = hunt.4040.c.failure
+					add_prestige = medium_prestige_loss
+					increase_wounds_no_death_effect = { REASON = battle }
+					scope:similar_participant = {
+						add_prestige = medium_prestige_loss
+						increase_wounds_no_death_effect = { REASON = battle }
+					}
+				}
 
+				scope:activity.activity_location.county = {
+					add_county_modifier = {
+						modifier = recently_looted_modifier
+						months = 3
+					}
+				}
 
-# #######################
-# #	Marauding band of Mountain Orcs
-# #	by Fredsch
-# #######################
-# hunt.4040 = {
-# 	type = character_event
-# 	title = hunt.4040.t
-# 	desc = {
-# 		desc = hunt.4040.desc
-# 		first_valid = {
-# 			triggered_desc = {
-# 				trigger = {
-# 					scope:activity.activity_province = {
-# 							geographical_region = middleearth_west_gondor_ithilien
-# 					}
-# 				}
-# 				desc = hunt.4040.desc.b
-# 			}
-# 			desc = hunt.4040.desc.a
-# 		}
-# 	}
-# 	theme = hunt_activity
-# 	left_portrait = {
-# 		character = root
-# 		animation = shock
-# 	}
-# 	right_portrait = {
-# 		character = scope:enemy_commander
-# 		animation = anger
-# 	}
-# 	lower_left_portrait = {
-# 		character = scope:similar_participant
-# 	}
+				hunt_activity_success_change_effect = { CHANGE = decrease_major }
+			}
+		}
+		
+		stress_impact = {
+			craven = minor_stress_impact_gain
+			brave = minor_stress_impact_loss
+			zealous = minor_stress_impact_loss
+		}
+		
+		ai_chance = {
+			modifier = {
+                add = {
+					value = root.prowess
+				}
+            }
+            modifier = {
+                add = {
+					value = scope:enemy_commander.prowess
+					multiply = -1
+				} 
+            }
+			modifier = {
+				add = {
+					value = root.martial
+				}
+			}
+			modifier = {
+				add = {
+					value = scope:enemy_commander.martial
+					multiply = -1
+				}
+			}
+		}
+	}
 
-# 	trigger = {
-# 		scope:activity = {
-# 			any_in_list = {
-# 				variable = potential_hunt_participants
-# 				is_alive = yes
-# 				is_knight = yes
-# 				is_available_adult = yes
-# 				count >= 1
-# 			}
-# 		}
-# 		faith_is_evil = no
-# 		scope:activity.activity_province = {
-# 			or = {
-# 				geographical_region = middleearth_west_rohan
-# 				geographical_region = middleearth_west_rhovanion_anduin
-# 				geographical_region = middleearth_west_gondor_ithilien
-# 			}
-# 		}
-# 	}
+	option = { # Retreat
+		name = hunt.4040.d
+		add_prestige = major_prestige_loss
+		
+		scope:activity.activity_location.county = {
+			add_county_modifier = {
+				modifier = recently_looted_modifier
+				months = 7
+			}
+		}
 
-# 	weight_multiplier = {
-# 		base = 1
-# 		modifier = {
-# 			add = -0.5
-# 			employs_court_position = master_of_hunt_court_position
-# 		}
-# 	}
+		hunt_activity_success_change_effect = { CHANGE = decrease_major }
+		
+		stress_impact = {
+			craven = minor_stress_impact_loss
+			brave = minor_stress_impact_gain
+			zealous = minor_stress_impact_gain
+		}
+		
+		ai_chance = {
+			modifier = {
+                add = {
+					value = root.prowess
+				}
+            }
+            modifier = {
+                add = {
+					value = scope:enemy_commander.prowess
+					multiply = -1
+				} 
+            }
+			modifier = {
+				add = {
+					value = root.martial
+				}
+			}
+			modifier = {
+				add = {
+					value = scope:enemy_commander.martial
+					multiply = -1
+				}
+			}
+			modifier = {
+				add = {
+					value = root.ai_boldness
+					multiply = -1
+				}
+			}
+		}
+	}
 
-# 	immediate = {
-# 		scope:activity = {
-# 			random_in_list = { # Find a suitable character for root to hang out with on his hunt
-# 				variable = potential_hunt_participants
-# 				limit = { # Find a knight
-# 					is_available_adult = yes
-# 					is_knight = yes
-# 					is_alive = yes
-# 				}
-# 				save_scope_as = similar_participant
-# 			}
-# 			if = {
-# 				limit = {
-# 					scope:activity.activity_province = {
-# 						geographical_region = middleearth_west_gondor_ithilien
-# 					}
-# 				}
-# 				create_character = { # creates an enemy commander Orc
-# 					template = new_commander_character				
-# 					culture = culture:ungurhai
-# 					faith = faith:lidless_eye
-# 					gender_female_chance = 0
-# 					location = scope:activity.activity_province
-# 					after_creation = {
-# 						save_scope_as = enemy_commander
-# 					}
-# 				}
-# 			}
-# 			else_if = {
-# 				create_character = { # creates an enemy commander Orc
-# 					template = new_commander_character				
-# 					culture = culture:ghrazim
-# 					faith = faith:cult_of_the_ulukai
-# 					gender_female_chance = 0
-# 					location = scope:activity.activity_province
-# 					after_creation = {
-# 						save_scope_as = enemy_commander
-# 					}
-# 				}	
-# 			}
-# 		}
-# 		change_variable = {
-# 			name = hunt_outcome
-# 			add = -1
-# 		}
-# 	}
+ 	after = { }
+}
 
-# 	option = { # Fight the Orc Captain
-# 		name = hunt.4040.a
-# 		configure_start_single_combat_effect = {
-# 			SC_INITIATOR = root
-# 			SC_ATTACKER = root
-# 			SC_DEFENDER = scope:enemy_commander
-# 			FATALITY = always
-# 			FIXED = no
-# 			LOCALE = terrain_scope
-# 			OUTPUT_EVENT = hunt.9001
-# 			INVALIDATION_EVENT = fp1_tbc.0102
-# 		}
-# 		stress_impact = {
-# 			craven = major_stress_impact_gain
-# 			brave = minor_stress_impact_loss
-# 			zealous = minor_stress_impact_loss
-# 		}
-# 		ai_chance = {
-# 			modifier = {
-# 				add = {
-# 					value = root.prowess
-# 				}
-# 			}
-# 			modifier = {
-# 				add = {
-# 					value = scope:enemy_commander.prowess
-# 					multiply = -1
-# 				}
-# 			}
-# 			modifier = {
-# 				add = {
-# 					value = root.ai_boldness
-# 					multiply = 1
-# 				}
-# 			}
-# 		}
-# 	}
+hunt.4041 = {
+	type = activity_event
+	title = hunt.4041.t
+	desc = hunt.4041.desc
+	theme = hunt_activity
+	override_background = { reference = battlefield }
 
-# 	option = { # Fight together + Hunter || Open Terrain Expert
-# 		name = hunt.4040.b
-# 		trigger = {
-# 			OR = {
-# 				has_trait_rank = {
-# 					trait = lifestyle_hunter
-# 					rank >= 2
-# 				}
-# 				has_trait = open_terrain_expert
-# 			}
-# 		}
-# 		duel = {
-# 			skill = martial
-# 			target = scope:enemy_commander
-# 			16 = {
-# 				desc = hunt.4040.b.critical_success
-# 				compare_modifier = {
-# 					value = scope:duel_value
-# 				}
-# 				send_interface_toast = {		
-# 					title = hunt.4040.b.critical_success			
-# 					add_prestige = medium_prestige_gain
-# 					scope:similar_participant = {
-# 						add_prestige = medium_prestige_gain
-# 					}
-# 					scope:enemy_commander = {
-# 						death = {
-# 							death_reason = death_duel
-# 							killer = root
-# 						}
-# 					}
-# 				}
-# 				change_variable = {
-# 					name = hunt_outcome
-# 					add = 2
-# 				}
-# 			}
-# 			8 = {
-# 				desc = hunt.4040.b.success
-# 				compare_modifier = {
-# 					value = scope:duel_value
-# 					multiplier = 0.5
-# 					min = 0.5
-# 				}
-# 				send_interface_toast = {	
-# 					title = hunt.4040.b.success
-# 					add_prestige = medium_prestige_gain
-# 					increase_wounds_no_death_effect = { REASON = duel }
-# 					scope:similar_participant = {
-# 						death = {
-# 							death_reason = death_duel
-# 							killer = scope:enemy_commander
-# 						}
-# 					}
-# 					scope:enemy_commander = {
-# 						death = {
-# 							death_reason = death_duel
-# 							killer = root
-# 						}
-# 					}
-# 				}
-# 				change_variable = {
-# 					name = hunt_outcome
-# 					add = 1
-# 				}
-# 			}
-# 			5 = {
-# 				desc = hunt.4040.b.failure
-# 				compare_modifier = {
-# 					value = scope:duel_value
-# 					multiplier = -0.5
-# 				}
-# 				send_interface_toast = {	
-# 					title = hunt.4040.b.failure
-# 					add_prestige = medium_prestige_loss
-# 					increase_wounds_no_death_effect = { REASON = duel }
-# 					scope:similar_participant = {
-# 						add_prestige = medium_prestige_loss
-# 						increase_wounds_no_death_effect = { REASON = duel }
-# 					}
-# 				}
-# 				change_variable = {
-# 					name = hunt_outcome
-# 					add = -2
-# 				}
-# 			}
-# 		}
-# 		stress_impact = {
-# 			craven = minor_stress_impact_gain
-# 			brave = minor_stress_impact_loss
-# 			zealous = minor_stress_impact_loss
-# 		}
-# 		ai_chance = {
-# 			modifier = {
-# 				add = {
-# 					value = root.martial
-# 				}
-# 			}
-# 			modifier = {
-# 				add = {
-# 					value = scope:enemy_commander.martial
-# 					multiply = -1
-# 				}
-# 			}
-# 			modifier = {
-# 				add = {
-# 					value = root.ai_rationality
-# 					multiply = 1
-# 				}
-# 			}
-# 		}
-# 	}
+	trigger = { is_landed = yes }	#prevents this event firing for the RNG Orc commander if it wins the single combat.  Without this line, the event fires for the orc and the error log complains.
+	
+	left_portrait = {
+		character = root
+		animation = celebrate_sword
+	}
 
-# 	option = { # Fight together
-# 		name = hunt.4040.b
-# 		trigger = {
-# 			has_trait_rank = {
-# 				trait = lifestyle_hunter
-# 				rank < 2
-# 			}
-# 			NOT = {
-# 				has_trait = open_terrain_expert
-# 			}
-# 		}
-# 		duel = {
-# 			skill = martial
-# 			target = scope:enemy_commander
-# 			15 = {
-# 				desc = hunt.4040.b.critical_success
-# 				compare_modifier = {
-# 					value = scope:duel_value
-# 				}
-# 				send_interface_toast = {		
-# 					title = hunt.4040.b.critical_success			
-# 					add_prestige = medium_prestige_gain
-# 					scope:similar_participant = {
-# 						add_prestige = medium_prestige_gain
-# 					}
-# 					scope:enemy_commander = {
-# 						death = {
-# 							death_reason = death_duel
-# 							killer = root
-# 						}
-# 					}
-# 				}
-# 				change_variable = {
-# 					name = hunt_outcome
-# 					add = 2
-# 				}
-# 			}
-# 			5 = {
-# 				desc = hunt.4040.b.success
-# 				compare_modifier = {
-# 					value = scope:duel_value
-# 					multiplier = 0.5
-# 					min = 0.5
-# 				}
-# 				send_interface_toast = {	
-# 					title = hunt.4040.b.success
-# 					add_prestige = medium_prestige_gain
-# 					increase_wounds_no_death_effect = { REASON = duel }
-# 					scope:similar_participant = {
-# 						death = {
-# 							death_reason = death_duel
-# 							killer = scope:enemy_commander
-# 						}
-# 					}
-# 					scope:enemy_commander = {
-# 						death = {
-# 							death_reason = death_duel
-# 							killer = root
-# 						}
-# 					}
-# 				}
-# 				change_variable = {
-# 					name = hunt_outcome
-# 					add = 1
-# 				}
-# 			}
-# 			8 = {
-# 				desc = hunt.4040.b.failure
-# 				compare_modifier = {
-# 					value = scope:duel_value
-# 					multiplier = -0.5
-# 				}
-# 				send_interface_toast = {	
-# 					title = hunt.4040.b.failure
-# 					add_prestige = medium_prestige_loss
-# 					increase_wounds_no_death_effect = { REASON = duel }
-# 					scope:similar_participant = {
-# 						add_prestige = medium_prestige_loss
-# 						increase_wounds_no_death_effect = { REASON = duel }
-# 					}
-# 				}
-# 				change_variable = {
-# 					name = hunt_outcome
-# 					add = -2
-# 				}
-# 			}
-# 		}
-# 		stress_impact = {
-# 			craven = minor_stress_impact_gain
-# 			brave = minor_stress_impact_loss
-# 			zealous = minor_stress_impact_loss
-# 		}
-# 		ai_chance = {
-# 			modifier = {
-# 				add = {
-# 					value = root.martial
-# 				}
-# 			}
-# 			modifier = {
-# 				add = {
-# 					value = scope:enemy_commander.martial
-# 					multiply = -1
-# 				}
-# 			}
-# 			modifier = {
-# 				add = {
-# 					value = root.ai_rationality
-# 					multiply = 1
-# 				}
-# 			}
-# 		}
-# 	}
+	option = { # Continue hunt
+		name = hunt.4041.a
 
-# 	option = { # Retreat
-# 		name = hunt.4040.c
-# 		add_prestige = major_prestige_loss
-# 		scope:locale = {
-# 			add_county_modifier = {
-# 				modifier = recently_looted_modifier
-# 				months = 3
-# 			}			
-# 		}
-# 		change_variable = {
-# 			name = hunt_outcome
-# 			add = -2
-# 		}
-# 		stress_impact = {
-# 			craven = minor_stress_impact_loss
-# 			brave = minor_stress_impact_gain
-# 			zealous = minor_stress_impact_gain
-# 		}
-# 		ai_chance = {
-# 			modifier = {
-#                 add = {
-# 					value = root.prowess
-# 					multiply = 1
-# 				}
-#             }
-#             modifier = {
-#                 add = {
-# 					value = scope:enemy_commander.prowess
-# 					multiply = -1
-# 				} 
-#             }
-# 			modifier = {
-# 				add = {
-# 					value = root.martial
-# 				}
-# 			}
-# 			modifier = {
-# 				add = {
-# 					value = scope:enemy_commander.martial
-# 					multiply = -1
-# 				}
-# 			}
-# 			modifier = {
-# 				add = {
-# 					value = root.ai_boldness
-# 					multiply = -1
-# 				}
-# 			}
-# 			modifier = {
-# 				add = {
-# 					value = root.ai_rationality
-# 					multiply = 1
-# 				}
-# 			}
-# 		}
-# 	}
+		add_prestige = medium_prestige_gain
+ 		add_gold = minor_gold_value
+		hunt_activity_success_change_effect = { CHANGE = increase_minor }
 
-# 	after = {
-# 		trigger_event = {
-# 			id = hunt.9001 #Generic complete
-# 			days = { 14 20 }
-# 		}
-# 	}
-# }
+		ai_chance = { base = 1 }
+	}
+
+	#Option 2: declare hunt already successful and take orc skull/teeth/bones as trophy?
+
+ 	after = { }
+}
 
 #######################
 #	Wildflowers!
@@ -21795,8 +21852,20 @@ hunt.5003 = {
 			if = {
 				limit = {
 					scope:hunt_participant = { hunt_5003_animal_over_flower = yes }
+					has_royal_court = yes
 				}
 				create_artifact_animal_hide_effect = {
+					OWNER = root
+					HUNTER = scope:hunt_participant
+					LEGENDARY = no
+					ANIMAL = flag:hare
+				}
+			}
+			else_if = {
+				limit = {
+					scope:hunt_participant = { hunt_5003_animal_over_flower = yes }
+				}
+				create_artifact_animal_trinket_effect = {
 					OWNER = root
 					HUNTER = scope:hunt_participant
 					LEGENDARY = no
@@ -22243,6 +22312,7 @@ hunt.5010 = {
 						education_stewardship_2 = minor_stress_impact_gain
 						education_stewardship_3 = minor_stress_impact_gain
 						education_stewardship_4 = minor_stress_impact_gain
+						education_stewardship_5 = minor_stress_impact_gain
 						overseer = minor_stress_impact_gain
 					}
 				}
@@ -25272,7 +25342,11 @@ hunt.7211 = {
 
 					# Effect
 					show_as_tooltip = {
-						unknown_murder_effect = { VICTIM = scope:murder_target MURDERER = root REASON = death_hunting_accident }
+						unknown_murder_effect = {
+							VICTIM = scope:murder_target
+							MURDERER = root
+							REASON = death_hunting_accident
+						}
 					}
 				}
 			}
@@ -25668,7 +25742,7 @@ hunt.7300 = {
 		ai_chance = {
 			base = 25
 			opinion_modifier = {
-				opinion_target = scope:hunt_participant
+				opinion_target = scope:befriend_target
 				multiplier = 0.5
 			}
 			ai_value_modifier = {
@@ -26020,7 +26094,7 @@ hunt.7303 = {
 
 				#Effect
 				root = {
-					progress_towards_lover_effect = {
+					progress_towards_friend_effect = {
 						CHARACTER = scope:befriend_target
 						OPINION = 15
 						REASON = friend_hunt_conversation_impressed
@@ -27682,6 +27756,8 @@ hunt.9001 = {
 		hunt_intent_outcome_tooltip_effect = yes
 		# Save scopes for trophy recipient
 		hunt_trophy_recipient_scope_effect = yes
+		# Special legend stuff
+		disburse_hunt_legend_seeds = yes
 	}
 
 	option = { # Nothing
@@ -27883,11 +27959,18 @@ hunt.9001 = {
 			}
 		}
 		else = {
-			show_as_tooltip = { add_prestige = hunt_prestige_guest_gain_value }
+			show_as_tooltip = {
+				add_prestige = hunt_prestige_guest_gain_value
+			}
 		}
 		if = { # Fallback for Fawning Doe etc.
 			limit = { exists = scope:activity }
-			scope:activity = { set_variable = hunt_invalidated }
+			scope:activity = {
+				set_variable = {
+					name = hunt_invalidated
+					value = root
+				}
+			}			
 		}
 	}
 }

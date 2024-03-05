@@ -22,6 +22,9 @@ on_army_monthly = {
 					value = yes
 					days = 365
 				}
+				army_commander = {
+					trigger_event = { on_action = commander_death_events_pulse }
+				}
 			}
 		}
 	}
@@ -70,6 +73,16 @@ on_county_occupied = {
 						days = 720
 					}
 				}
+			}
+			if = {
+				limit = { 
+					this = title:c_throne_of_erebor
+					NOT = {
+						has_county_modifier = plundered_thorins_tomb_orcrist_modifier
+						has_county_modifier = plundered_thorins_tomb_arkenstone_modifier	
+					}
+				}
+				root = { trigger_event = lotr_artifact.0003 }
 			}
 		}
 		## Mongol Devastation
@@ -149,6 +162,20 @@ on_siege_completion = {
 		siege.1001 #Someone I care about was immured here...
 		intrigue_scheming.1804 # I had genuine/fake info about the defenses. Follows up intrigue_scheming.1801 so this won't actually trigger after every siege
 	}
+	effect = {
+		save_scope_as = occupant
+		scope:barony = {
+			if = {
+				limit = { title_province = holder.capital_province }
+				holder = {
+					random = {
+						chance = 50
+						trigger_event = fp3_decision.0002 #FP3 Event to possibly lose your royal fire
+					}
+				}
+			}
+		}
+	}
 }
 
 # Called when a siege loots a holding
@@ -165,8 +192,13 @@ on_siege_looting = {
 
 on_army_enter_province = {
 	events = {
-		wastelands.0001 # Immediate truce if raiding a wastelands
+		# wastelands.0001 # Immediate truce if raiding a wastelands
 		# great_holy_war.0060 #Give Crusaders their trait upon reaching the holy land.
+	}
+	random_events = {
+		chance_of_no_event = 97
+		100 = bp2_yearly.4030 # Winter province event
+		1 = epidemic_events.1120 # Corpse catapult event
 	}
 }
 
@@ -239,8 +271,34 @@ on_raid_action_completion = {
 		raiding.0022 # Chance to fire viking/raider acquisition event
 		raiding.0013 # Chance to kidnap prisoners
 		raiding.0014 # Chance to steal an artifact
+		bp2_yearly.8031 # Steal a doll
 	}
 	effect = {
+		scope:raider = {
+			if = {
+				limit = {
+					scope:county = {
+						any_county_province = { has_special_building = yes }
+					}
+					NOT = { has_character_flag = raider_legend }
+					has_dlc_feature = legends
+				}
+				random = {
+					chance = legend_seed_chance_low
+					add_character_flag = raider_legend
+					create_legend_seed = {
+						type = heroic
+						quality = famed
+						chronicle = legendary_battle
+						properties = {
+							winner = scope:raider
+							loser = scope:county.holder
+							location = scope:barony.title_province
+						}
+					}
+				}
+			}
+		}
 		scope:barony.title_province = {
 			add_province_modifier = {
 				modifier = recently_looted_modifier
@@ -268,6 +326,41 @@ on_raid_action_completion = {
 							change_development_progress_with_overflow = -5
 						}
 					}
+				}
+			}
+		}
+
+		## Struggles
+		if = {
+			limit = {
+				scope:raider = {
+					any_character_struggle = {
+						activate_struggle_catalyst_secondary_character_involvement_involved_trigger = {
+							CATALYST = catalyst_raided_involved
+							CHAR = scope:county.holder
+						}
+					}
+				}
+				scope:county.holder = { # Theoretical edge case where X is from one struggle, Y from another one and they trigger catalysts. But unlikely to be an issue.
+					any_character_struggle = {
+						involvement = involved
+						phase_has_catalyst = catalyst_raided_involved
+					}
+				}
+			}
+			scope:raider = {
+				every_character_struggle = {
+					limit = {
+						activate_struggle_catalyst_secondary_character_involvement_involved_trigger = {
+							CATALYST = catalyst_raided_involved
+							CHAR = scope:county.holder
+						}
+					}
+					activate_struggle_catalyst = {
+						catalyst = catalyst_raided_involved
+						character = scope:raider
+					}
+					log_debug_variable_for_persian_struggle_effect = { VAR = concession_catalyst_raided_involved }
 				}
 			}
 		}
@@ -321,4 +414,3 @@ on_defeat_raid_army = {
 		raiding.0012 # Defending army take raider loot notifications.
 	}
 }
-

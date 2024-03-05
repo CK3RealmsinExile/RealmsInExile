@@ -1,0 +1,315 @@
+﻿activity_title_change_effect = {
+	set_holding_type = dwarven_holding
+	# Saving liege of host if host is a vassal
+	if = {
+		limit = { scope:host = { has_variable = host_is_vassal } }
+		scope:host.liege = { save_scope_as = host_liege }
+	}
+	# Create new dwarf if ruler dies on his way to journey
+	if = {
+		limit = {
+			$RULER$ = scope:host.var:opportunistic_dwarf
+			scope:host.var:opportunistic_dwarf = { is_alive = no }
+		}
+		create_character = {
+			template = random_dwarf_template
+			employer = scope:host
+			save_temporary_scope_as = opportunistic_dwarf
+		}
+		scope:host = {
+			set_variable = {
+				name = opportunistic_dwarf
+				value = scope:opportunistic_dwarf
+			}
+		}
+	}
+
+	create_title_and_vassal_change = {
+		type = created
+		save_scope_as = change
+		add_claim_on_loss = no
+	}
+
+	# Change county holder county/faith to appropriate holder
+	county = {
+		set_county_culture = $RULER$.culture
+		set_county_faith = $RULER$.faith
+		save_scope_as = transferred_county
+	}
+
+	if = {
+		limit = { scope:activity = { has_activity_option = { category = special_type option = expedition_type_standard } } }
+		county = {
+			change_title_holder = {
+				holder = scope:host
+				change = scope:change
+			}
+		}
+	}
+	else = {
+		county = {
+			change_title_holder = {
+				holder = scope:host.var:opportunistic_dwarf
+				change = scope:change
+			}
+		}
+	}
+
+	resolve_title_and_vassal_change = scope:change
+
+	# If satellite hold, make them permanent tributary
+	if = {
+		limit = {
+			OR = {
+				$RULER$ = scope:host.var:opportunistic_dwarf
+				$RULER$ = { is_alive = no }
+			}
+		}
+		create_title_and_vassal_change = {
+			type = independency
+			save_scope_as = change
+			add_claim_on_loss = no
+		}
+		scope:host.var:opportunistic_dwarf = { becomes_independent = { change = scope:change } }
+		make_tributary = {
+			TYPE = tributary_permanent
+			SUZERAIN = scope:host
+			TRIBUTARY = scope:host.var:opportunistic_dwarf
+		}
+		resolve_title_and_vassal_change = scope:change
+
+		if = {
+			limit = { scope:activity = { has_activity_option = { category = expedition_option_gold_investment option = expedition_gold_investment_low } } }
+			scope:transferred_county.holder = {
+				trigger_event = {
+					id = expedition.0008
+					years = 9
+				}
+			}
+		}
+		else_if = {
+			limit = { scope:activity = { has_activity_option = { category = expedition_option_gold_investment option = expedition_gold_investment_medium } } }
+			scope:transferred_county.holder = {
+				trigger_event = {
+					id = expedition.0008
+					years = 6
+				}
+			}
+		}
+		else_if = {
+			limit = { scope:activity = { has_activity_option = { category = expedition_option_gold_investment option = expedition_gold_investment_high } } }
+			scope:transferred_county.holder = {
+				trigger_event = {
+					id = expedition.0008
+					years = 3
+				}
+			}
+		}
+	}
+
+	county = { generate_coa = yes }
+	county = { $RULER$ = { set_realm_capital = prev } }
+
+	# Give titles away if moving realm
+	if = {
+		limit = { scope:activity = { has_activity_option = { category = special_type option = expedition_type_standard } } }
+		scope:host = {
+			every_held_title = {
+				limit = { NOT = { this = scope:activity.activity_location.county } }
+				add_to_list = transfered_titles
+			}
+		}
+		create_title_and_vassal_change = {
+			type = granted
+			save_scope_as = change
+			add_claim_on_loss = yes
+		}
+
+		every_in_list = {
+			list = transfered_titles
+			change_title_holder = {
+				holder = scope:host.var:opportunistic_dwarf
+				change = scope:change
+			}
+		} 
+
+		resolve_title_and_vassal_change = scope:change
+
+		if = {
+			limit = { exists = scope:host_liege }
+			create_title_and_vassal_change = {
+				type = independency
+				save_scope_as = change
+				add_claim_on_loss = no
+			}
+			$RULER$ = { becomes_independent = { change = scope:change } }
+			resolve_title_and_vassal_change = scope:change
+		}
+	}
+
+	# spawn building at new area
+	if = {
+		limit = { 
+			scope:activity = {
+				has_activity_option = { category = expedition_option_gold_investment option = expedition_gold_investment_low }
+			}
+		}
+		county = {
+			random_list = {
+				1 = { county.title_province = { add_building = dwarven_fungal_farm_02 } }
+				1 = { county.title_province = { add_building = dwarven_ale_house_02 } }
+				1 = { county.title_province = { add_building = dwarven_terrace_farm_02 } }
+				1 = { county.title_province = { add_building = dwarven_quarry_02 } }
+				1 = { county.title_province = { add_building = dwarven_crafts_02 } }
+				1 = { county.title_province = { add_building = dwarven_toolmaker_guild_02 } }
+				1 = { county.title_province = { add_building = dwarven_vaults_02 } }
+				1 = { county.title_province = { add_building = dwarven_roads_02 } }
+			}
+		}
+		county = { change_development_level = 3 }
+	}
+	else_if = {
+		limit = { 
+			scope:activity = {
+				has_activity_option = { category = expedition_option_gold_investment option = expedition_gold_investment_medium }
+			}
+		}
+		random_list = {
+			1 = { county.title_province = { add_building = dwarven_fungal_farm_02 } }
+			1 = { county.title_province = { add_building = dwarven_ale_house_02 } }
+			1 = { county.title_province = { add_building = dwarven_terrace_farm_02 } }
+			1 = { county.title_province = { add_building = dwarven_quarry_02 } }
+		}
+		random_list = {
+			1 = { county.title_province = { add_building = dwarven_crafts_03 } }
+			1 = { county.title_province = { add_building = dwarven_toolmaker_guild_03 } }
+			1 = { county.title_province = { add_building = dwarven_vaults_03 } }
+			1 = { county.title_province = { add_building = dwarven_roads_03 } }
+		}
+
+		county = { change_development_level = 4 }
+	}
+	else = {
+		if = {
+			limit = { 
+				scope:activity = {
+					has_activity_option = { category = expedition_option_gold_investment option = expedition_gold_investment_high }
+				}
+			}
+			
+			county = {
+				random_list = {
+					1 = { county.title_province = { add_building = dwarven_fungal_farm_04 } }
+					1 = { county.title_province = { add_building = dwarven_ale_house_04 } }
+					1 = { county.title_province = { add_building = dwarven_terrace_farm_04 } }
+					1 = { county.title_province = { add_building = dwarven_quarry_04 } }
+				}
+				random_list = {
+					1 = { county.title_province = { add_building = dwarven_crafts_04 } }
+					1 = { county.title_province = { add_building = dwarven_toolmaker_guild_04 } }
+					1 = { county.title_province = { add_building = dwarven_vaults_04 } }
+					1 = { county.title_province = { add_building = dwarven_roads_04 } }
+				}
+			}
+
+			county.title_province = { add_building = dwarven_depths_02 }
+			county = { change_development_level = 5 }
+		}
+	}
+}
+
+add_new_councill_members_to_journey = {
+	if = {
+		limit = { any_knight = { has_variable = $REPLACE_VAR$ } }
+		random_knight = {
+			limit = { has_variable = $REPLACE_VAR$ }
+			root.current_travel_plan ?= { add_companion = prev }
+		}
+	}
+	else_if = {
+		limit = { any_courtier = { has_variable = $REPLACE_VAR$ } }
+		random_courtier = {
+			limit = { has_variable = $REPLACE_VAR$ }
+			root.current_travel_plan ?= { add_companion = prev }
+		}
+	}
+	else = {
+		if = {
+			limit = { cp:$COUNCIL_POS$ = { has_variable = $REPLACE_VAR$ } }
+			cp:$COUNCIL_POS$ = { root.current_travel_plan ?= { add_companion = prev } } 
+		}
+	}
+}
+
+assign_new_councillor = {
+	assign_councillor_type = { # Marshal
+		type = $TYPE$
+		remove_existing_councillor = yes
+		target = $TARGET$
+	}
+	$TARGET$ = {
+		set_variable = {
+			name = block_fire_councillor
+			value = root
+			years = 5
+		}
+	}
+}
+
+on_end_travel_title_change_effect = {
+	current_travel_plan.final_destination_province.county = {
+		title_province = { set_holding_type = dwarven_holding }
+		random_list = {
+			1 = { county.title_province = { add_building = dwarven_fungal_farm_02 } }
+			1 = { county.title_province = { add_building = dwarven_ale_house_02 } }
+			1 = { county.title_province = { add_building = dwarven_terrace_farm_02 } }
+			1 = { county.title_province = { add_building = dwarven_quarry_02 } }
+		}
+		random_list = {
+			1 = { county.title_province = { add_building = dwarven_crafts_01 } }
+			1 = { county.title_province = { add_building = dwarven_toolmaker_guild_01 } }
+			1 = { county.title_province = { add_building = dwarven_vaults_01 } }
+			1 = { county.title_province = { add_building = dwarven_roads_01 } }
+		}
+		save_scope_as = current_county
+	}
+	
+	create_title_and_vassal_change = {
+		type = created
+		save_scope_as = change
+		add_claim_on_loss = no
+	}
+	scope:current_county = {
+		change_title_holder = {
+			holder = root
+			change = scope:change
+		}
+		set_county_culture = root.culture
+		set_county_faith =  root.faith
+	}
+	resolve_title_and_vassal_change = scope:change
+
+	current_travel_plan.travel_plan_owner = {
+		every_held_title = {
+			limit = { NOT = { this = scope:current_county } }
+			add_to_list = transfered_titles
+		}
+	}
+	create_title_and_vassal_change = {
+		type = granted
+		save_scope_as = change
+		add_claim_on_loss = yes
+	}
+
+	becomes_independent = { change = scope:change }
+	
+	every_in_list = {
+		list = transfered_titles
+		change_title_holder = {
+			holder = root.liege
+			change = scope:change
+		}
+	} 
+
+	resolve_title_and_vassal_change = scope:change
+}

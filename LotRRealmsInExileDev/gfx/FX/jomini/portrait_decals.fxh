@@ -23,8 +23,8 @@ PixelShader =
 	#	MagFilter = "Linear"
 	#	MinFilter = "Linear"
 	#	MipFilter = "Linear"
-	#	SampleModeU = "Clamp"
-	#	SampleModeV = "Clamp"
+	#	SampleModeU = "Wrap"
+	#	SampleModeV = "Wrap"
 	#	type = "2darray"
 	#}
 
@@ -34,8 +34,8 @@ PixelShader =
 	#	MagFilter = "Linear"
 	#	MinFilter = "Linear"
 	#	MipFilter = "Linear"
-	#	SampleModeU = "Clamp"
-	#	SampleModeV = "Clamp"
+	#	SampleModeU = "Wrap"
+	#	SampleModeV = "Wrap"
 	#	type = "2darray"
 	#}
 
@@ -45,8 +45,8 @@ PixelShader =
 	#	MagFilter = "Linear"
 	#	MinFilter = "Linear"
 	#	MipFilter = "Linear"
-	#	SampleModeU = "Clamp"
-	#	SampleModeV = "Clamp"
+	#	SampleModeU = "Wrap"
+	#	SampleModeV = "Wrap"
 	#	type = "2darray"
 	#}
 
@@ -79,13 +79,14 @@ PixelShader =
 
 		// 	uint2 _AtlasPos;
 		// 	float2 _UVOffset;
+		// 	uint2 _UVTiling;
 
 		// 	uint _AtlasSize;
 		// };
 
 		// END MOD
 
-		DecalData GetDecalData( int Index, uint MaxValue )
+		DecalData GetDecalData( int Index )
 		{
 			// Data for each decal is stored in multiple texels as specified by DecalData
 
@@ -103,13 +104,13 @@ PixelShader =
 				Data._NormalBlendMode = BLEND_MODE_OVERLAY_NORMAL;
 			}
 			Data._PropertiesBlendMode = PdxReadBuffer( DecalDataBuffer, Index + 6 );
-			Data._Weight = float( PdxReadBuffer( DecalDataBuffer, Index + 7 ) ) / MaxValue;
+			Data._Weight = Unpack16BitUnorm( PdxReadBuffer( DecalDataBuffer, Index + 7 ) );
 
 			Data._AtlasPos = uint2( PdxReadBuffer( DecalDataBuffer, Index + 8 ), PdxReadBuffer( DecalDataBuffer, Index + 9 ) );
-			Data._UVOffset = float2( PdxReadBuffer( DecalDataBuffer, Index + 10 ), PdxReadBuffer( DecalDataBuffer, Index + 11 ) );
-			Data._UVOffset /= MaxValue;
+			Data._UVOffset = float2( Unpack16BitUnorm( PdxReadBuffer( DecalDataBuffer, Index + 10 ) ), Unpack16BitUnorm( PdxReadBuffer( DecalDataBuffer, Index + 11 ) ) );
+			Data._UVTiling = uint2( PdxReadBuffer( DecalDataBuffer, Index + 12 ), PdxReadBuffer( DecalDataBuffer, Index + 13 ) );
 
-			Data._AtlasSize = PdxReadBuffer( DecalDataBuffer, Index + 12 );
+			Data._AtlasSize = PdxReadBuffer( DecalDataBuffer, Index + 14 );
 
 			return Data;
 		}
@@ -143,16 +144,16 @@ PixelShader =
 			// Body part index is scripted on the mesh asset and should match ECharacterPortraitPart
 			uint BodyPartIndex = GetBodyPartIndex( InstanceIndex );
 
-			const int TEXEL_COUNT_PER_DECAL = 13;
+			const int TEXEL_COUNT_PER_DECAL = 15;
 			int FromDataTexel = From * TEXEL_COUNT_PER_DECAL;
 			int ToDataTexel = To * TEXEL_COUNT_PER_DECAL;
 
-			const uint MAX_VALUE = 65535;
+			static const uint MAX_VALUE = 65535;
 
 			// Sorted after priority
 			for ( int i = FromDataTexel; i <= ToDataTexel; i += TEXEL_COUNT_PER_DECAL )
 			{
-				DecalData Data = GetDecalData( i, MAX_VALUE );
+				DecalData Data = GetDecalData( i );
 
 				// Max index => unused
 				if ( Data._BodyPartIndex == BodyPartIndex )
@@ -165,6 +166,19 @@ PixelShader =
 						 ( ( UV.y >= Data._UVOffset.y ) && ( UV.y < ( Data._UVOffset.y + AtlasFactor ) ) ) )
 					{
 						float2 DecalUV = ( UV - Data._UVOffset ) + ( Data._AtlasPos * AtlasFactor );
+						float TilingMaskSample = 1;
+						//UVTiling is incompatible with Decal Atlases, so we only use one of them. 
+						//If a tiling value is provided, the tiling feature will be used.
+						if ( Data._UVTiling.x == 1 && Data._UVTiling.y == 1 )
+						{
+							DecalUV = ( UV - Data._UVOffset ) + ( Data._AtlasPos * AtlasFactor );
+						} 
+						else
+						{
+							DecalUV = UV * Data._UVTiling;
+							float2 TilingMaskUV = ( UV - Data._UVOffset ) + ( Data._AtlasPos * AtlasFactor );
+							TilingMaskSample = PdxTex2D( DecalPropertiesArray, float3( TilingMaskUV, Data._PropertiesIndex ) ).r;
+						}
 
 						// MOD(godherja)
 						float4 DiffuseSample  = float4(0.0f, 0.0f, 0.0f, 0.0f);
@@ -177,7 +191,7 @@ PixelShader =
 							//float4 DiffuseSample = PdxTex2D( DecalDiffuseArray, float3( DecalUV, Data._DiffuseIndex ) );
 							DiffuseSample = PdxTex2D( DecalDiffuseArray, float3( DecalUV, Data._DiffuseIndex ) );
 							// END MOD
-							Weight = DiffuseSample.a * Weight;
+							Weight = DiffuseSample.a * Weight * TilingMaskSample;
 							Diffuse = BlendDecal( Data._DiffuseBlendMode, float4( Diffuse, 0.0f ), DiffuseSample, Weight ).rgb;
 						}
 

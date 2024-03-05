@@ -17,6 +17,7 @@ Includes = {
 	"standardfuncsgfx.fxh"
 	"lowspec.fxh"
 	"dynamic_masks.fxh"
+	"liquid.fxh"
 }
 
 PixelShader =
@@ -75,6 +76,27 @@ PixelShader =
 		SampleModeU = "Wrap"
 		SampleModeV = "Wrap"
     }
+
+	TextureSampler DetailMap
+	{
+		Index = 6
+		MagFilter = "Linear"
+		MinFilter = "Linear"
+		MipFilter = "Linear"
+		SampleModeU = "Wrap"
+		SampleModeV = "Wrap"
+	}
+
+	TextureSampler LightingMap
+	{
+		Index = 7
+		MagFilter = "Linear"
+		MinFilter = "Linear"
+		MipFilter = "Linear"
+		SampleModeU = "Wrap"
+		SampleModeV = "Wrap"
+	}
+
 	TextureSampler EnvironmentMap
 	{
 		Ref = JominiEnvironmentMap
@@ -348,6 +370,18 @@ PixelShader =
 			else if ( UV.y > 1.0 ) UV.y = 2.0 - UV.y;
 			return UV;
 		}
+		
+		float3 ApplyLightingDecal( in float3 Color, in float2 UV )
+		{
+			float LightingDecalValue = PdxTex2D( LightingMap, UV ).a;
+			return clamp( Color * ( LightingDecalValue * 2 ), 0, 1 );
+		}
+
+		float3 ApplyBakedLighting( in float3 Color, in float2 UV )
+		{
+			float3 BakedLightingValue = PdxTex2D( LightingMap, UV ).rgb;
+			return Color * BakedLightingValue;
+		}
 	]]
 
 	# MOD(map-skybox)
@@ -374,7 +408,17 @@ PixelShader =
 		Output = "PDX_COLOR"
 		Code
 		[[
-			
+			void DebugReturn( inout float3 Out, SMaterialProperties MaterialProps, SLightingProperties LightingProps, PdxTextureSamplerCube EnvironmentMap, float3 SssColor, float SssMask )
+			{
+				#if defined(PDX_DEBUG_SSS_MASK)
+				Out = SssMask;
+				#elif defined(PDX_DEBUG_SSS_COLOR)
+				Out = SssColor;
+				#else
+				DebugReturn( Out, MaterialProps, LightingProps, EnvironmentMap );
+				#endif
+			}
+
 			#if defined( ATLAS )
 				#ifndef DIFFUSE_UV_SET
 					#define DIFFUSE_UV_SET Input.UV1
@@ -421,6 +465,10 @@ PixelShader =
 				
 				Diffuse.a = PdxMeshApplyOpacity( Diffuse.a, Input.Position.xy, GetOpacity( Input.InstanceIndex ) );
 				
+				#ifdef SCREENDOOR_DITHER
+					DitheredOpacity(Diffuse.a, Input.Position.xy);
+				#endif
+				
 				float4 Properties = PdxTex2D( PropertiesMap, PROPERTIES_UV_SET );
 				#if defined( LOW_SPEC_SHADERS )
 					float3 Normal = Input.Normal;
@@ -431,6 +479,24 @@ PixelShader =
 					float3 Normal = normalize( mul( NormalSample, TBN ) );
 				#endif
 				
+				#if defined( DETAIL_TILING ) && !defined( LOW_SPEC_SHADERS )
+					float DetailRoughness = PdxTex2D( DetailMap, ( PROPERTIES_UV_SET * DETAIL_TILING.xy ) + DETAIL_TILING.zw ).b;
+					DetailRoughness -= 0.5;
+					#if defined( DETAIL_ROUGHNESS_STRENGTH )
+						Properties.a = lerp( Properties.a , DetailRoughness < 0.0 ? 0.0 : 1.0, abs( DetailRoughness * DETAIL_ROUGHNESS_STRENGTH ) );
+					#else
+						Properties.a = lerp( Properties.a , DetailRoughness < 0.0 ? 0.0 : 1.0, abs( DetailRoughness ) );
+					#endif
+
+					float3 DetailNormalSample = UnpackRRxGNormal( PdxTex2D( DetailMap, ( NORMAL_UV_SET * DETAIL_TILING.xy ) + DETAIL_TILING.zw ) );
+					float3 DetailNormal = normalize( mul( DetailNormalSample, TBN ) );
+					#if defined( DETAIL_NORMAL_STRENGTH )
+						Normal = normalize( Normal + ( DetailNormal * DETAIL_NORMAL_STRENGTH ) );
+					#else
+						Normal = normalize( Normal + DetailNormal );
+					#endif
+				#endif
+
 				float3 UserColor = float3( 1.0f, 1.0f, 1.0f );				
 				
 				#if defined( USER_COLOR )
@@ -478,6 +544,15 @@ PixelShader =
 					float3 Color = CalculateSunLighting( MaterialProps, LightingProps, EnvironmentMap );
 				#endif
 				
+				float3 SssColor = vec3(0.0f);
+				float SssMask = Properties.r;
+				#ifdef FAKE_SSS_EMISSIVE
+					float3 HSVColor = RGBtoHSV( Diffuse.rgb );
+					HSVColor.z = 1.0f;
+					SssColor = HSVtoRGB(HSVColor) * SssMask * 0.5f * MaterialProps._DiffuseColor;
+					Color += SssColor;
+				#endif
+				
 				// MOD(godherja)
 				// #if !defined( UNDERWATER ) && !defined( NO_FOG )
 				//	Color = ApplyFogOfWar( Color, Input.WorldSpacePos, FogOfWarAlpha );
@@ -490,6 +565,14 @@ PixelShader =
 					Color = ApplyDistanceFog( Color, Input.WorldSpacePos );
 				#endif
 				
+
+				#if defined( BAKED_LIGHTING )
+					Color = ApplyBakedLighting( Color, Input.UV0 );
+				#endif
+
+				#if defined( LIGHTING_DECAL )
+					Color = ApplyLightingDecal( Color, Input.UV0 );
+				#endif
 				float Alpha = Diffuse.a;
 				#ifdef UNDERWATER
 					clip( _WaterHeight - Input.WorldSpacePos.y + 0.1 ); // +0.1 to avoid gap between water and mesh
@@ -497,9 +580,110 @@ PixelShader =
 					Alpha = CompressWorldSpace( Input.WorldSpacePos );
 				#endif
 				
-				DebugReturn( Color, MaterialProps, LightingProps, EnvironmentMap );
+				DebugReturn( Color, MaterialProps, LightingProps, EnvironmentMap, SssColor, SssMask );
 				
 				return float4( Color, Alpha );
+			}
+		]]
+	}
+
+	MainCode PS_map_floor
+	{
+		Input = "VS_OUTPUT"
+		Output = "PDX_COLOR"
+		Code
+		[[		
+			PDX_MAIN
+			{ 
+				#if defined( TILING )
+					float2 UV = Input.UV0 * TILING.xy + TILING.zw;
+				#else
+					float2 UV = Input.UV0;
+				#endif
+				float4 Diffuse = PdxTex2D( DiffuseMap, UV);
+				float4 Properties = PdxTex2D( PropertiesMap, UV);
+				
+				#if defined( LOW_SPEC_SHADERS )
+					float3 Normal = Input.Normal;
+				#else
+					float3 NormalSample = UnpackRRxGNormal( PdxTex2D( NormalMap, UV) );
+				
+					float3x3 TBN = Create3x3( normalize( Input.Tangent ), normalize( Input.Bitangent ), normalize( Input.Normal ) );
+					float3 Normal = normalize( mul( NormalSample, TBN ) );
+				#endif
+
+				SMaterialProperties MaterialProps = GetMaterialProperties( Diffuse.rgb, Normal, Properties.a, Properties.g, Properties.b );
+				SLightingProperties LightingProps = GetSunLightingProperties( Input.WorldSpacePos, 1.0 );
+				float3 Color = CalculateSunLighting( MaterialProps, LightingProps, EnvironmentMap );
+
+				#if !defined( UNDERWATER ) && !defined( NO_FOG )
+					Color = ApplyFogOfWar( Color, Input.WorldSpacePos, FogOfWarAlpha );
+					Color = ApplyDistanceFog( Color, Input.WorldSpacePos );
+				#endif
+
+				#if defined( BAKED_LIGHTING )
+					Color = ApplyBakedLighting( Color, Input.UV0 );
+				#endif
+
+				#if defined( LIGHTING_DECAL )
+					Color = ApplyLightingDecal( Color, Input.UV0 );
+				#endif
+				float Alpha = 0.0;
+				DebugReturn( Color, MaterialProps, LightingProps, EnvironmentMap );				
+				return float4( Color, Alpha );
+			}
+		]]
+	}
+
+	MainCode PS_atlas_map
+	{
+		Input = "VS_OUTPUT"
+		Output = "PDX_COLOR"
+		Code
+		[[
+			PDX_MAIN
+			{
+				float2 UV0 = Input.UV0;
+				#if defined( TILING )
+					float2 UV1 = Input.UV1 * TILING.xy + TILING.zw;
+				#else
+					float2 UV1 = Input.UV1;
+				#endif
+				float4 Diffuse = PdxTex2D( DiffuseMap, UV1 );
+				float4 MeshNormalAO = PdxTex2D( UniqueMap, UV0 );
+				float MeshAO = MeshNormalAO.b;
+				Diffuse.rgb *= MeshAO;
+				Diffuse.a = PdxMeshApplyOpacity( Diffuse.a, Input.Position.xy, GetOpacity( Input.InstanceIndex ) );
+				
+				float4 Properties = PdxTex2D( PropertiesMap, UV1 );
+				#if defined( LOW_SPEC_SHADERS )
+					float3 Normal = Input.Normal;
+				#else
+					float3 NormalSample = UnpackRRxGNormal( PdxTex2D( NormalMap, UV1 ) );
+					float3x3 TBN = Create3x3( normalize( Input.Tangent ), normalize( Input.Bitangent ), normalize( Input.Normal ) );
+					float3 Normal = normalize( mul( NormalSample, TBN ) );
+
+					float3 MeshNormalSample = UnpackRRxGNormal( MeshNormalAO );
+					float3 MeshNormal = normalize( mul( MeshNormalSample, TBN ) );
+					#if defined( NORMAL_STRENGTH )
+						Normal = normalize( MeshNormal + ( Normal * NORMAL_STRENGTH ) );
+					#else
+						Normal = normalize( Normal + MeshNormal );
+					#endif
+				#endif
+
+				SMaterialProperties MaterialProps = GetMaterialProperties( Diffuse.rgb, Normal, Properties.a, Properties.g, Properties.b );
+				#if defined( LOW_SPEC_SHADERS )
+					SLightingProperties LightingProps = GetSunLightingProperties( Input.WorldSpacePos, 1.0 );
+					float3 Color = CalculateSunLightingLowSpec( MaterialProps, LightingProps );
+				#else
+					SLightingProperties LightingProps = GetSunLightingProperties( Input.WorldSpacePos, ShadowTexture );
+					float3 Color = CalculateSunLighting( MaterialProps, LightingProps, EnvironmentMap );
+				#endif
+
+				DebugReturn( Color, MaterialProps, LightingProps, EnvironmentMap );
+
+				return float4( Color, Diffuse.a );
 			}
 		]]
 	}
@@ -529,8 +713,17 @@ BlendState alpha_to_coverage
 DepthStencilState DepthStencilState
 {
 	StencilEnable = yes
+
+	# These settings make map objects be above names and borders
 	FrontStencilPassOp = replace
 	StencilRef = 1
+}
+
+# Use this for map objects that should be under map names and borders
+# (Also for map-table objects below the map.)
+DepthStencilState DepthStencilStateNoReplace
+{
+ 	StencilEnable = yes
 }
 
 DepthStencilState depth_no_write
@@ -656,6 +849,150 @@ Effect standard_winterShadow
 	PixelShader = "PixelPdxMeshStandardShadow"
 	RasterizerState = ShadowRasterizerState
 }
+
+# "Map decorations" are rendered under map border and names
+Effect standard_map_decoration
+{
+	VertexShader = "VS_standard"
+	PixelShader = "PS_standard"
+
+	DepthStencilState = DepthStencilStateNoReplace
+}
+Effect standard_map_decorationShadow
+{
+	VertexShader = "VertexPdxMeshStandardShadow"
+	PixelShader = "PixelPdxMeshStandardShadow"
+
+	RasterizerState = ShadowRasterizerState
+}
+Effect standard_map_decoration_mapobject
+{
+	VertexShader = "VS_mapobject"
+	PixelShader = "PS_standard"
+
+	DepthStencilState = DepthStencilStateNoReplace
+}
+Effect standard_map_decorationShadow_mapobject
+{
+	VertexShader = "VS_jomini_mapobject_shadow"
+	PixelShader = "PS_jomini_mapobject_shadow"
+	DepthStencilState = DepthStencilStateNoReplace
+}
+
+# "Map decorations" are rendered under map border and names
+Effect standard_map_decoration_alpha_to_coverage
+{
+	VertexShader = "VS_standard"
+	PixelShader = "PS_standard"
+	BlendState = "alpha_to_coverage"
+
+ 	DepthStencilState = DepthStencilStateNoReplace
+}
+Effect standard_map_decoration_alpha_to_coverageShadow
+{
+	VertexShader = "VertexPdxMeshStandardShadow"
+	PixelShader = "PixelPdxMeshAlphaBlendShadow"
+
+	RasterizerState = ShadowRasterizerState
+}
+Effect standard_map_decoration_alpha_to_coverage_mapobject
+{
+	VertexShader = "VS_standard"
+	PixelShader = "PS_standard"
+	BlendState = "alpha_to_coverage"
+
+	DepthStencilState = DepthStencilStateNoReplace
+}
+Effect standard_map_decoration_alpha_to_coverageShadow_mapobject
+{
+	VertexShader = "VertexPdxMeshStandardShadow"
+	PixelShader = "PixelPdxMeshAlphaBlendShadow"
+
+	RasterizerState = ShadowRasterizerState
+}
+
+# "Map decorations" are rendered under map border and names
+Effect map_floor
+{
+	VertexShader = "VS_standard"
+	PixelShader = "PS_map_floor"
+	DepthStencilState = DepthStencilStateNoReplace
+}
+Effect map_floorShadow
+{
+	VertexShader = "VertexPdxMeshStandardShadow"
+	PixelShader = "PixelPdxMeshStandardShadow"
+	DepthStencilState = DepthStencilStateNoReplace
+}
+Effect map_floor_mapobject
+{
+	VertexShader = "VS_mapobject"
+	PixelShader = "PS_map_floor"
+	DepthStencilState = DepthStencilStateNoReplace
+}
+Effect map_floorShadow_mapobject
+{
+	VertexShader = "VS_jomini_mapobject_shadow"
+	PixelShader = "PS_jomini_mapobject_shadow"
+	DepthStencilState = DepthStencilStateNoReplace
+}
+
+# "Map decorations" are rendered under map border and names
+Effect atlas_map_decoration
+{
+	VertexShader = "VS_standard"
+	PixelShader = "PS_atlas_map"
+
+	DepthStencilState = DepthStencilStateNoReplace
+}
+Effect atlas_map_decorationShadow
+{
+	VertexShader = "VertexPdxMeshStandardShadow"
+	PixelShader = "PixelPdxMeshStandardShadow"
+
+	RasterizerState = ShadowRasterizerState
+}
+Effect atlas_map_decoration_mapobject
+{
+	VertexShader = "VS_mapobject"
+	PixelShader = "PS_atlas_map"
+
+	DepthStencilState = DepthStencilStateNoReplace
+}
+Effect atlas_map_decorationShadow_mapobject
+{
+	VertexShader = "VS_jomini_mapobject_shadow"
+	PixelShader = "PS_jomini_mapobject_shadow"
+	DepthStencilState = DepthStencilStateNoReplace
+}
+
+# "Map decorations" are rendered under map border and names
+Effect standard_glass
+{
+	VertexShader = "VS_standard"
+	PixelShader = "PS_standard"
+	BlendState = "alpha_blend"
+}
+Effect standard_glassShadow
+{
+	VertexShader = "VertexPdxMeshStandardShadow"
+	PixelShader = "PixelPdxMeshAlphaBlendShadow"
+	RasterizerState = ShadowRasterizerState
+}
+Effect standard_glass_mapobject
+{
+	VertexShader = "VS_mapobject"
+	PixelShader = "PS_standard"
+	BlendState = "alpha_blend"
+}
+Effect standard_glassShadow_mapobject
+{
+	VertexShader = "VS_jomini_mapobject_shadow"
+	PixelShader = "PS_jomini_mapobject_shadow_alphablend"
+	RasterizerState = ShadowRasterizerState	
+}
+
+
 Effect sine_flag_animation
 {
 	VertexShader = "VS_sine_animation"
@@ -1003,3 +1340,17 @@ Effect courtShadow
 	RasterizerState = ShadowRasterizerState
 }
 
+# MOD(godherja)
+Effect standard_winter_mapobject
+{
+	VertexShader = "VS_mapobject"
+	PixelShader = "PS_standard"
+	Defines = { "APPLY_WINTER" }
+}
+
+Effect standard_winterShadow_mapobject
+{
+	VertexShader = "VS_jomini_mapobject_shadow"
+	PixelShader = "PS_jomini_mapobject_shadow"
+}
+# END MOD

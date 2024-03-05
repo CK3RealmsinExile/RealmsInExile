@@ -25,6 +25,8 @@ scripted_trigger siege_0001_can_be_captured = {
 
 		# Is imprisoned in the barony stay prisoners (special case, any courtiers/vassals of the raider will get released elsewhere).
 		is_imprisoned = yes
+
+		cannot_be_killed = yes #LotR
 	}
 }
 
@@ -33,7 +35,7 @@ siege.0001 = {
 	hidden = yes
 	
 	trigger = {
-		scope:county.holder = scope:previous_controller
+		scope:county.holder ?= scope:previous_controller
 		OR = {
 			any_war_enemy = { this = scope:previous_controller }
 			any_war_enemy = { any_vassal_or_below = { this = scope:previous_controller } }
@@ -42,10 +44,10 @@ siege.0001 = {
 
 	immediate = {
 		save_scope_as = occupant
-		scope:barony.holder = { save_scope_as = holder }
+		scope:barony.holder ?= { save_scope_as = holder }
 
 		# Depending on if the occupier is an attacker or defender in this war, get the primary attacker/defender of the siege.
-		scope:war = {
+		scope:war ?= {
 			if = {
 				limit = {
 					is_attacker = scope:occupant
@@ -119,7 +121,7 @@ siege.0001 = {
 				if = {
 					limit = {
 						desirable_for_capture_trigger = yes
-						NOT = { scope:occupant = { has_variable = rebel_leader_peasants	}}
+						NOT = { scope:occupant ?= { has_variable = rebel_leader_peasants	}}
 					}
 					add_to_list = captured_targets_effects
 				}
@@ -146,7 +148,7 @@ siege.0001 = {
 			}
 
 			#Send notification to holder (about captures and deaths)
-			scope:barony.holder = {
+			scope:barony.holder ?= {
 				if = {
 					limit = {
 						save_temporary_scope_as = notification_target
@@ -186,7 +188,7 @@ siege.0001 = {
 			}
 
 			#Send notification to holder (about deaths)
-			scope:barony.holder = {
+			scope:barony.holder ?= {
 				trigger_event = siege.0013
 			}
 
@@ -230,12 +232,12 @@ siege.0001 = {
 			# Check if this prisoner is important enough (worth war score) that it is worth sending a toast about them in the first place.
 			if = {
 				limit = {
-					character_is_potential_important_hostage = yes
+					character_is_potential_valuable_prisoner = yes
 				}
-				save_scope_as = important_hostage
+				save_scope_as = valuable_prisoner
 
 				# The imprisoner must be informed that they captured an important hostage.
-				scope:occupant = {
+				scope:occupant ?= {
 					trigger_event = siege.0005
 				}
 
@@ -244,10 +246,10 @@ siege.0001 = {
 					limit = {
 						# But not if they themselves are the prisoner! (they will get an event already upon being imprisoned).
 						NOT = {
-							scope:important_hostage = scope:primary_siege_defender
+							scope:valuable_prisoner ?= scope:primary_siege_defender
 						}
 					}
-					scope:primary_siege_defender = {
+					scope:primary_siege_defender ?= {
 						trigger_event = siege.0006
 					}
 				}
@@ -256,10 +258,10 @@ siege.0001 = {
 				if = {
 					limit = {
 						NOT = {
-							scope:occupant = scope:primary_siege_attacker
+							scope:occupant ?= scope:primary_siege_attacker
 						}
 					}
-					scope:primary_siege_attacker = {
+					scope:primary_siege_attacker ?= {
 						trigger_event = siege.0007
 					}
 				}
@@ -621,12 +623,12 @@ siege.0005 = {
 	immediate = {
 		if = {
 			limit = {
-				scope:important_hostage = scope:primary_siege_defender
+				scope:valuable_prisoner ?= scope:primary_siege_defender
 			}
 			send_interface_toast = {
 				title = siege.1005.pow_toast.t
-				left_icon = scope:occupant
-				right_icon = scope:important_hostage
+				left_icon = scope:occupier
+				right_icon = scope:valuable_prisoner
 
 				custom_tooltip = siege.1005.pow_toast.desc.primary
 			}
@@ -634,8 +636,8 @@ siege.0005 = {
 		else = {
 			send_interface_toast = {
 				title = siege.1005.pow_toast.t
-				left_icon = scope:occupant
-				right_icon = scope:important_hostage
+				left_icon = scope:occupier
+				right_icon = scope:valuable_prisoner
 
 				custom_tooltip = siege.1005.pow_toast.desc
 			}
@@ -650,8 +652,8 @@ siege.0006 = {
 	immediate = {
 		send_interface_toast = {
 			title = siege.1006.pow_toast.t
-			left_icon = scope:occupant
-			right_icon = scope:important_hostage
+			left_icon = scope:occupier
+			right_icon = scope:valuable_prisoner
 
 			custom_tooltip = siege.1006.pow_toast.desc
 		}
@@ -665,21 +667,21 @@ siege.0007 = {
 	immediate = {
 		if = {
 			limit = {
-				scope:important_hostage = scope:primary_siege_defender
+				scope:valuable_prisoner ?= scope:primary_siege_defender
 			}
 			send_interface_toast = {
-				title = siege.1007.pow_toast.t
-				left_icon = scope:occupant
-				right_icon = scope:important_hostage
+				title = siege.1005.pow_toast.t
+				left_icon = scope:occupier
+				right_icon = scope:valuable_prisoner
 
 				custom_tooltip = siege.1007.pow_toast.desc.primary
 			}
 		}
 		else = {
 			send_interface_toast = {
-				title = siege.1007.pow_toast.t
-				left_icon = scope:occupant
-				right_icon = scope:important_hostage
+				title = siege.1005.pow_toast.t
+				left_icon = scope:occupier
+				right_icon = scope:valuable_prisoner
 
 				custom_tooltip = siege.1007.pow_toast.desc
 			}
@@ -921,8 +923,15 @@ siege.0014 = {
 
 scripted_trigger siege_0031_artifact_can_be_stolen = {
 	exists = this
+	NOR = {
+		has_variable = silmaril
+		and = {
+			has_variable = ring_of_power
+			sauron_is_alive = yes
+		}
+	}
 	OR = {
-		scope:barony.holder = { # If the character is in the province and not leading an army, their stuff is probably valid to steal
+		scope:barony.holder ?= { # If the character is in the province and not leading an army, their stuff is probably valid to steal
 			location = scope:barony.title_province
 			NOR = {
 				exists = commanding_army
@@ -931,14 +940,6 @@ scripted_trigger siege_0031_artifact_can_be_stolen = {
 			}
 		}
 		is_equipped = no
-		nor = {
-			has_variable = silmaril
-			has_variable = elven_ring
-			and = {
-				has_variable = ring_of_men
-				has_game_rule = default_ai_behavior
-			}
-		}
 		ep1_artifact_is_court_artifact_trigger = yes
 	}
 }
@@ -969,10 +970,12 @@ siege.0031 = {
 							}
 						}
 						is_equipped = no
-						nor = {
+						NOR = {
 							has_variable = silmaril
-							has_variable = elven_ring
-							has_variable = ring_of_men
+							AND = {
+								has_variable = ring_of_power
+								sauron_is_alive = yes
+							}
 						}
 						ep1_artifact_is_court_artifact_trigger = yes
 					}
@@ -1026,10 +1029,12 @@ siege.0031 = {
 								}
 							}
 							is_equipped = no
-							nor = {
-								has_variable = elven_ring
+							NOR = {
 								has_variable = silmaril
-								has_variable = ring_of_men
+								AND = {
+									has_variable = ring_of_power
+									sauron_is_alive = yes
+								}
 							}
 							ep1_artifact_is_court_artifact_trigger = yes
 						}
@@ -1066,13 +1071,13 @@ siege.0031 = {
 					ep1_chance_stealing_damaging_artifacts_modifier = { TARGET = scope:barony.holder }
 					modifier = {
 						add = 1.5
-						scope:stolen_artifact = {
+						scope:stolen_artifact ?= {
 							rarity = common
 						}
 					}
 					modifier = {
 						add = 1.5
-						scope:stolen_artifact = {
+						scope:stolen_artifact ?= {
 							rarity = common
 							OR = {
 								AND = {
@@ -1150,7 +1155,7 @@ siege.0101 = {
 				limit = {
 					this = scope:previous_controller
 				}
-				scope:barony.holder = {
+				scope:barony.holder ?= {
 					trigger_event = siege.0102
 				}
 
@@ -1215,7 +1220,7 @@ siege.1001 = {
 	hidden = yes
 
 	trigger = {
-		scope:previous_controller = {
+		scope:previous_controller ?= {
 			is_ai = yes
 			any_secret = {
 				secret_type = secret_murder
@@ -1225,14 +1230,14 @@ siege.1001 = {
 				}
 			}
 		}
-		scope:barony = {
+		scope:barony ?= {
 			exists = var:immured
 			var:immured = scope:target_check
 		}
 	}
 
 	immediate = {
-		scope:previous_controller = {
+		scope:previous_controller ?= {
 			random_secret = {
 				limit = {
 					secret_type = secret_murder
@@ -1240,7 +1245,7 @@ siege.1001 = {
 					root = {
 						has_RelationToMe_relation = { CHARACTER = scope:target_check }
 					}
-					scope:barony = {
+					scope:barony ?= {
 						exists = var:immured
 						var:immured = scope:target_check
 					}
@@ -1256,7 +1261,7 @@ siege.1001 = {
 			value = scope:immured_character
 			days = 3
 		}
-		scope:secret = {
+		scope:secret ?= {
 			reveal_to = root
 		}
 	}

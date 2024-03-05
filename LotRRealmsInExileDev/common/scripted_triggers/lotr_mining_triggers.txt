@@ -1,0 +1,800 @@
+﻿
+can_mine_trigger = {
+	NOR = {
+		has_trait = wounded_2
+		has_trait = wounded_3
+		has_trait = infirm
+		has_trait = maimed
+		has_trait = blind
+	}
+	has_contagious_deadly_disease_trigger = no
+}
+
+miner_lifestyle_track_less_trigger = {
+	has_trait = lifestyle_miner
+	has_trait_xp = {
+		trait = lifestyle_miner
+		track = $TRACK$
+		value < $LESS_THAN$
+	}
+}
+
+miner_lifestyle_track_greater_equal_trigger = {
+	has_trait = lifestyle_miner
+	has_trait_xp = {
+		trait = lifestyle_miner
+		track = $TRACK$
+		value >= $GREATER_EQUAL$
+	}
+}
+
+# Murderising
+
+mining_murder_target_trigger = {
+	OR = {
+		# Intent
+		AND = {
+			has_activity_intent = murder_attendee_intent
+			intent_target ?= { mining_valid_accidental_murder_target_trigger = yes }
+		}
+		# Schemes
+		scope:activity = {
+			any_attending_character = {
+				NOT = { this = root }
+				mining_valid_accidental_murder_target_trigger = yes
+				OR = {
+					# Rival
+					has_relation_rival = root
+					# Scheme
+					any_targeting_scheme = { mining_murder_scheme_target_trigger = yes }
+				}
+				save_temporary_scope_as = murder_target_temp
+			}
+		}
+		# Is trying to murder
+		var:mining_murder_attempt ?= {
+			mining_valid_accidental_murder_target_trigger = yes
+			save_temporary_scope_as = murder_target_temp
+		}
+	}
+	# Not put off murder already
+	NAND = {
+		exists = scope:murder_target_temp
+		var:mining_murder_defer ?= scope:murder_target_temp
+	}
+}
+
+mining_valid_accidental_murder_target_trigger = {
+	is_alive = yes
+	NOT = { has_character_flag = not_slaying }
+	is_participant_in_activity = scope:activity
+}
+
+mining_murder_scheme_target_trigger = {
+	scheme_type = murder
+	OR = {
+		scheme_owner = root
+		any_scheme_agent = { this = root }
+	}
+	scheme_progress > 3
+}
+
+mining_murder_intent_target_trigger = {
+	has_activity_intent = murder_attendee_intent
+	exists = intent_target
+	intent_target = { mining_valid_accidental_murder_target_trigger = yes }
+	save_temporary_scope_as = murder_target_temp
+}
+
+mining_valid_murder_accomplice_trigger = {
+	NOT = { this = root }
+	is_adult = yes
+	is_participant_in_activity = scope:activity
+	save_temporary_scope_as = murderer_temp
+}
+
+mining_elective_accomplice_trigger = {
+	mining_accomplice_general_trigger = {
+		MURDERER = $MURDERER$
+		TARGET = $TARGET$
+	}
+	save_temporary_scope_as = elector_temp
+	$MURDERER$ = {
+		has_election_vote_of = {
+			who = scope:elector_temp
+			title = $TARGET$.primary_title
+		}
+	}
+}
+
+mining_claimant_faction_trigger = {
+	faction_is_type = claimant_faction
+	exists = special_character
+	special_character = $MURDERER$
+	exists = special_title
+	special_title = $TARGET$.primary_title
+}
+
+mining_murder_risk_trigger = {
+	is_adult = yes
+	OR = {
+		# Scheme
+		is_scheming_against = {
+			target = root
+			type = murder
+		}
+		# Intent
+		AND = {
+			mining_murder_intent_target_trigger = yes
+			intent_target = root
+		}
+		AND = {
+			exists = var:mining_murder_attempt
+			var:mining_murder_attempt = root
+		}
+	}
+}
+
+mining_potential_murder_risk_trigger = {
+	is_adult = yes
+	NOT = {
+		has_any_good_relationship_with_character_trigger = { CHARACTER = root }
+	}
+	OR = {
+		# Rival
+		has_relation_rival = root
+		# Feud
+		AND = {
+			exists = house.house_head
+			NOT = { house = root.house }
+			house.house_head = {
+				any_owned_story = {
+					story_type = story_cycle_house_feud
+					var:house_feud_house = root.house
+				}
+			}
+		}
+		# Heir
+		AND = {			
+			this = root.player_heir
+			NOT = {
+				has_any_good_relationship_with_character_trigger = { CHARACTER = root.player_heir }
+			}
+			opinion = {
+				target = root
+				value <= 20
+			}
+			NOR = {
+				has_trait = craven
+				has_trait = honest
+				has_trait = content
+			}
+		}
+		AND = {
+			exists = var:mining_murder_attempt
+			var:mining_murder_attempt = root
+		}
+	}
+	can_start_scheme = {
+		type = murder
+		target = root
+	}
+	trigger_if = {
+		limit = {
+			OR = {
+				is_close_family_of = root
+				is_consort_of = root
+			}
+		}
+		OR = {
+			has_relation_rival = root
+			NOR = {
+				has_trait = compassionate
+				has_trait = just
+			}
+		}
+	}
+	opinion = {
+		target = root
+		value <= -25
+	}
+}
+
+mining_accomplice_general_trigger = {
+	is_ai = yes
+	is_participant_in_activity = scope:activity
+	NOR = {
+		this = $TARGET$
+		this = $MURDERER$
+		has_any_good_relationship_with_character_trigger = { CHARACTER = $TARGET$ }
+	}
+	OR = {
+		has_any_good_relationship_with_character_trigger = { CHARACTER = $MURDERER$ }
+		has_relation_rival = root
+		NOR = {
+			has_trait = craven
+			has_trait = honest
+			has_trait = content
+		}
+	}
+}
+
+####
+
+valid_mining_activity_location = {
+	OR = {
+		has_province_modifier = mining_mithril_province_modifier
+		has_province_modifier = mining_gold_province_modifier
+		has_province_modifier = mining_silver_province_modifier
+		has_province_modifier = mining_iron_province_modifier
+		has_province_modifier = mining_copper_province_modifier
+		has_province_modifier = mining_tin_province_modifier
+		has_province_modifier = mining_lead_province_modifier
+		has_province_modifier = mining_diamond_province_modifier
+		has_province_modifier = mining_ruby_province_modifier
+		has_province_modifier = mining_sapphire_province_modifier
+		has_province_modifier = mining_emerald_province_modifier
+		has_province_modifier = mining_amethyst_province_modifier
+		has_province_modifier = mining_onyx_province_modifier
+		has_province_modifier = mining_peridot_province_modifier
+		has_province_modifier = mining_quartz_province_modifier
+	}
+}
+
+province_in_mineral_region_north_blue_mountains = {
+	OR = {
+		kingdom = title:k_belegost
+		kingdom = title:k_nogrod
+		kingdom = title:k_forlindon
+	}
+}
+
+province_in_mineral_region_south_blue_mountains = {
+	OR = {
+		kingdom = title:k_buzra_dum
+		kingdom = title:k_harlindon
+	}
+}
+
+province_in_mineral_region_moria = {
+	OR = {
+		kingdom = title:k_khazad_dum
+	}
+}
+
+province_in_mineral_region_misty_mountains = {
+	OR = {
+		empire = title:e_misty_mountains
+		kingdom = title:k_dunland
+		kingdom = title:k_eregion
+		kingdom = title:k_imladris
+		kingdom = title:k_anduin_vale
+		county = title:c_langburg
+	}
+	province_in_mineral_region_moria = no
+}
+
+province_in_mineral_region_grey_mountains = {
+	OR = {
+		kingdom = title:k_grey_mountains
+		county = title:c_taurau
+	}
+}
+
+province_in_mineral_region_erebor = {
+	OR = {
+		kingdom = title:k_erebor
+	}
+}
+
+province_in_mineral_region_iron_hills = {
+	OR = {
+		kingdom = title:k_iron_hills
+	}
+}
+
+province_in_mineral_region_uldona_spine = {
+	OR = {
+		kingdom = title:k_nurunkizdin
+		kingdom = title:k_dorwinion
+		kingdom = title:k_usrievar
+	}
+}
+
+province_in_mineral_region_yellow_mountains = {
+	OR = {
+		empire = title:e_yellow_mountains
+		kingdom = title:k_an_balkumagan
+		kingdom = title:k_zajantak
+	}
+}
+
+province_in_mineral_region_angmar = {
+	OR = {
+		kingdom = title:k_angmar
+	}
+}
+
+province_in_mineral_region_white_mountains = {
+	OR = {
+		kingdom = title:k_rohan
+		kingdom = title:k_anorien
+		kingdom = title:k_lebennin
+		kingdom = title:k_lamedon
+		kingdom = title:k_pinnath_gelin
+		kingdom = title:k_andrast
+		kingdom = title:k_druwaith
+	}
+}
+
+province_in_mineral_region_belfalas = {
+	OR = {
+		kingdom = title:k_belfalas
+	}
+}
+
+province_in_mineral_region_mordor = {
+	OR = {
+		kingdom = title:k_gorgoroth
+		kingdom = title:k_nurn
+		kingdom = title:k_ithilien
+		kingdom = title:k_harondor
+		kingdom = title:k_chelkar
+	}
+}
+
+province_in_mineral_region_greenwood = {
+	OR = {
+		empire = title:e_greenwood
+	}
+}
+
+province_in_mineral_region_ered_harmal = {
+	OR = {
+		kingdom = title:k_lower_khand
+		kingdom = title:k_arysis
+	}
+	NOT = {
+		county = title:c_lafotera
+	}
+}
+
+province_in_mineral_region_abrakhan = {
+	OR = {
+		kingdom = title:k_abrakhan
+		county = title:c_lafotera
+	}
+}
+
+province_in_mineral_region_bellakar = {
+	OR = {
+		kingdom = title:k_ray
+		kingdom = title:k_nilulonde
+		kingdom = title:k_bellazen
+		kingdom = title:k_felaya
+		kingdom = title:k_tedja
+		kingdom = title:k_mardruak
+		kingdom = title:k_umbar
+	}
+}
+
+province_in_mineral_region_unassigned = {
+	province_in_mineral_region_north_blue_mountains = no
+	province_in_mineral_region_south_blue_mountains = no
+	province_in_mineral_region_moria = no
+	province_in_mineral_region_misty_mountains = no
+	province_in_mineral_region_grey_mountains = no
+	province_in_mineral_region_erebor = no
+	province_in_mineral_region_iron_hills = no
+	province_in_mineral_region_uldona_spine = no
+	province_in_mineral_region_yellow_mountains = no
+	province_in_mineral_region_angmar = no
+	province_in_mineral_region_white_mountains = no
+	province_in_mineral_region_belfalas = no
+	province_in_mineral_region_mordor = no
+	province_in_mineral_region_greenwood = no
+	province_in_mineral_region_ered_harmal = no
+	province_in_mineral_region_abrakhan = no
+	province_in_mineral_region_bellakar = no	
+}
+
+
+## Province resource generation triggers
+# Commons
+
+mining_common_mithril_province = {
+	OR = {
+		county = title:c_great_mines
+		county = title:c_dimrill_dale
+	}
+}
+
+mining_common_gold_province = {
+	always = no
+}
+
+mining_common_silver_province = {
+	OR = {
+		province_in_mineral_region_moria = yes
+	}
+}
+
+mining_common_lead_province = {
+	OR = {
+		province_in_mineral_region_ered_harmal = yes
+		province_in_mineral_region_bellakar = yes
+	}
+}
+
+mining_common_tin_province = {
+	OR = {
+		province_in_mineral_region_grey_mountains = yes
+		province_in_mineral_region_south_blue_mountains = yes
+	}
+}
+
+mining_common_copper_province = {
+	OR = {
+		province_in_mineral_region_south_blue_mountains = yes
+		province_in_mineral_region_bellakar = yes
+	}
+}
+
+mining_common_iron_province = {
+	OR = {
+		province_in_mineral_region_misty_mountains = yes
+		province_in_mineral_region_grey_mountains = yes
+		province_in_mineral_region_iron_hills = yes
+		province_in_mineral_region_angmar = yes
+		province_in_mineral_region_white_mountains = yes
+		province_in_mineral_region_mordor = yes
+		province_in_mineral_region_abrakhan = yes
+		province_in_mineral_region_unassigned = yes
+	}
+}
+
+mining_common_diamond_province = {
+	always = no
+}
+
+mining_common_ruby_province = {
+	always = no
+}
+
+mining_common_sapphire_province = {
+	always = no
+}
+
+mining_common_emerald_province = {
+	always = no
+}
+
+mining_common_amethyst_province = {
+	OR = {
+		province_in_mineral_region_erebor = yes
+	}
+}
+
+mining_common_onyx_province = {
+	OR = {
+		province_in_mineral_region_mordor = yes
+		province_in_mineral_region_abrakhan = yes
+	}
+}
+
+mining_common_peridot_province = {
+	OR = {
+		province_in_mineral_region_greenwood = yes
+	}
+}
+
+mining_common_quartz_province = {
+	OR = {
+		province_in_mineral_region_north_blue_mountains = yes
+		province_in_mineral_region_south_blue_mountains = yes
+		province_in_mineral_region_misty_mountains = yes
+		province_in_mineral_region_grey_mountains = yes
+		province_in_mineral_region_uldona_spine = yes
+		province_in_mineral_region_yellow_mountains = yes
+		province_in_mineral_region_angmar = yes
+		province_in_mineral_region_white_mountains = yes
+		province_in_mineral_region_belfalas = yes
+		province_in_mineral_region_mordor = yes
+		province_in_mineral_region_ered_harmal = yes
+		province_in_mineral_region_unassigned = yes
+	}
+}
+
+# Uncommons
+
+mining_uncommon_mithril_province = {
+	always = no
+}
+
+mining_uncommon_gold_province = {
+	OR = {
+		province_in_mineral_region_south_blue_mountains = yes
+		province_in_mineral_region_moria = yes
+		province_in_mineral_region_erebor = yes
+		province_in_mineral_region_bellakar = yes
+	}
+}
+
+mining_uncommon_silver_province = {
+	OR = {
+		province_in_mineral_region_north_blue_mountains = yes
+		province_in_mineral_region_misty_mountains = yes
+		province_in_mineral_region_erebor = yes
+		province_in_mineral_region_ered_harmal = yes
+		province_in_mineral_region_bellakar = yes
+	}
+}
+
+mining_uncommon_lead_province = {
+	OR = {
+		province_in_mineral_region_north_blue_mountains = yes
+		province_in_mineral_region_misty_mountains = yes
+		province_in_mineral_region_iron_hills = yes
+		province_in_mineral_region_uldona_spine = yes
+		province_in_mineral_region_yellow_mountains = yes
+		province_in_mineral_region_angmar = yes
+		province_in_mineral_region_white_mountains = yes
+		province_in_mineral_region_belfalas = yes
+		province_in_mineral_region_unassigned = yes
+	}
+}
+
+mining_uncommon_tin_province = {
+	OR = {
+		province_in_mineral_region_moria = yes
+		province_in_mineral_region_misty_mountains = yes
+		province_in_mineral_region_iron_hills = yes
+		province_in_mineral_region_angmar = yes
+		province_in_mineral_region_white_mountains = yes
+		province_in_mineral_region_belfalas = yes
+		province_in_mineral_region_greenwood = yes
+		province_in_mineral_region_ered_harmal = yes
+		province_in_mineral_region_unassigned = yes
+	}
+}
+
+mining_uncommon_copper_province = {
+	OR = {
+		province_in_mineral_region_moria = yes
+		province_in_mineral_region_misty_mountains = yes
+		province_in_mineral_region_grey_mountains = yes
+		province_in_mineral_region_erebor = yes
+		province_in_mineral_region_iron_hills = yes
+		province_in_mineral_region_uldona_spine = yes
+		province_in_mineral_region_abrakhan = yes
+		province_in_mineral_region_unassigned = yes
+	}
+}
+
+mining_uncommon_iron_province = {
+	OR = {
+		province_in_mineral_region_north_blue_mountains = yes
+		province_in_mineral_region_south_blue_mountains = yes
+		province_in_mineral_region_moria = yes
+		province_in_mineral_region_erebor = yes
+		province_in_mineral_region_uldona_spine = yes
+		province_in_mineral_region_yellow_mountains = yes
+		province_in_mineral_region_belfalas = yes
+		province_in_mineral_region_greenwood = yes
+		province_in_mineral_region_ered_harmal = yes
+		province_in_mineral_region_bellakar = yes
+	}
+}
+
+mining_uncommon_diamond_province = {
+	OR = {
+		province_in_mineral_region_moria = yes
+		province_in_mineral_region_yellow_mountains = yes
+		province_in_mineral_region_mordor = yes
+		province_in_mineral_region_abrakhan = yes
+	}
+}
+
+mining_uncommon_ruby_province = {
+	OR = {
+		province_in_mineral_region_south_blue_mountains = yes
+		province_in_mineral_region_moria = yes
+		province_in_mineral_region_erebor = yes
+		province_in_mineral_region_yellow_mountains = yes
+		province_in_mineral_region_ered_harmal = yes
+	}
+}
+
+mining_uncommon_sapphire_province = {
+	OR = {
+		province_in_mineral_region_north_blue_mountains = yes
+		province_in_mineral_region_moria = yes
+		province_in_mineral_region_grey_mountains = yes
+		province_in_mineral_region_erebor = yes
+		province_in_mineral_region_belfalas = yes
+	}
+}
+
+mining_uncommon_emerald_province = {
+	OR = {
+		province_in_mineral_region_north_blue_mountains = yes
+		province_in_mineral_region_moria = yes
+		province_in_mineral_region_erebor = yes
+		province_in_mineral_region_greenwood = yes
+	}
+}
+
+mining_uncommon_amethyst_province = {
+	OR = {
+		province_in_mineral_region_grey_mountains = yes
+		province_in_mineral_region_iron_hills = yes
+		province_in_mineral_region_belfalas = yes
+		province_in_mineral_region_bellakar = yes
+	}
+}
+
+mining_uncommon_onyx_province = {
+	OR = {
+		province_in_mineral_region_grey_mountains = yes
+		province_in_mineral_region_uldona_spine = yes
+	}
+}
+
+mining_uncommon_peridot_province = {
+	OR = {
+		province_in_mineral_region_misty_mountains = yes
+		province_in_mineral_region_iron_hills = yes
+		province_in_mineral_region_yellow_mountains = yes
+		province_in_mineral_region_mordor = yes
+	}
+}
+
+mining_uncommon_quartz_province = {
+	OR = {
+		province_in_mineral_region_moria = yes
+		province_in_mineral_region_erebor = yes
+		province_in_mineral_region_iron_hills = yes
+		province_in_mineral_region_greenwood = yes
+		province_in_mineral_region_abrakhan = yes
+		province_in_mineral_region_bellakar = yes
+	}
+}
+
+# Rare
+
+mining_rare_mithril_province = {
+	OR = {
+		province_in_mineral_region_moria = yes
+	}
+}
+
+mining_rare_gold_province = {
+	OR = {
+		province_in_mineral_region_north_blue_mountains = yes
+		province_in_mineral_region_misty_mountains = yes
+		province_in_mineral_region_grey_mountains = yes
+		province_in_mineral_region_iron_hills = yes
+		province_in_mineral_region_uldona_spine = yes
+		province_in_mineral_region_abrakhan = yes
+		province_in_mineral_region_unassigned = yes
+	}
+}
+
+mining_rare_silver_province = {
+	OR = {
+		province_in_mineral_region_iron_hills = yes
+		province_in_mineral_region_uldona_spine = yes
+		province_in_mineral_region_yellow_mountains = yes
+		province_in_mineral_region_belfalas = yes
+		province_in_mineral_region_unassigned = yes
+	}
+}
+
+mining_rare_lead_province = {
+	OR = {
+		province_in_mineral_region_moria = yes
+		province_in_mineral_region_grey_mountains = yes
+		province_in_mineral_region_mordor = yes
+		province_in_mineral_region_abrakhan = yes
+	}
+}
+
+mining_rare_tin_province = {
+	OR = {
+		province_in_mineral_region_erebor = yes
+		province_in_mineral_region_mordor = yes
+	}
+}
+
+mining_rare_copper_province = {
+	OR = {
+		province_in_mineral_region_angmar = yes
+		province_in_mineral_region_white_mountains = yes
+		province_in_mineral_region_ered_harmal = yes
+	}
+}
+
+mining_rare_iron_province = {
+	always = no
+}
+
+mining_rare_diamond_province = {
+	OR = {
+		province_in_mineral_region_north_blue_mountains = yes
+		province_in_mineral_region_south_blue_mountains = yes
+		province_in_mineral_region_misty_mountains = yes
+		province_in_mineral_region_erebor = yes
+		province_in_mineral_region_angmar = yes
+		province_in_mineral_region_white_mountains = yes
+		province_in_mineral_region_greenwood = yes
+		province_in_mineral_region_ered_harmal = yes
+		province_in_mineral_region_bellakar = yes
+	}
+}
+
+mining_rare_ruby_province = {
+	OR = {
+		province_in_mineral_region_misty_mountains = yes
+		province_in_mineral_region_uldona_spine = yes
+		province_in_mineral_region_angmar = yes
+		province_in_mineral_region_abrakhan = yes
+		province_in_mineral_region_unassigned = yes
+	}
+}
+
+mining_rare_sapphire_province = {
+	OR = {
+		province_in_mineral_region_south_blue_mountains = yes
+		province_in_mineral_region_misty_mountains = yes
+		province_in_mineral_region_yellow_mountains = yes
+		province_in_mineral_region_angmar = yes
+		province_in_mineral_region_abrakhan = yes
+		province_in_mineral_region_bellakar = yes
+		province_in_mineral_region_unassigned = yes
+	}
+}
+
+mining_rare_emerald_province = {
+	OR = {
+		province_in_mineral_region_south_blue_mountains = yes
+		province_in_mineral_region_misty_mountains = yes
+		province_in_mineral_region_grey_mountains = yes
+		province_in_mineral_region_yellow_mountains = yes
+		province_in_mineral_region_white_mountains = yes
+		province_in_mineral_region_ered_harmal = yes
+		province_in_mineral_region_bellakar = yes
+		province_in_mineral_region_unassigned = yes
+	}
+}
+
+mining_rare_amethyst_province = {
+	OR = {
+		province_in_mineral_region_moria = yes
+		province_in_mineral_region_misty_mountains = yes
+		province_in_mineral_region_white_mountains = yes
+		province_in_mineral_region_ered_harmal = yes
+		province_in_mineral_region_unassigned = yes
+	}
+}
+
+mining_rare_onyx_province = {
+	OR = {
+		province_in_mineral_region_south_blue_mountains = yes
+		province_in_mineral_region_misty_mountains = yes
+		province_in_mineral_region_yellow_mountains = yes
+		province_in_mineral_region_angmar = yes
+		province_in_mineral_region_unassigned = yes
+	}
+}
+
+mining_rare_peridot_province = {
+	OR = {
+		province_in_mineral_region_north_blue_mountains = yes
+		province_in_mineral_region_uldona_spine = yes
+		province_in_mineral_region_unassigned = yes
+	}
+}
+
+mining_rare_quartz_province = {
+	always = no
+}
