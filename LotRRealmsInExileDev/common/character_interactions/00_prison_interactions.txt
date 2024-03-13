@@ -3669,7 +3669,10 @@ release_from_prison_interaction = {
 						every_character_artifact = {
 							limit = {
 								NOT = { has_variable = silmaril }
-								NOT = { has_variable = ring_of_power }
+								NOT = { 
+									has_variable = ring_of_power
+									sauron_is_alive = yes
+								}
 							}
 							set_owner = {
 								target = scope:actor
@@ -3965,6 +3968,36 @@ release_from_prison_interaction = {
 						VALUE = minor_unity_gain
 						DESC = clan_unity_released_from_own_prison.desc
 						REVERSE_NON_HOUSE_TARGET = no
+					}
+
+					# LEGITIMACY GAIN FROM RELEASING DUKES AND ABOVE
+					if = {
+						limit = {
+							exists = scope:recipient.primary_title
+							scope:recipient.primary_title.tier >= tier_duchy
+						}
+						# Minus 2, since we want Duchy to be 1, and it's normally 3
+						save_scope_value_as = {
+							name = title_tier_minus_2
+							value = {
+								value = scope:recipient.primary_title.tier
+								subtract = 2
+							}
+						}
+						scope:actor = {
+							send_interface_toast = {
+								type = event_toast_effect_good
+								title = legitimacy_gain_toast
+								left_icon = scope:actor
+								right_icon = scope:recipient
+								add_legitimacy = {
+									value = {
+										value = miniscule_legitimacy_gain
+										multiply = scope:title_tier_minus_2
+									}
+								}
+							}
+						}
 					}
 				}
 				else = {
@@ -4384,7 +4417,7 @@ release_from_prison_interaction = {
 				has_royal_court = yes
 			}
 			scope:recipient = {
-				is_adult = yes
+				is_a_minor = no
 			}
 		}
 		is_valid = {
@@ -4438,7 +4471,7 @@ release_from_prison_interaction = {
 				is_ruler = no
 				NOT = { is_courtier_of = scope:actor }
 				OR = {
-					is_adult = yes
+					is_a_minor = no
 					AND = {
 						is_adult = no
 						OR = {
@@ -5149,16 +5182,14 @@ execute_prisoner_interaction = {
 	is_shown = {
 		scope:recipient = {
 			is_imprisoned_by = scope:actor
-			NOR = {
-				is_nazgul = yes
-				is_maiar = yes
-			}
+			cannot_be_killed = no
 		}
 	}
 
 	is_valid_showing_failures_only = {
 		scope:recipient = { is_busy_in_events_localised = yes } #Prisoner
 		scope:recipient = { NOT = { has_strong_hook = scope:actor } }
+		scope:recipient = { cannot_be_killed = no }
 		scope:recipient = {
 			custom_description = {
 				text = "currently_being_tortured"
@@ -5246,7 +5277,7 @@ execute_prisoner_interaction = {
 						has_royal_court = yes
 					}
 					scope:recipient = {
-						is_adult = yes
+						is_a_minor = no
 					}
 				}
 				scope:actor = {
@@ -5282,7 +5313,7 @@ execute_prisoner_interaction = {
 						NOT = { has_character_flag = witnessed_execution_flag }
 					}
 					scope:recipient = {
-						is_adult = yes
+						is_a_minor = no
 					}
 				}
 				scope:actor = { trigger_event = bp1_yearly.9045 }
@@ -5298,7 +5329,7 @@ execute_prisoner_interaction = {
 						is_ai = no
 					}
 					scope:recipient = {
-						is_adult = yes
+						is_a_minor = no
 					}
 				}
 				scope:actor = { trigger_event = bp1_yearly.9044 }
@@ -5750,8 +5781,9 @@ torture_interaction = {
 
 	is_shown = {
 		scope:recipient = { is_imprisoned_by = scope:actor }
-		scope:recipient = { is_adult = yes }
-		scope:actor = { is_adult = yes }
+		scope:recipient = { is_a_minor = no }
+		scope:actor = { is_a_minor = no }
+		scope:recipient = { cannot_be_killed = no }
 	}
 
 	is_valid_showing_failures_only = {
@@ -5760,6 +5792,7 @@ torture_interaction = {
 		#		health <= 1.5 #Because torture would definitely kill them
 		#	}
 		#}
+		scope:recipient = { cannot_be_killed = no }
 		scope:recipient = {
 			custom_description = {
 				text = "currently_being_tortured"
@@ -5819,6 +5852,17 @@ torture_interaction = {
 
 			#They have a secret I want to know about
 			if = {
+				limit = {
+					scope:recipient = { is_elf = yes }
+				}
+				scope:recipient = {
+					death = {
+						death_reason = death_torture
+						killer = root
+					}
+				}
+			}
+			else_if = {
 				limit = {
 					scope:recipient = {	
 						OR = {
@@ -5926,6 +5970,11 @@ torture_interaction = {
 			}
 			add = 30
 		}
+		
+		modifier = {
+			scope:recipient = { is_elf = yes }
+			add = -1000
+		}
 	}	
 }
 
@@ -5942,9 +5991,10 @@ castrate_interaction = {
 			NOT = { has_trait = eunuch }
 			is_male = yes
 			cannot_be_killed = no
+			is_elf = no
 		}
 		scope:actor = {
-			is_adult = yes
+			is_a_minor = no
 			culture = {
 				# has_cultural_parameter = can_castrate_prisoners
 				OR = {
@@ -6082,9 +6132,10 @@ blind_interaction = {
 			is_imprisoned_by = scope:actor
 			NOT = { has_trait = blind }
 			cannot_be_killed = no
+			is_elf = no
 		}
 		scope:actor = {
-			is_adult = yes
+			is_a_minor = no
 			# culture = { has_cultural_parameter = can_blind_prisoners }
 			culture = {
 				OR = {
@@ -6252,10 +6303,10 @@ shave_interaction = {
 			is_imprisoned_by = scope:actor
 			NOT = { has_trait = beardless }
 			is_dwarf = yes
-			is_adult = yes
+			is_a_minor = no
 		}
 		scope:actor = {
-			is_adult = yes
+			is_a_minor = no
 			is_dwarf = yes
 		}
 	}
@@ -6290,11 +6341,6 @@ shave_interaction = {
 			add_character_flag = {
 				flag = is_being_tortured
 				months = 6 # Players in MP can keep the event window open...
-			}
-			
-			trigger_event = {
-				id = dwarven.9002
-				years = 5
 			}
 		}
 

@@ -10,6 +10,8 @@ Includes = {
 	"jomini/jomini_mapobject.fxh"
 	"bordercolor.fxh"
 	"dynamic_masks.fxh"
+	"legend.fxh"
+	"disease.fxh"
 }
 
 PixelShader = 
@@ -194,7 +196,8 @@ PixelShader =
 			SLightingProperties LightingProps = GetSunLightingProperties( WorldSpacePos, ShadowTexture );
 	
 			float3 Color = CalculateSunLighting( MaterialProps, LightingProps, EnvironmentMap );
-			
+			ApplyLegendDiffuse( Color, WorldSpacePos.xz * WorldSpaceToTerrain0To1 );
+			ApplyDiseaseDiffuse( Color, WorldSpacePos.xz * WorldSpaceToTerrain0To1 );
 			Color = GH_ApplyAtmosphericEffects( Color, WorldSpacePos, FogOfWarAlpha );
 			Color = ApplyDistanceFog( Color, WorldSpacePos );
 			
