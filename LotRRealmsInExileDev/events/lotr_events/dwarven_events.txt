@@ -298,60 +298,104 @@ dwarven.5001 = { # On childbirth: Random chance to be a reincarnation
 		is_dwarf = yes
 		NOR = {
 			has_trait = sickly
-			root.father ?= { 
+			father = { 
+				house = root.house
+				has_trait = disinherited
+			}
+			father.father = { 
+				house = root.house
+				has_trait = disinherited
+			}
+			father.father.father = { 
 				house = root.house
 				has_trait = disinherited
 			}
 		}
-		# Must be in royal dynasty
+		# 100 Year Cooldown after the death of the last guy
+		trigger_if = {
+			limit = {
+				dynasty = { exists = var:dorfdad_cooldown_year }
+			}
+			dynasty = { current_year >= var:dorfdad_cooldown_year }
+		}
+		# Must be in royal dynasty, must have reincarnated less than seven times
 		dynasty = {
 			is_in_list = dorfdad_dynasties
 			exists = var:dorfdad_incarnations
 			var:dorfdad_incarnations < 7
 		}
-		# Must have reincarnations left
-		# # Parent, grandparent or great grandparent must be my dynasty head
-		# any_ancestor = {
-		# 	house = root.house
-		# 	this = root.dynasty.dynast
-		# }
+		# Must be direct male-line descendant and oldest child
+		NOT = {
+			any_sibling = {
+				is_alive = yes
+				is_female = no
+				NOT = { has_trait = bastard }
+			}
+		}
+		father = {
+			is_alive = yes
+			house = root.house
+			culture = { has_same_culture_heritage = root.culture }
+			OR = {
+				is_dynast = yes
+				AND = {
+					NOT = {
+						any_sibling = {
+							is_alive = yes
+							is_female = no
+							NOT = { has_trait = bastard }
+						}
+					}
+					father = {
+						is_alive = yes
+						house = root.house
+						culture = { has_same_culture_heritage = root.culture }
+						OR = {
+							is_dynast = yes
+							AND = {
+								NOT = {
+									any_sibling = {
+										is_alive = yes
+										is_female = no
+										NOT = { has_trait = bastard }
+									}
+								}
+								father = {
+									is_alive = yes
+									house = root.house
+									culture = { has_same_culture_heritage = root.culture }
+									OR = {
+										is_dynast = yes
+										AND = {
+											NOT = {
+												any_sibling = {
+													is_alive = yes
+													is_female = no
+													NOT = { has_trait = bastard }
+												}
+											}
+											father = {
+												is_alive = yes
+												house = root.house
+												culture = { has_same_culture_heritage = root.culture }
+												is_dynast = yes
+											}
+										}
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+		}
 		# # Parent, grandparent or great grandparent must be a king or higher
-		# any_ancestor = {
-		# 	is_alive = yes
-		# 	house = root.house
-		# 	is_landed = yes
-		# 	highest_held_title_tier >= tier_kingdom
-		# }
-		# # Should be oldest male child
-		# NOR = {
-		# 	any_sibling = {
-		# 		is_female = no
-		# 		NOT = { has_trait = bastard }
-		# 		age > root.age
-		# 	}
-		# }
-		# # Must be heir to a kingdom, or parent must be heir to a kingdom
-		# OR = {
-		# 	any_ancestor = {
-		# 		is_alive = yes
-		# 		is_landed = yes
-		# 		house = root.house
-		# 		highest_held_title_tier >= tier_kingdom
-		# 		player_heir = ROOT
-		# 	}
-		# 	any_parent = {
-		# 		is_alive = yes
-		# 		house = root.house
-		# 		any_ancestor = {
-		# 			is_alive = yes
-		# 			is_landed = yes
-		# 			house = root.house
-		# 			highest_held_title_tier >= tier_kingdom
-		# 			player_heir = this
-		# 		}
-		# 	}
-		# }
-		# Last Incarnation cant be alive or close family member
+		any_ancestor = {
+			house = root.house
+			is_landed = yes
+			highest_held_title_tier >= tier_kingdom
+		}
+		# No current reincarnation
 		NOT = {
 			dynasty = {
 				any_dynasty_member = {
@@ -360,11 +404,6 @@ dwarven.5001 = { # On childbirth: Random chance to be a reincarnation
 				}
 			}
 		}
-		#dynasty.var:dorfdad_latest ?= {
-		#	even_if_dead = yes
-		#	is_alive = no
-		#	NOT = { is_close_family_of = root }
-		#}
 		# No other unconfirmed reincarnations exist
 		NOT = { dynasty.var:current_reincarnation ?= { is_alive = yes } }
 	}
@@ -372,14 +411,31 @@ dwarven.5001 = { # On childbirth: Random chance to be a reincarnation
 	immediate = {
 		debug_log = "Testing for dorfdad reincarnation!"
 		random = {
-			chance = 10000
-			modifier = {
-				any_parent = {
-					is_ai = no
+			chance = {
+				value = 10
+				if = { # Player children get a higher chance, as a treat
+					limit = {
+						any_ancestor = {
+							is_alive = yes
+							house = root.house
+							is_ai = no
+						}
+					}
+					add = 5
 				}
-				factor = 100
+				if = { # Some characters historically sire incarnates
+					limit = {
+						any_ancestor = {
+							is_alive = yes
+							house = root.house
+							has_character_flag = historically_conceived_dorfdad
+						}
+					}
+					add = 1000
+				}
 			}
-			create_possible_dorfdad_effect = yes
+			# Create the Story
+			create_story = story_dorfdad_reincarnation
 			debug_log = "Found a possible Dorfdad Reincarnation!"
 		}
 	}
@@ -404,48 +460,47 @@ dwarven.5100 = { # Upon turning 16: Reincarnate realized who they are, is confir
 	}
 	
 	trigger = {
-		has_character_flag = is_a_dorfdad
+		any_owned_story = {
+			story_type = story_dorfdad_reincarnation
+		}
 		dynasty = { var:current_reincarnation ?= root }
-		## He or his family must hold a kingdom
-		OR = {
+		## He or his family head must hold a kingdom
+		dynasty.dynast = {
 			is_landed = yes
 			highest_held_title_tier >= tier_kingdom
-			any_ancestor = {
-				is_alive = yes
-				is_landed = yes
-				house = root.house
-				highest_held_title_tier >= tier_kingdom
-				player_heir ?= ROOT
-			}
-			any_parent = {
-				is_alive = yes
-				house = root.house
-				any_ancestor = {
-					is_alive = yes
-					is_landed = yes
-					house = root.house
-					highest_held_title_tier >= tier_kingdom
-					player_heir ?= this
-				}
-			}
+			is_dwarf = yes
+			house = root.house
+			culture = { has_same_culture_heritage = root.culture }
 		}
+		is_dwarf = yes
 	}
 	
 	immediate = {
+		# Change Name, education, etc
 		become_dorfdad_effect = yes
+		debug_log = "Confirmed a new Dorfdad Reincarnation!"
+	}
+	option = {
+		name = dwarven.5100.a
 		dynasty = {
 			every_dynasty_member = {
 				limit = {
-					is_ai = no
+					is_landed = yes
 					NOT = { this = root }
 				}
 				trigger_event = dwarven.5101 # Close family news
 			}
 		}
-		debug_log = "Confirmed a new Dorfdad Reincarnation!"
-	}
-	option = {
-		name = dwarven.5100.a
+		
+		
+		if = {
+			limit = { # Minor News
+				has_game_rule = all_news
+			}
+			every_player = { #Global News Announcement
+				trigger_event = news_event.0025
+			}
+		}
 	}
 }
 
@@ -488,11 +543,34 @@ dwarven.5101 = { # News reach close family
 		#		text = dwarven.5101.b
 		#	}
 		#}
+		if = {
+			limit = {
+				is_dwarf = yes
+				is_landed = yes
+				highest_held_title_tier >= tier_kingdom
+				scope:new_dorfdad = {
+					house = root.house
+					culture = { has_same_culture_heritage = root.culture }
+				}
+				OR = {
+					is_dynast = yes
+					is_parent_of = scope:new_dorfdad
+					is_sibling_of = scope:new_dorfdad
+					is_grandparent_of = scope:recipient
+					is_great_grandparent_of = scope:recipient
+				}
+			}
+			set_designated_heir = scope:new_dorfdad
+		}
 		show_as_tooltip = {
 			scope:new_dorfdad ?= { become_dorfdad_effect = yes }
 		}
 	}
 }
+
+##############################
+### Dwarven Shaving Events ###
+##############################
 
 # on_new_holder: New High King gets the trait.
 dwarven.6001 = {
