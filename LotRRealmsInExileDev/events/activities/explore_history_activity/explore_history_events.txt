@@ -834,6 +834,7 @@ explore_history.0060 = {
 					location = scope:activity.activity_location
 					OR = {
 						has_court_position = chronicler_court_position
+						has_court_position = antiquarian_court_position
 						has_council_position = councillor_court_chaplain
 					}
 				}
@@ -1037,7 +1038,7 @@ explore_history.0110 = {
 	}
 }
 
-# Select a  Chronicler #
+# Select a Chronicler #
 explore_history.0540 = {
 	type = activity_event
 	content_source = realms_dlc
@@ -1086,6 +1087,7 @@ explore_history.0540 = {
 
 	trigger = {
 		NOT = { employs_court_position = chronicler_court_position }
+		has_dlc_feature = legends
 	}
 	
 	cooldown = { months = 6 }
@@ -1341,6 +1343,333 @@ explore_history.0540 = {
 
 	option = { # Pick nobody
 		name = explore_history.0540.d
+		ai_chance = { # The AI should always pick someone, unless they're bankrupt
+			base = 0
+			modifier = {
+				add = 100
+				gold < tiny_gold_value
+			}
+		}
+	}
+
+	after = {
+		# Update success chance
+		scope:activity = {
+			set_variable = {
+				name = hunt_success_chance
+				value = hunt_success_chance_value
+			}
+		}
+	}
+}
+
+# Select an Antiquarian #
+explore_history.0541 = {
+	type = activity_event
+	content_source = realms_dlc
+	title = explore_history.0541.t
+	desc = {
+		desc = explore_history.0541.desc.intro
+		first_valid = {
+			triggered_desc = {
+				trigger = {
+					OR = {
+						has_relation_rival = scope:antiquarian_candidate_1
+						opinion = {
+							value <= low_negative_opinion
+							target = scope:antiquarian
+						}
+					}
+				}
+				desc = explore_history.0541.desc.hates_candidate_a
+			}
+			desc = explore_history.0541.desc.candidate_a
+		}
+		triggered_desc = {
+			trigger = { exists = scope:antiquarian_candidate_2 }
+			desc = explore_history.0541.desc.nepotism
+		}
+		triggered_desc = {
+			trigger = { exists = scope:antiquarian_candidate_3 }
+			desc = explore_history.0541.desc.enthusiasm
+		}
+		desc = explore_history.0541.desc.outro
+	}
+	theme = explore_history_activity
+	left_portrait = {
+		character = scope:host
+		animation = thinking
+	}
+	center_portrait = {
+		character = scope:antiquarian_candidate_2
+		animation = war_over_win
+	}
+	right_portrait = {
+		character = scope:antiquarian_candidate_1
+		animation = admiration
+	}
+	lower_right_portrait = scope:antiquarian_candidate_3
+
+	trigger = {
+		NOR = { 
+			employs_court_position = antiquarian_court_position
+			has_dlc_feature = legends
+		}
+	}
+	
+	cooldown = { months = 6 }
+
+	immediate = {
+		scope:activity = {
+			ordered_attending_character = { # The best guy for the job
+				limit = {
+					OR = {
+						is_vassal_of = root
+						is_courtier_of = root
+					}
+					root = {
+						can_appoint_char_to_court_position = {
+							CHAR = prev
+							COURT_POS = antiquarian_court_position
+						}
+					}
+				}
+				order_by = aptitude:antiquarian_court_position
+				save_scope_as = antiquarian_candidate_1
+			}
+			if = {
+				limit = {
+					NOT = { exists = scope:antiquarian_candidate_1 }
+				}
+				if = {
+					limit = {
+						any_pool_character = {
+							province = scope:activity.activity_location
+							is_physically_able_ai_adult = yes
+						}
+					}
+					random_pool_character = {
+						province = scope:activity.activity_location
+						limit = {
+							is_physically_able_ai_adult = yes
+						}
+						save_scope_as = antiquarian_candidate_1
+					}
+				}
+				else = {
+					hidden_effect = {
+						create_character = {
+							template = generic_peasant_character
+							gender_female_chance = root_soldier_female_chance
+							location = scope:activity.activity_location
+							culture = scope:host.culture
+							faith = scope:host.faith
+							dynasty = none
+							save_scope_as = antiquarian_candidate_1
+						}
+					}
+				}
+			}
+			if = {
+				limit = {
+					any_attending_character = {
+						OR = {
+							is_vassal_of = root
+							is_courtier_of = root
+						}
+						OR = {
+							is_close_or_extended_family_of = root
+							has_relation_friend = root
+							has_relation_lover = root
+						}
+						NOT = { has_relation_rival = root }
+						root = {
+							can_appoint_char_to_court_position = {
+								CHAR = prev
+								COURT_POS = antiquarian_court_position
+							}
+						}
+						NOT = { this = scope:antiquarian_candidate_1 }
+					}
+				}
+				random_attending_character = { # The nepotism pick
+					limit = {
+						OR = {
+							is_vassal_of = root
+							is_courtier_of = root
+						}
+						OR = {
+							is_close_or_extended_family_of = root
+							has_relation_friend = root
+							has_relation_lover = root
+						}
+						NOT = { has_relation_rival = root }
+						root = {
+							can_appoint_char_to_court_position = {
+								CHAR = prev
+								COURT_POS = antiquarian_court_position
+							}
+						}
+						NOT = { this = scope:antiquarian_candidate_1 }
+					}
+					save_scope_as = antiquarian_candidate_2
+				}
+			}
+			if = {
+				limit = {
+					any_attending_character = {
+						OR = {
+							is_vassal_of = root
+							is_courtier_of = root
+						}
+						root = {
+							can_appoint_char_to_court_position = {
+								CHAR = prev
+								COURT_POS = antiquarian_court_position
+							}
+						}
+						NOT = { this = scope:antiquarian_candidate_1 }
+						trigger_if = {
+							limit = {
+								exists = scope:antiquarian_candidate_2
+							}
+							NOT = { this = scope:antiquarian_candidate_2 }
+						}
+					}
+				}
+				random = {
+					chance = 25
+					ordered_attending_character = { # Second best guy for the job
+						limit = {
+							OR = {
+								is_vassal_of = root
+								is_courtier_of = root
+							}
+							root = {
+								can_appoint_char_to_court_position = {
+									CHAR = prev
+									COURT_POS = antiquarian_court_position
+								}
+							}
+							NOT = { this = scope:antiquarian_candidate_1 }
+							trigger_if = {
+								limit = {
+									exists = scope:antiquarian_candidate_2
+								}
+								NOT = { this = scope:antiquarian_candidate_2 }
+							}
+						}
+						order_by = {
+							value = aptitude:antiquarian_court_position
+							add = ai_energy
+						}
+						save_scope_as = antiquarian_candidate_3
+					}
+				}
+			}
+		}
+	}
+
+	option = { # Pick the best guy
+		name = explore_history.0541.a
+		court_position_grant_effect = {
+			CANDIDATE = scope:antiquarian_candidate_1
+			POS = antiquarian_court_position
+			EMPLOYER = root
+		}
+		add_prestige = minor_prestige_gain
+		ai_chance = {
+			base = 10
+			opinion_modifier = {
+				who = root
+				opinion_target = scope:antiquarian_candidate_1
+				min = 0
+				max = 10
+				multiplier = 0.5
+			}
+			modifier = {
+				factor = 0.5
+				has_trait = family_first
+			}
+			modifier = {
+				factor = 0.5
+				has_relation_rival = scope:antiquarian_candidate_1
+				NOT = { has_trait = forgiving }
+			}
+		}
+	}
+
+	option = { # Pick the nepotism target
+		name = explore_history.0541.b
+		trigger = {
+			exists = scope:antiquarian_candidate_2
+		}
+		court_position_grant_effect = {
+			CANDIDATE = scope:antiquarian_candidate_2
+			POS = antiquarian_court_position
+			EMPLOYER = root
+		}
+		reverse_add_opinion = {
+			target = scope:antiquarian_candidate_2
+	 		modifier = grateful_opinion
+	 		opinion = 15
+		}
+		ai_chance = {
+			base = 10
+			opinion_modifier = {
+				who = root
+				opinion_target = scope:antiquarian_candidate_2
+				min = 0
+				max = 10
+				multiplier = 0.5
+			}
+			modifier = {
+				factor = 2
+				has_trait = family_first
+			}
+		}
+	}
+
+	option = { # Pick the third target
+		name = explore_history.0541.c
+		trigger = {
+			exists = scope:antiquarian_candidate_3
+		}
+		court_position_grant_effect = {
+			CANDIDATE = scope:antiquarian_candidate_3
+			POS = antiquarian_court_position
+			EMPLOYER = root
+		}
+		random = {
+			chance = 50
+			set_relation_friend = {
+				target = scope:antiquarian_candidate_3
+		 		reason = friend_made_me_antiquarian
+			}
+		}
+		ai_chance = {
+			base = 5
+			opinion_modifier = {
+				who = root
+				opinion_target = scope:antiquarian_candidate_3
+				min = 0
+				max = 10
+				multiplier = 0.5
+			}
+			modifier = {
+				factor = 0.5
+				has_trait = family_first
+			}
+			modifier = {
+				factor = 0.5
+				has_relation_rival = scope:antiquarian_candidate_3
+				NOT = { has_trait = forgiving }
+			}
+		}
+	}
+
+	option = { # Pick nobody
+		name = explore_history.0541.d
 		ai_chance = { # The AI should always pick someone, unless they're bankrupt
 			base = 0
 			modifier = {
@@ -9122,6 +9451,10 @@ explore_history.9000 = { #Balrog Inflation
 					explore_history_9000_overenthusiastic_researcher = yes
 				}
 				alternative_limit = {
+					has_court_position = antiquarian_court_position
+					explore_history_9000_overenthusiastic_researcher = yes
+				}
+				alternative_limit = {
 					explore_history_9000_overenthusiastic_researcher = yes
 				}
 				save_scope_as = overenthusiastic_researcher
@@ -9540,6 +9873,10 @@ explore_history.9007 = { #The Bellakar Delusion
 				}
 				alternative_limit = {
 					has_court_position = chronicler_court_position
+					explore_history_9000_overenthusiastic_researcher = yes
+				}
+				alternative_limit = {
+					has_court_position = antiquarian_court_position
 					explore_history_9000_overenthusiastic_researcher = yes
 				}
 				alternative_limit = {
