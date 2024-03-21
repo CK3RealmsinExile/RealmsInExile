@@ -351,6 +351,12 @@ PixelShader = {
 				float ShadowTex = smoothstep( _FoWShadowTexStart, _FoWShadowTexStop, SampleFowNoiseShadow( Coordinate ) );
 			#endif
 
+			// MOD(godherja)
+			// Prevent clouds from showing up on top of map table & environment
+			CloudTex  = lerp(CloudTex, 0.0f, FlatMapLerp);
+			ShadowTex = lerp(ShadowTex, 0.0f, FlatMapLerp);
+			// END MOD
+
 			// Apply Fog of war and cloud shadow
 			float3 FinalColor = lerp( Color, _FoWShadowColor.rgb, _FoWShadowMult * ShadowAlpha );					// Fow darkness
 			FinalColor = lerp( FinalColor, _FoWShadowColor.rgb, _FoWShadowMult * ShadowTex * ShadowMultiplier );	// Cloud Shadow
