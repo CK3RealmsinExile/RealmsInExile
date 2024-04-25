@@ -3622,6 +3622,12 @@ destroy_dol_guldur_cb = {
 				years = 10
 			}
 		}
+
+		if = { # Check if its maglor 
+			limit = { scope:attacker = { has_variable = war_against_DG } }
+			scope:attacker = { remove_variable = war_against_DG }
+			scope:attacker = { trigger_event = elven.1830 }
+		}
 	}
 
 	on_white_peace_desc = {
@@ -4197,6 +4203,942 @@ felaya_eru_vassals_cb = {
 	attacker_wargoal_percentage = 0.8
 	
 }
+
+fourth_kinslaying_cb = {
+	icon = vassalization
+	group = subjugation
+	ai_only_against_neighbors = yes
+
+	allowed_for_character = {
+		always = no
+	}
+	
+	allowed_against_character_display_regardless = {
+	}
+	
+	allowed_against_character = {
+	}
+	
+	should_invalidate = {
+		OR = {
+			scope:defender = {
+				is_independent_ruler = no
+			}
+			scope:attacker = {
+				has_culture = culture:wastelands
+			}
+			scope:defender = {
+				has_culture = culture:wastelands
+			}
+		}
+	}
+	
+	on_declaration = { on_declared_war = yes }	
+	
+	on_invalidated_desc = msg_subjugation_war_invalidated_message
+	
+	on_invalidated = {
+	}
+
+	on_victory_desc = {
+	}
+	
+	on_victory = {
+		scope:attacker = { show_pow_release_message_effect = yes }
+
+		scope:defender.capital_county = { save_temporary_scope_as = new_capital_county }
+		scope:defender = {
+			every_held_title = {
+				add_to_list = target_titles
+			}
+		}
+
+		create_title_and_vassal_change = {
+			type = swear_fealty
+			save_scope_as = title_change
+			add_claim_on_loss = no
+		}
+
+		every_in_list = {
+			list = target_titles
+			
+			change_title_holder = {
+				holder = scope:attacker
+				change = scope:title_change
+			}
+		}
+
+		resolve_title_and_vassal_change = scope:title_change	
+
+		#EP2 accolade glory gain for winning against higher ranked enemy
+		scope:attacker = { accolade_attacker_war_end_glory_gain_high_effect = yes }
+		
+		hidden_effect = {
+			create_title_and_vassal_change = {
+				type = swear_fealty
+				save_scope_as = change
+				add_claim_on_loss = no
+			}
+			
+			scope:defender = {
+				every_vassal_or_below = {
+					change_liege = {
+						liege = scope:attacker
+						change = scope:change
+					}
+					if = {
+						limit = { has_variable = joined_maglor }
+						remove_variable = joined_maglor
+					}
+				}
+			}
+			
+			scope:attacker = { 
+				get_title = title:e_noldor 
+				set_primary_title_to = title:e_noldor  
+				set_realm_capital = scope:new_capital_county
+			}
+		}
+		scope:attacker = { trigger_event = elven.1560 }
+		resolve_title_and_vassal_change = scope:change
+
+		# Allies on both sides get full prestige value for helping in the war, based on their war participation.
+		modify_allies_of_participants_fame_values = {
+			WINNER = scope:attacker
+			FAME_BASE = major_prestige_value
+			IS_RELIGIOUS_WAR = no
+			WINNER_ALLY_FAME_SCALE = 1
+			LOSER_ALLY_FAME_SCALE = 1
+		}
+		remove_variable = rallied_loyalist
+		# Truce
+		add_truce_attacker_victory_effect = yes
+	}
+
+	on_white_peace_desc = {
+		desc = WHITE_PEACE_DISABLED
+	}
+	
+	on_white_peace = {
+	}
+
+	on_defeat_desc = {
+		desc = fourth_kinslaying_cb_defeat_desc
+	}
+	
+	on_defeat = {
+		scope:attacker = { show_pow_release_message_effect = yes }
+
+		#EP2 accolade glory gain for winning against higher ranked enemy
+		scope:defender = { accolade_defender_war_end_glory_gain_high_effect = yes }
+		
+		# Prestige loss for the attacker
+		scope:attacker = { trigger_event = elven.1565 }
+
+		# Prestige for the defender
+		scope:defender = {
+			add_prestige_war_defender_effect = { PRESTIGE_VALUE = major_prestige_value }
+		}
+
+		# Allies on both sides get full prestige value for helping in the war, based on their war participation.
+		modify_allies_of_participants_fame_values = {
+			WINNER = scope:defender
+			FAME_BASE = major_prestige_value
+			IS_RELIGIOUS_WAR = no
+			WINNER_ALLY_FAME_SCALE = 1
+			LOSER_ALLY_FAME_SCALE = 1
+		}
+		
+		on_lost_aggression_war_discontent_loss = yes
+	}
+
+	ai_score_mult = { #LotR
+		value = 1
+
+		# LotR - Sauron and Nazgul should not target eachother
+		add = {
+			if = {
+				limit = {
+					OR = {
+						AND = {
+							scope:attacker = { is_sauron = yes }
+							scope:defender = { has_trait = nazgul }
+						}
+						AND = {
+							scope:defender = { is_sauron = yes }
+							scope:attacker = { has_trait = nazgul }
+						}
+					}
+				}
+				add = -1000
+			}
+		}
+
+		# LotR - Non-Evil faith characters leave poor Radagast alone! 
+		add = {
+			if = {
+				limit = {
+					scope:attacker = { faith_is_evil = no }
+					scope:defender.culture = culture:istari
+				}
+				add = -1000
+			}
+		}
+
+		# LotR - Protectorates are much less aggressive
+		add = {
+			if = {
+				limit = {
+					scope:attacker = { has_variable = overlord_protector }
+				}
+				add = -1000
+			}
+		}
+
+		#LotR
+		multiply = elf_target_ai_score_value
+	}
+	
+	on_primary_attacker_death = inherit
+	on_primary_defender_death = inherit
+	
+	attacker_allies_inherit = yes
+	defender_allies_inherit = yes
+	
+	war_name = "fourth_kinslaying_cb_name"
+	war_name_base = "fourth_kinslaying_cb_name"
+	cb_name = "fourth_kinslaying_cb_name"
+	interface_priority = 59
+	
+	ticking_war_score_targets_entire_realm = yes
+	max_defender_score_from_occupation = 150
+	max_attacker_score_from_occupation = 150
+	attacker_ticking_warscore = 0
+	attacker_wargoal_percentage = 0.8
+	
+	max_ai_diplo_distance_to_title = 500
+}
+
+maglor_umbar_cb = {
+	icon = vassalization
+	group = subjugation
+	ai_only_against_neighbors = yes
+
+	allowed_for_character = {
+		always = no
+	}
+	
+	allowed_against_character_display_regardless = {
+	}
+	
+	allowed_against_character = {
+		# always = no
+	}
+	
+	should_invalidate = {
+		OR = {
+			scope:defender = {
+				is_independent_ruler = no
+			}
+			scope:attacker = {
+				has_culture = culture:wastelands
+			}
+			scope:defender = {
+				has_culture = culture:wastelands
+			}
+		}
+	}
+	
+	on_declaration = { on_declared_war = yes }	
+	
+	on_invalidated_desc = msg_subjugation_war_invalidated_message
+	
+	on_invalidated = {
+	}
+
+	on_victory_desc = {
+	}
+	
+	on_victory = {
+		scope:attacker = { show_pow_release_message_effect = yes }
+		scope:attacker = {
+			set_variable = maglor_umbar_event
+			trigger_event = elven.1715
+		}
+
+
+		if = {
+			limit = {
+				scope:defender = { has_title = title:e_umbar }
+			}
+			title:e_umbar = { save_scope_as = defender_primary_title }
+		}
+		else = {
+			title:k_umbar = { save_scope_as = defender_primary_title }
+		}
+
+		scope:defender_primary_title = {
+			every_de_jure_county = {
+				limit = { holder = { is_vassal_or_below_of = scope:defender } }
+				add_to_list = target_titles
+			}
+		}
+
+		create_title_and_vassal_change = {
+			type = conquest
+			save_scope_as = title_change
+			add_claim_on_loss = no
+		}
+
+		every_in_list = {
+			list = target_titles
+			
+			change_title_holder = {
+				holder = scope:attacker
+				change = scope:title_change
+			}
+		}
+
+		resolve_title_and_vassal_change = scope:title_change	
+
+		scope:defender = {
+			every_held_title = {
+				limit = { tier >= tier_kingdom }
+				holder = { destroy_title = prev }
+			}
+			every_held_title = {
+				limit = { tier <= tier_duchy }
+				add_to_list = target_titles_defender
+			}
+		}
+
+		create_title_and_vassal_change = {
+			type = conquest
+			save_scope_as = title_change_defender
+			add_claim_on_loss = no
+		}
+
+		every_in_list = {
+			list = target_titles_defender
+			
+			change_title_holder = {
+				holder = scope:attacker
+				change = scope:title_change_defender
+			}
+		}
+
+		resolve_title_and_vassal_change = scope:title_change_defender	
+
+		#EP2 accolade glory gain for winning against higher ranked enemy
+		scope:attacker = { accolade_attacker_war_end_glory_gain_high_effect = yes }
+
+		# Allies on both sides get full prestige value for helping in the war, based on their war participation.
+		modify_allies_of_participants_fame_values = {
+			WINNER = scope:attacker
+			FAME_BASE = major_prestige_value
+			IS_RELIGIOUS_WAR = no
+			WINNER_ALLY_FAME_SCALE = 1
+			LOSER_ALLY_FAME_SCALE = 1
+		}
+		# Truce
+		add_truce_attacker_victory_effect = yes
+	}
+
+	on_white_peace_desc = {
+		first_valid = {
+			triggered_desc = {
+				trigger = { scope:defender = { is_local_player = yes } }
+				desc = invasion_war_white_peace_desc_defender
+			}
+			desc = invasion_war_white_peace_desc
+		}
+	}
+	
+	on_white_peace = {
+		scope:attacker = { show_pow_release_message_effect = yes }
+
+		# Prestige for the attacker's war allies
+		add_from_contribution_attackers = {
+			prestige = major_prestige_value
+			opinion = {
+				modifier = contributed_in_war
+			}
+		}
+
+		# Prestige for the defender's war allies
+		add_from_contribution_defenders = {
+			prestige = major_prestige_value
+			opinion = {
+				modifier = contributed_in_war
+			}
+		}
+
+		# Truce
+		add_truce_white_peace_effect = yes
+
+		scope:attacker = {
+			add_prestige = mongol_invasion_cb_prestige_white_peace
+		}
+	}
+
+	on_defeat_desc = { desc = maglor_umbar_cb_defeat_desc }
+	
+	on_defeat = {
+		scope:attacker = { show_pow_release_message_effect = yes }
+
+		#EP2 accolade glory gain for winning against higher ranked enemy
+		scope:defender = { accolade_defender_war_end_glory_gain_high_effect = yes }
+
+		# Prestige for the defender
+		scope:defender = {
+			add_prestige_war_defender_effect = { PRESTIGE_VALUE = major_prestige_value }
+		}
+
+		# Allies on both sides get full prestige value for helping in the war, based on their war participation.
+		modify_allies_of_participants_fame_values = {
+			WINNER = scope:defender
+			FAME_BASE = major_prestige_value
+			IS_RELIGIOUS_WAR = no
+			WINNER_ALLY_FAME_SCALE = 1
+			LOSER_ALLY_FAME_SCALE = 1
+		}
+		
+		on_lost_aggression_war_discontent_loss = yes
+	}
+
+	ai_score_mult = { #LotR
+		value = 1
+
+		# LotR - Sauron and Nazgul should not target eachother
+		add = {
+			if = {
+				limit = {
+					OR = {
+						AND = {
+							scope:attacker = { is_sauron = yes }
+							scope:defender = { has_trait = nazgul }
+						}
+						AND = {
+							scope:defender = { is_sauron = yes }
+							scope:attacker = { has_trait = nazgul }
+						}
+					}
+				}
+				add = -1000
+			}
+		}
+
+		# LotR - Non-Evil faith characters leave poor Radagast alone! 
+		add = {
+			if = {
+				limit = {
+					scope:attacker = { faith_is_evil = no }
+					scope:defender.culture = culture:istari
+				}
+				add = -1000
+			}
+		}
+
+		# LotR - Protectorates are much less aggressive
+		add = {
+			if = {
+				limit = {
+					scope:attacker = { has_variable = overlord_protector }
+				}
+				add = -1000
+			}
+		}
+
+		#LotR
+		multiply = elf_target_ai_score_value
+	}
+	
+	on_primary_attacker_death = inherit
+	on_primary_defender_death = inherit
+	
+	attacker_allies_inherit = yes
+	defender_allies_inherit = yes
+	
+	war_name = "maglor_umbar_cb_name"
+	war_name_base = "maglor_umbar_cb_name"
+	cb_name = "maglor_umbar_cb_name"
+	interface_priority = 59
+	
+	ticking_war_score_targets_entire_realm = yes
+	max_defender_score_from_occupation = 150
+	max_attacker_score_from_occupation = 150
+	attacker_ticking_warscore = 0
+	attacker_wargoal_percentage = 0.8
+	
+	max_ai_diplo_distance_to_title = 500
+}
+
+final_battle_maglor_cb = {
+	group = event 
+
+	combine_into_one = yes
+	should_show_war_goal_subview = yes
+	mutually_exclusive_titles = { always = yes }
+	
+	allowed_for_character = {
+		NOT = {
+			government_has_flag = government_is_feudal
+			government_has_flag = government_is_republic 
+			government_has_flag = government_is_theocracy 
+			government_has_flag = government_is_clan 
+			government_has_flag = government_is_mercenary
+			government_has_flag = government_is_holy_order 
+			government_has_flag = government_is_elven 
+		}
+		always = no
+		
+		scope:attacker = { NOT = { has_culture = culture:wastelands } }
+	}
+	
+	ignore_effect = change_title_holder
+	
+	war_name = "INVASION_WAR_NAME"
+	war_name_base = "INVASION_WAR_NAME_BASE"
+	cb_name = "INVASION_CB_NAME"
+	
+	on_declaration = {
+		on_declared_war = yes
+        scope:defender = { trigger_event = elven.2000 }
+	}
+	
+	on_white_peace_desc = {
+		first_valid = {
+			triggered_desc = {
+				trigger = { scope:defender = { is_local_player = yes } }
+				desc = invasion_war_white_peace_desc_defender
+			}
+			desc = invasion_war_white_peace_desc
+		}
+	}
+	
+	on_white_peace = {
+		scope:attacker = { show_pow_release_message_effect = yes }
+
+		# Prestige for the attacker's war allies
+		add_from_contribution_attackers = {
+			prestige = major_prestige_value
+			opinion = { modifier = contributed_in_war }
+		}
+
+		# Prestige for the defender's war allies
+		add_from_contribution_defenders = {
+			prestige = major_prestige_value
+			opinion = { modifier = contributed_in_war }
+		}
+
+		# Truce
+		add_truce_white_peace_effect = yes
+	}
+	
+	on_invalidated_desc = msg_invalidate_war_title
+
+	on_defeat_desc = {
+		first_valid = {
+			triggered_desc = {
+				trigger = { scope:defender = { is_local_player = yes } }
+				desc = invasion_war_white_peace_desc_defender
+			}
+			desc = invasion_war_white_peace_desc
+		}
+	}
+	
+	on_defeat = {
+		scope:attacker = { show_pow_release_message_effect = yes }
+
+		# Prestige loss for the attacker
+		scope:attacker = {
+			pay_short_term_gold = {
+				gold = 5
+				target = scope:defender
+				yearly_income = yes
+			}
+			add_prestige = {
+				value = massive_prestige_value
+				multiply = -1.0
+			}
+		}
+		
+		setup_invasion_cb = {
+			titles = target_titles
+			attacker = scope:attacker
+			defender = scope:defender
+			claimant = scope:claimant
+			victory = no
+		}
+
+		# Attacker loses Prestige, all other war participants gain Prestige (Defender gains full prestige, all allies on both sides gain based on war contribution).
+		modify_all_participants_fame_values = {
+			WINNER = scope:defender
+			LOSER = scope:attacker
+			FAME_BASE = scope:cb_prestige_factor # Set by 'setup_claim_cb'
+			IS_RELIGIOUS_WAR = no
+			WINNER_FAME_SCALE = 10
+			LOSER_FAME_SCALE = -10
+			WINNER_ALLY_FAME_SCALE = 10
+			LOSER_ALLY_FAME_SCALE = 10
+		}
+	
+		add_truce_attacker_defeat_effect = yes
+		
+		scope:attacker = {
+			save_temporary_scope_as = loser
+		}
+		on_lost_aggression_war_discontent_loss = yes
+	}
+	
+	transfer_behavior = transfer
+	
+	on_primary_attacker_death = inherit
+	on_primary_defender_death = inherit
+	transfer_behavior = transfer
+	
+	on_primary_attacker_death = inherit
+	on_primary_defender_death = inherit
+	
+	attacker_allies_inherit = yes
+	defender_allies_inherit = yes
+	
+	interface_priority = 100
+	
+	use_de_jure_wargoal_only = yes
+	
+	attacker_wargoal_percentage = 0.8
+
+	on_victory_desc = {
+		first_valid = {
+			triggered_desc = {
+				trigger = { scope:attacker = { is_local_player = yes } }
+				desc = gondor_final_battle_war_victory_desc_attacker
+			}
+			desc = invasion_war_victory_desc
+		}
+	}
+	
+	on_victory = {
+		set_global_variable = {
+			name = sauron_destroyed
+			value = yes
+		}
+		
+		# Disable Gondors ability to attack Mordor
+		add_to_global_variable_list = {
+			name = unavailable_unique_decisions
+			target = flag:decision_destroy_mordor
+		}
+		add_to_global_variable_list = {
+			name = unavailable_unique_decisions
+			target = flag:decision_annihilate_abhorred
+		}
+
+		every_independent_ruler = {
+			limit = {
+				exists = var:my_suzerain
+				var:my_suzerain = scope:defender
+			}
+			free_tributary = yes
+		}	
+		
+		scope:attacker = { show_pow_release_message_effect = yes }
+
+		scope:defender = {
+			hidden_effect = {
+				every_held_title = {
+					limit = { tier > tier_county }
+					holder = { destroy_title = prev }
+				}
+				every_held_title = { # Distribute excess non-capital counties to new characters			
+					limit = { tier = tier_county }
+					set_county_faith = faith:sons_of_sauron
+					save_temporary_scope_as = excess_title
+	
+					create_character = { # Create a new character to hold the title
+						employer = root
+						culture = culture:burgulhai
+						faith = faith:sons_of_sauron
+						gender_female_chance = 0
+						after_creation = { save_temporary_scope_as = new_holder }
+					}
+				
+					create_title_and_vassal_change = { # Define type of title change as a granting of the title
+						type = granted
+						save_scope_as = title_change
+						add_claim_on_loss = no
+					}
+				
+					scope:excess_title = { # Set the new character to be the new holder of the title
+						change_title_holder = {
+							holder = scope:new_holder
+							change = scope:title_change
+						}
+					}
+				
+					resolve_title_and_vassal_change = scope:title_change # Take a look at yourself, and then make that... change! 
+				}
+			}
+		}
+		
+		title:c_barad_dur.title_province = { remove_building = wonder_baraddur }
+
+		title:k_nurn = {
+			if = {
+				limit = { holder = { faith_is_evil = yes } }
+				holder = { destroy_title = prev }
+			}
+		}
+		
+		character:mouthofsauron = {
+			hidden_effect = {
+				every_held_title = {
+					limit = { tier > tier_county }
+					holder = { destroy_title = prev }
+				}
+				every_held_title = {
+					limit = { tier = tier_county }
+		
+					set_county_faith = faith:sons_of_sauron
+		
+					save_temporary_scope_as = excess_title
+		
+					create_character = { # Create a new character to hold the title
+						employer = root
+						culture = culture:burgulhai
+						faith = faith:sons_of_sauron
+						gender_female_chance = 0
+						after_creation = { save_temporary_scope_as = new_holder }
+					}
+					
+					create_title_and_vassal_change = { # Define type of title change as a granting of the title
+						type = granted
+						save_scope_as = title_change
+						add_claim_on_loss = no
+					}
+					
+					scope:excess_title = { # Set the new character to be the new holder of the title
+						change_title_holder = {
+							holder = scope:new_holder
+							change = scope:title_change
+						}
+					}
+					
+					resolve_title_and_vassal_change = scope:title_change # Take a look at yourself, and then make that... change! 
+				}
+			}
+			get_title = title:c_barad_dur
+		}
+		
+		#Properly stablishes white hand if saruman doesnt have it yet
+		character:lineofsaruman = {
+			if = {
+				limit = {
+					is_alive = yes
+					faith_is_evil = yes
+					faith = faith:lidless_eye
+					NOT = {
+						is_target_in_global_variable_list = {
+							name = unavailable_unique_decisions
+							target = flag:decision_establish_cult_of_the_white_hand
+						}
+					}
+				}
+			}
+			trigger_event = isengard.0301
+			add_to_global_variable_list = {
+				name = unavailable_unique_decisions
+				target = flag:decision_establish_cult_of_the_white_hand
+			}
+		}
+		
+		
+		scope:attacker = {
+			add_prestige = 5000
+			every_war_ally = { add_prestige = 2000 }
+		}
+		
+		hidden_effect = {
+			every_living_character = {
+				limit = { 
+					is_ruler = yes
+					is_ai = no
+					NOT = { this = scope:attacker } 
+				}
+				trigger_event = { id = news_event.0028 }
+			}
+			faith:lidless_eye = {
+				change_fervor = {
+					value = -100
+					desc = fervor_dark_lord_defeated
+				}
+			}
+			faith:cult_of_zigur = {
+				change_fervor = {
+					value = -100
+					desc = fervor_dark_lord_defeated
+				}
+			}
+			
+			#juke note: moved religious conversion to a scripted effect
+			lidless_eye_destroyed_effect = yes
+		}
+
+		scope:attacker = { trigger_event = elven.2001 }
+		
+		# Truce
+		add_truce_attacker_victory_effect = yes
+
+		# FP1: note the victory for future memorialisation via stele (if applicable).
+		scope:attacker = { fp1_remember_recent_conquest_victory_effect = yes }
+	}
+}
+
+nadi_manye_religious_war_cb = {
+	group = conquest
+	allowed_for_character = {
+		scope:attacker = {
+			is_leading_faction_type = maglor_nadi_manye_faction
+		}
+		
+		scope:attacker = {		
+			NOT = {
+				has_culture = culture:wastelands
+			}
+		}
+	}
+
+	allowed_against_character = {
+		scope:defender = {
+			has_title = title:c_amrun
+		}
+		
+		scope:attacker = {		
+			NOT = {
+				has_culture = culture:wastelands
+			}
+		}
+	}
+
+	target_de_jure_regions_above = yes
+
+	valid_to_start = {
+	}
+
+	on_declaration = {
+	}
+
+	on_victory_desc = {
+		desc = nadi_manye_religious_war_victory_end_desc		
+	}
+
+	on_victory = {
+		scope:attacker = { 
+			show_pow_release_message_effect = yes
+		}
+		create_character = {
+			template = maglor_nadi_manye_leader
+			location = root.capital_province
+			save_scope_as = nadi_manye_leader
+		}
+		create_title_and_vassal_change = {
+			type = independency
+			save_scope_as = change
+			add_claim_on_loss = no
+		}
+		scope:defender = {
+			if = {
+				limit = { has_vassals = yes }
+				every_vassal_or_below = {
+					limit = { highest_held_title_tier > tier_barony }
+					becomes_independent = {
+						change = scope:change
+					}
+				}
+			}
+		}
+		resolve_title_and_vassal_change = scope:change
+
+		hidden_effect = {
+			create_title_and_vassal_change = {
+				type = faction_demand
+				save_scope_as = change
+				add_claim_on_loss = no
+			}
+	
+			scope:defender = {
+				every_held_title = {
+					add_to_list = targeted_titles
+				}
+			}
+	
+			every_in_list = {
+				list = targeted_titles
+				random = {
+					chance = 50
+					if = {
+						limit = { this.tier = tier_county }
+						set_county_faith = scope:attacker.faith
+					}
+				}
+				change_title_holder = {
+					holder = scope:nadi_manye_leader
+					change = scope:change
+				}
+			}
+			
+			resolve_title_and_vassal_change = scope:change
+		}
+		character:linefinwe11 = {
+			trigger_event = elven.1745
+		}
+	}
+
+	white_peace_possible = no
+
+	on_white_peace_desc = {
+		first_valid = {
+			triggered_desc = {
+				trigger = { scope:defender = { is_local_player = yes } }
+				desc = tribal_subjugation_cb_white_peace_desc_defender
+			}
+			desc = tribal_subjugation_cb_white_peace_desc
+		}
+	}
+
+	on_defeat_desc = { desc = nadi_manye_religious_war_defeat_end_desc }
+
+	on_defeat = {
+		on_lost_faction_revolt_war = yes
+	}
+
+	on_invalidated_desc = msg_invalidate_war_title
+
+	check_attacker_inheritance_validity = no
+
+	on_primary_attacker_death = inherit_faction
+	on_primary_defender_death = inherit
+
+	transfer_behavior = transfer
+
+	attacker_allies_inherit = yes
+	defender_allies_inherit = yes
+
+	war_name = "nadi_manye_religious_war_cb"
+
+	interface_priority = 80
+
+	use_de_jure_wargoal_only = yes
+
+	attacker_wargoal_percentage = 0.8
+
+	max_attacker_score_from_battles = 100
+	max_defender_score_from_battles = 50
+
+	max_ai_diplo_distance_to_title = 500
+}
+
 
 war_in_the_north_cb = {
 	group = conquest
