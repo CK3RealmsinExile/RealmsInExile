@@ -1,0 +1,1400 @@
+﻿window = {
+	name = "travel_planner_window"
+	size = { 100% 100% }
+	movable = no
+	layer = middle
+
+	alwaystransparent = yes
+
+	datacontext = "[GetVariableSystem]"
+
+	# Either a TravelPlan or TravelPlanDraft is present at one time, not both
+	# - Use TravelPlanner.HasTravelPlanDraft to know which is present
+	# - Use TravelPlanData data context for shared info
+	datacontext = "[TravelPlanner.GetTravelPlan]"
+	datacontext = "[TravelPlanner.GetTravelPlanDraft]"
+	datacontext = "[TravelPlanner.GetTravelPlanData]"
+
+	state = {
+		name = _show
+
+		using = Animation_FadeIn_Standard
+		using = Sound_WindowShow_Standard
+		using = Animation_FadeIn_BottomLeft
+	}
+
+	state = {
+		name = _hide
+
+		using = Animation_FadeOut_Standard
+		using = Sound_WindowHide_Standard
+		using = Animation_FadeOut_BottomLeft
+	}
+
+	travel_planning_window = {
+		name = "travel_planning_tutorial_uses_this_2"
+
+		blockoverride "destination_text" {
+			text_single = {
+				visible = "[Not(TravelPlanData.GetActivity.IsValid)]"
+				align = nobaseline
+				text = "TRAVEL_PLAN_CURRENT_DESTINATION"
+				margin_left = 4
+			}
+
+			vbox = {
+				visible = "[TravelPlanData.GetActivity.IsValid]"
+				datacontext = "[TravelPlanData.GetActivity.GetType]"
+
+				text_single = {
+					visible = "[TravelPlanData.GetActivity.GetType.IsSingleLocation]"
+					layoutpolicy_horizontal = expanding
+
+					align = nobaseline
+					text = "TRAVEL_PLAN_CURRENT_DESTINATION"
+					margin_left = 4
+				}
+
+				text_multi = {
+					visible = "[Not(TravelPlanData.GetActivity.GetType.IsSingleLocation)]"
+					layoutpolicy_horizontal = expanding
+
+					text = "[SelectLocalization( TravelPlanData.HasDeparted, 'TRAVEL_PLAN_NEXT_DESTINATION', 'TRAVEL_PLAN_FIRST_DESTINATION' )]"
+					align = nobaseline
+					min_width = 300
+					margin_left = 4
+				}
+			}
+		}
+	}
+
+	widget = {
+		name = "bottom_right_area"
+		visible = "[And(Not( TravelPlanner.GetTravelPlan.IsValid ), TravelPlanner.IsLinked)]"
+
+		allow_outside = yes
+
+		parentanchor = bottom|right
+		position = { -392 -40 }
+		alwaystransparent = no
+
+		state = {
+			name = _show
+			using = Animation_FadeIn_Standard
+			delay = 0.25
+			position_y = -40
+		}
+
+		state = {
+			name = _hide
+			using = Animation_FadeOut_Standard
+			position_y = 200
+		}
+
+		travel_confirm_vbox = {
+			widgetanchor = bottom|left
+			layoutpolicy_vertical = expanding
+		}
+	}
+
+	travel_entourage_list_window = {
+		visible_at_creation = no
+		visible = "[TravelPlanner.IsEntourageListWindowOpen]"
+	}
+
+	error_horse = {
+		parentanchor = bottom|left
+		position = { 710 -280 }
+		visible = "[And( Not( IsPauseMenuShown ), Not(ReleaseMode) )]"
+	}
+}
+
+
+types TravelPlannerTypes
+{
+	type travel_confirm_vbox = vbox
+	{
+		datacontext = "[TravelPlanData.GetActivity]"
+		datacontext = "[Activity.GetType]"
+
+		alwaystransparent = no
+
+		background = {
+			texture = "gfx/interface/component_tiles/tile_window_background_subwindow.dds"
+			spriteType = Corneredtiled
+			spriteborder = { 18 18 }
+			margin = { 16 16 }
+			texture_density = 2
+
+			modify_texture = {
+				name = "overlay"
+				texture = "gfx/interface/component_overlay/overlay_effect.dds"
+				spriteType = Corneredstretched
+				spriteborder = { 0 0 }
+				blend_mode = overlay
+			}
+		}
+
+		spacing = 8
+
+		hbox = {
+			layoutpolicy_horizontal = expanding
+
+			header_pattern = {
+				layoutpolicy_horizontal = expanding
+
+				blockoverride "header_text"
+				{
+					text = "TRAVEL_PLANNER_ACCEPT_TRAVEL_PLAN"
+					parentanchor = center|vcenter
+					align = nobaseline
+					position = { 0 -5 }
+				}
+
+				blockoverride "size" {
+					maximumsize = { 350 -1 }
+				}
+
+				blockoverride "button_close"
+				{
+					visible = no
+				}
+			}
+		}
+
+		vbox = {
+			layoutpolicy_horizontal = expanding
+			layoutpolicy_vertical = expanding
+
+			margin = { 16 0 }
+			margin_bottom = 16
+			spacing = 8
+
+			text_single = {
+				visible = "[Activity.IsValid]"
+				text = "TRAVEL_PLANNER_INVITED_ACTIVITY_START"
+				max_width = 360
+			}
+
+			text_single = {
+				text = "TRAVEL_PLANNER_INVITED_ACTIVITY_ESTIMATED_ARRIVAL"
+				max_width = 360
+			}
+
+			text_multi = {
+				visible = "[And( Activity.IsValid, IsDateAfter( TravelPlanData.GetNextDestination.GetEstimatedArrivalDate, Activity.GetActiveStartDate ) )]"
+				text = "TRAVEL_PLANNER_INVITED_WILL_NOT_ARRIVE_IN_TIME"
+				align = center
+				autoresize = yes
+				max_width = 360
+			}
+
+			cost_breakdown_vbox = {
+				datacontext = "[TravelPlanner.AccessCostBreakdown]"
+				name = "travel_cost"
+			}
+
+			button_primary = {
+				name = "progress_planning"
+				text = "[TravelPlanner.GetStartTravelPlanText]"
+				onclick = "[TravelPlanner.StartTravelPlan]"
+
+				enabled = "[Not( And( Activity.IsValid, IsDateAfter( TravelPlanData.GetNextDestination.GetEstimatedArrivalDate, Activity.GetActiveStartDate ) ) )]"
+
+				size = { 360 40 }
+			}
+		}
+	}
+
+	type icon_button_travel_option = widget
+	{
+		size = { 270 60 }
+
+		tooltip = "TRAVEL_OPTION_TT"
+
+		background = {
+			using = Background_Area
+
+			modify_texture = {
+				texture = "gfx/interface/component_masks/mask_fade_horizontal_extended.dds"
+				blend_mode = alphamultiply
+			}
+		}
+
+		button_standard = {
+			visible = "[Not(TravelPlanner.GetTravelPlan.IsValid)]"
+			parentanchor = left|vcenter
+			position = { 4 0 }
+			size =  { 50 50 }
+
+			enabled = "[Not( TravelPlanner.GetTravelPlan.IsValid )]"
+			onclick = "[TravelPlanner.OpenTravelOptionSelectionWindow]"
+
+			icon_flat_standard = {
+				visible = "[TravelOption.IsValid]"
+				parentanchor = center
+				size = { 40 40 }
+
+				texture = "[TravelOption.GetIcon]"
+
+				blockoverride "master_color_frame" {
+					frame = 1
+				}
+			}
+		}
+
+		widget = {
+			visible = "[TravelPlanner.GetTravelPlan.IsValid]"
+			parentanchor = left|vcenter
+			size = { 56 56 }
+
+			background = {
+				using = Background_Area
+			}
+
+			icon_flat_standard = {
+				parentanchor = center
+				size = { 40 40 }
+
+				texture = "[TravelOption.GetIcon]"
+
+				blockoverride "master_color_frame" {
+					frame = 7
+				}
+			}
+		}
+
+		text_single = {
+			parentanchor = left|top
+			position = { 2 5 }
+
+			text = "[TravelOption.GetNameNoTooltip]"
+			max_width = 230
+
+			margin_left = 60
+
+			alwaystransparent = yes
+		}
+
+		text_single = {
+			parentanchor = left|bottom
+			position = { 2 -10 }
+
+			text = "[TravelOption.GetCostString(TravelPlanData.Self)]"
+
+			margin_left = 60
+			alwaystransparent = yes
+
+		}
+
+		button = {
+			visible = "[And( TravelOption.IsValid, Not( TravelPlanner.GetTravelPlan.IsValid ) )]"
+			parentanchor = right|top
+			position = { -4 4 }
+			size = { 30 30 }
+
+			onclick = "[TravelPlanData.RemoveTravelOption(TravelOption.Self)]"
+
+			button_close = {
+				parentanchor = center
+				size = { 22 22 }
+
+				alwaystransparent = yes
+
+				tooltip = REMOVE_TRAVEL_OPTION
+			}
+		}
+	}
+
+	type icon_button_empty_travel_option = widget
+	{
+		size = { 270 60 }
+
+		button_standard = {
+			parentanchor = left|vcenter
+			position = { 4 0 }
+			size =  { 50 50 }
+
+			enabled = "[Not( TravelPlanner.GetTravelPlan.IsValid )]"
+			onclick = "[TravelPlanner.OpenTravelOptionSelectionWindow]"
+
+			icon_flat_standard = {
+				parentanchor = center
+				size = { 30 30 }
+				texture = "gfx/interface/icons/flat_icons/plus.dds"
+
+				blockoverride "master_color_frame" {
+					frame = 1
+				}
+			}
+		}
+
+		text_single = {
+			parentanchor = left|vcenter
+			position = { 2 -2 }
+
+			text = "TRAVEL_OPTIONS_SELECT"
+			default_format = "#I"
+			max_width = 260
+			alwaystransparent = yes
+
+			margin_left = 60
+		}
+	}
+
+	type travel_leader_selection_widget = caravan_master_portrait_widget
+	{
+		blockoverride "filled_slot"
+		{
+			visible = "[Character.IsValid]"
+
+			button_change = {
+				onclick = "[ShowCourtPositionAppointOrReplace( TravelPlanData.GetOwner.GetID, 'travel_leader_court_position' )]"
+				enabled = "[Not( TravelPlanner.GetTravelPlan.IsValid )]"
+				raw_tooltip = "COURT_POSITION_REPLACE"
+				tooltip = "CHANGE_CARAVAN_MASTER"
+				parentanchor = bottom|left
+				size = { 30 30 }
+			}
+		}
+
+		blockoverride "empty_slot"
+		{
+			visible = "[Not( Character.IsValid )]"
+			enabled = "[Not( TravelPlanner.GetTravelPlan.IsValid )]"
+			onclick = "[ShowCourtPositionAppointOrReplace( TravelPlanData.GetOwner.GetID, 'travel_leader_court_position' )]"
+		}
+	}
+
+	type travel_entourage_list_window = window
+	{
+		# Name used too find the window, don't change
+		name = "travel_entourage_list_window"
+
+		size = { 700 900 }
+		parentanchor = center
+
+		minimumsize = { 680 550 }
+		layer = middle
+		allow_outside = yes
+
+		using = Window_Movable
+		using = Window_Size_CharacterList
+		using = Window_Background
+		using = Window_Decoration
+
+		datacontext = "[TravelPlanner.GetEntourageList]"
+
+		state = {
+			name = _show
+			using = Animation_FadeIn_Quick
+		}
+
+		state = {
+			name = _hide
+			using = Animation_FadeOut_Quick
+		}
+
+		vbox = {
+			using = Window_Margins
+
+			header_pattern = {
+				layoutpolicy_horizontal = expanding
+
+				blockoverride "header_text"
+				{
+					text = "TRAVEL_ENTOURAGE_HEADER"
+				}
+
+				blockoverride "button_close"
+				{
+					onclick = "[TravelPlanner.CloseEntourageListWindow]"
+				}
+			}
+
+			vbox_character_list = {
+				layoutpolicy_horizontal = expanding
+				layoutpolicy_vertical = expanding
+
+				blockoverride "container_implementation" {
+					fixedgridbox = {
+						addcolumn = 590
+						addrow = 126
+
+						name = "characters_grid"
+						datamodel_reuse_widgets = yes
+						datamodel = "[CharacterSelectionList.GetList]"
+						visible = "[Not(CharacterSelectionList.IsBuildingList)]"
+
+						item = {
+							widget_entourage_list_item = {
+								size = { 590 122 }
+							}
+						}
+					}
+
+					text_single = {
+						visible = "[Not(CharacterSelectionList.HasItems)]"
+						layoutpolicy_vertical = expanding
+						name = "no_match"
+						text = "CHARACTER_FINDER_NO_MATCH"
+					}
+				}
+			}
+
+			expand = {}
+
+			hbox = {
+				layoutpolicy_horizontal = expanding
+
+				margin_bottom = 15
+
+				button_primary = {
+					text = "CLOSE_LABEL"
+					onclick = "[TravelPlanner.CloseEntourageListWindow]"
+				}
+			}
+		}
+
+		window_character_filter = {
+			blockoverride "addition_filter" {
+				filter_item = {
+					layoutpolicy_horizontal = expanding
+					datacontext = "[CharacterSelectionList.GetFilter('ruler_filter')]"
+				}
+				filter_item = {
+					layoutpolicy_horizontal = expanding
+					datacontext = "[CharacterSelectionList.GetFilter('religion_filter')]"
+				}
+				filter_item = {
+					layoutpolicy_horizontal = expanding
+					datacontext = "[CharacterSelectionList.GetFilter('culture_filter')]"
+				}
+				filter_item = {
+					layoutpolicy_horizontal = expanding
+					datacontext = "[CharacterSelectionList.GetFilter('alive_filter')]"
+				}
+			}
+		}
+	}
+
+	type travel_danger_summary_hbox = hbox
+	{
+		layoutpolicy_horizontal = expanding
+		layoutpolicy_vertical = expanding
+
+		text_single = {
+			layoutpolicy_horizontal = expanding
+
+			text = "TRAVEL_DANGER_CRITICAL_HEADER"
+			max_width = 250
+			align = left|nobaseline
+
+			margin = { 4 4 }
+		}
+
+		hbox = {
+			layoutpolicy_horizontal = expanding
+
+			hbox = {
+				tooltip = "TRAVEL_PLAN_DANGER_HIGH"
+
+				widget = {
+					size = { 30 30 }
+
+					icon = {
+						size = { 30 30 }
+						texture = "gfx/interface/icons/travel_danger_types/generic_icon.dds"
+					}
+
+					icon = {
+						parentanchor = center
+						size = { 32 32 }
+						texture = "gfx/interface/icons/travel_danger_types/dangerous_glow.dds"
+						alpha = 0.7
+					}
+
+					icon = {
+						size = { 30 30 }
+						texture = "gfx/interface/icons/travel_danger_types/generic_icon.dds"
+					}
+				}
+
+				text_single = {
+					text = "[TravelPlanner.GetVeryLikelyDangers]"
+					margin_right = 8
+				}
+			}
+
+			hbox = {
+				tooltip = "TRAVEL_PLAN_DANGER_MEDIUM"
+
+				icon = {
+					size = { 30 30 }
+					texture = "gfx/interface/icons/travel_danger_types/generic_icon.dds"
+				}
+
+				text_single = {
+					text = "[TravelPlanner.GetLikelyDangers]"
+					margin_right = 8
+				}
+			}
+
+			hbox = {
+				tooltip = "TRAVEL_PLAN_DANGER_LOW"
+
+				icon = {
+					size = { 30 30 }
+					texture = "gfx/interface/icons/travel_danger_types/generic_icon_disabled.dds"
+				}
+
+				text_single = {
+					text = "[TravelPlanner.GetUnlikelyDangers]"
+				}
+			}
+		}
+	}
+
+	type travel_planning_window = widget
+	{
+		size = { 500 650 }
+		parentanchor = bottom|left
+
+		alwaystransparent = no
+		allow_outside = yes
+
+		state = {
+			name = _show
+
+			using = Animation_FadeIn_Quick
+			using = Sound_WindowShow_Standard
+			using = Animation_FadeIn_BottomLeft
+		}
+
+		state = {
+			name = _hide
+
+			using = Animation_FadeOut_Standard
+			using = Sound_WindowHide_Standard
+			using = Animation_FadeOut_BottomLeft
+		}
+
+		block "visible"
+		{
+			visible = "[TravelPlanData.HasNextDestination]"
+		}
+
+		vbox =  {
+			layoutpolicy_vertical = expanding
+
+			expand = {
+				layoutpolicy_vertical = expanding
+			}
+
+			# Window content
+			vbox = {
+				name = "window_content"
+				layoutpolicy_horizontal = expanding
+
+				background = {
+					texture = "gfx/interface/component_tiles/tile_window_background_subwindow.dds"
+					spriteType = Corneredtiled
+					spriteborder = { 18 18 }
+					margin = { 16 16 }
+					texture_density = 2
+
+					modify_texture = {
+						name = "overlay"
+						texture = "gfx/interface/component_overlay/overlay_effect.dds"
+						spriteType = Corneredstretched
+						spriteborder = { 0 0 }
+						blend_mode = overlay
+					}
+				}
+
+				hbox = {
+					layoutpolicy_horizontal = expanding
+
+					header_pattern = {
+						layoutpolicy_horizontal = expanding
+
+						blockoverride "header_text"
+						{
+							text = TRAVEL_TITLE
+							parentanchor = center|vcenter
+							align = nobaseline
+							position = { 0 -5 }
+
+						}
+
+						blockoverride "button_close"
+						{
+							block "button_close_overload"
+							{
+								onclick = "[TravelPlanner.Close]"
+							}
+						}
+					}
+				}
+
+
+				# Destination
+				hbox = {
+					layoutpolicy_horizontal = expanding
+					margin = { 8 16}
+
+					background = {
+						texture = "[TravelPlanner.GetDestinationTexture]"
+						fittype = centercrop
+						alpha = 0.4
+
+						using = Mask_Rough_Edges
+					}
+
+					block "destination_text" {}
+
+					expand = {}
+
+					button_round = {
+						name = "change_destination"
+
+						tooltip = "CHANGE_DESTINATION_TT"
+
+						enabled = "[And(Not( TravelPlanner.GetTravelPlan.IsValid ), Not(TravelPlanner.IsLinked))]"
+						onclick = "[ActivityPlanner.StartLocationPicking]"
+
+						button_replace = {
+							parentanchor = center
+							alwaystransparent = yes
+						}
+					}
+				}
+
+				# Entourage
+				hbox = {
+					name = "entourage_tutorial_uses_this"
+					layoutpolicy_horizontal = expanding
+					margin = { 8 8 }
+
+					background = {
+						using = Background_Area_Dark
+					}
+
+					text_single = {
+						text = "[entourage|E]"
+						align = nobaseline
+					}
+
+					expand = {}
+
+					button_standard = {
+						onclick = "[TravelPlanner.ToggleEntourageListWindow]"
+
+						text = "TRAVEL_ENTOURAGE_BUTTON_LABEL"
+					}
+				}
+
+				# Caravan Master and Options
+				hbox = {
+					layoutpolicy_horizontal = expanding
+
+					background = {
+						using = Background_Area
+					}
+
+					# Caravan Master
+					vbox = {
+						name = "caravan_master_tutorial_uses_this"
+						datacontext = "[TravelPlanData.GetTravelLeader]"
+						layoutpolicy_vertical = expanding
+						minimumsize = { 200 0 }
+
+						margin = { 8 0 }
+						margin_bottom = 8
+
+						background = {
+							using = Background_Area
+							margin = { 4 0 }
+						}
+
+						hbox = {
+							layoutpolicy_horizontal = expanding
+
+							text_label_left = {
+								layoutpolicy_horizontal = expanding
+
+								text = "[GetCourtPositionType('travel_leader_court_position').GetName()]"
+								align = left
+								max_width = 160
+							}
+
+							expand = {}
+
+							text_single = {
+								visible = "[And(Character.IsValid, TravelPlanData.HasNextDestination)]"
+
+								text = "[Character.GetTravelLeaderCost|U]"
+								max_width = 40
+
+								tooltip = "[Character.GetTravelLeaderCostBreakdown]"
+							}
+
+							text_single = {
+								visible = "[And(Character.IsValid, Not(TravelPlanData.HasNextDestination))]"
+								text = "COST_RESULT_NOTHING"
+								align = nobaseline
+								tooltip = "TRAVEL_PLANNER_NO_TRAVEL_COST"
+							}
+						}
+
+						travel_leader_selection_widget = {
+							name = "travel_leader_selection"
+						}
+					}
+
+					vbox = {
+						layoutpolicy_vertical = expanding
+
+						divider_light = {
+							layoutpolicy_vertical = expanding
+						}
+					}
+
+					# Travel Options
+					vbox = {
+						name = "travel_options_tutorial_uses_this"
+						layoutpolicy_vertical = expanding
+						layoutpolicy_horizontal = expanding
+
+						hbox = {
+							layoutpolicy_horizontal = expanding
+							margin = { 16 0 }
+
+							text_label_left = {
+								layoutpolicy_horizontal = expanding
+
+								text = "[travel_options|E]"
+								align = left
+								max_width = 190
+							}
+
+							expand = {}
+
+							text_single = {
+								visible = "[TravelPlanData.HasNextDestination]"
+								text = "[TravelPlanData.GetTravelOptionsTotalCost|U]"
+								align = nobaseline
+								max_width = 80
+							}
+
+							text_single = {
+								visible = "[Not(TravelPlanData.HasNextDestination)]"
+								text = "COST_RESULT_NOTHING"
+								align = nobaseline
+								tooltip = "TRAVEL_PLANNER_NO_TRAVEL_COST"
+								max_width = 80
+							}
+						}
+
+						expand = {}
+
+						widget = {
+							name = "travel_options"
+							size = { 270 140 }
+
+							fixedgridbox = {
+								name = "current_options_draft"
+								visible = "[TravelPlanner.HasTravelPlanDraft]"
+								datamodel = "[TravelPlanData.GetTravelOptions]"
+								addcolumn = 270
+								addrow = 80
+
+								item = {
+									icon_button_travel_option = {
+										datacontext = "[TravelPlanner.AccessTravelPlanDraftData]"
+									}
+								}
+							}
+
+							fixedgridbox = {
+								name = "current_options"
+								datamodel = "[TravelPlanData.GetTravelOptions]"
+								visible = "[Not( TravelPlanner.HasTravelPlanDraft )]"
+								addcolumn = 270
+								addrow = 80
+
+								item = {
+									icon_button_travel_option = {
+										datacontext = "[TravelPlanner.GetTravelPlanData]"
+									}
+								}
+							}
+
+							widget = {
+								visible = "[And( Not( TravelPlanner.HasTravelPlanDraft ), LessThanOrEqualTo_int32( GetDataModelSize(TravelPlanData.GetTravelOptions), '(int32)0'))]"
+								parentanchor = center
+								size = { 270 40 }
+
+								text_multi = {
+									parentanchor = hcenter
+
+									text = "TRAVEL_OPTIONS_EMPTY"
+									align = center
+									autoresize = yes
+									default_format = "#weak"
+								}
+							}
+
+							icon_button_empty_travel_option = {
+								visible = "[And( Not( TravelPlanner.GetTravelPlan.IsValid ), IsDataModelEmpty(TravelPlanData.GetTravelOptions))]"
+								parentanchor = top|hcenter
+							}
+
+							## Dividers
+							hbox = {
+								visible = "[TravelPlanner.HasTravelPlanDraft]"
+								layoutpolicy_horizontal = expanding
+
+								divider = {
+									layoutpolicy_horizontal = expanding
+
+									modify_texture = {
+										texture = "gfx/interface/component_masks/mask_fade_horizontal_extended.dds"
+										blend_mode = alphamultiply
+									}
+								}
+							}
+
+							hbox = {
+								visible = "[And( Not( TravelPlanner.HasTravelPlanDraft ), GreaterThanOrEqualTo_int32( GetDataModelSize(TravelPlanData.GetTravelOptions), '(int32)1'))]"
+								layoutpolicy_horizontal = expanding
+
+								divider = {
+									layoutpolicy_horizontal = expanding
+
+									modify_texture = {
+										texture = "gfx/interface/component_masks/mask_fade_horizontal_extended.dds"
+										blend_mode = alphamultiply
+									}
+								}
+							}
+
+							icon_button_empty_travel_option = {
+								visible = "[And( Not( TravelPlanner.GetTravelPlan.IsValid ), LessThanOrEqualTo_int32( GetDataModelSize(TravelPlanData.GetTravelOptions), '(int32)1'))]"
+								parentanchor = bottom|hcenter
+							}
+						}
+
+						expand = {}
+					}
+				}
+
+				vbox = {
+					name = "speed_safety_tutorial_uses_this"
+					layoutpolicy_horizontal = expanding
+
+					spacing = 8
+
+					# Travel Plan Modifiers
+					hbox = {
+						name = "modifiers_grid"
+						visible = "[TravelPlanner.GetTravelPlan.IsValid]"
+						layoutpolicy_horizontal = expanding
+						margin_left = 8
+
+						hbox = {
+							datamodel = "[TravelPlanner.GetTimedModifiers]"
+
+							item = {
+								icon = {
+									size = { 30 30 }
+									alwaystransparent = no
+									texture = "[ModifierItem.GetIcon]"
+								}
+							}
+						}
+
+						text_single = {
+							visible = "[IsDataModelEmpty(TravelPlanner.GetTimedModifiers)]"
+							text = "TRAVEL_PLAN_NO_MODIFIERS"
+							default_format = "#weak"
+						}
+
+						expand = {}
+					}
+
+					# Travel Speed
+					hbox = {
+						layoutpolicy_horizontal = expanding
+
+						margin_left = 8
+
+						# Speed icon
+						hbox = {
+							layoutpolicy_horizontal = expanding
+							tooltip = "[TravelPlanData.GetSpeedBreakdown]"
+							spacing = 8
+
+							icon = {
+								size = { 40 40 }
+								texture = "gfx/interface/icons/travel/travel_speed_icon.dds"
+							}
+
+							vbox = {
+								layoutpolicy_horizontal = expanding
+								spacing = 4
+
+								hbox = {
+									layoutpolicy_horizontal = expanding
+
+									margin = { 4 0 }
+									spacing = 4
+
+									background = {
+										spriteType = Corneredtiled
+										using = Color_Green
+										alpha = 0.15
+										texture = "gfx/interface/colors/white.dds"
+
+										margin = { 4 4 }
+
+										using = Mask_Rough_Edges
+
+										modify_texture = {
+											texture = "gfx/interface/component_masks/mask_fade_horizontal.dds"
+											blend_mode = alphamultiply
+											mirror = horizontal
+										}
+									}
+
+									# Speed percentage
+									text_single = {
+										raw_text = "[TravelPlanData.GetSpeedMultiplierAsPercentage|0]%"
+										align = nobaseline
+										default_format = "#high"
+									}
+
+									# Safety concept
+									text_single = {
+										text = "TRAVEL_SPEED"
+										align = nobaseline
+									}
+
+									expand = {}
+								}
+
+								hbox = {
+									layoutpolicy_horizontal = expanding
+
+									text_single = {
+										text = "[SelectLocalization(TravelPlanData.HasNextDestination, 'ACTIVITY_DESTINATION_TOTAL_TRAVEL_TIME', 'ACTIVITY_DESTINATION_NO_TRAVEL_TIME')]"
+										align = nobaseline
+										margin = { 4 0 }
+										max_width = 350
+									}
+									expand = {}
+								}
+							}
+						}
+					}
+
+					# Travel Safety
+					hbox = {
+						layoutpolicy_horizontal = expanding
+
+						margin_left = 8
+
+						tooltip = "[TravelPlanData.GetSafetyBreakdown]"
+
+						hbox = {
+							spacing = 8
+
+
+
+							# Safety icon
+							icon = {
+								size = { 40 40 }
+								texture = "gfx/interface/icons/travel/travel_safety_icon.dds"
+							}
+
+							vbox = {
+								layoutpolicy_horizontal = expanding
+
+								hbox = {
+									layoutpolicy_horizontal = expanding
+									margin = { 4 0 }
+									spacing = 4
+
+									background = {
+										texture = "gfx/interface/colors/white.dds"
+										spriteType = Corneredtiled
+										using = Color_Blue
+										alpha = 0.15
+
+										margin = { 4 4 }
+
+										using = Mask_Rough_Edges
+
+										modify_texture = {
+											texture = "gfx/interface/component_masks/mask_fade_horizontal.dds"
+											blend_mode = alphamultiply
+											mirror = horizontal
+										}
+									}
+
+									# Safety value
+									text_single = {
+										text = "[TravelPlanData.GetSafetyValue|0]"
+										align = nobaseline
+										default_format = "#high"
+									}
+
+									# Safety concept
+									text_single = {
+										text = "TRAVEL_SAFETY"
+										align = nobaseline
+									}
+
+									expand ={}
+								}
+
+								hbox = {
+									travel_danger_summary_hbox = {}
+								}
+							}
+						}
+
+						expand = {}
+					}
+				}
+
+				# Bottom buttons
+				hbox = {
+					layoutpolicy_horizontal = expanding
+					spacing = 8
+
+					margin = { 0 16 }
+					margin_left = 8
+					margin_right = 16
+
+					background = {
+						using = Background_Area
+					}
+
+					expand = {}
+
+					# Edit Route
+					button_standard = {
+						name = "edit_route_tutorial_uses_this"
+						size = { 230 30 }
+
+						onclick = "[TravelPlanner.OpenTravelRouteEditWindow]"
+
+						text = "TRAVEL_EDIT_ROUTE_HEADER"
+
+						tooltip = "TRAVEL_EDIT_ROUTE_TT"
+					}
+
+					button_primary = {
+						visible = "[TravelPlanner.GetTravelPlan.IsValid]"
+						size = { 220 30 }
+
+						enabled = "[And(TravelPlanner.CanCancelTravelPlan,Not(GetScriptedGui('restrict_one_way_travel').IsValid( GuiScope.SetRoot(GetPlayer.MakeScope).End)))]"
+						onclick = "[TravelPlanner.CancelTravelPlan]"
+
+						text = "CANCEL_TRAVEL_PLAN"
+
+						tooltip = "[TravelPlanner.GetCanCancelTravelPlanTooltip]"
+					}
+
+					expand = {}
+				}
+			}
+		}
+	}
+
+	type widget_entourage_list_item = widget
+	{
+		datacontext = "[CharacterListItem.GetCharacter]"
+		size = { 590 122 }
+
+		background = {
+			using = Background_Area_With_Header
+		}
+
+		widget = {
+			parentanchor = top|right
+			position = { -8 2 }
+			size = { 160 30 }
+
+			hbox = {
+				name = "skills_grid"
+				layoutpolicy_horizontal = expanding
+
+				expand = {}
+
+				datamodel = "[CharacterListItem.GetSkillItems]"
+
+				item = {
+					widget_skill_item_no_icon = {}
+				}
+			}
+		}
+
+		hbox = {
+			layoutpolicy_horizontal = expanding
+
+			vbox = {
+				layoutpolicy_vertical = expanding
+
+				margin_top = 2
+
+				portrait_head = {}
+
+				expand = {}
+			}
+
+			vbox = {
+				layoutpolicy_horizontal = expanding
+
+				margin_left = 4
+
+				## Name
+				hbox = {
+					layoutpolicy_horizontal = expanding
+
+					margin_top = 4
+					margin_right = 8
+
+					text_single = {
+						layoutpolicy_horizontal = expanding
+
+						text = "[Character.GetUINameNoTooltip]"
+						align = nobaseline
+						alwaystransparent = yes
+						autoresize = no
+						max_width = 300
+
+						using = Font_Size_Medium
+					}
+
+					expand = {}
+				}
+
+				## Age
+				hbox = {
+					layoutpolicy_horizontal = expanding
+
+					margin_top = 4
+
+					using = character_age_or_death_text
+					blockoverride "list_layout" {}
+
+					block "character_relation"
+					{
+						text_single = {
+							name = "character_relation"
+							layoutpolicy_horizontal = expanding
+							raw_text = "|  [Character.GetRelationToString( GetPlayer )]"
+							tooltip = "EXTENDED_RELATIONS_TOOLTIP"
+							default_format = "#low"
+							autoresize = no
+							align = nobaseline
+							visible = "[Character.HasRelationTo( GetPlayer )]"
+							alwaystransparent = yes
+						}
+
+						expand = {
+							visible = "[Not(Character.HasRelationTo( GetPlayer ))]"
+						}
+					}
+				}
+
+				## Extra description
+				hbox = {
+					layoutpolicy_horizontal = expanding
+
+					text_single = {
+						name = "character_companion_description"
+						layoutpolicy_horizontal = expanding
+						raw_text = "[CharacterListItem.GetText('companion_desc')]"
+						default_format = "#weak"
+						autoresize = no
+						align = nobaseline
+						alwaystransparent = yes
+					}
+				}
+
+				## Dynasty, Traits, Culture and Religion
+				hbox = {
+					layoutpolicy_horizontal = expanding
+
+					background = {
+						using = Background_Area
+
+						margin_left = 8
+					}
+
+					hbox = {
+						## Dynasty
+						widget = {
+							size = { 40 40 }
+
+							coa_house_small = {
+								datacontext = "[Character.GetHouse]"
+								scale = 0.6
+							}
+						}
+
+						## Traits
+						fixedgridbox = {
+							name = "traits_grid"
+							datamodel = "[CharacterListItem.GetTraits]"
+							flipdirection = yes
+							size = { 150 60 }
+							addcolumn = 30
+							addrow = 30
+							maxhorizontalslots = 8
+							maxverticalslots = 1
+
+							item = {
+								container = {
+									visible = "[Trait.IsValid]"
+
+									icon_trait = {
+										blockoverride "icon_size"
+										{
+											size = { 30 30 }
+										}
+
+										blockoverride "tooltip_placement"
+										{
+											using = tooltip_se
+										}
+
+										blockoverride "glow_radius"
+										{
+											glow_radius = 3
+										}
+									}
+								}
+							}
+						}
+					}
+
+					## Realm
+					widget = {
+						size = {45 40 }
+						visible = "[Not( IsDataModelEmpty( CharacterListItem.GetTitleItems ) )]"
+
+						block "claims_visibility" {}
+
+						datacontext = "[CharacterListItem.GetFirstClaim]"
+
+						coa_title_tiny_crown = {
+							datacontext = "[Claim.GetTitle]"
+							parentanchor = vcenter
+							position = { 0 -3 }
+							scale = 0.8
+
+							using = tooltip_ne
+
+							highlight_icon = {
+								name = "pressed_claim"
+								visible = "[And(Claim.IsPressed, Not(Claim.IsImplicit))]"
+								texture = "gfx/interface/icons/title_status/icon_claim_pressed.dds"
+								size = { 24 24 }
+								parentanchor = bottom|right
+							}
+
+							highlight_icon = {
+								name = "unpressed_claim"
+								visible = "[And(Not(Claim.IsPressed), Not(Claim.IsImplicit))]"
+								texture = "gfx/interface/icons/title_status/icon_claim_unpressed.dds"
+								size = { 24 24 }
+								parentanchor = bottom|right
+							}
+
+							highlight_icon = {
+								name = "implicit_claim"
+								visible = "[Claim.IsImplicit]"
+								texture = "gfx/interface/icons/title_status/icon_claim_implicit.dds"
+								size = { 24 24 }
+								parentanchor = bottom|right
+							}
+
+							blockoverride "coa_tooltip"
+							{
+								tooltip = "CHARACTER_LIST_CLAIM_TOOLTIP"
+							}
+						}
+
+						text_single = {
+							align = right
+							minimumsize = { 15 0 }
+							parentanchor = vcenter|right
+							text = "[CharacterListItem.GetTitleItemCount]"
+
+							tooltip = "CHARACTER_LIST_CLAIM_TOOLTIP"
+						}
+					}
+
+					expand = {}
+
+					vbox = {
+						layoutpolicy_vertical = expanding
+						margin = { 0 2 }
+						margin_right = 4
+
+						divider_light = {
+							layoutpolicy_vertical = expanding
+						}
+					}
+
+					## Religion
+					hbox = {
+						margin_right = 16
+
+						icon = {
+							name = "faith_button"
+							size = { 30 30 }
+							datacontext = "[Character.GetFaith]"
+							texture = "[Faith.GetIcon]"
+
+							tooltipwidget = {
+								faith_tooltip = {}
+							}
+						}
+
+						hbox = {
+							datacontext = "[Character.GetCulture]"
+
+							tooltipwidget = {
+								culture_tooltip = {}
+							}
+
+							using = tooltip_se
+
+							hbox = {
+								spacing = 4
+
+								icon = {
+									name = "culture"
+									texture = "gfx/interface/icons/icon_culture.dds"
+									size = { 30 30 }
+								}
+
+								text_single = {
+									layoutpolicy_horizontal = expanding
+									max_width = 110
+									align = nobaseline
+									text = "CULTURE_LISTS_WINDOW"
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+}
