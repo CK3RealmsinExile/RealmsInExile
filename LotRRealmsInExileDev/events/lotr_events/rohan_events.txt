@@ -50,9 +50,14 @@ rohan.0001 = { #Intro Event
 	option = {
 		name = rohan.0001.a
 		
-		trigger_event = {
-			id = rohan.0100
-			days = 5
+		if = { # Gotta account for Shattered World
+			limit = {
+				has_title = title:k_rohan
+			}
+			trigger_event = {
+				id = rohan.0100
+				days = 5
+			}
 		}
 	}
 
@@ -104,8 +109,14 @@ rohan.0100 = { # Status of the Northern Border (Independent Leofrings in the Wol
 		animation = personality_honorable
 	}
 
+	trigger = {
+		has_title = title:k_rohan
+	}
+
 	immediate = {
 		save_scope_as = monarch_of_rohan
+		character:6000000 = { save_scope_as = eorl }
+		character:lineleofring1 = { save_scope_as = leofr }
 	}
 
 	option = { # They must recognize the authority of Edoras!
@@ -133,6 +144,8 @@ rohan.0100 = { # Status of the Northern Border (Independent Leofrings in the Wol
 			every_de_jure_county_holder = {
             	limit = {
 					is_independent_ruler = yes
+					is_landed = yes
+					highest_held_title_tier <= tier_duchy
 					NOT = { THIS = scope:monarch_of_rohan }
 					capital_county = { # If capital is in Rohan
 						title_province = { geographical_region = middleearth_west_rohan }
@@ -140,7 +153,7 @@ rohan.0100 = { # Status of the Northern Border (Independent Leofrings in the Wol
 				}
 				trigger_event = {
 					id = rohan.0101
-					days = 5
+					days = { 3 10 }
 				}
 			}
 		}
@@ -167,8 +180,13 @@ rohan.0100 = { # Status of the Northern Border (Independent Leofrings in the Wol
 rohan.0101 = {
 	type = letter_event
 	sender = scope:sender
-	opening = { desc = rohan.0101.opening }
+	opening = rohan.0101.opening
 	desc = rohan.0101.desc
+
+	trigger = {
+		NOT = { is_at_war_with = scope:sender }
+		NOT = { root = scope:sender }
+	}
 
 	on_trigger_fail = { #Trigger invitation again if it was blocked because the character was handling another invitation
 		trigger_event = {
@@ -188,16 +206,21 @@ rohan.0101 = {
 
 	option = { 
 		name = rohan.0101.a # We kneel before Edoras
-		create_title_and_vassal_change = {
-			type = swear_fealty
-			save_scope_as = change
-			add_claim_on_loss = no
+		show_as_tooltip = {
+			create_title_and_vassal_change = {
+				type = swear_fealty
+				save_scope_as = change
+				add_claim_on_loss = no
+			}
+			change_liege = {
+				liege = scope:sender
+				change = scope:change
+			}
+			resolve_title_and_vassal_change = scope:change
 		}
-		change_liege = {
-			liege = scope:sender
-			change = scope:change
+		hidden_effect = {
+			scope:sender = { trigger_event = rohan.0102 }
 		}
-		resolve_title_and_vassal_change = scope:change
 
 		ai_chance = {
 			base = 0
@@ -231,14 +254,37 @@ rohan.0101 = {
 					multiply = 1
 				}
 			}
+
+			modifier = { # Léomund is arrogant and fearful
+				this = character:lineleofr5
+				has_game_rule = default_ai_behavior
+				add = -100
+			}
+
+			modifier = { # Léomund is arrogant and fearful
+				this = character:lineleofr5
+				has_game_rule = weighted_ai_behavior
+				add = -50
+			}
 		}
 	}
 
-	option = { 
+	option = {
 		name = rohan.0101.b # I will remain independent
-		title:k_rohan.holder = {
-			add_pressed_claim = scope:recipient.primary_title
-		} 
+		show_as_tooltip = {
+			if = {
+				limit = {
+					scope:recipient.primary_title.kingdom ?= title:k_rohan
+				}
+				scope:sender = {
+					add_unpressed_claim = scope:recipient.primary_title
+				}
+			}
+			add_prestige = 75
+		}
+		hidden_effect = {
+			scope:sender = { trigger_event = rohan.0103 }
+		}
 		# if = {
 		# 	limit = { is_ai = yes }
 			#lotr_get_aggressive = yes
@@ -260,239 +306,73 @@ rohan.0101 = {
 				has_game_rule = random_ai_behavior
 				add = 50
 			}
+
+			modifier = { # Léomund is arrogant and fearful
+				this = character:lineleofr5
+				has_game_rule = default_ai_behavior
+				add = 100
+			}
+
+			modifier = { # Léomund is arrogant and fearful
+				this = character:lineleofr5
+				has_game_rule = weighted_ai_behavior
+				add = 50
+			}
 		}
 	}
 }
 
-# Rohirrim culture split. (Eastfolde+Folde and Westfolde+West Marches)
-#global_culture.0011 = {}
-#rohan.4001 = {
-#	type = empty
-#	hidden = yes
-#	
-#	immediate = {
-#		every_county = {
-#			limit = {
-#				# All visigothic countie in Scandanavia will convert to the appropriate culture.
-#				culture = culture:norse
-#				title_province = {
-#					geographical_region = world_europe_north
-#				}
-#			}
-#			add_to_list = norse_counties
-#		}
-#
-#		# Convert the visigothic counties to the new culture.
-#		every_in_list = {
-#			list = norse_counties
-#			limit = {
-#				# Same-culture players get an event informing them of their county's conversion *before* it happens (for their provinces only).
-#				NOT = {
-#					holder = {
-#						OR = {
-#							AND = {
-#								is_ai = no
-#								culture = culture:norse
-#							}
-#							any_liege_or_above = {
-#								is_ai = no
-#								culture = culture:norse
-#							}
-#						}
-#					}
-#				}
-#			}
-#						
-#			# First, all Norse counties in Denmark become Danish
-#			convert_county_and_holder_if_in_region_effect = {
-#				OLD_CULTURE = culture:norse
-#				NEW_CULTURE = culture:danish
-#				REGION = custom_danish
-#			}
-#
-#			# Second, any Norse counties in Norway become Norwegian
-#			convert_county_and_holder_if_in_region_effect = {
-#				OLD_CULTURE = culture:norse
-#				NEW_CULTURE = culture:norwegian
-#				REGION = custom_norwegian
-#			}
-#
-#			# Finally, all remaining Norse counties become Swedish
-#			convert_county_and_holder_if_in_region_effect = {
-#				OLD_CULTURE = culture:norse
-#				NEW_CULTURE = culture:swedish
-#				REGION = world_europe_north
-#			}
-#		}
-#
-#		# Save scopes for player notification events.
-#		culture:norse = { save_scope_as = norse }
-#		culture:swedish = {
-#			get_all_innovations_from = scope:norse
-#			save_scope_as = swedish
-#		}
-#		culture:norwegian = {
-#			get_all_innovations_from = scope:norse
-#			save_scope_as = norwegian
-#		}
-#		culture:danish = {
-#			get_all_innovations_from = scope:norse
-#			save_scope_as = danish
-#		}
-#
-#		# Send the appropraite notification event to each player.
-#		every_player = {
-#			if = {
-#				limit = {
-#					culture = culture:norse
-#					any_sub_realm_county = {
-#						culture = culture:norse
-#						title_province = {
-#							geographical_region = world_europe_north
-#						}
-#					}
-#				}
-#				if = {
-#					limit = {
-#						NOT = {
-#							any_liege_or_above = {
-#								is_ai = no
-#							}
-#						}
-#					}
-#					trigger_event = rohan.4002
-#				}
-#			}
-#			else = {
-#				if = {
-#					limit = {
-#						is_ai = no
-#						save_temporary_scope_as = player
-#						any_in_list = {
-#							list = suebi_counties
-#							holder = {
-#								is_within_diplo_range = { CHARACTER = scope:player }
-#							}
-#						}
-#					}
-#					trigger_event = rohan.4005
-#				}
-#			}
-#		}
-#	}
-#}
-#
-## If a player is strong enough, they can resist the culture flip for their sub-realm only.
-##global_culture.0012 = {}
-#rohan.4002 = {
-#	type = character_event
-#	title = rohan.4002.t
-#	desc = rohan.4002.desc
-#	theme = culture_change
-#	left_portrait = root
-#
-#	immediate = {
-#		# Determine what the player's target culture is (based off of religion and capital region)
-#		if = {
-#			limit = {
-#				capital_province = {
-#					geographical_region = custom_danish
-#				}
-#			}
-#			culture:danish = { save_scope_as = my_new_culture }
-#		}
-#		else_if = {
-#			limit = {
-#				capital_province = {
-#					geographical_region = custom_norwegian
-#				}
-#			}
-#			culture:norwegian = { save_scope_as = my_new_culture }
-#		}
-#		else = {
-#			culture:swedish = { save_scope_as = my_new_culture }
-#		}
-#
-#		culture = { save_scope_as = old_culture }
-#	}
-#
-#	# Option 1 (Almost always the only option): Accept the culture conversion.
-#	option = {
-#		name = rohan.4002.a
-#		convert_player_realm_from_old_culture_to_new_effect = {
-#			OLD_CULTURE = culture:norse
-#			NEW_CULTURE = scope:my_new_culture
-#		}
-#	}
-#
-#	# Option 2: I am strong enough to keep our old culture intact!
-#	option = {
-#		name = rohan.4002.b
-#
-		# trigger = {
-		# 	custom_description = {
-		# 		text = controls_enough_culture_counties
-		# 		any_in_list = {
-		# 			list = norse_counties
-		# 			percent >= 0.8
+rohan.0102 = { # Subjugation accepted
+	type = letter_event
+	opening = rohan.0102.opening
+	desc = rohan.0102.desc
+	sender = scope:recipient
 
-		# 			OR = {
-		# 				holder = root
-		# 				holder = {
-		# 					any_liege_or_above = {
-		# 						this = root
-		# 					}
-		# 				}
-		# 			}
-		# 		}
-		# 	}
-		# }
-#
-#		show_as_unavailable = {
-#			custom_description = {
-#				text = controls_enough_culture_counties	
-#				any_in_list = {
-#					list = norse_counties
-#					percent < 0.8
-#
-#					OR = {
-#						holder = root
-#						holder = {
-#							any_liege_or_above = {
-#								this = root
-#							}
-#						}
-#					}
-#				}
-#			}
-#		}
-#
-#		custom_tooltip = global_culture.custom.keep_culture
-#	}
-#}
+	immediate = {
+		scope:recipient = {
+			create_title_and_vassal_change = {
+				type = swear_fealty
+				save_scope_as = change
+				add_claim_on_loss = no
+			}
+			change_liege = {
+				liege = scope:sender
+				change = scope:change
+			}
+			resolve_title_and_vassal_change = scope:change
+		}
+	}
 
-# As this is purely an informative event for players, it doesn't actually have any gameplay effects.
-#global_culture.0015 = {}
-#rohan.4005 = {
-#	type = character_event
-#	title = rohan.4005.t
-#	desc = rohan.4005.desc
-#	theme = culture_change
-#
-#	option = {
-#		name = rohan.4005.a
-#	}
-#}
+	option = { # Wise choice
+		name = rohan.0102.a
+	}
+}
 
-# Rohirrim Split
-# rohan.4002.t:0 "Fate of the Norsemen"
-# rohan.4002.desc:0 "Living in the harsh lands of Scandinavia, our people have a history of ensuring our prosperity and survival though trading, pillaging, and fighting as swords for hire.\n\nOver time this resulted in the accumulation of great wealth, making our people put down roots and settle in permanent homesteads with greater frequency.\n\nNow these settlements have begun to diverge from each other culturally, as their traditions and even languages change to meet the demands of their new lifestyles."
-# rohan.4002.a:0 "We must ensure our own prosperity first and foremost."
-# rohan.4002.b:0 "Unacceptable! The Norse #EMP will#! stay united."
+rohan.0103 = { # Subjugation refused
+	type = letter_event
+	opening = rohan.0103.opening
+	desc = rohan.0103.desc
+	sender = {
+		character = scope:recipient
+		animation = personality_bold
+	}
 
-# rohan.4005.t:0 "$rohan.4002.t$"
-# rohan.4005.desc:0 "Traders, raiders, and mercenaries... the Norse have long traveled from Scandinavia all throughout Europe and even beyond, leaving their mark everywhere they went.\n\nNow it appears that this age may be coming to an end, as cultural differences and clan rivalries have led to the rise of disparate [danish.GetName], [swedish.GetName], and [norwegian.GetName] identities amongst them."
-# rohan.4005.a:0 "What does this mean for the future of Europe?"
+	immediate = {
+		if = {
+			limit = {
+				scope:recipient.primary_title.kingdom ?= title:k_rohan
+			}
+			scope:sender = {
+				add_unpressed_claim = scope:recipient.primary_title
+			}
+		}
+		scope:recipient = { add_prestige = 75 }
+	}
+
+	option = { # How dare they!
+		name = rohan.0103.a
+	}
+}
 
 rohan.1200 = { # Orcs spotted in the Emyn Muil. 
 	content_source = realms_dlc
