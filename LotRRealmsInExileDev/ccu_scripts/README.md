@@ -1,0 +1,36 @@
+# Community Culture Utility
+
+# Auto-patcher Functionality
+
+- If you are using CCU with a set of mods with different languages/heritages than vanilla, you will need to edit the mod's language/heritage files and then run the patcher.
+
+1. Add parameters beginning with `heritage_group`, `language_group`, and `language_family` to the heritage and language files in the CCU mod folder. Every heritage should have a heritage group parameter, and every language a language group and family.
+2. Download golang from: <https://golang.org/dl/.> To verify it's installed correctly open up command prompt and enter `go version`. If you get a version number back then everything is working.
+3. Navigate to the `ccu_scripts` directory in CMD and type `go run .`
+4. All done! The program will direct its outputs to the CCU mod folder, and the in-game debug function will let you know if you missed anything.
+
+# Modder API
+
+**has_same_heritage_group_as**
+- Purpose: Checks if two culture share a heritage group
+- Scope: culture
+- Arguments: target (culture)
+- Sample Usage: `culture:xxx = { has_same_heritage_group_as = { TARGET = culture:yyy } }`
+
+**has_same_heritage_family_as**
+- Purpose: Checks if two culture share a heritage family
+- Scope: culture
+- Arguments: target (culture)
+- Sample Usage: `culture:xxx = { has_same_heritage_family_as = { TARGET = culture:yyy } }`
+
+**has_same_language_group_as**
+- Purpose: Checks if two culture share a language group
+- Scope: culture
+- Arguments: target (culture)
+- Sample Usage: `culture:xxx = { has_same_language_group_as = { TARGET = culture:yyy } }`
+
+**has_same_language_family_as**
+- Purpose: Checks if two culture share a language family
+- Scope: culture
+- Arguments: target (culture)
+- Sample Usage: `culture:xxx = { has_same_language_family_as = { TARGET = culture:yyy } }`
