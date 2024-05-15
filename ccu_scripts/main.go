@@ -24,10 +24,10 @@ func main() {
 
 	var configInfo configData
 	configInfo.modOutFolder = modDirectory
-	configInfo.pillarsFolder = filepath.Join(configInfo.modOutFolder, "common", "culture", "pillars")
-	configInfo.localizationOutFolder = filepath.Join(configInfo.modOutFolder, "localization", "english", "ccu")
-	configInfo.scriptedEffectsOutFolder = filepath.Join(configInfo.modOutFolder, "common", "scripted_effects")
-	configInfo.scriptedGUIOutFolder = filepath.Join(configInfo.modOutFolder, "common", "scripted_guis")
+	configInfo.pillarsFolder = filepath.Join(configInfo.modOutFolder, "LotRRealmsInExileDev", "common", "culture", "pillars")
+	configInfo.localizationOutFolder = filepath.Join(configInfo.modOutFolder, "LotRRealmsInExileDev", "localization", "english", "ccu")
+	configInfo.scriptedEffectsOutFolder = filepath.Join(configInfo.modOutFolder, "LotRRealmsInExileDev", "common", "scripted_effects")
+	configInfo.scriptedGUIOutFolder = filepath.Join(configInfo.modOutFolder, "LotRRealmsInExileDev", "common", "scripted_guis")
 	writeCCUFiles(configInfo)
 	bakEliminator(modDirectory)
 }
