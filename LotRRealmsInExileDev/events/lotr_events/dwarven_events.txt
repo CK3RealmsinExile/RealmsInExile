@@ -601,13 +601,52 @@ dwarven.5000 = { # Game Start Reincarnation System Setup Event
 	}
 }
 
+scripted_trigger dwarven.5001_direct_male_line = {
+	NOT = {
+		any_sibling = {
+			is_alive = yes
+			is_female = no
+			age >= prev.age
+			dynasty = ROOT.dynasty
+			NOR = {
+				has_trait = bastard
+				has_trait = bastard_founder 
+				
+			}
+			trigger_if = {
+				limit = {
+					exists = father
+				}
+				father = prev.father
+			}
+			trigger_if = {
+				limit = {
+					exists = scope:father
+					exists = scope:real_father
+				}
+				scope:father = scope:real_father
+			}
+		}
+	}
+}
+	
+
 dwarven.5001 = { # On childbirth: Random chance to be a reincarnation
 	type = character_event
 	hidden = yes
-
 	trigger = {
 		# Basic Stuff
-		NOT = { exists = scope:real_father }
+		trigger_if = {
+			limit = {
+				exists = scope:father
+				exists = scope:real_father
+			}
+			scope:father = scope:real_father
+		}
+		NOR = {
+			has_trait = bastard
+			has_trait = bastard_founder
+		}
 		is_female = no
 		is_lowborn = no
 		is_dwarf = yes
@@ -673,68 +712,28 @@ dwarven.5001 = { # On childbirth: Random chance to be a reincarnation
 					dynasty = { current_year >= var:dorfdad_cooldown_year }
 				}
 				# Must be direct male-line descendant and oldest child
-				NOT = {
-					any_sibling = {
-						is_alive = yes
-						is_female = no
-						NOR = {
-							has_trait = bastard
-							exists = scope:real_father
-						}
-						age >= prev.age # Kind of redundant as I was just born
-					}
-				}
+				dwarven.5001_direct_male_line = yes
 				father = {
 					is_alive = yes
 					house = root.house
 					OR = {
 						is_dynast = yes
 						AND = {
-							NOT = {
-								any_sibling = {
-									is_alive = yes
-									is_female = no
-									NOR = {
-										has_trait = bastard
-										exists = scope:real_father
-									}
-									age >= prev.age
-								}
-							}
+							dwarven.5001_direct_male_line = yes
 							father = {
 								is_alive = yes
 								house = root.house
 								OR = {
 									is_dynast = yes
 									AND = {
-										NOT = {
-											any_sibling = {
-												is_alive = yes
-												is_female = no
-												NOR = {
-													has_trait = bastard
-													exists = scope:real_father
-												}
-												age >= prev.age
-											}
-										}
+										dwarven.5001_direct_male_line = yes
 										father = {
 											is_alive = yes
 											house = root.house
 											OR = {
 												is_dynast = yes
 												AND = {
-													NOT = {
-														any_sibling = {
-															is_alive = yes
-															is_female = no
-															NOR = {
-																has_trait = bastard
-																exists = scope:real_father
-															}
-															age >= prev.age
-														}
-													}
+													dwarven.5001_direct_male_line = yes
 													father = {
 														is_alive = yes
 														house = root.house
@@ -760,7 +759,43 @@ dwarven.5001 = { # On childbirth: Random chance to be a reincarnation
 			random = {
 				chance = {
 					value = 10
-					if = { # Player children get a higher chance, as a treat
+					if = { # Some characters historically sire incarnates
+						limit = {
+							father = {
+								is_alive = yes
+								house = root.house
+								has_character_flag = historically_conceived_dorfdad
+							}
+							has_game_rule = default_ai_behavior
+						}
+						add = 90
+					}
+					else_if = { # Some characters historically sire incarnates
+						limit = {
+							father = {
+								is_alive = yes
+								house = root.house
+								has_character_flag = historically_conceived_dorfdad
+							}
+							has_game_rule = weighted_ai_behavior
+						}
+						add = 65
+					}
+					else_if = { # Some characters historically sire incarnates
+						limit = {
+							father = {
+								is_alive = yes
+								house = root.house
+								has_character_flag = historically_conceived_dorfdad
+							}
+							NOR = {
+								has_game_rule = default_ai_behavior
+								has_game_rule = weighted_ai_behavior
+							}
+						}
+						add = 40
+					}
+					else_if = { # Player children get a higher chance, as a treat
 						limit = {
 							any_ancestor = {
 								is_alive = yes
@@ -769,18 +804,6 @@ dwarven.5001 = { # On childbirth: Random chance to be a reincarnation
 							}
 						}
 						add = 5
-					}
-					if = { # Some characters historically sire incarnates
-						limit = {
-							OR = {
-								father = {
-									is_alive = yes
-									house = root.house
-									has_character_flag = historically_conceived_dorfdad
-								}
-							}
-						}
-						add = 1000
 					}
 				}
 				# Create the Story
