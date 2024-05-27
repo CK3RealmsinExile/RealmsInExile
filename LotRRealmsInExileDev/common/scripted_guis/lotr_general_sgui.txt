@@ -50,13 +50,30 @@ set_title_as_selected = {
 				this = root
 			}
 		}
+		trigger_else_if = {
+			limit = { root.tier = tier_kingdom }
+			OR = {
+				any_in_global_list = {
+					variable = selected_titles_wastelands
+					this = root.empire
+				}
+				any_in_global_list = {
+					variable = selected_titles_wastelands
+					this = root
+				}
+			}
+		}
 		trigger_else = {
 			trigger_if = {
-				limit = { root.tier = tier_kingdom }
+				limit = { root.tier = tier_duchy }
 				OR = {
 					any_in_global_list = {
 						variable = selected_titles_wastelands
 						this = root.empire
+					}
+					any_in_global_list = {
+						variable = selected_titles_wastelands
+						this = root.kingdom
 					}
 					any_in_global_list = {
 						variable = selected_titles_wastelands
@@ -85,7 +102,12 @@ set_title_as_selected = {
 			if = {
 				limit = { root.tier = tier_empire }
 				every_in_de_jure_hierarchy = {
-					limit = { tier = tier_kingdom }
+					limit = { 
+						OR = {
+							tier = tier_kingdom 
+							tier = tier_duchy
+						}
+					}
 					add_to_global_variable_list = {
 						name = selected_titles_wastelands
 						target = this
@@ -114,6 +136,38 @@ set_title_as_selected = {
 					target = root.empire
 				}
 			}
+			if = {
+				limit = {
+					root.tier = tier_duchy
+					kingdom = {
+						NOT = {
+							any_in_de_jure_hierarchy = {
+								tier = tier_duchy
+								NOT = {
+									is_target_in_global_variable_list = {
+										name = selected_titles_wastelands
+										target = this
+									}
+								}
+							}
+						}
+					}
+				}
+				add_to_global_variable_list = {
+					name = selected_titles_wastelands
+					target = root.kingdom
+				}
+			}
+			if = {
+				limit = { root.tier = tier_kingdom }
+				every_in_de_jure_hierarchy = {
+					limit = { tier = tier_duchy }
+					add_to_global_variable_list = {
+						name = selected_titles_wastelands
+						target = this
+					}
+				}
+			}
 		}
 		else = {
 			remove_list_global_variable = {
@@ -124,7 +178,12 @@ set_title_as_selected = {
 			if = {
 				limit = { root.tier = tier_empire }
 				every_in_de_jure_hierarchy = {
-					limit = { tier = tier_kingdom }
+					limit = { 
+						OR = {
+							tier = tier_kingdom 
+							tier = tier_duchy
+						}
+					}
 					remove_list_global_variable = {
 						name = selected_titles_wastelands
 						target = this
@@ -142,6 +201,47 @@ set_title_as_selected = {
 				remove_list_global_variable = {
 					name = selected_titles_wastelands
 					target = root.empire
+				}
+			}
+			if = {
+				limit = { root.tier = tier_kingdom }
+				every_in_de_jure_hierarchy = {
+					limit = { tier = tier_duchy }
+					remove_list_global_variable = {
+						name = selected_titles_wastelands
+						target = this
+					}
+				}
+			}
+			if = {
+				limit = { root.tier = tier_duchy }
+				remove_list_global_variable = {
+					name = selected_titles_wastelands
+					target = root
+				}
+				if = {
+					limit = {
+						any_in_global_list = {
+							variable = selected_titles_wastelands
+							this = root.kingdom
+						}
+					}
+					remove_list_global_variable = {
+						name = selected_titles_wastelands
+						target = root.kingdom
+					}
+				}
+				if = {
+					limit = {
+						any_in_global_list = {
+							variable = selected_titles_wastelands
+							this = root.empire
+						}
+					}
+					remove_list_global_variable = {
+						name = selected_titles_wastelands
+						target = root.empire
+					}
 				}
 			}
 		}
@@ -171,17 +271,12 @@ set_empire_to_wastelands = {
 
 			save_scope_as = selected_empire
 			if = {
-				limit = {
-					any_in_global_list = {
-						variable = all_empires_in_game
-						this = scope:selected_empire
-					}
-				}
+				limit = { scope:selected_empire.tier = tier_empire }
 				every_de_jure_county = {
 					duchy.kingdom = {
-						remove_list_global_variable = {
-							name = all_kingdoms_in_game
-							target = this
+						remove_list_variable = { 
+							name = de_jure_kingdoms 
+							target = this 
 						}
 					}
 				}
@@ -191,10 +286,22 @@ set_empire_to_wastelands = {
 					target = scope:selected_empire
 				}
 			}
-			else = {
-				remove_list_global_variable = {
-					name = all_kingdoms_in_game
-					target = scope:selected_empire
+			if = {
+				limit = { scope:selected_empire.tier = tier_kingdom }
+				empire = {
+					remove_list_variable = {
+						name = de_jure_kingdoms 
+						target = scope:selected_empire
+					}
+				}
+			}
+			if = {
+				limit = { scope:selected_empire.tier = tier_duchy }
+				kingdom = {
+					remove_list_variable = {
+						name = de_jure_duchies
+						target = scope:selected_empire
+					}
 				}
 			}
 		}
@@ -263,5 +370,69 @@ can_replace_ruler_with_custom = { # RulerDesignerWindow.GetCharacterToOverwrite
 			}
 		}
 		trigger_else = { always = yes }
+	}
+}
+
+canon_regions = {
+	is_valid = {
+	}
+	effect = {
+		if = {
+			limit = { has_global_variable = canon_regions_added }
+			remove_global_variable = canon_regions_added
+		} else = {
+			every_in_global_list = {
+				variable = non_canon_areas
+
+				add_to_global_variable_list = {
+					name = selected_titles_wastelands
+					target = this
+				}
+
+				if = {
+					limit = { this.tier = tier_empire }
+					every_in_de_jure_hierarchy = {
+						limit = { 
+							OR = {
+								tier = tier_kingdom 
+								tier = tier_duchy
+							}
+						}
+						add_to_global_variable_list = {
+							name = selected_titles_wastelands
+							target = this
+						}
+					}
+				}
+			}
+			set_global_variable = canon_regions_added
+		}
+	}
+}
+
+clear_selected_titles = {
+	is_valid = {
+		trigger_if = {
+			limit = { 
+				any_in_global_list = {
+					variable = selected_titles_wastelands
+					this = this
+				}
+			}
+			global_variable_list_size = {
+				name = selected_titles_wastelands
+				value > 0
+			}
+		}
+	}
+	effect = {
+		every_in_global_list = {
+			variable = selected_titles_wastelands
+			save_temporary_scope_as = temp_scope
+			remove_list_global_variable = {
+				name = selected_titles_wastelands
+				target = scope:temp_scope
+			}
+		}
 	}
 }
