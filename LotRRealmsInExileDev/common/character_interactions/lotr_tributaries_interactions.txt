@@ -667,3 +667,195 @@ release_tributary_interaction = {
 	}
 	# ai_frequency = 0
 }
+
+release_as_tributary_interaction = {
+	category = interaction_category_diplomacy
+	common_interaction = yes
+	use_diplomatic_range = no
+	icon = break_protectorate_interaction
+
+	send_options_exclusive = yes
+	
+	desc = release_tributary_interaction_desc
+	
+	is_shown = {
+		scope:recipient = {
+			is_vassal_of = scope:actor
+			NOT = { has_culture = culture:wastelands }
+			is_in_valinor = no
+		}
+		NOT = { scope:recipient = scope:actor }
+		
+		scope:actor = {
+			NOT = { has_culture = culture:wastelands }
+		}
+	}
+
+	is_valid_showing_failures_only = {
+		NOT = { scope:actor = { is_at_war_with = scope:recipient } }
+		scope:actor = {
+			is_independent_ruler = yes
+			NOT = {
+				is_at_war = yes
+			}
+		}
+		custom_description = {
+			text = is_at_war_with_another_vassal
+			object = scope:recipient
+			NOT = {
+				scope:actor = {
+					any_vassal_or_below = {
+						is_at_war_with = scope:recipient
+					}
+				}
+			}
+		}
+		custom_description = {
+			text = is_de_jure_vassal_check
+			object = scope:recipient
+			NOT = { #Cannot be used against de jure vassals
+				scope:recipient.primary_title = {
+					any_this_title_or_de_jure_above = {
+						holder = scope:actor
+					}
+				}
+			}
+		}
+	}
+	
+	can_send = {
+		custom_tooltip = {
+			text = lotr_can_send_release_as_tributary_tt
+			OR = {
+				scope:client_state = yes
+				scope:tributary_state = yes
+			}
+		}
+	}
+
+
+	send_option = {
+		flag = client_state
+		localization = client_state
+		starts_enabled = { always = yes	}
+	}
+
+	# Medium starting obligations
+	send_option = {		
+		flag = tributary_state
+		localization = tributary_state
+	}
+
+	auto_accept = yes
+
+	on_accept = {
+		scope:actor = {
+			hidden_effect = {
+				send_interface_toast = {
+					title = grant_vassal_independence_interaction_toast
+					left_icon = scope:actor
+					right_icon = scope:recipient
+
+					custom_tooltip = grant_vassal_independence_interaction_toast_desc
+				}
+			}
+		}
+
+		scope:recipient = {
+			#Send notifications
+			if = {
+				limit = {
+					any_liege_or_above = {
+						is_ai = no
+						NOT = { this = scope:actor }
+					}
+				}
+				every_liege_or_above = {
+					limit = {
+						is_ai = no
+						NOT = { this = scope:actor }
+					}
+					trigger_event = vassal_interaction.0023
+				}
+			}
+			if = {
+				limit = {
+					any_liege_or_above = {
+						any_vassal = {
+							is_ai = no
+							NOR = {
+								this = scope:recipient
+								this = scope:actor
+							}
+						}
+					}
+				}
+				every_liege_or_above = {
+					limit = {
+						any_vassal = {
+							is_ai = no
+							NOR = {
+								this = scope:recipient
+								this = scope:actor
+							}
+						}
+					}
+					every_vassal = {
+						limit = {
+							is_ai = no
+							NOT = { this = scope:recipient }
+						}
+						trigger_event = {
+							id = vassal_interaction.0022
+							days = 3
+						}
+					}
+				}
+			}
+			if = {
+				limit = { scope:client_state = yes }
+				custom_tooltip = {
+					text = lotr_release_as_client_state_effect_tt
+					make_tributary = {
+						TYPE = tributary_non_permanent
+						SUZERAIN = scope:actor
+						TRIBUTARY = this
+					}
+				}
+			}
+			if = {
+				limit = { scope:tributary_state = yes }
+				custom_tooltip = {
+					text = lotr_release_as_tributary_state_effect_tt
+					make_tributary = {
+						TYPE = tributary_permanent
+						SUZERAIN = scope:actor
+						TRIBUTARY = this
+					}
+				}
+			}
+
+			add_opinion = {
+				target = scope:actor
+				modifier = made_me_a_tributary
+			}
+
+			hidden_effect = {
+				create_title_and_vassal_change = {
+					type = independency
+					save_scope_as = change
+					add_claim_on_loss = yes
+				}
+				becomes_independent = {
+					change = scope:change
+				}
+
+				resolve_title_and_vassal_change = scope:change
+			}
+		}
+	}
+
+	ai_will_do = {
+		base = 0 #The AI should never do this!
+	}
+}
