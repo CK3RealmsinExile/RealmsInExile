@@ -165,12 +165,23 @@ nazgul.0002 = { # Nazgûl murders a courtier
 				random_artifact_claimant = {
 					limit = { is_nazgul = yes }
 					save_scope_as = avenging_nazgul
+					set_variable = {
+						name = failures
+						value = 0
+					}
 				}
 			}
 		}
 		else = {
 			random_living_character = {
-				limit = { is_nazgul = yes }
+				limit = { 
+					is_nazgul = yes
+					NOT = {
+						any_character_artifact = {
+							has_variable = ring_of_men
+						}
+					}
+				}
 				save_scope_as = avenging_nazgul
 			}
 		}
@@ -228,14 +239,19 @@ nazgul.0002 = { # Nazgûl murders a courtier
 	option = { #Challenge the Nazgûl
 		name = nazgul.0002.b
 		custom_tooltip = nazgul.002.b.tt
-		configure_start_song_battle_effect = {
-			SB_INITIATOR = root
-			SB_ATTACKER = root
-			SB_DEFENDER = scope:avenging_nazgul
-			LOCALE = random_nice_day
-			OUTPUT_EVENT = nazgul.0200
-			INVALIDATION_EVENT = song_battle.0021
+		hidden_effect = {
+			scope:avenging_nazgul = {
+				add_diplomacy_skill = { #Adding scaling diplo buff
+					value = var:failures
+					multiply = 5
+				}
+			}
 		}
+		trigger_event = {
+			id = nazgul.0210
+			days = 1
+		}
+		
 		ai_chance = {
 			base = 25
 			ai_value_modifier = {
@@ -425,14 +441,19 @@ nazgul.0003 = { # Nazgûl attacks a loved one
 	option = { #Challenge the Nazgûl
 		name = nazgul.0002.b
 		custom_tooltip = nazgul.002.b.tt
-		configure_start_song_battle_effect = {
-			SB_INITIATOR = root
-			SB_ATTACKER = root
-			SB_DEFENDER = scope:avenging_nazgul
-			LOCALE = random_nice_day
-			OUTPUT_EVENT = nazgul.0200
-			INVALIDATION_EVENT = song_battle.0021
+		hidden_effect = {
+			scope:avenging_nazgul = {
+				add_diplomacy_skill = { #Adding scaling diplo buff
+					value = var:failures
+					multiply = 5
+				}
+			}
 		}
+		trigger_event = {
+			id = nazgul.0210
+			days = 1
+		}
+		
 		ai_chance = {
 			base = 25
 			ai_value_modifier = {
@@ -989,6 +1010,21 @@ nazgul.0105 = { # Fallback
 # Nazgûl 0200-0203 Duel Events #
 ################################
 
+nazgul.0210 = {
+	hidden = yes
+	
+	immediate = {
+		configure_start_song_battle_effect = {
+			SB_INITIATOR = root
+			SB_ATTACKER = root
+			SB_DEFENDER = scope:avenging_nazgul
+			LOCALE = random_nice_day
+			OUTPUT_EVENT = nazgul.0200
+			INVALIDATION_EVENT = song_battle.0021
+		}
+	}
+}
+
 nazgul.0200 = { #Nazgûl song battle outcome
 	hidden = yes
 
@@ -996,7 +1032,17 @@ nazgul.0200 = { #Nazgûl song battle outcome
 		scope:sb_victor = {
 			add_character_modifier = {
 				modifier = magical_supremacy_modifier
-				days = 10
+				days = 3
+			}
+		}
+		scope:avenging_nazgul = {
+			add_diplomacy_skill = { #Removing scaling diplo buff
+				value = var:failures
+				multiply = -5
+			}
+			add_prowess_skill = { #Adding scaling prowess buff
+				value = var:failures
+				multiply = 3
 			}
 		}
 		configure_start_single_combat_effect = {
@@ -1014,17 +1060,25 @@ nazgul.0200 = { #Nazgûl song battle outcome
 
 nazgul.0201 = { #Nazgûl duel outcome
 	hidden = yes
-	trigger = { is_nazgul = no }
 
 	immediate = {
-		if = {
-			limit =  { scope:sc_victor = root }
+		scope:avenging_nazgul = {
+			add_prowess_skill = { #Removing scaling prowess buff
+				value = var:failures
+				multiply = -3
+			}
+			change_variable = {
+				name = failures
+				add = 1 #Will be set to 0 if the Ring gets a new owner
+			}
+		}
+		scope:sc_victor = {
 			trigger_event = {
 				id = nazgul.0202
 				days = 1
 			}
 		}
-		else_if = {
+		scope:sc_loser = {
 			trigger_event = {
 				id = nazgul.0203
 				days = 1
@@ -1048,12 +1102,14 @@ nazgul.0202 = { #Victory !
 		character = scope:avenging_nazgul
 		animation = rage
 	}
+	
+	trigger = { is_nazgul = no }
 
 	option = { #I'm invincible !
 		name = nazgul.0202.a
 		trigger_event = {
 			id = nazgul.0003
-			months = { 12 18 }
+			#months = { 12 18 }
 		}
 		hidden_effect = {
 			random = {
@@ -1079,14 +1135,12 @@ nazgul.0203 = { #Defeat !
 		character = scope:avenging_nazgul
 		animation = duel_wield_weapon
 	}
+	
+	trigger = { is_nazgul = no }
 
 	option = { #It was always going to end this way, you knew that.
 		name = nazgul.0203.a
-		death = {
-			killer = scope:avenging_nazgul
-			death_reason = death_duel
-		}
-		random_character_artifact = {
+		every_character_artifact = {
 			limit = {
 				has_variable = ring_of_men
 			}
@@ -1099,6 +1153,11 @@ nazgul.0203 = { #Defeat !
 				}
 			}
 		}
+		death = {
+			killer = scope:avenging_nazgul
+			death_reason = death_duel
+		}
+		
 	}
 }
 
