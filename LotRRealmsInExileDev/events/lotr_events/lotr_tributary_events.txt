@@ -1,0 +1,592 @@
+﻿namespace = tributary
+
+tributary.0001 = { # Call Protector to Defensive War
+	content_source = realms_dlc
+	type = character_event
+	title = tributary.0001.t
+	desc = tributary.0001.desc
+	theme = stewardship_duty_focus
+	left_portrait = {
+		character = root
+		animation = war_attacker
+	}
+	right_portrait = {
+		character = scope:defender
+		animation = war_defender
+	}
+
+	trigger = {
+		scope:attacker = { #Do not call when primary attacker is also your tributary / protectorate
+			NOT = {
+				exists = var:my_suzerain
+				is_target_in_variable_list = { name = non_permanent_tributaries target = prev }
+			}
+			NOT = {
+				exists = var:my_suzerain
+				is_target_in_variable_list = { name = permanent_tributaries target = prev }
+			}		
+		}
+		trigger_if = { # If Protectorate / Permanent Tributary is AI...
+			limit = {
+				scope:defender = { is_ai = yes }
+			}
+			OR = { #AI
+				scope:defender.total_strength < scope:attacker.total_strength # ...only call in if weaker than attacker...
+				AND = { # ...and always call in if Suzerain is Sauron and attacker or their allies is elven
+					is_sauron = yes
+					scope:attacker = { 
+						OR = {
+							is_elf = yes
+							any_war_ally = { is_elf = yes }
+						}
+					}
+				}
+			}
+		}
+		trigger_else = { # If Protectorate / Permanent Tributary is human, always call in protector
+			always = yes
+		}
+	}
+
+	option = { # Join
+		name = tributary.0001.a
+		save_scope_as = protector
+		scope:war = {
+			hidden_effect = {
+				every_war_participant = {
+					limit = { NOT = { this = scope:protector } }
+					send_interface_toast = {
+						left_icon = root
+						right_icon = scope:defender
+						title = tributary.0001.a.toast
+						if = {
+							limit = {
+								scope:defender = {
+									has_variable = overlord_protector
+								}
+							}
+							custom_tooltip = tributary.0001.a.toast.protectorate.tt
+						}
+						else = { custom_tooltip = tributary.0001.a.toast.tributary.tt } 					
+					}
+				}
+			}
+			add_defender = prev
+		}
+		scope:defender = {
+			if = {
+				limit = {
+					NOR = {
+						has_relation_friend = prev
+						has_relation_potential_friend = prev
+					}
+				}
+				set_relation_potential_friend = prev
+			}
+		}
+		ai_chance = {
+			base = 50
+		}
+	}
+	
+	option = { # Reject - protectorate
+		name = tributary.0001.b
+		save_scope_as = protector
+		if = {
+			limit = {
+				scope:defender = {
+					has_variable = overlord_protector
+				}
+			}
+			custom_tooltip = loss_of_protectorate.tt
+			add_prestige_experience = -500
+		}
+		else = { custom_tooltip = loss_of_suzerainship.tt }
+		scope:defender = {
+			hidden_effect = {
+				send_interface_toast = {
+						left_icon = root
+						title = tributary.0001.b.toast
+				}
+			}
+			free_tributary = yes
+			add_opinion = {
+				modifier = rejected_call_to_defensive_war
+				target = root
+			}
+		}
+		ai_chance = {
+			base = 0
+		}
+	}
+	
+}
+
+tributary.0002 = { # Tributary independence war invitation
+	content_source = realms_dlc
+	type = character_event
+	title = tributary.0002.t
+	desc = tributary.0002.desc
+	theme = war
+	left_portrait = {
+		character = scope:attacker
+		animation = war_attacker
+	}
+	right_portrait = {
+		character = scope:defender
+		animation = war_defender
+	}
+
+	option = { # Join
+		name = tributary.0002.a
+		trigger = {
+			can_declare_war = {
+				casus_belli = independence_tributary_war_cb
+				defender = scope:defender
+			}
+		}
+		scope:war = {
+			add_attacker = prev
+		}
+		stress_impact = {
+			brave = minor_stress_impact_loss
+			arrogant = minor_stress_impact_loss
+			ambitious = minor_stress_impact_loss
+			craven = minor_stress_impact_gain
+			content = minor_stress_impact_gain
+		}
+		add_character_flag = tributary_should_become_free
+
+		ai_chance = {
+			
+			base = 1
+			# Do not attempt if already at war
+			modifier = {
+				scope:attacker = {
+						is_at_war = yes
+					}
+				add = -1000
+			}
+			# Do not attempt if have high opinion of suzerain
+			modifier = {
+				scope:attacker = {
+					save_temporary_opinion_value_as = { name = target_opinion target = scope:defender }
+					scope:target_opinion >= 75
+				}
+				add = -1000
+			}
+			# More likely if different culture
+			modifier = {
+				NOT = { scope:attacker.culture = scope:defender.culture }
+				add = 0.5
+			}
+			# More likely if different religion
+			modifier = {
+				NOT = { scope:attacker.religion = scope:defender.religion }
+				add = 0.5
+			}
+			# Much less likely if stronger militarily than suzerain
+			modifier = {
+				scope:attacker.max_military_strength < scope:defender.max_military_strength
+				add = -2
+			}
+			# More likely if large number of potential allies in other tributaries
+			modifier = {
+				scope:defender = {
+					has_variable_list = all_tributaries
+					variable_list_size = { name = all_tributaries value > 5 }
+				}
+				add = 0.5
+			}
+			# Even more likely if there's a very large number of potential allies in other tributaries
+			modifier = {
+				scope:defender = {
+					has_variable_list = all_tributaries
+					variable_list_size = { name = all_tributaries value > 10 }
+				}
+				add = 0.5
+			}
+			# Good factions do not like to be under the thumb!
+			modifier = {
+				faith_is_good = yes
+				add = 0.25
+			}
+			# LotR - Sauron and Nazgul should not target eachother
+			modifier = {
+				OR = {
+					AND = {
+						is_sauron = yes
+						scope:defender = { has_trait = nazgul }
+					}
+					AND = {
+						scope:defender = { is_sauron = yes }
+						has_trait = nazgul
+					}
+				}
+				add = -1000
+			}
+			# LotR - Sauron is scary!
+			modifier = {
+				faith_is_evil = yes
+				scope:defender = { is_sauron = yes }
+				add = -2
+			}
+		}
+	}
+
+	option = { # Stay Loyal
+		name = tributary.0002.b
+		scope:war = {
+			add_defender = prev
+		}
+		stress_impact = {
+			brave = minor_stress_impact_gain
+			arrogant = minor_stress_impact_gain
+			ambitious = minor_stress_impact_gain
+			craven = minor_stress_impact_loss
+			content = minor_stress_impact_loss
+		}
+
+		ai_chance = {
+			base = 1
+			modifier = {
+				add = 100
+				is_at_war = yes
+			}
+		}
+	}
+}
+
+#tributary.0003 = { # Protectorate has died, make heir new protectorate
+#	type = character_event
+#	hidden = yes
+#
+#	immediate = {
+#		if = { # If a primary heir exists - permanent
+#			limit = { 
+#				exists = root.primary_heir
+#				root.primary_heir = {
+#					is_theocratic_lessee = no
+#				}
+#				var:my_suzerain = {
+#					is_target_in_variable_list = { name = permanent_tributaries target = prev }
+#				}
+#			}
+#			var:my_suzerain = {
+#				root.primary_heir = { 
+#					set_variable = { name = my_suzerain value = prev }
+#				}
+#				add_to_variable_list = { name = all_tributaries target = root.primary_heir }
+#				add_to_variable_list = { name = permanent_tributaries target = root.primary_heir }
+#				remove_list_variable = { name = all_tributaries target = prev }
+#				remove_list_variable = { name = permanent_tributaries target = prev }
+#			}
+#			#move trib type + character income to the heir
+#			pass_tributary_type_to_heir = {
+#				SCOPE = root
+#				TYPE = var:tributary_type
+#				NEW_RULER = root.primary_heir
+#			}
+#		}
+#		else_if = { # If a primary heir exists - non-permanent
+#			limit = { 
+#				exists = root.primary_heir
+#				root.primary_heir = {
+#					is_theocratic_lessee = no
+#				}
+#				var:my_suzerain = {
+#					is_target_in_variable_list = { name = non_permanent_tributaries target = prev }
+#				}
+#			}
+#			var:my_suzerain = {
+#				root.primary_heir = {
+#					set_variable = { name = my_suzerain value = prev }
+#				}
+#				add_to_variable_list = { name = all_tributaries target = root.primary_heir }
+#				add_to_variable_list = { name = non_permanent_tributaries target = root.primary_heir }
+#				remove_list_variable = { name = all_tributaries target = prev }
+#				remove_list_variable = { name = non_permanent_tributaries target = prev }
+#			}
+#			#move trib type + character income to the heir
+#			pass_tributary_type_to_heir = {
+#				SCOPE = root
+#				TYPE = var:tributary_type
+#				NEW_RULER = root.primary_heir
+#			}
+#		}
+#		else = { # If a primary heir does not exist
+#			var:my_suzerain = {
+#				remove_list_variable = { name = permanent_tributaries target = prev }
+#				remove_list_variable = { name = non_permanent_tributaries target = prev }
+#				remove_list_variable = { name = all_tributaries target = prev}
+#			}
+#		}
+#	}
+#}
+
+tributary.0004 = { # Check if Suzerain has any tributaries left and manage if not
+	content_source = realms_dlc
+	type = character_event
+	hidden = yes
+	
+	immediate = {
+		if = {
+			limit = {
+				has_permanent_tributaries = no
+				has_non_permanent_tributaries = no
+			}
+			clear_variable_list = all_tributaries
+			remove_variable = suzerain
+		}
+		if = {
+			limit = {
+				has_permanent_tributaries = no
+			}
+			clear_variable_list = permanent_tributaries
+		}
+		if = {
+			limit = {
+				has_non_permanent_tributaries = no
+			}
+			clear_variable_list = non_permanent_tributaries
+		}
+	}
+}
+
+tributary.0005 = { # Regular tribute amounts
+	content_source = realms_dlc
+	type = character_event
+	hidden = yes
+
+	immediate = {
+		if = {
+			limit = {
+				has_non_permanent_tributaries = yes
+			}
+			every_in_list = {
+				variable = non_permanent_tributaries
+				
+				set_variable = { 
+					name = tribute_gold_amount 
+					value = monthly_character_income
+				}
+				change_variable = {
+					name = tribute_gold_amount
+					multiply = var:tribute_gold_percent
+				}
+				
+				pay_long_term_gold = { target = prev gold = { value = monthly_character_income multiply = var:tribute_gold_percent}}
+				
+				#add_prestige = var:monthly_prestige_tributary
+				#add_piety = var:monthly_piety_tributary
+				#prev = {
+				#	add_prestige = prev.var:monthly_prestige_suzerain
+				#	add_piety = prev.var:monthly_piety_suzerain
+				#}			
+			}
+		}
+		if = {
+			limit = {
+				has_permanent_tributaries = yes
+			}
+			every_in_list = {
+				variable = permanent_tributaries
+				
+				set_variable = { 
+					name = tribute_gold_amount 
+					value = monthly_character_income
+				}
+				change_variable = {
+					name = tribute_gold_amount
+					multiply = var:tribute_gold_percent
+				}
+				
+				pay_long_term_gold = { target = prev gold = { value = monthly_character_income multiply = var:tribute_gold_percent }}
+				
+				#add_prestige = var:monthly_prestige_tributary
+				#add_piety = var:monthly_piety_tributary
+				#prev = {
+				#	add_prestige = prev.var:monthly_prestige_suzerain
+				#	add_piety = prev.var:monthly_piety_suzerain
+				#}		
+			}
+		}
+	}
+}
+
+tributary.0006 = { # Initialise tribute amounts
+	content_source = realms_dlc
+	type = character_event
+	hidden = yes
+
+	immediate = {
+		if = {
+			limit = {
+				has_non_permanent_tributaries = yes
+			}
+			every_in_list = {
+				variable = non_permanent_tributaries
+				
+				set_variable = { 
+					name = tribute_gold_amount 
+					value = monthly_character_income 
+				}
+				change_variable = {
+					name = tribute_gold_amount
+					multiply = var:tribute_gold_percent
+				}		
+			}
+		}
+		if = {
+			limit = {
+				has_permanent_tributaries = yes
+			}
+			every_in_list = {
+				variable = permanent_tributaries
+				
+				set_variable = { 
+					name = tribute_gold_amount 
+					value = monthly_character_income 
+				}
+				change_variable = {
+					name = tribute_gold_amount
+					multiply = var:tribute_gold_percent
+				}
+				
+			}
+		}
+	}
+}
+
+# tributary.0007 = { # Call Non-Permanent Tributaries to War - attacker #Not currently used
+# 	title = tributary.0007.t
+# 	desc = tributary.0007.desc
+# 	theme = stewardship_duty_focus
+# 	left_portrait = {
+# 		character = root
+# 		animation = war_attacker
+# 	}
+
+# 	option = { # Demand assistance
+# 		name = tributary.0007.a
+# 		save_scope_as = aggressor
+# 		scope:war = {
+# 			hidden_effect = {
+# 				every_war_participant = {
+# 					limit = { NOT = { this = scope:aggressor } }
+# 					send_interface_toast = {
+# 						left_icon = root
+# 						title = tributary.0007.a.toast
+# 						custom_tooltip = tributary.0007.a.toast.tt					
+# 					}
+# 				}
+# 			}
+# 		}
+# 		every_in_list = {
+# 			variable = non_permanent_tributaries
+# 			scope:war = {
+# 				add_attacker = prev
+# 			}
+# 			hidden_effect = {
+# 				send_interface_toast = {
+# 					left_icon = root
+# 					title = tributary.0007.a.toast.tribs
+# 					custom_tooltip = tributary.0007.a.toast.tribs.tt					
+# 				}
+# 			}
+# 		}
+
+# 		ai_chance = {
+# 			base = 100
+# 		}
+# 	}
+	
+# 	option = { # No need for assistance
+# 		name = tributary.0007.b
+# 		custom_tooltip = tributary.0007.b.tt
+# 		add_prestige = 100
+# 		ai_chance = {
+# 			base = 0
+# 		}
+# 	}
+	
+# }
+
+tributary.0008 = { # Call Non-Permanent Tributaries to War - defender
+	content_source = realms_dlc
+	type = character_event
+	title = tributary.0007.t
+	desc = tributary.0007.desc
+	theme = stewardship_duty_focus
+	left_portrait = {
+		character = root
+		animation = war_attacker
+	}
+	trigger = {
+		scope:war = {
+			NOT = {
+				using_cb = independence_tributary_war_cb
+			}
+		}
+	}
+	option = { # Demand assistance
+		name = tributary.0007.a
+		save_scope_as = aggressor
+		scope:war = {
+			hidden_effect = {
+				every_war_participant = {
+					limit = { NOT = { this = scope:aggressor } }
+					send_interface_toast = {
+						left_icon = root
+						title = tributary.0007.a.toast
+						custom_tooltip = tributary.0007.a.toast.tt					
+					}
+				}
+			}
+		}
+		every_in_list = {
+			variable = non_permanent_tributaries
+			scope:war = {
+				add_defender = prev
+			}
+			hidden_effect = {
+				send_interface_toast = {
+					left_icon = root
+					title = tributary.0007.a.toast.tribs
+					custom_tooltip = tributary.0007.a.toast.tribs.tt					
+				}
+			}
+		}
+
+		ai_chance = {
+			base = 100
+		}
+	}
+	
+	option = { # No need for assistance
+		name = tributary.0007.b
+		custom_tooltip = tributary.0007.b.tt
+		add_prestige = 100
+		ai_chance = {
+			base = 0
+		}
+	}
+	
+}
+
+# tributary.0009 = { # Check if Tributary / Protectorate still valid and manage if not #Not currently used
+# 	type = character_event
+# 	hidden = yes
+	
+# 	immediate = {
+# 		if = {
+# 			limit = {
+# 				OR = {
+# 					is_independent_ruler = no
+# 				}
+# 			}
+# 			#add_gold = 500
+# 			free_tributary = yes
+# 		}
+# 	}
+# }
