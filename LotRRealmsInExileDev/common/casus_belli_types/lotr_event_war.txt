@@ -1,4 +1,20 @@
-﻿kingstrife_cb = {
+﻿
+##################
+#
+#	T.A. 3000 CBs
+#
+#	T.A. 1349 CBs
+#
+#
+#
+#
+###################
+
+#####################
+### T.A. 3000 CBs ###
+#####################
+
+kingstrife_cb = {
 	group = civil_war
 	ai_only_against_liege = yes
 	target_titles = none
@@ -5171,7 +5187,6 @@ nadi_manye_religious_war_cb = {
 	max_ai_diplo_distance_to_title = 500
 }
 
-
 war_in_the_north_cb = {
 	group = conquest
 
@@ -5566,7 +5581,6 @@ war_in_the_north_cb = {
 	attacker_wargoal_percentage = 0.8
 }
 
-
 invade_bellakar_cb = {
 	group = conquest
 
@@ -5624,6 +5638,12 @@ invade_bellakar_cb = {
 
 	on_declaration = {
 		on_declared_war = yes
+		#title:e_thon_an_kharlokh.holder = {
+		#	trigger_event = { # Revolt begins
+		#		id = lotr_thani_hazad.2010 
+		#		days = 30
+		#	}
+		#}
 	}
 
 	on_victory_desc = {
@@ -5859,6 +5879,614 @@ invade_bellakar_cb = {
 	}
 }
 
+### Stormhost Tulwangi revolt war ###
+
+lotr_tulwangi_rebellion_war = {
+ 	icon = peasant_war
+ 	group = event
+
+ 	combine_into_one = yes
+ 	should_show_war_goal_subview = yes
+ 	mutually_exclusive_titles = { always = yes }
+
+ 	allowed_for_character = {
+ 		is_ai = yes
+ 	}
+
+ 	allowed_against_character = {
+ 		always = yes
+ 	}
+ 	target_titles = all
+ 	target_title_tier = duchy
+ 	target_de_jure_regions_above = yes
+ 	ignore_effect = change_title_holder
+
+ 	valid_to_start = {
+ 		always = no
+ 	}
+
+ 	should_invalidate = {
+ 		NOT = {
+ 			any_in_list = {
+ 				list = target_titles
+ 				any_in_de_jure_hierarchy = {
+ 					tier = tier_county
+ 					holder = {
+ 						target_is_same_character_or_above = scope:defender
+ 					}
+ 				}
+ 			}
+ 		}
+ 	}
+
+ 	on_invalidated_desc = msg_religious_war_invalidation_region_message
+
+ 	on_invalidated = {
+ 		scope:attacker = {
+ 			every_held_title = {
+ 				limit = { has_variable = temporary_title }
+ 				save_scope_as = destroyable_title
+ 				scope:attacker = { destroy_title = scope:destroyable_title }
+ 			}
+ 		}
+ 	}
+
+ 	on_declaration = {
+ 		on_declared_war = yes
+		if = {
+			limit = { # Minor News
+				has_game_rule = all_news
+			}
+			every_player = { # Global News Announcement
+				trigger_event = news_event.0031
+			}
+		}
+		scope:defender = {
+			every_vassal = {
+				limit = {
+					OR = {
+						has_culture = culture:tuladen
+						culture = { any_parent_culture_or_above = { this = culture:tuladen } }
+					}
+				}
+				trigger_event = lotr_thani_hazad.2116
+			}
+		}
+ 	}
+
+ 	on_victory_desc = {
+ 		first_valid = {
+ 			triggered_desc = {
+ 				trigger = { scope:attacker = { is_local_player = yes } }
+ 				desc = county_conquest_cb_victory_desc_attacker
+ 			}
+ 			desc = county_conquest_cb_victory_desc
+			#custom_tooltip = tulwangi_rebellion_counties_taken
+ 		}
+ 	}
+
+ 	on_victory = {
+		# EP2 accolade glory gain for winning against higher ranked enemy
+ 		scope:attacker = { accolade_attacker_war_end_glory_gain_med_effect = yes }
+
+ 		create_title_and_vassal_change = {
+ 			type = conquest
+ 			save_scope_as = change
+ 			add_claim_on_loss = yes
+ 		}
+
+		# go through the dejure hierarchy under target titles, transfer titles with same or worse tolerance holders (their religion equally or less tolerated than the defender's),
+		# take the holder as vassal otherwise and don't go deeper
+
+		title:k_tulwang = {
+			 change_title_holder = {
+ 				holder = scope:attacker
+ 				change = scope:change
+ 			}
+		}
+
+ 		every_in_list = {
+ 			list = target_titles
+ 			every_in_de_jure_hierarchy = {
+ 				continue = {
+					OR = {
+ 						NOT = {	exists = holder }
+ 						NOT = {
+ 							holder = { target_is_liege_or_above = scope:defender }
+ 						}
+ 						AND = {
+ 							scope:attacker.faith = {
+ 								faith_hostility_level_comparison = { prev.holder.faith <= scope:defender.faith }
+ 							}
+ 							holder = {
+								OR = {
+ 									this = scope:defender
+ 									target_is_liege_or_above = scope:defender
+ 								}
+ 							}
+ 						}
+ 					}
+ 					tier > tier_county
+ 				}
+ 				limit = {
+ 					tier <= tier_duchy
+ 					exists = holder
+ 					holder = {
+ 						OR = {
+ 							this = scope:defender
+ 							target_is_liege_or_above = scope:defender
+ 						}
+ 					}
+ 				}
+
+ 				if = {
+ 					limit = {
+ 						OR = {
+ 							scope:attacker.faith = {
+ 								faith_hostility_level_comparison = {
+ 									prev.holder.faith >= scope:defender.faith
+ 								}
+ 							}
+ 							holder.primary_title.tier >= scope:attacker.primary_title.tier
+ 						}
+ 					}
+ 					add_to_temporary_list = titles_taken
+ 				}
+ 				else = {
+ 					holder = {
+ 						add_to_temporary_list = vassals_taken
+ 					}
+ 				}
+ 			}
+ 		}
+		
+		scope:defender = { # Make sure all tulwangi counties are taken
+			every_county = {
+				limit = {
+					culture = scope:attacker.culture
+				}
+				add_to_temporary_list = titles_taken
+			}
+		}
+
+		scope:defender = {
+			hidden_effect = {
+				destroy_title = title:e_thon_an_kharlokh
+			}
+		}
+	
+ 		every_in_list = {
+ 			list = titles_taken
+ 			if = {
+ 				limit = { this = title:c_rumyar }
+ 				change_title_holder = {
+ 					holder = scope:attacker
+ 					change = scope:change
+ 					take_baronies = yes
+ 				}
+ 				set_county_culture = culture:tuladen
+ 				set_county_faith = faith:faith_tulwang
+ 			}
+ 			else_if = {
+ 				limit = { this = title:d_dobaraka }
+ 				change_title_holder = {
+ 					holder = scope:attacker
+ 					change = scope:change
+ 					take_baronies = yes
+ 				}
+ 			}
+ 			else = {
+ 				create_tulwangi_vassal_effect = {
+ 					LOCATION = scope:attacker.location
+ 				}
+ 				change_title_holder = {
+ 					holder = scope:new_tulwangi_vassal
+ 					change = scope:change
+ 					take_baronies = yes
+ 				}
+ 				scope:new_tulwangi_vassal = {
+ 					change_liege = {
+ 						liege = scope:attacker
+ 						change = scope:change
+ 					}
+ 				}
+ 			}
+ 		}
+
+ 		every_in_list = {
+ 			list = vassals_taken
+ 			change_liege = {
+ 				liege = scope:attacker
+ 				change = scope:change
+ 			}
+ 		}
+		
+ 		resolve_title_and_vassal_change = scope:change
+
+ 		# Prestige Progress for the Attacker
+ 		every_in_list = {
+ 			list = target_titles
+ 			scope:attacker = {
+ 				add_prestige_experience = medium_prestige_value
+ 			}
+ 		}	
+		
+ 		# Allies on both sides get full prestige value for helping in the war, based on their war participation.
+ 		modify_allies_of_participants_fame_values = {
+ 			WINNER = scope:attacker
+ 			FAME_BASE = medium_prestige_value
+ 			IS_RELIGIOUS_WAR = no
+ 			WINNER_ALLY_FAME_SCALE = 1
+ 			LOSER_ALLY_FAME_SCALE = 1
+ 		}
+
+ 		# Truce
+ 		add_truce_attacker_victory_effect = yes
+
+		#Clean-up tulwangi leader
+		hidden_effect = {
+			scope:attacker = {
+				every_held_title = {
+					limit = { has_variable = temporary_title }
+					save_scope_as = destroyable_title
+ 					scope:attacker = { destroy_title = scope:destroyable_title }
+ 				}
+ 			}
+ 		}
+ 		#Give the Tulwangi Leader some Tulwangi Courtiers
+ 		hidden_effect = {
+ 			create_tulwangi_courtier_effect = {
+ 				EMPLOYER = scope:attacker
+ 				LOCATION = scope:attacker.location
+ 			}
+ 			create_tulwangi_courtier_effect = {
+ 				EMPLOYER = scope:attacker
+ 				LOCATION = scope:attacker.location
+ 			}
+ 			create_tulwangi_courtier_effect = {
+ 				EMPLOYER = scope:attacker
+ 				LOCATION = scope:attacker.location
+ 			}
+ 			create_tulwangi_courtier_effect = {
+ 				EMPLOYER = scope:attacker
+ 				LOCATION = scope:attacker.location
+ 			}
+ 			create_tulwangi_courtier_effect = {
+ 				EMPLOYER = scope:attacker
+ 				LOCATION = scope:attacker.location
+ 			}
+ 			create_tulwangi_courtier_effect = {
+ 				EMPLOYER = scope:attacker
+ 				LOCATION = scope:attacker.location
+ 			}
+ 		}
+		if = {
+			limit = { # Major News
+				NOT = { has_game_rule = no_news }
+			}
+			every_player = { #Global News Announcement
+				trigger_event = news_event.0032 # Rebel Victory
+			}
+		}
+		scope:attacker = { 
+			show_pow_release_message_effect = yes 
+			hard_imprison_character_effect = {
+				TARGET = scope:defender
+				IMPRISONER = this
+			}
+		}
+ 	}
+
+ 	white_peace_possible = no
+ 	on_white_peace_desc = { desc = county_conquest_cb_white_peace_desc }
+
+ 	on_defeat_desc = {
+ 		first_valid = {
+ 			triggered_desc = {
+ 				trigger = { scope:defender = { is_local_player = yes } }
+ 				desc = county_conquest_cb_defeat_desc_defender
+ 			}
+ 			triggered_desc = {
+ 				trigger = {
+ 					scope:attacker = {
+ 						is_local_player = yes
+ 						has_targeting_faction = yes
+ 					}
+ 				}
+ 				desc = county_conquest_cb_defeat_desc_attacker
+ 			}
+ 			desc = county_conquest_cb_defeat_desc
+ 		}
+ 	}
+
+ 	on_defeat = {
+		#EP2 accolade glory gain for winning against higher ranked enemy
+ 		scope:defender = { accolade_defender_war_end_glory_gain_med_effect = yes }
+
+ 		# Prestige loss for the attacker
+ 		scope:attacker = {
+ 			add_prestige = {
+ 				value = major_prestige_value
+ 				multiply = -1.0
+ 			}
+ 		}
+
+ 		# Prestige for Defender
+ 		scope:defender = {
+ 			add_prestige_war_defender_effect = {
+ 				PRESTIGE_VALUE = major_prestige_value
+ 			}
+ 		}
+
+ 		# Allies on both sides get full prestige value for helping in the war, based on their war participation.
+ 		modify_allies_of_participants_fame_values = {
+ 			WINNER = scope:defender
+ 			FAME_BASE = medium_prestige_value
+ 			IS_RELIGIOUS_WAR = no
+ 			WINNER_ALLY_FAME_SCALE = 1
+ 			LOSER_ALLY_FAME_SCALE = 1
+ 		}
+
+ 		add_truce_attacker_defeat_effect = yes
+
+ 		scope:attacker = {
+ 			save_temporary_scope_as = loser
+ 		}
+
+ 		on_lost_aggression_war_discontent_loss = yes
+
+ 		#Clean-up tulwangi leader
+ 		hidden_effect = {
+ 			scope:attacker = {
+ 				every_held_title = {
+ 					limit = { has_variable = temporary_title }
+ 					save_scope_as = destroyable_title
+ 					scope:attacker = { destroy_title = scope:destroyable_title }
+ 				}
+ 			}
+ 		}
+		if = {
+			limit = { # Major News
+				NOT = { has_game_rule = no_news }
+			}
+			every_player = { #Global News Announcement
+				trigger_event = news_event.0033 # Rebels Defeated
+			}
+		}
+		scope:defender = { 
+			show_pow_release_message_effect = yes
+			imprison = { 
+				target = scope:attacker
+				type = dungeon 
+			}
+		}
+		scope:defender = {
+			add_dread = medium_dread_gain
+			trigger_event = lotr_thani_hazad.2120
+		}
+ 	}
+
+ 	transfer_behavior = transfer
+
+ 	on_primary_attacker_death = inherit
+ 	on_primary_defender_death = inherit
+
+ 	attacker_allies_inherit = yes
+ 	defender_allies_inherit = yes
+
+ 	war_name = lotr_tulwangi_rebellion_name
+	my_war_name = "INVASION_WAR_NAME_MY"
+ 	war_name_base = lotr_tulwangi_rebellion_name
+ 	cb_name = lotr_tulwangi_rebellion_name
+
+ 	interface_priority = 79
+
+ 	use_de_jure_wargoal_only = yes
+
+ 	attacker_wargoal_percentage = 0.8
+	
+ 	max_defender_score_from_occupation = 150
+ 	max_attacker_score_from_occupation = 150
+}
+
+lotr_valinor_invasion_cb = {
+	group = conquest
+
+	white_peace_possible = no
+
+	combine_into_one = yes
+	should_show_war_goal_subview = yes
+	# mutually_exclusive_titles = { always = no }
+
+	target_titles = all
+	target_title_tier = all
+	target_de_jure_regions_above = no
+
+	# ignore_effect = change_title_holder
+
+	transfer_behavior = transfer
+
+	on_primary_attacker_death = inherit
+	on_primary_defender_death = inherit
+
+	attacker_allies_inherit = yes
+	defender_allies_inherit = yes
+
+	interface_priority = 100
+	
+	use_de_jure_wargoal_only = yes
+	
+	attacker_wargoal_percentage = 0.8
+
+	allowed_for_character = { scope:attacker = { has_variable = invasion_cb_unlock } }
+
+	war_name = "VALINOR_HOST_LANDING_WAR_NAME"
+	war_name_base = "VALINOR_HOST_LANDING_WAR_NAME"
+	cb_name = "VALINOR_HOST_LANDING_CB_NAME"
+
+	valid_to_start = {
+		trigger_if = {
+			limit = {
+				OR = {
+					scope:attacker.capital_county.title_province = { geographical_region = middleearth_west_arnor }
+					scope:attacker.capital_county.title_province = { geographical_region = middleearth_beleriand }
+					scope:attacker.capital_county.title_province = { geographical_region = middleearth_forodwaith }
+				}
+			}
+			OR = {
+				scope:target.title_capital_county.title_province = { geographical_region = middleearth_west_arnor }
+				scope:target.title_capital_county.title_province = { geographical_region = middleearth_beleriand }
+				scope:target.title_capital_county.title_province = { geographical_region = middleearth_forodwaith }
+			}
+		} 
+		trigger_else_if = {
+			limit = { scope:attacker.capital_county.title_province = { geographical_region = special_bay_of_belfalas_invasion } }
+			scope:target.title_capital_county.title_province = { geographical_region = special_bay_of_belfalas_invasion }
+		}
+	}
+
+	should_invalidate = {
+		NOT = {
+			any_in_list = {
+				list = target_titles
+				any_in_de_jure_hierarchy = {
+					tier = tier_county
+					holder = {
+						target_is_same_character_or_above = scope:defender
+					}
+				}
+			}
+		}
+	}
+
+	on_invalidated_desc = msg_religious_war_invalidation_region_message
+
+	on_invalidated = { }
+
+	on_declaration = { on_declared_war = yes scope:attacker = { remove_variable = invasion_cb_unlock } }
+
+	on_victory_desc = {
+		first_valid = {
+			triggered_desc = {
+				trigger = { scope:attacker = { is_local_player = yes } }
+				desc = invasion_war_victory_desc_attacker
+			}
+			desc = invasion_war_victory_desc
+		}
+		triggered_desc = {
+			trigger = { scope:attacker = { is_local_player = yes } }
+			desc = invasion_war_warning_desc
+		}
+	}
+	
+	on_victory = {
+		# Legitimacy
+		add_legitimacy_attacker_victory_effect = yes
+
+		scope:attacker = { show_pow_release_message_effect = yes }
+		create_title_and_vassal_change = {
+			type = conquest
+			save_scope_as = change
+			add_claim_on_loss = yes
+		}
+		
+		setup_invasion_cb = {
+			titles = target_titles
+			attacker = scope:attacker
+			defender = scope:defender
+			change = scope:change
+			take_occupied = yes
+		}
+		resolve_title_and_vassal_change = scope:change
+
+		# Attacker gets Prestige Experience, Defender loses Prestige, all other participants gain Prestige based on their war contribution.
+		modify_all_participants_fame_values = {
+			WINNER = scope:attacker
+			LOSER = scope:defender
+			FAME_BASE = scope:cb_prestige_factor # Set by 'setup_invasion_cb'
+			IS_RELIGIOUS_WAR = no
+			WINNER_FAME_SCALE = 10
+			LOSER_FAME_SCALE = -10
+			WINNER_ALLY_FAME_SCALE = 10
+			LOSER_ALLY_FAME_SCALE = 10
+		}
+
+		# Truce
+		add_truce_attacker_victory_effect = yes
+
+		# FP1: note the victory for future memorialisation via stele (if applicable).
+		scope:attacker = { fp1_remember_recent_conquest_victory_effect = yes }
+	}
+
+	on_white_peace_desc = { desc = WHITE_PEACE_DISABLED }
+
+	on_defeat_desc = {
+		first_valid = {
+			triggered_desc = {
+				trigger = { scope:defender = { is_local_player = yes } }
+				desc = county_conquest_cb_defeat_desc_defender
+			}
+			triggered_desc = {
+				trigger = {
+					scope:attacker = {
+						is_local_player = yes
+						has_targeting_faction = yes
+					}
+				}
+				desc = county_conquest_cb_defeat_desc_attacker
+			}
+			desc = county_conquest_cb_defeat_desc
+		}
+	}
+
+	on_defeat = {
+		# Legitimacy
+		add_legitimacy_attacker_defeat_effect = yes
+		
+		scope:attacker = { show_pow_release_message_effect = yes }
+
+		# Legitimacy
+		add_legitimacy_attacker_defeat_effect = yes
+		
+		# Prestige loss for the attacker
+		scope:attacker = {
+			pay_short_term_gold_reparations_effect = {
+				GOLD_VALUE = 3
+			}
+			add_prestige = {
+				value = major_prestige_value
+				multiply = -1.0
+			}
+			destroy_title = title:e_thon_an_kharlokh
+		}
+
+		# Prestige for Defender
+		scope:defender = {
+			add_prestige_war_defender_effect = {
+				PRESTIGE_VALUE = major_prestige_value
+			}
+		}
+
+		# Allies on both sides get full prestige value for helping in the war, based on their war participation.
+		modify_allies_of_participants_fame_values = {
+			WINNER = scope:defender
+			FAME_BASE = medium_prestige_value
+			IS_RELIGIOUS_WAR = no
+			WINNER_ALLY_FAME_SCALE = 1
+			LOSER_ALLY_FAME_SCALE = 1
+		}
+
+		add_truce_attacker_defeat_effect = yes
+
+		scope:attacker = { save_temporary_scope_as = loser }
+		on_lost_aggression_war_discontent_loss = yes
+	}
+}
+
+#####################
+### T.A. 1349 CBs ###
+#####################
+
 angle_rhudaur_invasion_war = {
 	group = invasion
 
@@ -5905,6 +6533,10 @@ angle_rhudaur_invasion_war = {
 	on_invalidated_desc = msg_invasion_war_invalidated_message
 	
 	on_invalidated = {
+		#try again 
+		title:e_thon_an_kharlokh.holder = {
+			trigger_event = lotr_thani_hazad.2020
+		}
 	}
 
 	on_victory_desc = {
