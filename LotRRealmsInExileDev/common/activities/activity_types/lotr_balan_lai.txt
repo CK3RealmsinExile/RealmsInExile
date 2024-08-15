@@ -1,0 +1,2221 @@
+﻿activity_balan_lai = {
+	is_shown = {
+		has_trait = balan_lai_member
+		trigger_if = {
+			limit = {
+				is_ai = yes
+			}
+			is_at_war = no
+			short_term_gold >= mining_activity_base_cost
+		}
+	}
+
+	can_start = {
+		# always = yes
+	}
+
+	can_start_showing_failures_only = { 
+		is_available_adult = yes
+	}
+
+	is_valid = {
+		scope:host = {
+			is_alive = yes
+			is_imprisoned = no
+			is_landed = yes 
+			NOT = { is_incapable = yes }
+		}
+		# If no one shows up
+		trigger_if = {
+			limit = {
+				is_current_phase_active = yes
+			}
+			has_attending_activity_guests = yes
+		}
+	}
+
+	on_invalidated = {
+	}
+
+	cooldown = {
+		years = 10 #Make Balan-lai leader cooldown 5 years
+	} 
+
+	cost = {
+		gold = {
+			add = {
+				add = {
+					value = balan_lai_activity_base_cost #Base level
+					desc = balan_lai_base_cost
+				}
+				if = {
+					limit = {
+						scope:province = province:5317
+					}
+					subtract = {
+						value = balan_lai_mispir_activity_cost_discount
+						desc = balan_lai_mispir_discount
+					}
+				}
+				if = {
+					limit = {
+						scope:province.province_owner.top_liege = {
+							AND = {
+								has_trait = balan_lai_member
+								scope:province = capital_province
+								NOT = { this = root }
+							}
+						}
+					}
+					add = {
+						value = balan_lai_activity_cost_foreign_capital
+						desc = balan_lai_foreign_capital_additional_cost
+					}
+				}
+				if = {
+					limit = {
+						has_trait = balan_lai_member
+						has_trait_xp = {
+							trait = balan_lai_member
+							track = experience
+							value = 100
+						}
+					}
+					multiply = {
+						value = 0.7
+						desc = balan_lai_member_cost_modifier_desc
+					}
+				}
+				else_if = {
+					limit = {
+						has_trait = balan_lai_member
+						has_trait_xp = {
+							trait = balan_lai_member
+							track = experience
+							value >= 65
+						}
+					}
+					multiply = {
+						value = 0.8
+						desc = balan_lai_member_cost_modifier_desc
+					}
+				}
+				else_if = {
+					limit = {
+						has_trait = balan_lai_member
+						has_trait_xp = {
+							trait = balan_lai_member
+							track = experience
+							value >= 30
+						}
+					}
+					multiply = {
+						value = 0.9
+						desc = balan_lai_member_cost_modifier_desc
+					}
+				}
+			}
+		}
+	}
+
+	ui_predicted_cost = {
+		# All costs are balanced on County/Early Era starting point
+		gold = {
+			add = { # Base cost, scaled by era
+				value = mining_activity_base_cost
+				multiply = activity_cost_scale_by_era
+			}
+			
+			# Options 
+			add = { # Surveyors 
+				value = mining_poor_option_cost # Local Enthusiasts
+				add = mining_normal_option_cost # Select Talent
+				add = mining_good_option_cost # Distinguished Experts
+				# Divide by the number of option levels to get an average option cost
+				divide = 3
+			}
+			add = { # Party Size
+				value = mining_poor_option_cost # Intimate Party
+				add = mining_normal_option_cost # Reasonable Party
+				add = mining_good_option_cost # Substantial Party
+				# Divide by the number of option levels to get an average option cost
+				divide = 3
+			}
+			if = {
+				limit = {
+					dynasty ?= {
+						has_dynasty_perk = law_legacy_1
+					}
+				}
+				subtract = {
+					value = mining_activity_base_cost
+					multiply = law_legacy_cost_reduction_mult
+				}
+			}
+			if = {
+				limit = { has_perk = expedition_leader_perk }
+				multiply = 0.9
+			}
+			
+			# Make it a multiple of 5 (rounded up)
+			divide = 5
+			ceiling = yes
+			multiply = 5
+			
+		}
+	}
+
+	on_host_death = {
+		scope:activity = {
+			save_scope_as = death_invalidation
+			if = {
+				limit = {
+					has_activity_option = { category = special_type option = hunt_type_legendary }
+				}
+				save_scope_as = legendary_invalidation
+			}
+		}
+		scope:host = {
+			save_scope_as = invalidated_flavor
+			player_heir ?= {
+				save_scope_as = heir
+				add_character_flag = {
+					flag = hunt_heir
+					weeks = 1
+				}
+				trigger_event = { id = hunt.0080 days = 1 }
+			}
+		}
+	}
+
+	is_location_valid = {
+		OR = {
+			this = scope:host.capital_province
+			this = province:5317
+			province_owner.top_liege = {
+				AND = {
+					has_trait = balan_lai_member
+					root = capital_province
+				}
+			}
+		}
+	}
+
+	ai_will_do = {
+		value = 0
+		
+		# Base
+		add = {
+			value = 30
+			desc = "base"
+		}
+		# ai_value
+		add = {
+            value = ai_greed
+            desc = "ai_greed"
+        }
+        add = {
+            value = ai_energy
+            desc = "ai_boldness"
+        }
+        add = {
+        	value = ai_sociability
+        	multiply = 0.5
+        	desc = "ai_sociability"
+        }
+        # Personality
+		if = { # Avoids responsibilities
+			limit = { has_trait = lazy }
+			add = {
+				value = -20
+				desc = lazy
+			}
+		}
+		if = {
+			limit = { has_trait = ambitious }
+			add = {
+				value = 10
+				desc = ambitious
+			}
+		}
+		if = {
+			limit = { has_trait = greedy }
+			add = {
+				value = 20
+				desc = greedy
+			}
+		}
+		if = { # Hard work pays off
+			limit = { has_trait = diligent }
+			add = {
+				value = 20
+				desc = diligent
+			}
+		}
+		if = { # Likes to socialize
+			limit = { has_trait = gregarious }
+			add = {
+				value = 20
+				desc = gregarious
+			}
+		}
+		else_if = {
+			limit = { has_trait = shy }
+			add = {
+				value = -10
+				desc = shy
+			}
+		}
+		if = {
+			limit = { has_trait = reclusive }
+			add = {
+				value = -25
+				desc = reclusive
+			}
+		}
+		if = { # MORE MORE MORE!
+			limit = { has_trait = avaricious }
+			add = {
+				value = 50
+				desc = avaricious
+			}
+		}
+		# Court
+		if = {
+			limit = {
+				has_royal_court = yes 
+				has_court_type = court_administrative
+			}
+			add = {
+				value = 15
+				desc = court_administrative
+			}
+		}
+		# Education
+		if = {
+			limit = { has_trait = education_stewardship }
+			add = {
+				value = 25
+				desc = education_stewardship
+			}
+		}
+		# Culture
+		if = { # Mining Fervour
+			limit = {
+				culture = { has_cultural_parameter = mining_traits_more_common }
+			}
+			add = {
+				value = 100
+				desc = "mining_traits_more_common"
+			}
+		}
+		if = { # Mining Fervour
+			limit = {
+				culture = { has_cultural_parameter = mining_traits_more_valued }
+			}
+			add = {
+				value = 100
+				desc = "mining_traits_more_valued"
+			}
+		}
+		if = { # Sacred Mining
+			limit = {
+				faith = { has_doctrine_parameter = mining_traits_more_pious }
+			}
+			add = {
+				value = 100
+				desc = "mining_traits_more_pious"
+			}
+		}
+		if = { # Communal
+			limit = {
+				culture = { has_cultural_pillar = ethos_communal }
+			}
+			add = {
+				value = 15
+				desc = ethos_communal
+			}
+		}
+		# Lifestyle
+		if = {
+			limit = { has_trait = lifestyle_miner }
+			add = {
+				value = 25
+				desc = lifestyle_miner
+			}
+		}
+		if = {
+			limit = {
+				has_trait = lifestyle_miner
+				OR = {
+					has_trait_xp = {
+						trait = lifestyle_miner
+						track = hewer
+						value >= trait_second_level
+					}
+					has_trait_xp = {
+						trait = lifestyle_miner
+						track = prospector
+						value >= trait_second_level
+					}
+				}
+			}
+			add = {
+				value = 25
+				desc = "experienced miner"
+			}
+		}
+		# Stress
+		if = { # Low Stress
+            limit = { stress >= lower_than_baseline_stress }
+            add = {
+            	value = 30
+            	desc = "lower_than_baseline_stress"
+            }
+        }
+        if = { # High Stress
+        	limit = { stress >= higher_than_baseline_stress }
+        	add = {
+        		value = 30
+        		desc = "higher_than_baseline_stress"
+        	}
+        }
+        if = { # Very High Stress
+        	limit = { stress >= high_stress }
+        	add = {
+        		value = 30
+        		desc = "high_stress"
+        	}
+        }
+        # Economic Archetype
+		if = { # This could encourage booming the economy
+            limit = {
+                OR = {
+                    ai_has_economical_boom_personality = yes
+                    has_character_flag = ai_boom
+                }
+            }
+            add = {
+            	value = 200
+            	desc = "Builder"
+            }
+        }
+		if = {
+			limit = {
+				is_independent_ruler = no
+				has_vassal_stance = parochial
+			}
+			add = {
+				value = 10
+				desc = parochial
+			}
+		}
+        if = {
+        	limit = { ai_has_warlike_personality = yes }
+        	add = {
+            	value = 10
+            	desc = "Warlike"
+            }
+        }
+        # Economy Sanity
+        if = { # Work first, play later
+            limit = {
+                exists = capital_county
+                capital_county.title_province = { free_building_slots > 0 }
+            }
+            add = {
+            	value = -35
+            	desc = "Work first, play later"
+            }
+        }
+		# Available Gold
+		if = {
+			limit = {
+				short_term_gold >= mining_activity_base_cost
+				short_term_gold >= major_gold_value
+			}
+			add = {
+				value = 30
+				desc = "Got gold to burn"
+			}
+		}
+		if = {
+        	limit = { has_character_flag = mines_a_lot }
+        	add = {
+            	value = 500
+            	desc = "Mines a lot"
+            }
+        }
+	}
+
+	host_description = {
+		desc = activity_balan_lai_host_desc
+		# first_valid = {
+		# 	triggered_desc = {
+		# 		trigger = {
+		# 			faith = { has_doctrine_parameter = sacred_mining }
+		# 		}
+		# 		desc = activity_mining_host_desc_piety
+		# 	}
+		# 	desc = activity_mining_host_desc_prestige
+		# }
+		# first_valid = {
+		# 	triggered_desc = {
+		# 		trigger = { has_trait = lifestyle_miner }
+		# 		desc = activity_mining_host_desc_trait_xp
+		# 	}
+		# 	desc = activity_mining_host_desc_trait
+		# }
+		# triggered_desc = {
+		# 	trigger = {
+		# 		is_dwarf = no
+		# 		NOT = { employs_court_position = overseer_of_the_mines_court_position }
+		# 	}
+		# 	desc = activity_mining_host_desc_oftm
+		# }
+		# triggered_desc = {
+		# 	trigger = {
+		# 		is_dwarf = yes
+		# 		NOT = { employs_court_position = stone_singer_court_position }
+		# 	}
+		# 	desc = activity_mining_host_desc_stone_singer
+		# }
+	}
+
+	guest_description = {
+		first_valid = {
+			triggered_desc = {
+				trigger = {
+					faith = { has_doctrine_parameter = sacred_mining }
+				}
+				desc = activity_mining_host_desc_piety
+			}
+			desc = activity_mining_host_desc_prestige
+		}
+		first_valid = {
+			triggered_desc = {
+				trigger = { has_trait = lifestyle_miner }
+				desc = activity_mining_host_desc_trait_xp
+			}
+			desc = activity_mining_host_desc_trait
+		}
+	}
+
+	conclusion_description = {
+		first_valid = {
+			triggered_desc = {
+				trigger = {
+					scope:activity.var:mining_success_chance >= 50
+					scope:activity.var:mining_success_chance_event >= mining_activity_success_increase_medium_value
+				}
+				desc = activity_mining_conclusion_desc_good
+			}
+			triggered_desc = {
+				trigger = {
+					scope:activity.var:mining_success_chance >= 50
+					scope:activity.var:mining_success_chance_event < mining_activity_success_decrease_minor_value
+				}
+				desc = activity_mining_conclusion_desc_good_bad
+			}
+			triggered_desc = {
+				trigger = {
+					scope:activity.var:mining_success_chance < 50
+					scope:activity.var:mining_success_chance_event < mining_activity_success_decrease_minor_value
+				}
+				desc = activity_mining_conclusion_desc_bad_good
+			}
+			triggered_desc = {
+				trigger = {
+					scope:activity.var:mining_success_chance < 50
+					scope:activity.var:mining_success_chance_event >= mining_activity_success_increase_medium_value
+				}
+				desc = activity_mining_conclusion_desc_bad
+			}
+			desc = activity_mining_conclusion_desc_same
+		}
+		first_valid = {
+			triggered_desc = {
+				trigger = {
+					scope:activity = {
+						has_activity_option = { category = special_type option = mining_type_prospecting }
+					}
+					scope:activity.var:mining_success ?= flag:yes
+				}
+				desc = activity_mining_conclusion_desc_prospecting_success
+			}
+			triggered_desc = {
+				trigger = {
+					scope:activity = {
+						has_activity_option = { category = special_type option = mining_type_prospecting }
+					}
+				}
+				desc = activity_mining_conclusion_desc_prospecting_failure
+			}
+			triggered_desc = {
+				trigger = { scope:activity.var:mining_success ?= flag:yes }
+				desc = activity_mining_conclusion_desc_mining_success
+			}
+			desc = activity_mining_conclusion_desc_mining_failure
+		}
+	}
+
+	###################
+	# PARAMETERS
+	###################
+
+	is_grand_activity = no
+
+	is_single_location = yes
+
+	###################
+	# LOCATION
+	###################
+
+	province_filter = all
+	ai_province_filter = holy_sites
+
+	province_description = { #DONE
+		first_valid = {
+			triggered_desc = {
+				trigger = { 
+					scope:host = {
+						is_at_location = root
+					}
+				}
+				desc = activity_balan_lai_province_desc_here
+			}
+			desc = activity_balan_lai_province_desc
+		}
+
+		first_valid = {
+			triggered_desc = {
+				trigger = { 
+					this = province:5317
+				}
+				desc = activity_balan_lai_province_desc_mispir
+			}
+			triggered_desc = {
+				trigger = { 
+					this = scope:host.capital_province
+				}
+				desc = activity_balan_lai_province_desc_capital
+			}
+			desc = activity_balan_lai_province_desc_other_capital
+		}
+	}
+
+	province_score = { #DONE
+		value = 10
+	}
+
+	###################
+	# OPTIONS
+	###################
+
+	options = {
+
+		#########
+		# Entertainment
+		#########
+		balan_lai_option_leverage = {
+			balan_lai_leverage_none = {
+				default = yes
+				# desc is only shown in debug AI watch window
+				# ai_will_do = {
+				# 	value = 25
+				# 	# Economic Archetype
+				# 	if = { # Cautious
+				# 		limit = { ai_has_cautious_personality = yes }
+				# 		add = {
+			    #         	value = 25
+			    #         	desc = "Cautious"
+			    #         }
+				# 	}
+				# 	if = { # Builder
+			    #         limit = {
+			    #             OR = {
+			    #                 ai_has_economical_boom_personality = yes
+			    #                 has_character_flag = ai_boom
+			    #             }
+			    #         }
+			    #         add = {
+			    #         	value = 25
+			    #         	desc = "Builder"
+			    #         }
+			    #     }
+			    #     # Economy Sanity
+			    #     if = { # Work first, play later
+			    #         limit = {
+			    #             exists = capital_county
+			    #             capital_county.title_province = { free_building_slots > 0 }
+			    #         }
+			    #         add = {
+			    #         	value = 25
+			    #         	desc = "Work first, play later"
+			    #         }
+			    #     }
+				# }
+			}
+			balan_lai_leverage_small = {
+				is_valid = {
+					can_make_expensive_purchase_trigger = {
+						PRICE = root.balan_lai_average_option_cost
+					}
+				}
+
+				cost = {
+					gold = {
+						add = {
+							value = balan_lai_average_option_cost
+							desc = balan_lai_leverage_small
+						}
+					}
+				}
+
+				# desc is only shown in debug AI watch window
+				ai_will_do = {
+					add = {
+						value = 25
+						desc = mining_surveyors_normal
+					}
+					# if = { # Cautious
+					# 	limit = { gold >= major_gold_value }
+					# 	add = {
+			        #     	value = 25
+			        #     	desc = "Rich"
+			        #     }
+					# }
+					# if = { # Ambitious
+					# 	limit = { has_trait = ambitious }
+					# 	add = {
+			        #     	value = 10
+			        #     	desc = "Ambitious"
+			        #     }
+					# }
+					# if = { # Ambitious
+					# 	limit = { has_trait = greedy }
+					# 	add = {
+			        #     	value = -10
+			        #     	desc = "Greedy"
+			        #     }
+					# }
+					# if = { # Warlike
+					# 	limit = { ai_has_warlike_personality = yes }
+					# 	add = {
+			        #     	value = 25
+			        #     	desc = "Warlike"
+			        #     }
+					# }
+				}
+			}
+			balan_lai_leverage_large = {
+
+				is_valid = {
+					can_make_expensive_purchase_trigger = {
+						PRICE = root.balan_lai_good_option_cost
+					}
+				}
+
+				cost = {
+					gold = {
+						add = {
+							value = balan_lai_good_option_cost
+							desc = balan_lai_leverage_large
+						}
+					}
+				}
+
+				# desc is only shown in debug AI watch window
+				ai_will_do = {
+					add = {
+						value = 10
+						desc = mining_surveyors_many
+					}
+					# if = { # Cautious
+					# 	limit = { gold >= major_gold_value }
+					# 	add = {
+			        #     	value = 25
+			        #     	desc = "Rich"
+			        #     }
+					# }
+					# if = { # Cautious
+					# 	limit = { gold >= monumental_gold_value }
+					# 	add = {
+			        #     	value = 25
+			        #     	desc = "Rich"
+			        #     }
+					# }
+					# if = { # Ambitious
+					# 	limit = { has_trait = ambitious }
+					# 	add = {
+			        #     	value = 10
+			        #     	desc = "Ambitious"
+			        #     }
+					# }
+					# if = { # Ambitious
+					# 	limit = { has_trait = greedy }
+					# 	add = {
+			        #     	value = -10
+			        #     	desc = "Greedy"
+			        #     }
+					# }
+					# if = { # Warlike
+					# 	limit = { ai_has_warlike_personality = yes }
+					# 	add = {
+			        #     	value = 25
+			        #     	desc = "Warlike"
+			        #     }
+					# }
+				}
+			}
+		}
+
+		#########
+		# Entertainment
+		#########
+		balan_lai_option_entertainment = {
+			balan_lai_hosting_cheap = {
+				cost = {
+					gold = {
+						add = {
+							value = balan_lai_poor_option_cost
+							desc = balan_lai_hosting_cheap
+						}
+					}
+				}
+			}
+			balan_lai_hosting_normal = {
+				default = yes
+
+				is_valid = {
+					can_make_expensive_purchase_trigger = {
+						PRICE = root.balan_lai_normal_option_cost
+					}
+				}
+
+				cost = {
+					gold = {
+						add = {
+							value = balan_lai_normal_option_cost
+							desc = balan_lai_hosting_normal
+						}
+					}
+				}
+
+				# desc is only shown in debug AI watch window
+				ai_will_do = {
+					add = {
+						value = 25
+						desc = mining_surveyors_normal
+					}
+					# if = { # Cautious
+					# 	limit = { gold >= major_gold_value }
+					# 	add = {
+			        #     	value = 25
+			        #     	desc = "Rich"
+			        #     }
+					# }
+					# if = { # Ambitious
+					# 	limit = { has_trait = ambitious }
+					# 	add = {
+			        #     	value = 10
+			        #     	desc = "Ambitious"
+			        #     }
+					# }
+					# if = { # Ambitious
+					# 	limit = { has_trait = greedy }
+					# 	add = {
+			        #     	value = -10
+			        #     	desc = "Greedy"
+			        #     }
+					# }
+					# if = { # Warlike
+					# 	limit = { ai_has_warlike_personality = yes }
+					# 	add = {
+			        #     	value = 25
+			        #     	desc = "Warlike"
+			        #     }
+					# }
+				}
+			}
+			balan_lai_hosting_grand = {
+
+				is_valid = {
+					can_make_expensive_purchase_trigger = {
+						PRICE = root.balan_lai_good_option_cost
+					}
+				}
+
+				cost = {
+					gold = {
+						add = {
+							value = balan_lai_good_option_cost #Base level
+							desc = balan_lai_hosting_grand
+						}
+					}
+				}
+
+				# desc is only shown in debug AI watch window
+				ai_will_do = {
+					add = {
+						value = 10
+						desc = mining_surveyors_many
+					}
+					# if = { # Cautious
+					# 	limit = { gold >= major_gold_value }
+					# 	add = {
+			        #     	value = 25
+			        #     	desc = "Rich"
+			        #     }
+					# }
+					# if = { # Cautious
+					# 	limit = { gold >= monumental_gold_value }
+					# 	add = {
+			        #     	value = 25
+			        #     	desc = "Rich"
+			        #     }
+					# }
+					# if = { # Ambitious
+					# 	limit = { has_trait = ambitious }
+					# 	add = {
+			        #     	value = 10
+			        #     	desc = "Ambitious"
+			        #     }
+					# }
+					# if = { # Ambitious
+					# 	limit = { has_trait = greedy }
+					# 	add = {
+			        #     	value = -10
+			        #     	desc = "Greedy"
+			        #     }
+					# }
+					# if = { # Warlike
+					# 	limit = { ai_has_warlike_personality = yes }
+					# 	add = {
+			        #     	value = 25
+			        #     	desc = "Warlike"
+			        #     }
+					# }
+				}
+			}
+		}
+
+		#########
+		# Entourage
+		#########
+		balan_lai_option_party_size = {
+			balan_lai_party_size_few = {
+
+				# Entourage option grabbing suitable bodyguards & maybe someone from court who really likes you, + randos.
+				travel_entourage_selection = { 
+					weight = hunt_entourage_base_set_weighting_value
+					max = 5
+   					invite_rule_order = 2
+				}
+
+				# desc is only shown in debug AI watch window
+				ai_will_do = {
+					value = 0
+					# # Economic Archetype
+					# if = { # Cautious
+					# 	limit = { ai_has_cautious_personality = yes }
+					# 	add = {
+			        #     	value = 25
+			        #     	desc = "Cautious"
+			        #     }
+					# }
+					# if = { # Builder
+			        #     limit = {
+			        #         OR = {
+			        #             ai_has_economical_boom_personality = yes
+			        #             has_character_flag = ai_boom
+			        #         }
+			        #     }
+			        #     add = {
+			        #     	value = 25
+			        #     	desc = "Builder"
+			        #     }
+			        # }
+			        # # Economy Sanity
+			        # if = { # Work first, play later
+			        #     limit = {
+			        #         exists = capital_county
+			        #         capital_county.title_province = { free_building_slots > 0 }
+			        #     }
+			        #     add = {
+			        #     	value = 25
+			        #     	desc = "Work first, play later"
+			        #     }
+			        # }
+				}
+			}
+			balan_lai_party_size_normal = {
+				default = yes
+
+				cost = {
+					gold = {
+						add = {
+							value = balan_lai_average_option_cost
+							desc = balan_lai_party_size_normal
+						}
+					}
+				}
+
+				#Entourage option grabbing most people suitable from court, + randos.
+				travel_entourage_selection = {
+					weight = {
+						add = hunt_entourage_base_set_weighting_value
+						add = hunt_entourage_extras_set_weighting_value
+					}
+					max = 8
+   					invite_rule_order = 2
+				}
+
+				# desc is only shown in debug AI watch window
+				ai_will_do = {
+					add = {
+						value = 25
+						desc = mining_party_size_normal
+					}
+				}
+			}
+			balan_lai_party_size_many = {
+
+				cost = {
+					gold = {
+						add = {
+							value = balan_lai_good_option_cost
+							desc = balan_lai_party_size_many
+						}
+					}
+				}
+
+				#Entourage option grabbing sodding everyone suitable from court, + every grabbable rando in the duchy and maybe a few extra.
+				travel_entourage_selection = {
+					weight = {
+						add = hunt_entourage_base_set_weighting_value
+						add = hunt_entourage_extras_set_weighting_value
+						add = hunt_entourage_sodding_everyone_set_weighting_value
+					}
+
+					max = 15
+   					invite_rule_order = 2
+				}
+
+				# desc is only shown in debug AI watch window
+				ai_will_do = {
+					add = {
+						value = 10
+						desc = mining_party_size_many
+					}
+					# if = { # Cautious
+					# 	limit = { gold >= monumental_gold_value }
+					# 	add = {
+			        #     	value = 25
+			        #     	desc = "Rich"
+			        #     }
+					# }
+					# if = { # Ambitious
+					# 	limit = { has_trait = ambitious }
+					# 	add = {
+			        #     	value = 10
+			        #     	desc = "Ambitious"
+			        #     }
+					# }
+					# if = { # Ambitious
+					# 	limit = { has_trait = greedy }
+					# 	add = {
+			        #     	value = -10
+			        #     	desc = "Greedy"
+			        #     }
+					# }
+					# if = { # Warlike
+					# 	limit = { ai_has_warlike_personality = yes }
+					# 	add = {
+			        #     	value = 25
+			        #     	desc = "Warlike"
+			        #     }
+					# }
+				}
+			}
+		}
+	}
+
+	###################
+	# PHASES
+	###################
+
+	max_guest_arrival_delay_time = { months = 18 }
+
+	phases = {
+		mining_phase = {
+			is_predefined = yes
+
+			on_phase_active = { # Fires for every attendee
+				if = { # Option to appoint overseer of the mines if not appointed
+					limit = {
+						this = scope:host
+						is_dwarf = no
+						NOT = { employs_court_position = overseer_of_the_mines_court_position }
+						involved_activity = {
+							any_attending_character = {
+								location = root.location
+								scope:host = { can_appoint_char_to_court_position = { CHAR = prev COURT_POS = overseer_of_the_mines_court_position } }
+								save_temporary_scope_as = potential_ootm
+							}
+						}
+						# can_appoint_char_to_court_position = { CHAR = scope:potential_ootm COURT_POS = overseer_of_the_mines_court_position }
+					}
+					trigger_event = {
+						id = mining.0100
+					}
+				}
+				if = { # Option to appoint stone singer if not appointed
+					limit = {
+						this = scope:host
+						is_dwarf = yes
+						NOT = { employs_court_position = stone_singer_court_position }
+						involved_activity = {
+							any_attending_character = {
+								location = root.location
+								scope:host = { can_appoint_char_to_court_position = { CHAR = prev COURT_POS = stone_singer_court_position } }
+								save_temporary_scope_as = potential_stone_singer
+							}
+						}
+						# can_appoint_char_to_court_position = { CHAR = scope:potential_stone_singer COURT_POS = stone_singer_court_position }
+					}
+					trigger_event = {
+						id = mining.0101
+					}
+				}
+				if = { # Set up event pulses
+					limit = { this = scope:host }
+					scope:activity = { progress_activity_phase_after = { months = 8 } }
+
+					trigger_event = { on_action = mining_start_events }
+					scope:activity = {
+						every_attending_character = {
+							limit = { is_ai = no }
+							trigger_event = { # Random
+								on_action = mining_random_pulse
+								months = 2
+							}
+							trigger_event = { # Random
+								on_action = mining_random_pulse
+								months = 4
+							}
+							trigger_event = { # Random
+								on_action = mining_random_pulse
+								months = 6
+							}
+						}
+					}
+					trigger_event = { # Outcome
+						on_action = mining_outcome_end_events
+						months = 7
+					}
+				}
+			}
+
+			on_weekly_pulse = { # Fires for every attendee
+				# trigger_event = hunt.0081 # Invalidation
+			}
+
+			on_end = { # Fires for every attendee
+				target_weight_modifier_effect = { VALUE = -5 } # Lose a bit of character weight from the physical activity
+			}
+		}
+	}
+
+	ai_check_interval = 60
+
+	ai_will_select_province = {
+		value = 50
+		add = {
+			value = scope:score # Derived from province_score
+			multiply = 10
+		}
+	}
+
+	###################
+	# GUEST HANDLING
+	###################
+
+	guest_invite_rules = {
+		rules = {
+			3 = activity_invite_rule_balan_lai_prospective_members
+			4 = activity_invite_rule_courtiers
+			4 = activity_invite_rule_knights
+		}
+		defaults = {
+			1 = activity_invite_rule_balan_lai_leader
+			2 = activity_invite_rule_balan_lai_members
+		}
+	}
+
+	max_guests = 20
+
+	can_be_activity_guest = {
+		NOT = { has_trait = incapable }
+	}
+
+	host_intents = {
+		intents = { balan_lai_request_defence_funding_intent balan_lai_foster_trade_intent balan_lai_form_alliance_intent balan_lai_expel_member_intent reduce_stress_intent }
+		default = reduce_stress_intent
+		player_defaults = { reduce_stress_intent }
+	}
+
+	guest_intents = {
+		intents = { balan_lai_request_defence_funding_intent balan_lai_foster_trade_intent balan_lai_form_alliance_intent balan_lai_expel_member_intent reduce_stress_intent }
+		default = reduce_stress_intent
+		player_defaults = { reduce_stress_intent }
+	}
+
+	guest_join_chance = {
+		base = 10
+		base_activity_modifier = yes
+
+		# Scripted Modifiers
+		activity_guest_shared_ai_accept_modifier = yes 
+	}
+
+	###################
+	# ACTIVITY-SPECIFIC PULSES
+	###################
+
+	pulse_actions = {
+		entries = { guest_friendship guest_insulted }
+		chance_of_no_event = 3
+	}
+
+	on_start = {
+		set_variable = {
+			name = mining_success_chance
+			value = mining_success_chance_value
+		}
+		scope:host = {
+			if = {
+				limit = {
+					ai_sociability > 0
+					is_ai = yes
+				}
+				random = {
+					chance = {
+						value = 0.5 # One in 200 expeditions
+						if = {
+							limit = {
+								has_trait = lifestyle_miner
+							}
+							add = 1
+						}
+						if = {
+							limit = {
+								ai_rationality <= -25
+								has_personality_dominant_trigger = yes
+							}
+							add = 0.5
+						}
+					}
+					add_character_flag = mines_a_lot
+				}
+			}
+		}
+	}
+
+	allow_zero_guest_invites = no
+
+	on_enter_passive_state = {
+		# scope:activity = {
+		# 	if = {
+		# 		limit = {
+		# 			NOT = { has_variable = progressed_to_active }
+		# 			# Everyone who accepted is here
+		# 			any_attending_character = {
+		# 				count = all
+		# 				location = scope:activity.activity_location
+		# 			}
+		# 			# There are no open invitations
+		# 			any_invited_character = {
+		# 				count = 0
+		# 			}
+		# 		}
+		# 		set_variable = progressed_to_active
+		# 		scope:activity = { progress_activity_phase_after = { days = 1 } }
+		# 	}
+		# }
+		# trigger_event = hunt.0550
+		# if = {
+		# 	limit = {
+		# 		this = scope:host
+		# 		involved_activity = {
+		# 			has_activity_option = { category = special_type option = hunt_type_legendary }
+		# 		}
+		# 	}
+		# 	random = {
+		# 		chance = 5
+		# 		trigger_event = {
+		# 			id = hunt.8540
+		# 			days = { 10 12 }
+		# 		}
+		# 	}
+		# }
+	}
+
+	on_enter_active_state = {
+		# if = {
+		# 	limit = { this = scope:host }
+		# 	trigger_event = { id = hunt.0110 }
+		# }
+		trigger_event = {
+			id = mining.3101 # Do you murder or not?
+			days = 3
+		}
+		# trigger_event = {
+		# 	id = hunt.7400 # Do you abduct or not?
+		# 	days = 3
+		# }
+	}
+
+	on_complete = {
+		# Struggle catalyst
+		if = {
+			limit = {
+				any_character_struggle = {
+					involvement = involved
+					phase_has_catalyst = catalyst_went_mining_in_moria
+				}
+				scope:activity.activity_location.county = {
+					kingdom = title:k_khazad_dum
+				}
+			}
+			scope:host = {
+				every_character_struggle = {
+					involvement = involved
+					activate_struggle_catalyst = {
+						catalyst = catalyst_went_mining_in_moria
+						character = root
+					}
+				}
+			}
+		}
+	}
+
+	###################
+	# GRAPHICS
+	###################
+
+	### Plug in widgets
+	activity_window_widgets = {
+		mining_success_chance = "activity_plugin_widgets_summary"
+		artifact_rewards = "activity_plugin_widgets_conclusion"
+		trait_rewards = "activity_plugin_widgets_conclusion"
+	}
+
+	window_characters = {
+		miner = {
+			camera = camera_body
+			
+			effect = {
+				if = {
+					limit = {
+						scope:host.location = scope:activity.activity_location
+						scope:player ?= {
+							NOR = {
+								this = scope:host
+								AND = {
+									exists = scope:host.court_position:overseer_of_the_mines_court_position
+									this = scope:host.court_position:overseer_of_the_mines_court_position
+								}
+							}
+						}
+					}
+					scope:player ?= { add_to_list = characters }
+				}
+				else_if = {
+					limit = {
+						scope:host.location = scope:activity.activity_location
+						scope:player ?= {
+							NOR = {
+								this = scope:host
+								AND = {
+									exists = scope:host.court_position:stone_singer_court_position
+									this = scope:host.court_position:stone_singer_court_position
+								}
+							}
+						}
+					}
+					scope:player ?= { add_to_list = characters }
+				}
+				else_if = {
+					limit = {
+						scope:host.location = scope:activity.activity_location
+						exists = scope:host.intent_target
+						any_attending_character = {
+							location = scope:activity.activity_location
+							NOT = {
+								this = scope:host
+							}
+							this = scope:host.intent_target
+						}
+					}
+					every_attending_character = {
+						limit = {
+							location = scope:activity.activity_location
+							NOT = {
+								this = scope:host
+							}
+							this = scope:host.intent_target
+						}
+						add_to_list = characters
+					}
+				}
+				else_if = {
+					limit = {
+						scope:host.location = scope:activity.activity_location
+						any_attending_character = {
+							location = scope:activity.activity_location
+							NOT = {
+								this = scope:host
+							}
+							OR = {
+								has_relation_lover = scope:host
+								has_relation_friend = scope:host
+							}
+						}
+					}
+					every_attending_character = {
+						limit = {
+							location = scope:activity.activity_location
+							NOT = {
+								this = scope:host
+							}
+							OR = {
+								has_relation_lover = scope:host
+								has_relation_friend = scope:host
+							}
+						}
+						add_to_list = characters
+					}
+				}
+				else_if = {
+					limit = {
+						scope:host.location = scope:activity.activity_location
+						any_attending_character = {
+							location = scope:activity.activity_location
+							NOT = {
+								this = scope:host
+							}
+							is_councillor_of = scope:host
+						}
+					}
+					every_attending_character = {
+						limit = {
+							location = scope:activity.activity_location
+							NOT = {
+								this = scope:host
+							}
+							is_councillor_of = scope:host
+						}
+						add_to_list = characters
+					}
+				}
+				else_if = {
+					limit = {
+						scope:host.location = scope:activity.activity_location
+						any_attending_character = {
+							location = scope:activity.activity_location
+							NOT = {
+								this = scope:host
+							}
+							highest_held_title_tier >= tier_duchy
+						}
+					}
+					every_attending_character = {
+						limit = {
+							location = scope:activity.activity_location
+							NOT = {
+								this = scope:host
+							}
+							highest_held_title_tier >= tier_duchy
+						}
+						add_to_list = characters
+					}
+				}
+				else_if = {
+					limit = {
+						scope:host.location = scope:activity.activity_location
+						any_attending_character = {
+							location = scope:activity.activity_location
+							NOT = {
+								this = scope:host
+							}
+							highest_held_title_tier >= tier_county
+						}
+					}
+					every_attending_character = {
+						limit = {
+							location = scope:activity.activity_location
+							NOT = {
+								this = scope:host
+							}
+							highest_held_title_tier >= tier_county
+						}
+						add_to_list = characters
+					}
+				}
+				else = {
+					if = {
+						limit = {
+							scope:host.location = scope:activity.activity_location
+						}
+						every_attending_character = {
+							limit = {
+								location = scope:activity.activity_location
+								NOR = {
+									this = scope:host
+									has_court_position = overseer_of_the_mines_court_position
+									has_court_position = stone_singer_court_position
+								}
+							}
+							add_to_list = characters
+						}
+					}
+				}
+			}
+			scripted_animation = {
+				triggered_animation = {
+					trigger = {
+						exists = scope:host.intent_target
+						scope:host = {
+							has_activity_intent = woo_attendee_intent
+						}
+						scope:character = scope:host.intent_target
+					}
+					animation = { love flirtation }
+				}
+				triggered_animation = {
+					trigger = {
+						exists = scope:host.intent_target
+						scope:host = {
+							has_activity_intent = murder_attendee_intent
+						}
+						scope:character = scope:host.intent_target
+					}
+					animation = { dismissal worry paranoia }
+				}
+				#Fallback
+				animation = lantern
+			}
+		}
+
+		host = {
+			camera = camera_body
+			
+			effect = {
+				if = {
+					limit = {
+						scope:host.location = scope:activity.activity_location
+					}
+					scope:host = {
+						add_to_list = characters
+					}
+				}
+			}
+			scripted_animation = {
+				#Fallback
+				animation = personality_bold
+			}
+		}
+		
+		travel_host = {
+			camera = camera_body
+			
+			effect = {
+				if = {
+					limit = {
+						NOT = {
+							scope:host.location = scope:activity.activity_location
+						}
+					}
+					scope:host = {
+						add_to_list = characters
+					}
+				}
+			}
+
+			scripted_animation = {
+				triggered_animation = {
+					trigger = {
+						scope:character.location = { is_sea_province = yes }
+					}
+					animation = { idle }
+				}
+				triggered_animation = {
+					trigger = { scope:character = { has_trait = impatient } }
+					animation = { jockey_gallop }
+				}
+				animation = jockey_walk
+			}
+		}
+
+		overseer_of_the_mines = {
+			camera = camera_body
+			
+			effect = {
+				scope:host.court_position:overseer_of_the_mines_court_position ?= {
+					if = {
+						limit = {
+							scope:host.location = scope:activity.activity_location
+							is_participant_in_activity = scope:activity
+							location = scope:activity.activity_location
+						}
+						add_to_list = characters
+					}
+				}
+			}
+			scripted_animation = {
+				animation = happy_teacher
+			}
+		}
+
+		stone_singer = {
+			camera = camera_body
+			
+			effect = {
+				scope:host.court_position:stone_singer_court_position ?= {
+					if = {
+						limit = {
+							scope:host.location = scope:activity.activity_location
+							is_participant_in_activity = scope:activity
+							location = scope:activity.activity_location
+						}
+						add_to_list = characters
+					}
+				}
+			}
+			scripted_animation = {
+				animation = happy_teacher
+			}
+		}
+
+		miner = {
+			camera = camera_body
+			
+			effect = {
+				if = {
+					limit = {
+						scope:host.location = scope:activity.activity_location
+						NOT = { exists = var:animal_slayer }
+					}
+					if = {
+						limit = {
+							scope:host.location = scope:activity.activity_location
+							any_attending_character = {
+								count >= 2
+								location = scope:activity.activity_location
+								NOT = {
+									this = scope:host
+								}
+								is_councillor_of = scope:host
+							}
+						}
+						every_attending_character = {
+							limit = {
+								location = scope:activity.activity_location
+								NOT = {
+									this = scope:host
+								}
+								is_councillor_of = scope:host
+							}
+							add_to_list = characters
+						}
+					}
+					else_if = {
+						limit = {
+							scope:host.location = scope:activity.activity_location
+							any_attending_character = {
+								count >= 2
+								location = scope:activity.activity_location
+								NOT = {
+									this = scope:host
+								}
+								highest_held_title_tier >= tier_duchy
+							}
+						}
+						every_attending_character = {
+							limit = {
+								location = scope:activity.activity_location
+								NOT = {
+									this = scope:host
+								}
+								highest_held_title_tier >= tier_duchy
+							}
+							add_to_list = characters
+						}
+					}
+					else_if = {
+						limit = {
+							scope:host.location = scope:activity.activity_location
+							any_attending_character = {
+								count >= 2
+								location = scope:activity.activity_location
+								NOT = {
+									this = scope:host
+								}
+								highest_held_title_tier >= tier_county
+							}
+						}
+						every_attending_character = {
+							limit = {
+								location = scope:activity.activity_location
+								NOT = {
+									this = scope:host
+								}
+								highest_held_title_tier >= tier_county
+							}
+							add_to_list = characters
+						}
+					}
+					else = {
+						every_attending_character = {
+							limit = {
+								location = scope:activity.activity_location
+								NOR = {
+									this = scope:host
+									has_court_position = master_of_hunt_court_position
+								}
+							}
+							add_to_list = characters
+						}
+					}
+				}
+			}
+
+			scripted_animation = {
+				#Fallback
+				animation = throne_room_one_handed_passive_2
+			}
+		}
+
+		miner = {
+			camera = camera_body
+			
+			effect = {
+				if = {
+					limit = {
+						scope:host.location = scope:activity.activity_location
+					}
+					if = {
+						limit = {
+							scope:host.location = scope:activity.activity_location
+							any_attending_character = {
+								count >= 3
+								location = scope:activity.activity_location
+								NOT = {
+									this = scope:host
+								}
+								is_councillor_of = scope:host
+							}
+						}
+						every_attending_character = {
+							limit = {
+								location = scope:activity.activity_location
+								NOT = {
+									this = scope:host
+								}
+								is_councillor_of = scope:host
+							}
+							add_to_list = characters
+						}
+					}
+					else_if = {
+						limit = {
+							scope:host.location = scope:activity.activity_location
+							any_attending_character = {
+								count >= 3
+								location = scope:activity.activity_location
+								NOT = {
+									this = scope:host
+								}
+								highest_held_title_tier >= tier_duchy
+							}
+						}
+						every_attending_character = {
+							limit = {
+								location = scope:activity.activity_location
+								NOT = {
+									this = scope:host
+								}
+								highest_held_title_tier >= tier_duchy
+							}
+							add_to_list = characters
+						}
+					}
+					else_if = {
+						limit = {
+							scope:host.location = scope:activity.activity_location
+							any_attending_character = {
+								count >= 3
+								location = scope:activity.activity_location
+								NOT = {
+									this = scope:host
+								}
+								highest_held_title_tier >= tier_county
+							}
+						}
+						every_attending_character = {
+							limit = {
+								location = scope:activity.activity_location
+								NOT = {
+									this = scope:host
+								}
+								highest_held_title_tier >= tier_county
+							}
+							add_to_list = characters
+						}
+					}
+					else = {
+						every_attending_character = {
+							limit = {
+								location = scope:activity.activity_location
+								NOR = {
+									this = scope:host
+									has_court_position = master_of_hunt_court_position
+								}
+							}
+							add_to_list = characters
+						}
+					}
+				}
+			}
+
+			scripted_animation = {
+				#Fallback
+				animation = personality_cynical
+			}
+		}
+	}	
+
+	# Map Entities
+
+	map_entity = {
+		trigger = {
+			activity_location.culture = {
+				OR = {
+					has_graphical_mena_culture_group_trigger = yes
+					has_graphical_steppe_culture_group_trigger = yes
+					has_graphical_african_culture_group_trigger = yes
+				}
+			}
+		}
+		reference = "building_mena_hunt_01_entity"
+	}
+
+	map_entity = {
+		trigger = {
+			activity_location.culture = {
+				has_graphical_india_culture_group_trigger = yes
+			}
+		}
+		reference = "building_indian_hunt_01_entity"
+	}
+
+	map_entity = "building_western_hunt_01_entity"
+
+	# Travel
+	background = { # Bridge
+		trigger = {
+			NOT = { scope:host.location = scope:activity.activity_location }
+			scope:host.location = {
+				is_riverside_province = yes
+				geographical_region = middleearth_west
+				OR = {
+					terrain = farmlands
+					terrain = plains
+					terrain = mountains
+					terrain = hills
+				}
+			}
+		}
+		texture = "gfx/interface/illustrations/event_scenes/ep2_travel_bridge.dds"
+		environment = "environment_travel_bridge"
+		ambience = "event:/SFX/Events/Backgrounds/mountains_day"
+	}
+	
+	background = { # Farmland, settled
+		trigger = {
+			NOT = { scope:host.location = scope:activity.activity_location }
+			scope:host.location = {
+				terrain = farmlands
+				exists = province_owner
+			}
+		}
+		texture = "gfx/interface/illustrations/event_scenes/ep2_travel_farm.dds"
+		environment = "environment_travel_farmlands"
+		ambience = "event:/SFX/Events/Backgrounds/fields_farms_day"
+	}
+
+	background = { # Farmland, unsettled
+		trigger = {
+			NOT = { scope:host.location = scope:activity.activity_location }
+			scope:host.location = {
+				terrain = farmlands
+				NOT = { exists = province_owner }
+			}
+		}
+		texture = "gfx/interface/illustrations/event_scenes/farms.dds"
+		environment = "environment_event_farms"
+		ambience = "event:/SFX/Events/Backgrounds/fields_farms_day"
+	}
+
+	background = { #Desert, settled
+		trigger = {
+			NOT = { scope:host.location = scope:activity.activity_location }
+			scope:host.location = {
+				graphical_wilderness_desert_trigger = yes
+				exists = province_owner
+			}
+		}
+		texture = "gfx/interface/illustrations/event_scenes/ep2_travel_desert.dds"
+		environment = "environment_travel_desert"
+		ambience = "event:/SFX/Events/Backgrounds/desert_day"
+	}
+
+	background = { #LotR Rhûn desert
+		trigger = {
+			NOT = { scope:host.location = scope:activity.activity_location }
+			scope:host.location = {
+				graphical_wilderness_desert_rhun_trigger = yes
+				exists = province_owner
+			}
+		}
+		texture = "gfx/interface/illustrations/event_scenes/rhun.dds"
+		environment = "environment_event_desert"
+		ambience = "event:/SFX/Events/Backgrounds/desert_day"
+	}
+
+	background = { #Desert, unsettled
+		trigger = {
+			NOT = { scope:host.location = scope:activity.activity_location }
+			scope:host.location = {
+				graphical_wilderness_desert_trigger = yes
+				NOT = { exists = province_owner }
+			}
+		}
+		texture = "gfx/interface/illustrations/event_scenes/desert.dds"
+		environment = "environment_event_bp1_desert"
+		ambience = "event:/SFX/Events/Backgrounds/desert_day"
+	}
+
+	background = { #forest snowy
+		trigger = {
+			NOT = { scope:host.location = scope:activity.activity_location }
+			scope:host.location ?= { hunt_snowy_forest_trigger = yes }
+		}
+		texture = "gfx/interface/illustrations/event_scenes/ep2_hunt_snowy_forest.dds"
+		environment = "environment_hunt_snowy_forest"
+		ambience = "event:/SFX/Events/Backgrounds/mountains_day"
+	}
+
+	background = { #forest_pine
+		trigger = {
+			NOT = { scope:host.location = scope:activity.activity_location }
+			scope:host.location = {
+				graphical_wilderness_forest_pine_trigger = yes
+			}
+		}
+		texture = "gfx/interface/illustrations/event_scenes/forest_pine.dds"
+		environment = "environment_event_forest_pine"
+		ambience = "event:/SFX/Events/Backgrounds/coniferous_forest_day"
+	}
+
+	background = { #forest
+		trigger = {
+			NOT = { scope:host.location = scope:activity.activity_location }
+			scope:host.location = {
+				graphical_wilderness_forest_trigger = yes
+			}
+		}
+		texture = "gfx/interface/illustrations/event_scenes/forest.dds"
+		environment = "environment_event_forest"
+		ambience = "event:/SFX/Events/Backgrounds/deciduous_forest_day"
+	}
+	
+	background = { #LotR forest deep
+		trigger = {
+			NOT = { scope:host.location = scope:activity.activity_location }
+			scope:host.location = { graphical_wilderness_forest_deep_trigger = yes } 
+		}
+		texture = "gfx/interface/illustrations/event_scenes/forest_deep.dds"
+		environment = "environment_event_forest"
+		ambience = "event:/SFX/Events/Backgrounds/deciduous_forest_day"
+	}
+
+	background = { #LotR forest_mallorn unsettled
+		trigger = {
+			NOT = { scope:host.location = scope:activity.activity_location }
+			scope:host.location = { graphical_wilderness_forest_mallorn_trigger = yes } 
+			NOT = { exists = province_owner }
+		}
+		texture = "gfx/interface/illustrations/event_scenes/forest_mallorn.dds"
+		environment = "environment_event_forest"
+		ambience = "event:/SFX/Events/Backgrounds/deciduous_forest_day"
+	}
+
+	background = { #LotR forest_mallorn settled
+		trigger = {
+			NOT = { scope:host.location = scope:activity.activity_location }
+			scope:host.location = { graphical_wilderness_forest_mallorn_trigger = yes } 
+			exists = province_owner
+		}
+		texture = "gfx/interface/illustrations/event_scenes/lorien_day.dds"
+		environment = "environment_event_forest"
+		ambience = "event:/SFX/Events/Backgrounds/deciduous_forest_day"
+	}
+
+	background = { #mountains, settled
+		trigger = {
+			NOT = { scope:host.location = scope:activity.activity_location }
+			scope:host.location = {
+				graphical_wilderness_mountains_trigger = yes
+				exists = province_owner
+			}
+		}
+		texture = "gfx/interface/illustrations/event_scenes/ep2_travel_mountains.dds"
+		environment = "environment_travel_mountain_settlement"
+		ambience = "event:/SFX/Events/Backgrounds/mountains_day"
+	}
+
+	background = { #mountains, dwarven settled
+		trigger = {
+			NOT = { scope:host.location = scope:activity.activity_location }
+			scope:host.location = {
+				graphical_wilderness_mountains_trigger = yes
+				exists = province_owner
+				is_dwarf = no
+			}
+		}
+		texture = "gfx/interface/illustrations/event_scenes/dwarven_gate.dds"
+		environment = "environment_travel_mountain_settlement"
+		ambience = "event:/SFX/Events/Backgrounds/mountains_day"
+	}
+
+	background = { #mountains, unsettled
+		trigger = {
+			NOT = { scope:host.location = scope:activity.activity_location }
+			scope:host.location = {
+				graphical_wilderness_mountains_trigger = yes
+				NOT = { exists = province_owner }
+			}
+		}
+		texture = "gfx/interface/illustrations/event_scenes/mountains.dds"
+		environment = "environment_event_mountains"
+		ambience = "event:/SFX/Events/Backgrounds/mountains_day"
+	}
+
+	background = { #steppe, settled
+		trigger = {
+			NOT = { scope:host.location = scope:activity.activity_location }
+			scope:host.location = {
+				graphical_wilderness_steppe_trigger = yes
+				exists = province_owner
+			}
+		}
+		texture = "gfx/interface/illustrations/event_scenes/ep2_travel_steppe.dds"
+		environment = "environment_travel_steppe_settlement"
+		ambience = "event:/SFX/Events/Backgrounds/steppe_day"
+	}
+
+	background = { #steppe, unsettled
+		trigger = {
+			NOT = { scope:host.location = scope:activity.activity_location }
+			scope:host.location = {
+				graphical_wilderness_steppe_trigger = yes
+				NOT = { exists = province_owner }
+			}
+		}
+		texture = "gfx/interface/illustrations/event_scenes/steppe.dds"
+		environment = "environment_event_steppe"
+		ambience = "event:/SFX/Events/Backgrounds/steppe_day"
+	}
+
+	background = { #drylands (formerly desert)
+		trigger = {
+			NOT = { scope:host.location = scope:activity.activity_location }
+			scope:host.location = {
+				graphical_drylands_trigger = yes
+			}
+		}
+		texture = "gfx/interface/illustrations/event_scenes/drylands.dds"
+		environment = "environment_event_desert"
+		ambience = "event:/SFX/Events/Backgrounds/desert_day"
+	}
+
+	background = { #wetlands
+		trigger = {
+			NOT = { scope:host.location = scope:activity.activity_location }
+			scope:host.location = {
+				graphical_wilderness_wetlands_trigger = yes
+			}
+		}
+		texture = "gfx/interface/illustrations/event_scenes/bp1_wetlands.dds"
+		environment = "environment_event_bp1_wetlands" 
+		ambience = "event:/SFX/Events/Backgrounds/deciduous_forest_day"
+	}
+
+	background = { #jungle
+		trigger = {
+			NOT = { scope:host.location = scope:activity.activity_location }
+			scope:host.location = {
+				graphical_wilderness_jungle_trigger = yes
+			}
+		}
+		texture = "gfx/interface/illustrations/event_scenes/bp1_jungle.dds"
+		environment = "environment_event_bp1_jungle"
+		ambience = "event:/SFX/Events/Backgrounds/deciduous_forest_day"
+	}
+
+	background = { #plains, settled
+		trigger = {
+			NOT = { scope:host.location = scope:activity.activity_location }
+			scope:host.location = {
+				graphical_plains_trigger = yes
+				exists = province_owner
+			}
+		}
+		texture = "gfx/interface/illustrations/event_scenes/ep2_travel_hills.dds"
+		environment = "environment_travel_hills_settlement"
+		ambience = "event:/SFX/Events/Backgrounds/fields_farms_day"
+	}
+
+	background = { #plains, unsettled
+		trigger = {
+			NOT = { scope:host.location = scope:activity.activity_location }
+			scope:host.location = {
+				graphical_plains_trigger = yes
+				NOT = { exists = province_owner }
+			}
+		}
+		texture = "gfx/interface/illustrations/event_scenes/bp1_plains.dds"
+		environment = "environment_event_bp1_plains"
+		ambience = "event:/SFX/Events/Backgrounds/fields_farms_day"
+	}
+
+	background = { #hills, settled
+		trigger = {
+			NOT = { scope:host.location = scope:activity.activity_location }
+			scope:host.location = {
+				graphical_hills_trigger = yes
+				exists = province_owner
+				is_dwarf = no
+			}
+		}
+		texture = "gfx/interface/illustrations/event_scenes/ep2_travel_hills.dds"
+		environment = "environment_travel_hills_settlement"
+		ambience = "event:/SFX/Events/Backgrounds/fields_farms_day"
+	}
+
+	background = { #hills, dwarven settled
+		trigger = {
+			NOT = { scope:host.location = scope:activity.activity_location }
+			scope:host.location = {
+				graphical_hills_trigger = yes
+				exists = province_owner
+				is_dwarf = yes
+			}
+		}
+		texture = "gfx/interface/illustrations/event_scenes/dwarven_gate.dds"
+		environment = "environment_travel_mountain_settlement"
+		ambience = "event:/SFX/Events/Backgrounds/mountains_day"
+	}
+
+	background = { #hills, unsettled
+		trigger = {
+			NOT = { scope:host.location = scope:activity.activity_location }
+			scope:host.location = {
+				graphical_hills_trigger = yes
+				NOT = { exists = province_owner }
+			}
+		}
+		texture = "gfx/interface/illustrations/event_scenes/bp1_hills.dds"
+		environment = "environment_event_bp1_hills"
+		ambience = "event:/SFX/Events/Backgrounds/fields_farms_day"
+	}
+
+	background = { #sea
+		trigger = {
+			NOT = { scope:host.location = scope:activity.activity_location }
+			scope:host.location = {
+				is_sea_province = yes
+			}
+		}
+		texture = "gfx/interface/illustrations/event_scenes/fp1_ocean.dds"
+		environment = "environment_event_fp1_ocean"
+		ambience = "event:/DLC/FP1/SFX/Events/event_ocean_longship"
+	}
+	
+	background = { #LotR volcanic_plains
+		trigger = {
+			NOT = { scope:host.location = scope:activity.activity_location }
+			scope:host.location = { graphical_wilderness_volcanic_trigger = yes } 
+		}
+		texture = "gfx/interface/illustrations/event_scenes/volcanic_plains.dds"
+		environment = "environment_event_feast" 
+		ambience = "event:/SFX/Events/Backgrounds/burning_building"
+	}
+
+	background = { #LotR underground
+		trigger = {
+			NOT = { scope:host.location = scope:activity.activity_location }
+			scope:host.location = { graphical_underground_caverns_trigger = yes } 
+		}
+		texture = "gfx/interface/illustrations/event_scenes/halls.dds"
+		environment = "environment_event_alley"
+		ambience = "event:/SFX/Events/Backgrounds/city_alley_night"
+	}
+
+	background = { #LotR saltflats
+		trigger = {
+			NOT = { scope:host.location = scope:activity.activity_location }
+			scope:host.location = { graphical_wilderness_saltflats_trigger = yes } 
+		}
+		texture = "gfx/interface/illustrations/event_scenes/saltflats.dds"
+		environment = "environment_event_bp1_desert"
+		ambience = "event:/SFX/Events/Backgrounds/desert_day"
+	}
+
+	# Location
+
+	background = { # Desert Mountains
+		trigger = {
+			activity_location ?= { graphical_wilderness_desert_trigger = yes }
+		}
+		texture = "gfx/interface/illustrations/activity_backgrounds/lotr_cave_interior.dds"
+		environment = "environment_event_alley"
+		ambience = "event:/SFX/Events/Backgrounds/city_alley_night"
+	}
+
+	background = { # Mountains
+		trigger = {
+			activity_location ?= { graphical_wilderness_mountains_trigger = yes }
+		}
+		texture = "gfx/interface/illustrations/activity_backgrounds/lotr_cave_interior.dds"
+		environment = "environment_event_alley"
+		ambience = "event:/SFX/Events/Backgrounds/city_alley_night"
+	}
+
+	background = { # Subterranean
+		trigger = {
+			activity_location ?= { graphical_underground_caverns_trigger = yes }
+		}
+		texture = "gfx/interface/illustrations/activity_backgrounds/lotr_cave_interior.dds"
+		environment = "environment_event_alley"
+		ambience = "event:/SFX/Events/Backgrounds/city_alley_night"
+	}
+
+	background = { # Fallback
+		texture = "gfx/interface/illustrations/activity_backgrounds/lotr_cave_interior.dds"
+		environment = "environment_event_alley"
+		ambience = "event:/SFX/Events/Backgrounds/city_alley_night"
+	}
+}
