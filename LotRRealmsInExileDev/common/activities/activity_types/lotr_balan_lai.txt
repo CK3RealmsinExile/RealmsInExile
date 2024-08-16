@@ -1,17 +1,33 @@
 ﻿activity_balan_lai = {
-	is_shown = {
+	is_shown = { # Done
+		exists = struggle:thani_hazad_struggle
 		has_trait = balan_lai_member
 		trigger_if = {
 			limit = {
 				is_ai = yes
 			}
 			is_at_war = no
-			short_term_gold >= mining_activity_base_cost
+			short_term_gold >= balan_lai_activity_base_cost
 		}
 	}
 
 	can_start = {
-		# always = yes
+		OR = {
+			custom_tooltip = {
+				text = activity_balan_lai_not_on_member_cooldown
+				NAND = {
+					has_trait = balan_lai_member
+					has_global_variable ?= balan_lai_activity_global_cooldown
+				}
+			}
+			custom_tooltip = {
+				text = activity_balan_lai_not_on_leader_cooldown
+				NAND = {
+					has_title = title:d_balan_lai_leader
+					has_global_variable ?= balan_lai_activity_leader_global_cooldown
+				}
+			}
+		}
 	}
 
 	can_start_showing_failures_only = { 
@@ -37,11 +53,11 @@
 	on_invalidated = {
 	}
 
-	cooldown = {
-		years = 10 #Make Balan-lai leader cooldown 5 years
+	cooldown = { # Done
+		years = 5
 	} 
 
-	cost = {
+	cost = { # Done
 		gold = {
 			add = {
 				add = {
@@ -118,43 +134,77 @@
 		}
 	}
 
-	ui_predicted_cost = {
+	ui_predicted_cost = { # Done
 		# All costs are balanced on County/Early Era starting point
 		gold = {
-			add = { # Base cost, scaled by era
-				value = mining_activity_base_cost
-				multiply = activity_cost_scale_by_era
+			add = { # Base cost
+				value = balan_lai_activity_base_cost
+			}
+
+			if = { # Balan Lai Experience Discount
+				limit = {
+					has_trait = balan_lai_member
+					has_trait_xp = {
+						trait = balan_lai_member
+						track = experience
+						value = 100
+					}
+				}
+				multiply = {
+					value = 0.7
+					desc = balan_lai_member_cost_modifier_desc
+				}
+			}
+			else_if = {
+				limit = {
+					has_trait = balan_lai_member
+					has_trait_xp = {
+						trait = balan_lai_member
+						track = experience
+						value >= 65
+					}
+				}
+				multiply = {
+					value = 0.8
+					desc = balan_lai_member_cost_modifier_desc
+				}
+			}
+			else_if = {
+				limit = {
+					has_trait = balan_lai_member
+					has_trait_xp = {
+						trait = balan_lai_member
+						track = experience
+						value >= 30
+					}
+				}
+				multiply = {
+					value = 0.9
+					desc = balan_lai_member_cost_modifier_desc
+				}
 			}
 			
 			# Options 
-			add = { # Surveyors 
-				value = mining_poor_option_cost # Local Enthusiasts
-				add = mining_normal_option_cost # Select Talent
-				add = mining_good_option_cost # Distinguished Experts
+			add = { # Leverage 
+				value = 0 # Honorable Restraint
+				add = balan_lai_average_option_cost # Strategic Endowments
+				add = balan_lai_good_option_cost # Golden Influence
+				# Divide by the number of option levels to get an average option cost
+				divide = 3
+			}
+			add = { # Hosting Expenses 
+				value = balan_lai_poor_option_cost # Modest Affair
+				add = balan_lai_normal_option_cost # Respectable Outlay
+				add = balan_lai_good_option_cost # Lavish Display
 				# Divide by the number of option levels to get an average option cost
 				divide = 3
 			}
 			add = { # Party Size
-				value = mining_poor_option_cost # Intimate Party
-				add = mining_normal_option_cost # Reasonable Party
-				add = mining_good_option_cost # Substantial Party
+				value = 0 # Solo Delegation
+				add = balan_lai_average_option_cost # Chosen Companions
+				add = balan_lai_good_option_cost # Grand Procession
 				# Divide by the number of option levels to get an average option cost
 				divide = 3
-			}
-			if = {
-				limit = {
-					dynasty ?= {
-						has_dynasty_perk = law_legacy_1
-					}
-				}
-				subtract = {
-					value = mining_activity_base_cost
-					multiply = law_legacy_cost_reduction_mult
-				}
-			}
-			if = {
-				limit = { has_perk = expedition_leader_perk }
-				multiply = 0.9
 			}
 			
 			# Make it a multiple of 5 (rounded up)
@@ -184,19 +234,6 @@
 					weeks = 1
 				}
 				trigger_event = { id = hunt.0080 days = 1 }
-			}
-		}
-	}
-
-	is_location_valid = {
-		OR = {
-			this = scope:host.capital_province
-			this = province:5317
-			province_owner.top_liege = {
-				AND = {
-					has_trait = balan_lai_member
-					root = capital_province
-				}
 			}
 		}
 	}
@@ -556,6 +593,35 @@
 				desc = activity_mining_conclusion_desc_mining_success
 			}
 			desc = activity_mining_conclusion_desc_mining_failure
+		}
+	}
+
+	is_location_valid = { # Done
+		OR = {
+			this = scope:host.capital_province
+			AND = {
+				this = province:5317
+				OR = {
+					province:5317.province_owner = {
+						OR = { # Kharadunaim or Kharadunaim-descendant
+							culture = culture:kharadunaim
+							culture = { any_parent_culture_or_above = { this = culture:kharadunaim } }
+						}
+					}
+					province:5317.province_owner.top_liege = {
+						OR = { # Kharadunaim or Kharadunaim-descendant
+							culture = culture:kharadunaim
+							culture = { any_parent_culture_or_above = { this = culture:kharadunaim } }
+						}
+					}
+				}
+			}
+			province_owner.top_liege = {
+				AND = {
+					has_trait = balan_lai_member
+					root = capital_province
+				}
+			}
 		}
 	}
 
@@ -1046,90 +1112,121 @@
 	###################
 
 	max_guest_arrival_delay_time = { months = 18 }
+	max_route_deviation_mult = 1.5
 
-	phases = {
-		mining_phase = {
+	phases = { # TODO - Need to add phases
+		mingling_phase = {
 			is_predefined = yes
+			order = 1
 
-			on_phase_active = { # Fires for every attendee
-				if = { # Option to appoint overseer of the mines if not appointed
-					limit = {
-						this = scope:host
-						is_dwarf = no
-						NOT = { employs_court_position = overseer_of_the_mines_court_position }
-						involved_activity = {
-							any_attending_character = {
-								location = root.location
-								scope:host = { can_appoint_char_to_court_position = { CHAR = prev COURT_POS = overseer_of_the_mines_court_position } }
-								save_temporary_scope_as = potential_ootm
-							}
-						}
-						# can_appoint_char_to_court_position = { CHAR = scope:potential_ootm COURT_POS = overseer_of_the_mines_court_position }
-					}
-					trigger_event = {
-						id = mining.0100
-					}
-				}
-				if = { # Option to appoint stone singer if not appointed
-					limit = {
-						this = scope:host
-						is_dwarf = yes
-						NOT = { employs_court_position = stone_singer_court_position }
-						involved_activity = {
-							any_attending_character = {
-								location = root.location
-								scope:host = { can_appoint_char_to_court_position = { CHAR = prev COURT_POS = stone_singer_court_position } }
-								save_temporary_scope_as = potential_stone_singer
-							}
-						}
-						# can_appoint_char_to_court_position = { CHAR = scope:potential_stone_singer COURT_POS = stone_singer_court_position }
-					}
-					trigger_event = {
-						id = mining.0101
-					}
-				}
-				if = { # Set up event pulses
-					limit = { this = scope:host }
-					scope:activity = { progress_activity_phase_after = { months = 8 } }
-
-					trigger_event = { on_action = mining_start_events }
-					scope:activity = {
-						every_attending_character = {
-							limit = { is_ai = no }
-							trigger_event = { # Random
-								on_action = mining_random_pulse
-								months = 2
-							}
-							trigger_event = { # Random
-								on_action = mining_random_pulse
-								months = 4
-							}
-							trigger_event = { # Random
-								on_action = mining_random_pulse
-								months = 6
-							}
-						}
-					}
-					trigger_event = { # Outcome
-						on_action = mining_outcome_end_events
-						months = 7
-					}
-				}
+			on_enter_phase = {
 			}
-
-			on_weekly_pulse = { # Fires for every attendee
-				# trigger_event = hunt.0081 # Invalidation
+			on_phase_active = {
 			}
-
-			on_end = { # Fires for every attendee
-				target_weight_modifier_effect = { VALUE = -5 } # Lose a bit of character weight from the physical activity
+			on_monthly_pulse = {
+			}
+			on_weekly_pulse = {
+			}
+			on_end = {
 			}
 		}
+		voting_phase = {
+			is_predefined = yes
+			order = 2
+
+			on_enter_phase = {
+			}
+			on_phase_active = {
+			}
+			on_monthly_pulse = {
+			}
+			on_weekly_pulse = {
+			}
+			on_end = {
+			}
+		}
+		# mining_phase = {
+		# 	is_predefined = yes
+
+		# 	on_phase_active = { # Fires for every attendee
+		# 		if = { # Option to appoint overseer of the mines if not appointed
+		# 			limit = {
+		# 				this = scope:host
+		# 				is_dwarf = no
+		# 				NOT = { employs_court_position = overseer_of_the_mines_court_position }
+		# 				involved_activity = {
+		# 					any_attending_character = {
+		# 						location = root.location
+		# 						scope:host = { can_appoint_char_to_court_position = { CHAR = prev COURT_POS = overseer_of_the_mines_court_position } }
+		# 						save_temporary_scope_as = potential_ootm
+		# 					}
+		# 				}
+		# 				# can_appoint_char_to_court_position = { CHAR = scope:potential_ootm COURT_POS = overseer_of_the_mines_court_position }
+		# 			}
+		# 			trigger_event = {
+		# 				id = mining.0100
+		# 			}
+		# 		}
+		# 		if = { # Option to appoint stone singer if not appointed
+		# 			limit = {
+		# 				this = scope:host
+		# 				is_dwarf = yes
+		# 				NOT = { employs_court_position = stone_singer_court_position }
+		# 				involved_activity = {
+		# 					any_attending_character = {
+		# 						location = root.location
+		# 						scope:host = { can_appoint_char_to_court_position = { CHAR = prev COURT_POS = stone_singer_court_position } }
+		# 						save_temporary_scope_as = potential_stone_singer
+		# 					}
+		# 				}
+		# 				# can_appoint_char_to_court_position = { CHAR = scope:potential_stone_singer COURT_POS = stone_singer_court_position }
+		# 			}
+		# 			trigger_event = {
+		# 				id = mining.0101
+		# 			}
+		# 		}
+		# 		if = { # Set up event pulses
+		# 			limit = { this = scope:host }
+		# 			scope:activity = { progress_activity_phase_after = { months = 8 } }
+
+		# 			trigger_event = { on_action = mining_start_events }
+		# 			scope:activity = {
+		# 				every_attending_character = {
+		# 					limit = { is_ai = no }
+		# 					trigger_event = { # Random
+		# 						on_action = mining_random_pulse
+		# 						months = 2
+		# 					}
+		# 					trigger_event = { # Random
+		# 						on_action = mining_random_pulse
+		# 						months = 4
+		# 					}
+		# 					trigger_event = { # Random
+		# 						on_action = mining_random_pulse
+		# 						months = 6
+		# 					}
+		# 				}
+		# 			}
+		# 			trigger_event = { # Outcome
+		# 				on_action = mining_outcome_end_events
+		# 				months = 7
+		# 			}
+		# 		}
+		# 	}
+
+		# 	on_weekly_pulse = { # Fires for every attendee
+		# 		# trigger_event = hunt.0081 # Invalidation
+		# 	}
+
+		# 	on_end = { # Fires for every attendee
+		# 		target_weight_modifier_effect = { VALUE = -5 } # Lose a bit of character weight from the physical activity
+		# 	}
+		# }
 	}
 
 	ai_check_interval = 60
 
-	ai_will_select_province = {
+	ai_will_select_province = { # TODO - Need to add AI logic for where they want to host... 
 		value = 50
 		add = {
 			value = scope:score # Derived from province_score
@@ -1151,6 +1248,14 @@
 			1 = activity_invite_rule_balan_lai_leader
 			2 = activity_invite_rule_balan_lai_members
 		}
+	}
+
+	guest_subsets = { # TODO - Need to Figure out how these are used
+		leader # Leader of the Balan-Lai
+		non_leader_members # Non-Leader members of the Balan-Lai
+		all_members # All members of the Balan-Lai
+		prospective_members # Prospective members of the Balan-Lai
+		entourage # Non-Member guests
 	}
 
 	max_guests = 20
@@ -1183,12 +1288,12 @@
 	# ACTIVITY-SPECIFIC PULSES
 	###################
 
-	pulse_actions = {
+	pulse_actions = { # TODO - need to define set of pulse actions
 		entries = { guest_friendship guest_insulted }
 		chance_of_no_event = 3
 	}
 
-	on_start = {
+	on_start = { # TODO - need to define starting maintenance
 		set_variable = {
 			name = mining_success_chance
 			value = mining_success_chance_value
@@ -1305,206 +1410,47 @@
 	###################
 
 	### Plug in widgets
-	activity_window_widgets = {
+	activity_window_widgets = { # TODO - consider repurposing success chance as 'persuasiveness' score for agenda
 		mining_success_chance = "activity_plugin_widgets_summary"
 		artifact_rewards = "activity_plugin_widgets_conclusion"
 		trait_rewards = "activity_plugin_widgets_conclusion"
 	}
 
 	window_characters = {
-		miner = {
+		
+		member = {
 			camera = camera_body
 			
 			effect = {
 				if = {
 					limit = {
 						scope:host.location = scope:activity.activity_location
-						scope:player ?= {
+						any_attending_character = {
+							count >= 1
+							location = scope:activity.activity_location
 							NOR = {
 								this = scope:host
-								AND = {
-									exists = scope:host.court_position:overseer_of_the_mines_court_position
-									this = scope:host.court_position:overseer_of_the_mines_court_position
-								}
+								has_title = title:d_balan_lai_leader
 							}
+							has_trait = balan_lai_member
 						}
 					}
-					scope:player ?= { add_to_list = characters }
-				}
-				else_if = {
-					limit = {
-						scope:host.location = scope:activity.activity_location
-						scope:player ?= {
+					every_attending_character = {
+						limit = {
+							location = scope:activity.activity_location
 							NOR = {
 								this = scope:host
-								AND = {
-									exists = scope:host.court_position:stone_singer_court_position
-									this = scope:host.court_position:stone_singer_court_position
-								}
+								has_title = title:d_balan_lai_leader
 							}
-						}
-					}
-					scope:player ?= { add_to_list = characters }
-				}
-				else_if = {
-					limit = {
-						scope:host.location = scope:activity.activity_location
-						exists = scope:host.intent_target
-						any_attending_character = {
-							location = scope:activity.activity_location
-							NOT = {
-								this = scope:host
-							}
-							this = scope:host.intent_target
-						}
-					}
-					every_attending_character = {
-						limit = {
-							location = scope:activity.activity_location
-							NOT = {
-								this = scope:host
-							}
-							this = scope:host.intent_target
+							has_trait = balan_lai_member
 						}
 						add_to_list = characters
-					}
-				}
-				else_if = {
-					limit = {
-						scope:host.location = scope:activity.activity_location
-						any_attending_character = {
-							location = scope:activity.activity_location
-							NOT = {
-								this = scope:host
-							}
-							OR = {
-								has_relation_lover = scope:host
-								has_relation_friend = scope:host
-							}
-						}
-					}
-					every_attending_character = {
-						limit = {
-							location = scope:activity.activity_location
-							NOT = {
-								this = scope:host
-							}
-							OR = {
-								has_relation_lover = scope:host
-								has_relation_friend = scope:host
-							}
-						}
-						add_to_list = characters
-					}
-				}
-				else_if = {
-					limit = {
-						scope:host.location = scope:activity.activity_location
-						any_attending_character = {
-							location = scope:activity.activity_location
-							NOT = {
-								this = scope:host
-							}
-							is_councillor_of = scope:host
-						}
-					}
-					every_attending_character = {
-						limit = {
-							location = scope:activity.activity_location
-							NOT = {
-								this = scope:host
-							}
-							is_councillor_of = scope:host
-						}
-						add_to_list = characters
-					}
-				}
-				else_if = {
-					limit = {
-						scope:host.location = scope:activity.activity_location
-						any_attending_character = {
-							location = scope:activity.activity_location
-							NOT = {
-								this = scope:host
-							}
-							highest_held_title_tier >= tier_duchy
-						}
-					}
-					every_attending_character = {
-						limit = {
-							location = scope:activity.activity_location
-							NOT = {
-								this = scope:host
-							}
-							highest_held_title_tier >= tier_duchy
-						}
-						add_to_list = characters
-					}
-				}
-				else_if = {
-					limit = {
-						scope:host.location = scope:activity.activity_location
-						any_attending_character = {
-							location = scope:activity.activity_location
-							NOT = {
-								this = scope:host
-							}
-							highest_held_title_tier >= tier_county
-						}
-					}
-					every_attending_character = {
-						limit = {
-							location = scope:activity.activity_location
-							NOT = {
-								this = scope:host
-							}
-							highest_held_title_tier >= tier_county
-						}
-						add_to_list = characters
-					}
-				}
-				else = {
-					if = {
-						limit = {
-							scope:host.location = scope:activity.activity_location
-						}
-						every_attending_character = {
-							limit = {
-								location = scope:activity.activity_location
-								NOR = {
-									this = scope:host
-									has_court_position = overseer_of_the_mines_court_position
-									has_court_position = stone_singer_court_position
-								}
-							}
-							add_to_list = characters
-						}
 					}
 				}
 			}
+
 			scripted_animation = {
-				triggered_animation = {
-					trigger = {
-						exists = scope:host.intent_target
-						scope:host = {
-							has_activity_intent = woo_attendee_intent
-						}
-						scope:character = scope:host.intent_target
-					}
-					animation = { love flirtation }
-				}
-				triggered_animation = {
-					trigger = {
-						exists = scope:host.intent_target
-						scope:host = {
-							has_activity_intent = murder_attendee_intent
-						}
-						scope:character = scope:host.intent_target
-					}
-					animation = { dismissal worry paranoia }
-				}
-				#Fallback
-				animation = lantern
+				animation = personality_honorable
 			}
 		}
 
@@ -1514,284 +1460,195 @@
 			effect = {
 				if = {
 					limit = {
-						scope:host.location = scope:activity.activity_location
+						scope:host = {
+							NOT = {
+								has_title = title:d_balan_lai_leader
+							}
+						}
 					}
 					scope:host = {
+						limit = {
+							NOT = {
+								has_title = title:d_balan_lai_leader
+							}
+						}
 						add_to_list = characters
 					}
 				}
 			}
 			scripted_animation = {
-				#Fallback
-				animation = personality_bold
+				animation = personality_compassionate
+			}
+		}
+
+		member = {
+			camera = camera_body
+			
+			effect = {
+				if = {
+					limit = {
+						scope:host.location = scope:activity.activity_location
+						scope:host = {
+							has_title = title:d_balan_lai_leader
+						}
+						any_attending_character = {
+							count >= 2
+							location = scope:activity.activity_location
+							NOR = {
+								this = scope:host
+								has_title = title:d_balan_lai_leader
+							}
+							has_trait = balan_lai_member
+						}
+					}
+					every_attending_character = {
+						limit = {
+							location = scope:activity.activity_location
+							NOR = {
+								this = scope:host
+								has_title = title:d_balan_lai_leader
+							}
+							has_trait = balan_lai_member
+						}
+						add_to_list = characters
+					}
+				}
+			}
+
+			scripted_animation = {
+				animation = personality_honorable
 			}
 		}
 		
-		travel_host = {
-			camera = camera_body
-			
-			effect = {
-				if = {
-					limit = {
-						NOT = {
-							scope:host.location = scope:activity.activity_location
-						}
-					}
-					scope:host = {
-						add_to_list = characters
-					}
-				}
-			}
-
-			scripted_animation = {
-				triggered_animation = {
-					trigger = {
-						scope:character.location = { is_sea_province = yes }
-					}
-					animation = { idle }
-				}
-				triggered_animation = {
-					trigger = { scope:character = { has_trait = impatient } }
-					animation = { jockey_gallop }
-				}
-				animation = jockey_walk
-			}
-		}
-
-		overseer_of_the_mines = {
-			camera = camera_body
-			
-			effect = {
-				scope:host.court_position:overseer_of_the_mines_court_position ?= {
-					if = {
-						limit = {
-							scope:host.location = scope:activity.activity_location
-							is_participant_in_activity = scope:activity
-							location = scope:activity.activity_location
-						}
-						add_to_list = characters
-					}
-				}
-			}
-			scripted_animation = {
-				animation = happy_teacher
-			}
-		}
-
-		stone_singer = {
-			camera = camera_body
-			
-			effect = {
-				scope:host.court_position:stone_singer_court_position ?= {
-					if = {
-						limit = {
-							scope:host.location = scope:activity.activity_location
-							is_participant_in_activity = scope:activity
-							location = scope:activity.activity_location
-						}
-						add_to_list = characters
-					}
-				}
-			}
-			scripted_animation = {
-				animation = happy_teacher
-			}
-		}
-
-		miner = {
+		leader = {
 			camera = camera_body
 			
 			effect = {
 				if = {
 					limit = {
 						scope:host.location = scope:activity.activity_location
-						NOT = { exists = var:animal_slayer }
+						any_attending_character = {
+							location = scope:activity.activity_location
+							has_title = title:d_balan_lai_leader
+						}
 					}
-					if = {
+					random_attending_character = {
 						limit = {
-							scope:host.location = scope:activity.activity_location
-							any_attending_character = {
-								count >= 2
-								location = scope:activity.activity_location
-								NOT = {
-									this = scope:host
-								}
-								is_councillor_of = scope:host
-							}
+							location = scope:activity.activity_location
+							has_title = title:d_balan_lai_leader
 						}
-						every_attending_character = {
-							limit = {
-								location = scope:activity.activity_location
-								NOT = {
-									this = scope:host
-								}
-								is_councillor_of = scope:host
-							}
-							add_to_list = characters
-						}
-					}
-					else_if = {
-						limit = {
-							scope:host.location = scope:activity.activity_location
-							any_attending_character = {
-								count >= 2
-								location = scope:activity.activity_location
-								NOT = {
-									this = scope:host
-								}
-								highest_held_title_tier >= tier_duchy
-							}
-						}
-						every_attending_character = {
-							limit = {
-								location = scope:activity.activity_location
-								NOT = {
-									this = scope:host
-								}
-								highest_held_title_tier >= tier_duchy
-							}
-							add_to_list = characters
-						}
-					}
-					else_if = {
-						limit = {
-							scope:host.location = scope:activity.activity_location
-							any_attending_character = {
-								count >= 2
-								location = scope:activity.activity_location
-								NOT = {
-									this = scope:host
-								}
-								highest_held_title_tier >= tier_county
-							}
-						}
-						every_attending_character = {
-							limit = {
-								location = scope:activity.activity_location
-								NOT = {
-									this = scope:host
-								}
-								highest_held_title_tier >= tier_county
-							}
-							add_to_list = characters
-						}
-					}
-					else = {
-						every_attending_character = {
-							limit = {
-								location = scope:activity.activity_location
-								NOR = {
-									this = scope:host
-									has_court_position = master_of_hunt_court_position
-								}
-							}
-							add_to_list = characters
-						}
+						add_to_list = characters
 					}
 				}
 			}
-
 			scripted_animation = {
-				#Fallback
-				animation = throne_room_one_handed_passive_2
+				animation = personality_bold
 			}
 		}
 
-		miner = {
+		member = {
 			camera = camera_body
 			
 			effect = {
 				if = {
 					limit = {
 						scope:host.location = scope:activity.activity_location
+						any_attending_character = {
+							count >= 3
+							location = scope:activity.activity_location
+							NOR = {
+								this = scope:host
+								has_title = title:d_balan_lai_leader
+							}
+							has_trait = balan_lai_member
+						}
 					}
-					if = {
+					every_attending_character = {
 						limit = {
-							scope:host.location = scope:activity.activity_location
-							any_attending_character = {
-								count >= 3
-								location = scope:activity.activity_location
-								NOT = {
-									this = scope:host
-								}
-								is_councillor_of = scope:host
+							location = scope:activity.activity_location
+							NOR = {
+								this = scope:host
+								has_title = title:d_balan_lai_leader
 							}
+							has_trait = balan_lai_member
 						}
-						every_attending_character = {
-							limit = {
-								location = scope:activity.activity_location
-								NOT = {
-									this = scope:host
-								}
-								is_councillor_of = scope:host
+						add_to_list = characters
+					}
+				}
+			}
+			scripted_animation = {
+				animation = personality_content
+			}
+		}
+
+		member = {
+			camera = camera_body
+			
+			effect = {
+				if = {
+					limit = {
+						scope:host.location = scope:activity.activity_location
+						any_attending_character = {
+							count >= 4
+							location = scope:activity.activity_location
+							NOR = {
+								this = scope:host
+								has_title = title:d_balan_lai_leader
 							}
-							add_to_list = characters
+							has_trait = balan_lai_member
 						}
 					}
-					else_if = {
+					every_attending_character = {
 						limit = {
-							scope:host.location = scope:activity.activity_location
-							any_attending_character = {
-								count >= 3
-								location = scope:activity.activity_location
-								NOT = {
-									this = scope:host
-								}
-								highest_held_title_tier >= tier_duchy
+							location = scope:activity.activity_location
+							NOR = {
+								this = scope:host
+								has_title = title:d_balan_lai_leader
 							}
+							has_trait = balan_lai_member
 						}
-						every_attending_character = {
-							limit = {
-								location = scope:activity.activity_location
-								NOT = {
-									this = scope:host
-								}
-								highest_held_title_tier >= tier_duchy
+						add_to_list = characters
+					}
+				}
+			}
+			scripted_animation = {
+				animation = personality_forgiving
+			}
+		}
+
+		member = {
+			camera = camera_body
+			
+			effect = {
+				if = {
+					limit = {
+						scope:host.location = scope:activity.activity_location
+						any_attending_character = {
+							count >= 5
+							location = scope:activity.activity_location
+							NOR = {
+								this = scope:host
+								has_title = title:d_balan_lai_leader
 							}
-							add_to_list = characters
+							has_trait = balan_lai_member
 						}
 					}
-					else_if = {
+					every_attending_character = {
 						limit = {
-							scope:host.location = scope:activity.activity_location
-							any_attending_character = {
-								count >= 3
-								location = scope:activity.activity_location
-								NOT = {
-									this = scope:host
-								}
-								highest_held_title_tier >= tier_county
+							location = scope:activity.activity_location
+							NOR = {
+								this = scope:host
+								has_title = title:d_balan_lai_leader
 							}
+							has_trait = balan_lai_member
 						}
-						every_attending_character = {
-							limit = {
-								location = scope:activity.activity_location
-								NOT = {
-									this = scope:host
-								}
-								highest_held_title_tier >= tier_county
-							}
-							add_to_list = characters
-						}
-					}
-					else = {
-						every_attending_character = {
-							limit = {
-								location = scope:activity.activity_location
-								NOR = {
-									this = scope:host
-									has_court_position = master_of_hunt_court_position
-								}
-							}
-							add_to_list = characters
-						}
+						add_to_list = characters
 					}
 				}
 			}
 
 			scripted_animation = {
-				#Fallback
-				animation = personality_cynical
+				animation = idle
 			}
 		}
 	}	
@@ -2190,32 +2047,36 @@
 		trigger = {
 			activity_location ?= { graphical_wilderness_desert_trigger = yes }
 		}
-		texture = "gfx/interface/illustrations/activity_backgrounds/lotr_cave_interior.dds"
-		environment = "environment_event_alley"
-		ambience = "event:/SFX/Events/Backgrounds/city_alley_night"
+		texture = "gfx/interface/illustrations/activity_backgrounds/activity_feast.dds"
+		environment = "environment_event_feast"
+		ambience = "event:/SFX/Events/Backgrounds/feasthall"
+		music = "grandfeast_cue"
 	}
 
 	background = { # Mountains
 		trigger = {
 			activity_location ?= { graphical_wilderness_mountains_trigger = yes }
 		}
-		texture = "gfx/interface/illustrations/activity_backgrounds/lotr_cave_interior.dds"
-		environment = "environment_event_alley"
-		ambience = "event:/SFX/Events/Backgrounds/city_alley_night"
+		texture = "gfx/interface/illustrations/activity_backgrounds/activity_feast.dds"
+		environment = "environment_event_feast"
+		ambience = "event:/SFX/Events/Backgrounds/feasthall"
+		music = "grandfeast_cue"
 	}
 
 	background = { # Subterranean
 		trigger = {
 			activity_location ?= { graphical_underground_caverns_trigger = yes }
 		}
-		texture = "gfx/interface/illustrations/activity_backgrounds/lotr_cave_interior.dds"
-		environment = "environment_event_alley"
-		ambience = "event:/SFX/Events/Backgrounds/city_alley_night"
+		texture = "gfx/interface/illustrations/activity_backgrounds/activity_feast.dds"
+		environment = "environment_event_feast"
+		ambience = "event:/SFX/Events/Backgrounds/feasthall"
+		music = "grandfeast_cue"
 	}
 
 	background = { # Fallback
-		texture = "gfx/interface/illustrations/activity_backgrounds/lotr_cave_interior.dds"
-		environment = "environment_event_alley"
-		ambience = "event:/SFX/Events/Backgrounds/city_alley_night"
+		texture = "gfx/interface/illustrations/activity_backgrounds/activity_feast.dds"
+		environment = "environment_event_feast"
+		ambience = "event:/SFX/Events/Backgrounds/feasthall"
+		music = "grandfeast_cue"
 	}
 }
