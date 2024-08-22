@@ -9,11 +9,12 @@
 ### Assembly Phase ( 0200 - 0299 )
 
 balan_lai.0200 = { # Intro event for the Assembly Phase
-	type = character_event
+	type = activity_event
 	title = balan_lai.0200.t
 	desc = balan_lai.0200.desc
+	theme = stewardship
 	override_background = {
-		reference = mining_activity
+		reference = balan_lai_chamber_activity
 	}
 	left_portrait = {
 		character = root
@@ -23,10 +24,64 @@ balan_lai.0200 = { # Intro event for the Assembly Phase
 		character = scope:host
 		animation = personality_bold
 	}
-	theme = hunt_activity
+
+	immediate = {
+		if = {
+			limit = {
+				scope:activity = {
+					any_attending_character = {
+						count > 0
+						has_title = title:d_balan_lai_leader
+					}
+				}
+			}
+			scope:activity = {
+				random_attending_character = {
+					limit = { has_title = title:d_balan_lai_leader }
+					save_scope_as = council_leader
+				}
+			}
+		}
+	}
 
 	option = {
 		name = balan_lai.0200.a
+	}
+
+	after = {
+		if = {
+			limit = {
+				scope:activity = {
+					any_attending_character = {
+						count > 0
+						has_activity_intent = balan_lai_expel_member_intent
+					}
+				}
+			}
+			if = {
+				limit = {
+					scope:host = {
+						has_activity_intent = balan_lai_expel_member_intent
+					}
+				}
+				scope:host = {
+					trigger_event = balan_lai.3001
+				}
+			}
+			else = {
+				scope:activity = {
+					random_attending_character = {
+						limit = { has_activity_intent = balan_lai_expel_member_intent }
+						trigger_event = balan_lai.3001
+					}
+				}
+			}
+		}
+		else = {
+			scope:activity = {
+				progress_activity_phase_after = { days = 7 }
+			}
+		}
 	}
 }
 
@@ -34,3 +89,106 @@ balan_lai.0200 = { # Intro event for the Assembly Phase
 #	COUNCIL SESSION - Bilaterals    #
 #	2001 - 2999						#
 #####################################
+
+
+
+#####################################
+#	COUNCIL SESSION - Full Votes    #
+#	3001 - 3999						#
+#####################################
+### Expel Council Member ( 3001 - 3099 )
+
+balan_lai.3001 = { # Proposer puts forward motion to expel member
+	type = activity_event
+	title = balan_lai.3001.t
+	desc = balan_lai.3001.desc
+	theme = stewardship
+	override_background = {
+		reference = balan_lai_chamber_activity
+	}
+	left_portrait = {
+		character = root
+		animation = war_attacker
+	}
+	center_portrait = {
+		trigger = {
+			exists = scope:council_leader
+		}
+		character = scope:council_leader
+		animation = frontend_center_idle
+	}
+	right_portrait = {
+		character = intent_target
+		animation = worry
+	}
+
+	immediate = {
+		intent_target = { save_scope_as = banishment_target }
+	}
+
+	widgets = {
+        widget = {
+            gui = "lotr_shader_event_sparks"
+            container = "lotr_shader_event_foreground"
+        }
+        widget = {
+            gui = "lotr_shader_event_fire"
+            container = "lotr_shader_event_background"
+        }
+    }
+
+	option = { # Push Ahead
+		name = balan_lai.3001.a
+		# if = {
+		# 	limit = {
+		# 		scope:activity = {
+		# 			any_attending_character = {
+		# 				has_trait = balan_lai_member
+		# 				NOT = { this = root }
+		# 				NOT = { this = root.intent_target }
+		# 			}
+		# 		}
+		# 	}
+		# 	custom_tooltip = all_present_vote
+		# }
+		scope:activity = {
+			every_attending_character = {
+				limit = {
+					has_trait = balan_lai_member
+					NOT = { this = root }
+					NOT = { this = root.intent_target }
+				}
+				# if = {
+				# 	limit = {
+				# 		root.var:balan_lai_proposal_momentum.value > 50
+				# 	}
+				# 	custom_tooltip = vote_to_banish
+				# }
+				custom_tooltip = vote_header
+				random_list = {
+					100 = {
+						# add_gold = 1
+						custom_tooltip = vote_to_banish
+						modifier = {
+							add = root.var:balan_lai_proposal_momentum.value
+						}
+						opinion_modifier = {
+							who = this
+							opinion_target = scope:banishment_target
+							multiplier = -1
+						}
+					}
+					100 = {
+						# remove_long_term_gold = 1
+						custom_tooltip = vote_not_to_banish
+					}
+				}
+			}
+		}
+	}
+
+	option = { # Take It Back
+		name = balan_lai.3001.b
+		complete_activity_intent = yes
+	}
+}
