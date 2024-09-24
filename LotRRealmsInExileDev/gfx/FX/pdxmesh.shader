@@ -7,10 +7,7 @@ Includes = {
 	"cw/pdxterrain.fxh"
 	"jomini/jomini_fog.fxh"
 	"jomini/jomini_lighting.fxh"
-	# MOD(godherja)
-	#"jomini/jomini_fog_of_war.fxh"
-	"gh_atmospheric.fxh"
-	# END MOD
+	"jomini/jomini_fog_of_war.fxh"
 	"jomini/jomini_water.fxh"
 	"jomini/jomini_mapobject.fxh"
 	"constants.fxh"
@@ -401,7 +398,7 @@ PixelShader =
 		]]
 	}
 	# END MOD
-
+	
 	MainCode PS_standard
 	{
 		Input = "VS_OUTPUT"
@@ -478,7 +475,7 @@ PixelShader =
 					float3x3 TBN = Create3x3( normalize( Input.Tangent ), normalize( Input.Bitangent ), normalize( Input.Normal ) );
 					float3 Normal = normalize( mul( NormalSample, TBN ) );
 				#endif
-				
+
 				#if defined( DETAIL_TILING ) && !defined( LOW_SPEC_SHADERS )
 					float DetailRoughness = PdxTex2D( DetailMap, ( PROPERTIES_UV_SET * DETAIL_TILING.xy ) + DETAIL_TILING.zw ).b;
 					DetailRoughness -= 0.5;
@@ -497,7 +494,7 @@ PixelShader =
 					#endif
 				#endif
 
-				float3 UserColor = float3( 1.0f, 1.0f, 1.0f );				
+				float3 UserColor = float3( 1.0f, 1.0f, 1.0f );
 				
 				#if defined( USER_COLOR )
 					float3 UserColor1 = GetUserData( Input.InstanceIndex, USER_DATA_PRIMARY_COLOR ).rgb;
@@ -528,12 +525,6 @@ PixelShader =
 				#if defined( APPLY_WINTER )
 					Diffuse.rgb = ApplyDynamicMasksDiffuse( Diffuse.rgb, Normal, ColorMapCoords );
 				#endif
-
-				// Colormap blend, pre light
-				#if defined( COLORMAP )
-					float3 ColorMap = PdxTex2D( ColorTexture, float2( ColorMapCoords.x, 1.0 - ColorMapCoords.y ) ).rgb;
-					Diffuse.rgb = SoftLight( Diffuse.rgb, ColorMap, ( 1 - Properties.r ) * COLORMAP_OVERLAY_STRENGTH );
-				#endif
 				
 				SMaterialProperties MaterialProps = GetMaterialProperties( Diffuse.rgb, Normal, Properties.a, Properties.g, Properties.b );
 				#if defined( LOW_SPEC_SHADERS )
@@ -552,19 +543,11 @@ PixelShader =
 					SssColor = HSVtoRGB(HSVColor) * SssMask * 0.5f * MaterialProps._DiffuseColor;
 					Color += SssColor;
 				#endif
-				
-				// MOD(godherja)
-				// #if !defined( UNDERWATER ) && !defined( NO_FOG )
-				//	Color = ApplyFogOfWar( Color, Input.WorldSpacePos, FogOfWarAlpha );
-				#if !defined( UNDERWATER )
-					Color = GH_ApplyAtmosphericEffects( Color, Input.WorldSpacePos, FogOfWarAlpha );
-				#endif
 
-				#if !defined( NO_FOG )
-				// END MOD
+				#if !defined( UNDERWATER ) && !defined( NO_FOG )
+					Color = ApplyFogOfWar( Color, Input.WorldSpacePos, FogOfWarAlpha );
 					Color = ApplyDistanceFog( Color, Input.WorldSpacePos );
 				#endif
-				
 
 				#if defined( BAKED_LIGHTING )
 					Color = ApplyBakedLighting( Color, Input.UV0 );
@@ -573,6 +556,7 @@ PixelShader =
 				#if defined( LIGHTING_DECAL )
 					Color = ApplyLightingDecal( Color, Input.UV0 );
 				#endif
+				
 				float Alpha = Diffuse.a;
 				#ifdef UNDERWATER
 					clip( _WaterHeight - Input.WorldSpacePos.y + 0.1 ); // +0.1 to avoid gap between water and mesh
@@ -1254,32 +1238,6 @@ Effect snap_to_terrain_alpha_to_coverageShadow_mapobject
 	RasterizerState = ShadowRasterizerState
 	Defines = { "PDX_MESH_SNAP_VERTICES_TO_TERRAIN" }
 }
-Effect snap_to_terrain_alpha_to_coverage_colormap_mapobject
-{
-	VertexShader = "VS_mapobject"
-	PixelShader = "PS_standard"
-	BlendState = "alpha_to_coverage"
-	Defines = { "PDX_MESH_SNAP_VERTICES_TO_TERRAIN" "COLORMAP" "ALPHA_TO_COVERAGE" "APPLY_WINTER" }
-}
-Effect snap_to_terrain_alpha_to_coverage_colormapShadow_mapobject
-{
-	VertexShader = "VS_jomini_mapobject_shadow"
-	PixelShader = "PS_jomini_mapobject_shadow_alphablend"
-	RasterizerState = ShadowRasterizerState
-	Defines = { "PDX_MESH_SNAP_VERTICES_TO_TERRAIN" "ALPHA_TO_COVERAGE" }
-}
-Effect standard_colormap_mapobject
-{
-	VertexShader = "VS_mapobject"
-	PixelShader = "PS_standard"
-	Defines = { "COLORMAP" "APPLY_WINTER" }
-}
-Effect standard_colormapShadow_mapobject
-{
-	VertexShader = "VS_jomini_mapobject_shadow"
-	PixelShader = "PS_jomini_mapobject_shadow_alphablend"
-	RasterizerState = ShadowRasterizerState
-}
 Effect snap_to_terrain_atlas_mapobject
 {
 	VertexShader = "VS_mapobject"
@@ -1306,26 +1264,6 @@ Effect snap_to_terrain_atlas_usercolorShadow_mapobject
 	RasterizerState = ShadowRasterizerState
 	Defines = { "PDX_MESH_SNAP_VERTICES_TO_TERRAIN" }
 }
-
-# MOD(map-skybox)
-Effect SKYX_sky
-{
-	VertexShader = "VS_standard"
-	PixelShader = "SKYX_PS_sky"
-}
-
-Effect SKYX_sky_mapobject
-{
-	VertexShader = "VS_mapobject"
-	PixelShader = "SKYX_PS_sky"
-}
-
-Effect SKYX_sky_selection_mapobject
-{
-	VertexShader = "VS_mapobject"
-	PixelShader = "SKYX_PS_sky"
-}
-# END MOD
 
 Effect court
 {
@@ -1354,3 +1292,121 @@ Effect standard_winterShadow_mapobject
 	PixelShader = "PS_jomini_mapobject_shadow"
 }
 # END MOD
+
+# MOD(lotr)
+Effect snap_to_terrain_mapobject
+{
+	VertexShader = "VS_mapobject"
+	PixelShader = "PS_standard"
+	
+	Defines = { "PDX_MESH_SNAP_VERTICES_TO_TERRAIN" }
+}
+
+Effect snap_to_terrainShadow_mapobject
+{
+	VertexShader = "VS_jomini_mapobject_shadow"
+	PixelShader = "PS_jomini_mapobject_shadow"
+	
+	Defines = { "PDX_MESH_SNAP_VERTICES_TO_TERRAIN" }
+	RasterizerState = ShadowRasterizerState
+}
+
+Effect snap_to_terrain_alpha_to_coverage_mapobject
+{
+	VertexShader = "VS_mapobject"
+	PixelShader = "PS_standard"
+	
+	BlendState = "alpha_to_coverage"
+	Defines = { "PDX_MESH_SNAP_VERTICES_TO_TERRAIN" }
+}
+
+Effect snap_to_terrain_alpha_to_coverageShadow_mapobject
+{
+	VertexShader = "VS_jomini_mapobject_shadow"
+	PixelShader = "PS_jomini_mapobject_shadow_alphablend"
+	
+	RasterizerState = ShadowRasterizerState
+	Defines = { "PDX_MESH_SNAP_VERTICES_TO_TERRAIN" }
+}
+
+Effect snap_to_terrain_alpha_to_coverage_colormap_mapobject
+{
+	VertexShader = "VS_mapobject"
+	PixelShader = "PS_standard"
+	BlendState = "alpha_to_coverage"
+	Defines = { "PDX_MESH_SNAP_VERTICES_TO_TERRAIN" "COLORMAP" "ALPHA_TO_COVERAGE" "APPLY_WINTER" }
+}
+
+Effect snap_to_terrain_alpha_to_coverage_colormapShadow_mapobject
+{
+	VertexShader = "VS_jomini_mapobject_shadow"
+	PixelShader = "PS_jomini_mapobject_shadow_alphablend"
+	RasterizerState = ShadowRasterizerState
+	Defines = { "PDX_MESH_SNAP_VERTICES_TO_TERRAIN" "ALPHA_TO_COVERAGE" }
+}
+
+Effect standard_colormap_mapobject
+{
+	VertexShader = "VS_mapobject"
+	PixelShader = "PS_standard"
+	Defines = { "COLORMAP" "APPLY_WINTER" }
+}
+
+Effect standard_colormapShadow_mapobject
+{
+	VertexShader = "VS_jomini_mapobject_shadow"
+	PixelShader = "PS_jomini_mapobject_shadow_alphablend"
+	RasterizerState = ShadowRasterizerState
+}
+
+Effect snap_to_terrain_atlas_mapobject
+{
+	VertexShader = "VS_mapobject"
+	PixelShader = "PS_standard"
+	Defines = { "PDX_MESH_SNAP_VERTICES_TO_TERRAIN" "ATLAS" }
+}
+
+Effect snap_to_terrain_atlasShadow_mapobject
+{
+	VertexShader = "VS_jomini_mapobject_shadow"
+	PixelShader = "PS_jomini_mapobject_shadow"		
+	RasterizerState = ShadowRasterizerState
+	Defines = { "PDX_MESH_SNAP_VERTICES_TO_TERRAIN" }
+}
+
+Effect snap_to_terrain_atlas_usercolor_mapobject
+{
+	VertexShader = "VS_mapobject"
+	PixelShader = "PS_standard"
+	Defines = { "PDX_MESH_SNAP_VERTICES_TO_TERRAIN" "ATLAS" "USER_COLOR" }
+}
+
+Effect snap_to_terrain_atlas_usercolorShadow_mapobject
+{
+	VertexShader = "VS_jomini_mapobject_shadow"
+	PixelShader = "PS_jomini_mapobject_shadow"		
+	RasterizerState = ShadowRasterizerState
+	Defines = { "PDX_MESH_SNAP_VERTICES_TO_TERRAIN" }
+}
+#END MOD
+
+# MOD(map-skybox)
+Effect SKYX_sky
+{
+	VertexShader = "VS_standard"
+	PixelShader = "SKYX_PS_sky"
+}
+
+Effect SKYX_sky_mapobject
+{
+	VertexShader = "VS_mapobject"
+	PixelShader = "SKYX_PS_sky"
+}
+
+Effect SKYX_sky_selection_mapobject
+{
+	VertexShader = "VS_mapobject"
+	PixelShader = "SKYX_PS_sky"
+}
+# END MOD
+

@@ -1,12 +1,13 @@
 ﻿activity_witch_ritual = {
 	is_shown = {
 		highest_held_title_tier > tier_barony
-		is_landed = yes
+		is_playable_character = yes
 		trigger_if = {
 			limit = {
 				is_ai = yes
 			}
 			is_at_war = no
+			ai_has_conqueror_personality = no
 		}
 		exists = house
 		house = { has_house_modifier = witch_coven }
@@ -36,7 +37,7 @@
 			has_variable = activity_invalidated
 		}
 		scope:host = {
-			is_landed = yes
+			is_playable_character = yes
 			NOT = { is_incapable = yes }
 		}
 		# If no one shows up
@@ -52,7 +53,7 @@
 		# Host becomes unlanded
 		if = {
 			limit = {
-				scope:host = { is_landed = no }
+				scope:host = { is_playable_character = no }
 			}
 			scope:activity = {
 				activity_type = { save_scope_as = activity_type }
@@ -96,8 +97,6 @@
 		}
 	}
 
-	province_filter = domain
-	ai_province_filter = capital
 	wait_time_before_start = { months = 3 }
 
 	###################
@@ -312,11 +311,38 @@
 	}
 	
 	is_location_valid = {
-		exists = province_owner
-		province_owner.top_liege = scope:host.top_liege
+		OR = {
+			this = scope:host.capital_province
+			scope:host.domicile.domicile_location ?= this
+		}
 	}
 
-	province_filter = capital
+	province_description = {
+		first_valid = {
+			triggered_desc = {
+				trigger = {
+					AND = {
+						this = scope:host.capital_province
+						scope:host.domicile.domicile_location ?= this
+					}
+				}
+				desc = activity_witch_ritual_province_both_desc
+			}
+			triggered_desc = {
+				trigger = {
+					this = scope:host.capital_province
+				}
+				desc = activity_witch_ritual_province_capital_desc
+			}
+			triggered_desc = {
+				trigger = {
+					scope:host.domicile.domicile_location ?= this
+				}
+				desc = activity_witch_ritual_province_domicile_desc
+			}
+		}
+	}
+	province_filter = domicile_domain
 	ai_province_filter = capital
 
 	max_province_icons = 5
@@ -423,6 +449,7 @@
 		trigger = {
 			activity_location.culture = {
 				OR = {
+					has_graphical_iranian_culture_group_trigger = yes
 					has_graphical_mena_culture_group_trigger = yes
 					has_graphical_steppe_culture_group_trigger = yes
 					has_graphical_african_culture_group_trigger = yes
@@ -819,31 +846,9 @@
 			effect = {
 				if = {
 					limit = {
-						scope:host.location = scope:activity.activity_location
-					}
-					scope:host = {
-						add_to_list = characters
-					}
-				}
-			}
-
-			scripted_animation = {
-				triggered_animation = {
-					trigger = { NOT = { has_trait = craven } }
-					animation = { boredom fear lunatic paranoia drink scheme spymaster ecstasy }
-				}
-				animation = worry
-			}
-		}
-		
-		travel_host = {
-			camera = camera_event_center
-			
-			effect = {
-				if = {
-					limit = {
-						NOT = {
+						OR = {
 							scope:host.location = scope:activity.activity_location
+							scope:host.location = { is_sea_province = yes }
 						}
 					}
 					scope:host = {
@@ -857,8 +862,34 @@
 					trigger = {
 						scope:character.location = { is_sea_province = yes }
 					}
-					animation = { idle }
+					animation = { survey }
 				}
+				triggered_animation = {
+					trigger = { scope:character = { NOT = { has_trait = craven } } }
+					animation = { boredom fear lunatic paranoia drink scheme spymaster ecstasy }
+				}
+				animation = worry
+			}
+		}
+		
+		travel_host = {
+			camera = camera_event_center
+			
+			effect = {
+				if = {
+					limit = {
+						NOR = {
+							scope:host.location = scope:activity.activity_location
+							scope:host.location = { is_sea_province = yes }
+						}
+					}
+					scope:host = {
+						add_to_list = characters
+					}
+				}
+			}
+
+			scripted_animation = {
 				triggered_animation = {
 					trigger = { scope:character = { has_trait = impatient } }
 					animation = { jockey_gallop }
@@ -881,7 +912,7 @@
 
 			scripted_animation = {
 				triggered_animation = {
-					trigger = { NOT = { has_trait = craven } }
+					trigger = { scope:character = { NOT = { has_trait = craven } } }
 					animation = { boredom fear lunatic paranoia drink scheme spymaster ecstasy }
 				}
 				animation = worry
@@ -902,7 +933,7 @@
 
 			scripted_animation = {
 				triggered_animation = {
-					trigger = { NOT = { has_trait = craven } }
+					trigger = { scope:character = { NOT = { has_trait = craven } } }
 					animation = { boredom fear lunatic paranoia drink scheme spymaster ecstasy }
 				}
 				animation = worry

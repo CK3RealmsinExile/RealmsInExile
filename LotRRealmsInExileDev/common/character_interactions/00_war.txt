@@ -14,7 +14,7 @@
 			scope:recipient = scope:actor
 		}
 		scope:recipient = {
-			is_landed = yes
+			is_playable_character = yes
 			NOT = { has_culture = culture:wastelands }
 			is_in_valinor = no
 		}
@@ -90,6 +90,47 @@
 				}
 			}
 		}
+		scope:actor = {
+			trigger_if = {
+				limit = {
+					NOT = { government_allows = administrative }
+					liege ?= {
+						has_realm_law_flag = vassal_all_wars_banned_permanent
+						NOT = { this = scope:actor }
+					}
+				}
+				custom_tooltip = {
+					text = admin_all_vassal_wars_banned
+					always = no
+				}
+			}
+			trigger_if = {
+				limit = {
+					government_allows = administrative
+					top_liege = scope:recipient.top_liege
+					scope:recipient = { government_allows = administrative }
+					NOT = { top_liege = scope:recipient }
+				}
+				custom_tooltip = {
+					text = admin_cannot_declare_internal_wars
+					always = no
+				}
+			}
+		}
+		scope:actor = {
+			trigger_if = {
+				limit = { is_landless_adventurer = yes }
+				custom_tooltip = {
+					text = camp_located_in_defender_realm.tt
+					domicile.domicile_location.county.holder = {
+						NOR = {
+							this = scope:recipient
+							any_liege_or_above = { this = scope:recipient }
+						}
+					}
+				}
+			}
+		}
 	}
 
 	has_valid_target_showing_failures_only = {
@@ -139,6 +180,7 @@
 			#Feedback!
 			hidden_effect = {
 				send_interface_toast = {
+					type = event_toast_effect_neutral
 					title = declare_war_interaction_notification
 
 					left_icon = scope:actor					
@@ -274,6 +316,7 @@
 							}
 						}
 						send_interface_toast = {
+							type = msg_war_declared_on_liege
 							title = declare_war_interaction_notification
 
 							left_icon = scope:actor					
@@ -403,7 +446,7 @@ end_war_attacker_victory_interaction = {
 			if = {
 				limit = {
 					exists = scope:secondary_actor
-					scope:recipient = { is_landed = yes }
+					scope:recipient = { is_landed_or_landless_administrative = yes }
 				}
 				hostage_depart_effect = {
 					HOSTAGE = scope:secondary_actor
@@ -414,7 +457,7 @@ end_war_attacker_victory_interaction = {
 			if = {
 				limit = {
 					exists = scope:secondary_recipient
-					scope:actor = { is_landed = yes }
+					scope:actor = { is_landed_or_landless_administrative = yes }
 				}
 				hostage_depart_effect = {
 					HOSTAGE = scope:secondary_recipient
@@ -426,42 +469,44 @@ end_war_attacker_victory_interaction = {
 
 		#Send notification to vassals
 		hidden_effect = {
-		scope:attacker_winner = {
-			if = {
-				limit = {
-					any_vassal = {
-						NOT = { this = scope:defender_loser }
-					}
-				}
-				every_vassal = {
-					limit = { NOT = { this = scope:defender_loser } }
-					send_interface_toast = {
-						title = war_event.notification_liege_win.t
-						left_icon = scope:attacker_winner
-						left_icon = scope:defender_loser
-						custom_tooltip = war_event.1901
-					}
-				}
-			}
-		}
-		scope:defender_loser = {
-			if = {
-				limit = {
-					any_vassal = { NOT = { this = scope:attacker_winner } }
-				}
-				every_vassal = {
+			scope:attacker_winner = {
+				if = {
 					limit = {
-						NOT = { this = scope:attacker_winner }
+						any_vassal = {
+							NOT = { this = scope:defender_loser }
+						}
 					}
-					send_interface_toast = {
-						title = war_event.notification_liege_loss.t
-						left_icon = scope:defender_loser
-						right_icon = scope:attacker_winner
-						custom_tooltip = war_event.1902
+					every_vassal = {
+						limit = { NOT = { this = scope:defender_loser } }
+						send_interface_toast = {
+							type = msg_liege_war_ended_attacker_win
+							title = war_event.notification_liege_win.t
+							left_icon = scope:attacker_winner
+							right_icon = scope:defender_loser
+							custom_tooltip = war_event.1901
+						}
 					}
 				}
 			}
-		}
+			scope:defender_loser = {
+				if = {
+					limit = {
+						any_vassal = { NOT = { this = scope:attacker_winner } }
+					}
+					every_vassal = {
+						limit = {
+							NOT = { this = scope:attacker_winner }
+						}
+						send_interface_toast = {
+							type = msg_liege_war_ended_attacker_win
+							title = war_event.notification_liege_loss.t
+							left_icon = scope:defender_loser
+							right_icon = scope:attacker_winner
+							custom_tooltip = war_event.1902
+						}
+					}
+				}
+			}
 		}
 
 		#Special bookmark event for Aella of Northumbria
@@ -488,6 +533,10 @@ end_war_attacker_victory_interaction = {
 						is_ai = yes
 					}
 				}
+				primary_defender = {
+					is_ai = yes
+					ai_has_conqueror_personality = yes
+				}
 			}
 		}
 	}
@@ -507,6 +556,17 @@ end_war_attacker_victory_interaction = {
 						}
 						primary_defender = {
 							is_ai = yes
+						}
+					}
+					AND = {
+						NOR = {
+							using_cb = undirected_great_holy_war
+							# using_cb = mongol_invasion_war #LotR
+							# using_cb = mongol_realm_invasion_war
+						}
+						primary_defender = {
+							is_ai = yes
+							ai_has_conqueror_personality = yes
 						}
 					}
 				}			
@@ -565,6 +625,17 @@ end_war_attacker_victory_interaction = {
 			AND = {
 				scope:recipient = { is_ai = yes }
 				primary_attacker = scope:recipient
+			}
+			scope:war.casus_belli = { # Conquerors know when to fold
+				primary_attacker = {
+					is_ai = yes
+					current_military_strength >= scope:recipient.fifty_percent_more_of_current_military_strength
+				}
+				primary_defender = {
+					is_ai = yes
+					ai_has_conqueror_personality = yes
+					this = scope:recipient
+				}
 			}
 		}
 	}
@@ -731,7 +802,7 @@ end_war_attacker_white_peace_interaction = {
 			if = {
 				limit = {
 					exists = scope:secondary_actor
-					scope:recipient = { is_landed = yes }
+					scope:recipient = { is_landed_or_landless_administrative = yes }
 				}
 				hostage_depart_effect = {
 					HOSTAGE = scope:secondary_actor
@@ -742,7 +813,7 @@ end_war_attacker_white_peace_interaction = {
 			if = {
 				limit = {
 					exists = scope:secondary_recipient
-					scope:actor = { is_landed = yes }
+					scope:actor = { is_landed_or_landless_administrative = yes }
 				}
 				hostage_depart_effect = {
 					HOSTAGE = scope:secondary_recipient
@@ -764,6 +835,7 @@ end_war_attacker_white_peace_interaction = {
 						NOT = { this = scope:defender_white_peace }
 					}
 					send_interface_toast = {
+							type = msg_liege_war_ended_white_peace
 						title = WAR_RESULTS_WHITE_PEACE
 						left_icon = scope:attacker_white_peace
 						right_icon = scope:defender_white_peace
@@ -782,6 +854,7 @@ end_war_attacker_white_peace_interaction = {
 						NOT = { this = scope:attacker_white_peace }
 					}
 					send_interface_toast = {
+							type = msg_liege_war_ended_white_peace
 						title = WAR_RESULTS_WHITE_PEACE
 						left_icon = scope:defender_white_peace
 						right_icon = scope:attacker_white_peace
@@ -1161,6 +1234,19 @@ end_war_attacker_white_peace_interaction = {
 					}
 				}
 			}
+		}
+
+		# I don't have time for this, I need to conquer
+		modifier = {
+			scope:war.casus_belli = {
+				primary_defender = {
+					this = scope:actor
+					ai_has_conqueror_personality = yes
+				}
+				primary_attacker = { is_ai = yes }
+			}
+
+			add = 100
 		}
 	}
 	
@@ -1586,6 +1672,7 @@ end_war_attacker_defeat_interaction = {
 							NOT = { this = scope:defender_winner }
 						}
 						send_interface_toast = {
+							type = msg_liege_war_ended_defender_win
 							title = war_event.notification_liege_loss.t
 							left_icon = scope:attacker_loser
 							right_icon = scope:defender_winner
@@ -1604,6 +1691,7 @@ end_war_attacker_defeat_interaction = {
 							NOT = { this = scope:attacker_loser }
 						}
 						send_interface_toast = {
+							type = msg_liege_war_ended_defender_win
 							title = war_event.notification_liege_win.t
 							left_icon = scope:defender_winner
 							right_icon = scope:attacker_loser
