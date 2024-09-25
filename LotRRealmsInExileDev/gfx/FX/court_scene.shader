@@ -675,10 +675,7 @@ PixelShader =
 			Color += HOVER_COLOR * HOVER_INTENSITY * FresnelFactor * HoverMult;
 		}
 
-		// MOD(godherja)
-		//float3 CommonPixelShader( float4 Diffuse, float4 Properties, float3 NormalSample, in VS_OUTPUT_PDXMESHPORTRAIT Input, float HoverMult )
-		float3 CommonPixelShader( float4 Diffuse, float4 Properties, float3 NormalSample, inout float3 Emissive, in VS_OUTPUT_PDXMESHPORTRAIT Input, float HoverMult )
-		// END MOD
+		float3 CommonPixelShader( float4 Diffuse, float4 Properties, float3 NormalSample, in VS_OUTPUT_PDXMESHPORTRAIT Input, float HoverMult )
 		{
 			float3x3 TBN = Create3x3( normalize( Input.Tangent ), normalize( Input.Bitangent ), normalize( Input.Normal ) );
 			float3 Normal = normalize( mul( NormalSample, TBN ) );
@@ -722,34 +719,11 @@ PixelShader =
 				Color += SssColor;
 			#endif
 
-			// MOD(godherja)
-			// Vanilla already does emission in court shader, for which EMISSIVE is defined.
-			#if !defined(GH_EMISSION_DISABLED) && !defined(EMISSIVE)
-				// This can be increased to achieve stronger bloom effect
-				/*static const*/ float EMISSIVENESS_MULTIPLIER = EmissiveStrength;
-
-				float  BaseEmission = PdxTex2D(NormalMap, Input.UV0).b;
-				float3 BaseEmissive = BaseEmission*Diffuse.rgb;
-
-				Emissive += BaseEmissive;
-				Color    += EMISSIVENESS_MULTIPLIER*Emissive;
-			#endif
-			// END MOD
-
 			DebugReturn( Color, MaterialProps, LightingProps, EnvironmentMap, SssColor, SssMask );
 
 			AddHoverHighlight( Color, Normal, LightingProps._ToCameraDir, HoverMult );
 			return Color;
 		}
-
-		// MOD(godherja)
-		void GH_AdjustSSAOFromEmissive(inout float4 SSAOColor, in float3 Emissive)
-		{
-			float EmissionStrength = saturate(length(Emissive)); // Uhh...
-
-			SSAOColor = lerp(SSAOColor, float4(0.0, 0.0, 0.0, 0.0), EmissionStrength);
-		}
-		// END MOD
 
 		// Remaps Value to [IntervalStart, IntervalEnd]
 		// Assumes Value is in [0,1] and that 0 <= IntervalStart < IntervalEnd <= 1
@@ -876,28 +850,18 @@ PixelShader =
 				NormalSample = UnpackRRxGNormal( PdxTex2D( NormalMap, UV0 ) );
 			#endif
 
-				// MOD(godherja)
-				float3 Emissive = float3(0.0f, 0.0f, 0.0f);
-				// END MOD
-
-				AddDecals( Diffuse.rgb, NormalSample, Properties, Emissive, UV0, Input.InstanceIndex, 0, PreSkinColorDecalCount );
+				AddDecals( Diffuse.rgb, NormalSample, Properties, UV0, Input.InstanceIndex, 0, PreSkinColorDecalCount );
 
 				float ColorMaskStrength = Diffuse.a;
 				Diffuse.rgb = GetColorMaskColorBLend( Diffuse.rgb, vPaletteColorSkin.rgb, Input.InstanceIndex, ColorMaskStrength );
 
-				AddDecals( Diffuse.rgb, NormalSample, Properties, Emissive, UV0, Input.InstanceIndex, PreSkinColorDecalCount, DecalCount );
+				AddDecals( Diffuse.rgb, NormalSample, Properties, UV0, Input.InstanceIndex, PreSkinColorDecalCount, DecalCount );
 
-				float3 Color = CommonPixelShader( Diffuse, Properties, NormalSample, Emissive, Input, HoverMult );
-
+				float3 Color = CommonPixelShader( Diffuse, Properties, NormalSample, Input, HoverMult );
 				Out.Color = float4( Color, 1.0f );
 
 				Out.SSAOColor = PdxTex2D( SSAOColorMap, UV0 );
 				Out.SSAOColor.rgb *= vPaletteColorSkin.rgb;
-
-				// MOD(godherja)
-				GH_AdjustSSAOFromEmissive(Out.SSAOColor, Emissive);
-				// END MOD
-
 				return Out;
 			}
 		]]
@@ -921,18 +885,10 @@ PixelShader =
 				float ColorMaskStrength = Diffuse.a;
 				Diffuse.rgb = GetColorMaskColorBLend( Diffuse.rgb, vPaletteColorEyes.rgb, Input.InstanceIndex, ColorMaskStrength );
 
-				// MOD(godherja)
-				float3 Emissive = float3(0.0f, 0.0f, 0.0f);
-				// END MOD
-
-				float3 Color = CommonPixelShader( Diffuse, Properties, NormalSample, Emissive, Input, 0.f );
+				float3 Color = CommonPixelShader( Diffuse, Properties, NormalSample, Input, 0.f );
 
 				Out.Color = float4( Color, 1.0f );
 				Out.SSAOColor = float4( vec3( 0.0f ), 1.0f );
-
-				// MOD(godherja)
-				GH_AdjustSSAOFromEmissive(Out.SSAOColor, Emissive);
-				// END MOD
 
 				return Out;
 			}
@@ -962,14 +918,10 @@ PixelShader =
 				Properties.r = 1.0; // wipe this clean now, ready to be modified later
 				Diffuse.a = PdxMeshApplyOpacity( Diffuse.a, Input.Position.xy, PdxMeshGetOpacity( Input.InstanceIndex ) );
 
-				// MOD(godherja)
-				float3 Emissive = float3(0.0f, 0.0f, 0.0f);
-				// END MOD
-
 				#ifdef VARIATIONS_ENABLED
 					ApplyVariationPatterns( Input, Diffuse, Properties, NormalSample );
 				#endif
-
+				
 				#ifdef COA_ENABLED
 					ApplyCoa( Input, Diffuse, CoaColor1, CoaColor2, CoaColor3, CoaOffsetAndScale.xy, CoaOffsetAndScale.zw, CoaTexture, Properties.r );
 				#endif
@@ -992,15 +944,10 @@ PixelShader =
 					#endif
 				#endif
 
-				float3 Color = CommonPixelShader( Diffuse, Properties, NormalSample, Emissive, Input, AppliedHover );
+				float3 Color = CommonPixelShader( Diffuse, Properties, NormalSample, Input, AppliedHover );
 
 				Out.Color = float4( Color, Diffuse.a );
 				Out.SSAOColor = float4( vec3( 0.0f ), 1.0f );
-
-				// MOD(godherja)
-				GH_AdjustSSAOFromEmissive(Out.SSAOColor, Emissive);
-				// END MOD
-
 				return Out;
 			}
 		]]
@@ -1039,11 +986,7 @@ PixelShader =
 				float ColorMaskStrength = NormalSampleRaw.b;
 				Diffuse.rgb = GetColorMaskColorBLend( Diffuse.rgb, vPaletteColorHair.rgb, Input.InstanceIndex, ColorMaskStrength );
 
-				// MOD(godherja)
-				float3 Emissive = float3(0.0f, 0.0f, 0.0f);
-				// END MOD
-
-				float3 Color = CommonPixelShader( Diffuse, Properties, NormalSample, Emissive, Input, HoverMult );
+				float3 Color = CommonPixelShader( Diffuse, Properties, NormalSample, Input, HoverMult );
 
 				#ifdef ALPHA_TO_COVERAGE
 					Diffuse.a = RescaleAlphaByMipLevel( Diffuse.a, UV0, DiffuseMap );
@@ -1066,10 +1009,6 @@ PixelShader =
 				#endif
 
 				Out.SSAOColor = float4( vec3( 0.0f ), 1.0f );
-
-				// MOD(godherja)
-				GH_AdjustSSAOFromEmissive(Out.SSAOColor, Emissive);
-				// END MOD
 
 				return Out;
 			}
@@ -1098,18 +1037,10 @@ PixelShader =
 				Properties *= vHairPropertyMult;
 				Diffuse.rgb *= vPaletteColorHair.rgb;
 
-				// MOD(godherja)
-				float3 Emissive = float3(0.0f, 0.0f, 0.0f);
-				// END MOD
-
-				float3 Color = CommonPixelShader( Diffuse, Properties, NormalSample, Emissive, Input, HoverMult );
+				float3 Color = CommonPixelShader( Diffuse, Properties, NormalSample, Input, HoverMult );
 
 				Out.Color = float4( Color, Diffuse.a );
 				Out.SSAOColor = float4( vec3( 0.0f ), 1.0f );
-
-				// MOD(godherja)
-				GH_AdjustSSAOFromEmissive(Out.SSAOColor, Emissive);
-				// END MOD
 
 				return Out;
 			}
@@ -1163,7 +1094,7 @@ PixelShader =
 			PDX_MAIN
 			{
 				PS_COLOR_SSAO Out;
-
+				
 				#ifdef PARALLAX
 					#ifdef LOW_SPEC_SHADERS
 						Input.UV0 = ParallaxMappingLowSpec( ParallaxMap, Input.UV0, Input.Tangent, Input.Bitangent, Input.Normal, Input.WorldSpacePos, CameraPosition );
@@ -1228,12 +1159,7 @@ PixelShader =
 
 				Properties.g = 0.16f;	// Fixed specular mesh value /JR
 				float HoverMult = GetUserData( Input.InstanceIndex, USER_DATA_HOVER_SLOT ).r;
-
-				// MOD(godherja)
-				float3 Emissive = float3(0.0f, 0.0f, 0.0f);
-				// END MOD
-
-				float3 Color = CommonPixelShader( Diffuse, Properties, NormalSample, Emissive, Input, HoverMult );
+				float3 Color = CommonPixelShader( Diffuse, Properties, NormalSample, Input, HoverMult );
 
 				#ifdef ALPHA_TO_COVERAGE
 					Diffuse.a = RescaleAlphaByMipLevel( Diffuse.a, Input.UV0, DiffuseMap );
@@ -1250,9 +1176,6 @@ PixelShader =
 				Out.Color = float4( Color, Diffuse.a );
 				Out.SSAOColor = float4( 0.0f, 0.0f, 0.0f, Diffuse.a );
 
-				// MOD(godherja)
-				GH_AdjustSSAOFromEmissive(Out.SSAOColor, Emissive);
-				// END MOD
 				return Out;
 			}
 		]]
@@ -1598,10 +1521,7 @@ Effect portrait_hair
 	PixelShader = "PS_hair"
 	BlendState = "alpha_to_coverage"
 	RasterizerState = "rasterizer_no_culling"
-	# MOD(godherja)
-	#Defines = { "ALPHA_TO_COVERAGE" "PDX_MESH_BLENDSHAPES" }
-	Defines = { "ALPHA_TO_COVERAGE" "PDX_MESH_BLENDSHAPES" "GH_EMISSION_DISABLED" }
-	# END MOD
+	Defines = { "ALPHA_TO_COVERAGE" "PDX_MESH_BLENDSHAPES" }
 }
 
 Effect portrait_hair_selection
@@ -1618,10 +1538,7 @@ Effect portrait_hair_transparency_hack
 	PixelShader = "PS_hair"
 	BlendState = "alpha_to_coverage"
 	RasterizerState = "rasterizer_no_culling"
-	# MOD(godherja)
-	#Defines = { "HAIR_TRANSPARENCY_HACK" "PDX_MESH_BLENDSHAPES" }
-	Defines = { "HAIR_TRANSPARENCY_HACK" "PDX_MESH_BLENDSHAPES" "GH_EMISSION_DISABLED" }
-	# END MOD
+	Defines = { "HAIR_TRANSPARENCY_HACK" "PDX_MESH_BLENDSHAPES" }
 }
 
 Effect portrait_hair_transparency_hack_selection
@@ -1630,10 +1547,7 @@ Effect portrait_hair_transparency_hack_selection
 	PixelShader = "PS_hair"
 	BlendState = "alpha_to_coverage"
 	RasterizerState = "rasterizer_no_culling"
-	# MOD(godherja)
-	#Defines = { "HAIR_TRANSPARENCY_HACK" "PDX_MESH_BLENDSHAPES" }
-	Defines = { "HAIR_TRANSPARENCY_HACK" "PDX_MESH_BLENDSHAPES" "GH_EMISSION_DISABLED" }
-	# END MOD
+	Defines = { "HAIR_TRANSPARENCY_HACK" "PDX_MESH_BLENDSHAPES" }
 }
 
 Effect portrait_hair_double_sided
@@ -1643,10 +1557,7 @@ Effect portrait_hair_double_sided
 	BlendState = "alpha_to_coverage"
 	#DepthStencilState = "test_and_write"
 	RasterizerState = "rasterizer_no_culling"
-	# MOD(godherja)
-	#Defines = { "PDX_MESH_BLENDSHAPES" }
-	Defines = { "PDX_MESH_BLENDSHAPES" "GH_EMISSION_DISABLED" }
-	# END MOD
+	Defines = { "PDX_MESH_BLENDSHAPES" }
 }
 
 Effect portrait_hair_double_sided_selection
@@ -1663,10 +1574,7 @@ Effect portrait_hair_alpha
 	PixelShader = "PS_hair"
 	BlendState = "hair_alpha_blend"
 	DepthStencilState = "hair_alpha_blend"
-	# MOD(godherja)
-	#Defines = { "PDX_MESH_BLENDSHAPES" }
-	Defines = { "PDX_MESH_BLENDSHAPES" "GH_EMISSION_DISABLED" }
-	# END MOD
+	Defines = { "PDX_MESH_BLENDSHAPES" }
 }
 
 Effect portrait_hair_alpha_selection
@@ -1689,10 +1597,7 @@ Effect portrait_hair_opaque
 	VertexShader = "VS_standard"
 	PixelShader = "PS_hair"
 	
-	# MOD(godherja)
-	#Defines = { "WRITE_ALPHA_ONE" "PDX_MESH_BLENDSHAPES" }
-	Defines = { "WRITE_ALPHA_ONE" "PDX_MESH_BLENDSHAPES" "GH_EMISSION_DISABLED" }
-	# END MOD
+	Defines = { "WRITE_ALPHA_ONE" "PDX_MESH_BLENDSHAPES" }
 }
 
 Effect portrait_hair_opaque_selection
@@ -1781,10 +1686,7 @@ Effect court_usercolor
 	VertexShader = "VS_standard"
 	PixelShader = "PS_court"
 
-	# MOD(godherja)
-	#Defines = { "USER_COLOR" }
-	Defines = { "USER_COLOR" "GH_EMISSION_DISABLED" }
-	# END MOD
+	Defines = { "USER_COLOR" }
 }
 
 Effect court_usercolor_coa
@@ -1792,10 +1694,7 @@ Effect court_usercolor_coa
 	VertexShader = "VS_standard"
 	PixelShader = "PS_court"
 
-	# MOD(godherja)
-	#Defines = { "USER_COLOR" "COA" }
-	Defines = { "USER_COLOR" "COA" "GH_EMISSION_DISABLED" }
-	# END MOD
+	Defines = { "USER_COLOR" "COA" }
 }
 
 Effect courtShadow
@@ -1979,6 +1878,62 @@ Effect sine_flag_animation_selection
 	VertexShader = "VS_standard"
 	PixelShader = "PS_noop"
 }
+
+# MOD(court-skybox)
+Effect SKYX_court_sky
+{
+	VertexShader = "VS_standard"
+	PixelShader = "PS_SKYX_court_sky"
+}
+
+Effect SKYX_court_sky_selection
+{
+	VertexShader = "VS_standard"
+	PixelShader = "PS_SKYX_court_sky"
+}
+
+# Same as SKYX_court_sky, included for backwards compatibility
+Effect COOP_court_sky
+{
+	VertexShader = "VS_standard"
+	PixelShader = "PS_SKYX_court_sky"
+}
+
+# Same as SKYX_court_sky_selection, included for backwards compatibility
+Effect COOP_court_sky_selection
+{
+	VertexShader = "VS_standard"
+	PixelShader = "PS_SKYX_court_sky"
+}
+# END MOD
+
+# MOD(map-skybox)
+# The following effects are not used but need to be defined here to suppress errors
+
+Effect SKYX_sky
+{
+	VertexShader = "VS_standard"
+	PixelShader = "PS_noop"
+}
+
+Effect SKYX_sky_selection
+{
+	VertexShader = "VS_standard"
+	PixelShader = "PS_noop"
+}
+
+Effect SKYX_sky_mapobject
+{
+	VertexShader = "VS_standard"
+	PixelShader = "PS_noop"
+}
+
+Effect SKYX_sky_selection_mapobject
+{
+	VertexShader = "VS_standard"
+	PixelShader = "PS_noop"
+}
+# END MOD
 
 Effect selection_marker_selection
 {
@@ -2353,63 +2308,6 @@ Effect sine_flag_animation
 	PixelShader = "PS_noop"
 }
 
-
-# MOD(court-skybox)
-Effect SKYX_court_sky
-{
-	VertexShader = "VS_standard"
-	PixelShader = "PS_SKYX_court_sky"
-}
-
-Effect SKYX_court_sky_selection
-{
-	VertexShader = "VS_standard"
-	PixelShader = "PS_SKYX_court_sky"
-}
-
-# Same as SKYX_court_sky, included for backwards compatibility
-Effect COOP_court_sky
-{
-	VertexShader = "VS_standard"
-	PixelShader = "PS_SKYX_court_sky"
-}
-
-# Same as SKYX_court_sky_selection, included for backwards compatibility
-Effect COOP_court_sky_selection
-{
-	VertexShader = "VS_standard"
-	PixelShader = "PS_SKYX_court_sky"
-}
-# END MOD
-
-# MOD(map-skybox)
-# The following effects are not used but need to be defined here to suppress errors
-
-Effect SKYX_sky
-{
-	VertexShader = "VS_standard"
-	PixelShader = "PS_noop"
-}
-
-Effect SKYX_sky_selection
-{
-	VertexShader = "VS_standard"
-	PixelShader = "PS_noop"
-}
-
-Effect SKYX_sky_mapobject
-{
-	VertexShader = "VS_standard"
-	PixelShader = "PS_noop"
-}
-
-Effect SKYX_sky_selection_mapobject
-{
-	VertexShader = "VS_standard"
-	PixelShader = "PS_noop"
-}
-# END MOD
-
 # MOD(godherja)
 Effect standard_winter_mapobject
 {
@@ -2428,4 +2326,5 @@ Effect standard_winter_selection_mapobject
 	VertexShader = "VS_standard"
 	PixelShader = "PS_noop"
 }
+
 # END MOD

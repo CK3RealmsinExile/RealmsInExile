@@ -25,8 +25,17 @@ scripted_trigger siege_0001_can_be_captured = {
 
 		# Is imprisoned in the barony stay prisoners (special case, any courtiers/vassals of the raider will get released elsewhere).
 		is_imprisoned = yes
+	}
+}
 
-		cannot_be_killed = yes #LotR
+scripted_trigger siege_0001_valid_domicile_trigger = {
+	is_domicile_type = estate
+	owner = { save_temporary_scope_as = estate_owner_check }
+	scope:occupant = {
+		OR = {
+			any_war_enemy = { this = scope:estate_owner_check }
+			any_war_enemy = { any_vassal_or_below = { this = scope:estate_owner_check } }
+		}
 	}
 }
 
@@ -35,19 +44,47 @@ siege.0001 = {
 	hidden = yes
 	
 	trigger = {
-		scope:county.holder ?= scope:previous_controller
 		OR = {
-			any_war_enemy = { this = scope:previous_controller }
-			any_war_enemy = { any_vassal_or_below = { this = scope:previous_controller } }
+			AND = {
+				scope:county.holder = scope:previous_controller
+				OR = {
+					any_war_enemy = { this = scope:previous_controller }
+					any_war_enemy = { any_vassal_or_below = { this = scope:previous_controller } }
+				}
+			}
+			AND = {
+				scope:barony.title_province = {
+					any_province_domicile = {
+						is_domicile_type = estate
+						owner = {
+							save_temporary_scope_as = estate_owner_check
+						}
+					}
+				}
+				OR = {
+					any_war_enemy = { this = scope:estate_owner_check }
+					any_war_enemy = { any_vassal_or_below = { this = scope:estate_owner_check } }
+				}
+			}
 		}
 	}
 
 	immediate = {
 		save_scope_as = occupant
-		scope:barony.holder ?= { save_scope_as = holder }
+		scope:barony.holder = { save_scope_as = holder }
+		scope:barony.title_province = {
+			random_province_domicile = {
+				limit = {
+					siege_0001_valid_domicile_trigger = yes
+				}
+				owner ?= {
+					save_scope_as = estate_owner
+				}
+			}
+		}
 
 		# Depending on if the occupier is an attacker or defender in this war, get the primary attacker/defender of the siege.
-		scope:war ?= {
+		scope:war = {
 			if = {
 				limit = {
 					is_attacker = scope:occupant
@@ -76,9 +113,11 @@ siege.0001 = {
 		every_in_list = {
 			list = occupied_baronies
 			limit = {
-				exists = holder
-				save_temporary_scope_as = list_barony
-				holder = { capital_barony = { this = scope:list_barony } }
+				title_province = {
+					any_province_domicile = {
+						siege_0001_valid_domicile_trigger = yes
+					}
+				}
 			}
 			holder = {
 				if = {
@@ -91,16 +130,44 @@ siege.0001 = {
 				}
 			}
 		}
+		#Add capture targets from all hostile occupied Estates
+		every_in_list = {
+			list = occupied_baronies
+			limit = {
+				title_province = {
+					any_province_domicile = {
+						siege_0001_valid_domicile_trigger = yes
+					}
+				}
+			}
+			title_province = {
+				random_province_domicile = {
+					limit = {
+						siege_0001_valid_domicile_trigger = yes
+					}
+					owner ?= {
+						if = {
+							limit = { siege_0001_can_be_captured = yes }
+							add_to_list = capture_attempt_targets
+						}
+						every_courtier_or_guest = {
+							limit = { siege_0001_can_be_captured = yes }
+							add_to_list = capture_attempt_targets
+						}
+					}
+				}
+			}
+		}
 
 		###BUILD SUCCESSFUL CAPTURE LIST###
 		#Calculate capture success
 		every_in_list = {
 			list = capture_attempt_targets
 			random = {	
-				# Base chance handled in a modifier due to the chance parameter tending to quietly fail to parse scripted values.
+				# Base chance handled in a modifier due to the chance parameter tending to quietly fail to #parse scripted values.
 				chance = 0
 
-				# 35 becomes 20 for average intrigue and prowess, can go as low as 5 at very high intrigue and prowess
+				# 35 becomes 20 for average intrigue and prowess, can go as low as 5 at very high intrigue and #prowess
 				modifier = { add = siege_base_capture_chance }
 
 				# Capture Modifiers
@@ -116,12 +183,45 @@ siege.0001 = {
 					multiplier = -0.5
 					min = -15
 				}
+				# Less likely to capture the estate owner themselves
+				modifier = {
+					this = scope:estate_owner
+					add = -10
+				}
+				# If there is an estate, Watchtowers and Guardhouses make captures less likely
+				modifier = {
+					location = {
+						any_province_domicile = {
+							is_domicile_type = estate
+							has_domicile_parameter = raids_less_likely_to_make_prisoners_1
+						}
+					}
+					add = -10
+				}
+				modifier = {
+					location = {
+						any_province_domicile = {
+							is_domicile_type = estate
+							has_domicile_parameter = raids_less_likely_to_make_prisoners_2
+						}
+					}
+					add = -15
+				}
+				modifier = {
+					location = {
+						any_province_domicile = {
+							is_domicile_type = estate
+							has_domicile_parameter = raids_less_likely_to_make_prisoners_3
+						}
+					}
+					add = -20
+				}
 
 				# Capture Effects
 				if = {
 					limit = {
 						desirable_for_capture_trigger = yes
-						NOT = { scope:occupant ?= { has_variable = rebel_leader_peasants	}}
+						NOT = { scope:occupant = { has_variable = rebel_leader_peasants	}}
 					}
 					add_to_list = captured_targets_effects
 				}
@@ -148,7 +248,19 @@ siege.0001 = {
 			}
 
 			#Send notification to holder (about captures and deaths)
-			scope:barony.holder ?= {
+			scope:barony.holder = {
+				if = {
+					limit = {
+						save_temporary_scope_as = notification_target
+						any_in_list = {
+							list = captured_targets_effects
+							NOT = { this = scope:notification_target}
+						}
+					}
+					trigger_event = siege.0003
+				}
+			}
+			scope:estate_owner ?= {
 				if = {
 					limit = {
 						save_temporary_scope_as = notification_target
@@ -167,8 +279,8 @@ siege.0001 = {
 					NOR = {
 						this = root
 						this = scope:barony.holder
+						this = scope:estate_owner
 					}
-
 					save_temporary_scope_as = notification_target
 					any_in_list = {
 						list = captured_targets_effects
@@ -188,7 +300,10 @@ siege.0001 = {
 			}
 
 			#Send notification to holder (about deaths)
-			scope:barony.holder ?= {
+			scope:barony.holder = {
+				trigger_event = siege.0013
+			}
+			scope:estate_owner ?= {
 				trigger_event = siege.0013
 			}
 
@@ -198,6 +313,7 @@ siege.0001 = {
 					NOR = {
 						this = root
 						this = scope:barony.holder
+						this = scope:estate_owner
 					}
 
 					save_temporary_scope_as = notification_target
@@ -237,7 +353,7 @@ siege.0001 = {
 				save_scope_as = valuable_prisoner
 
 				# The imprisoner must be informed that they captured an important hostage.
-				scope:occupant ?= {
+				scope:occupant = {
 					trigger_event = siege.0005
 				}
 
@@ -246,10 +362,10 @@ siege.0001 = {
 					limit = {
 						# But not if they themselves are the prisoner! (they will get an event already upon being imprisoned).
 						NOT = {
-							scope:valuable_prisoner ?= scope:primary_siege_defender
+							scope:valuable_prisoner = scope:primary_siege_defender
 						}
 					}
-					scope:primary_siege_defender ?= {
+					scope:primary_siege_defender = {
 						trigger_event = siege.0006
 					}
 				}
@@ -258,10 +374,10 @@ siege.0001 = {
 				if = {
 					limit = {
 						NOT = {
-							scope:occupant ?= scope:primary_siege_attacker
+							scope:occupant = scope:primary_siege_attacker
 						}
 					}
-					scope:primary_siege_attacker ?= {
+					scope:primary_siege_attacker = {
 						trigger_event = siege.0007
 					}
 				}
@@ -623,7 +739,7 @@ siege.0005 = {
 	immediate = {
 		if = {
 			limit = {
-				scope:valuable_prisoner ?= scope:primary_siege_defender
+				scope:valuable_prisoner = scope:primary_siege_defender
 			}
 			send_interface_toast = {
 				title = siege.1005.pow_toast.t
@@ -667,7 +783,7 @@ siege.0007 = {
 	immediate = {
 		if = {
 			limit = {
-				scope:valuable_prisoner ?= scope:primary_siege_defender
+				scope:valuable_prisoner = scope:primary_siege_defender
 			}
 			send_interface_toast = {
 				title = siege.1005.pow_toast.t
@@ -931,7 +1047,7 @@ scripted_trigger siege_0031_artifact_can_be_stolen = {
 		}
 	}
 	OR = {
-		scope:barony.holder ?= { # If the character is in the province and not leading an army, their stuff is probably valid to steal
+		scope:barony.holder = { # If the character is in the province and not leading an army, their stuff is probably valid to steal
 			location = scope:barony.title_province
 			NOR = {
 				exists = commanding_army
@@ -1136,6 +1252,15 @@ siege.0031 = {
 				}
 				20 = {
 					# Nothing Happens
+					# Lower the chance of nothing if you have a Master of Spoils Officer
+					modifier = {
+						add = {
+							value = court_position:master_of_spoils_camp_officer.aptitude:master_of_spoils_camp_officer
+							add = 1
+							multiply = -2
+						}
+						holder = { employs_court_position = master_of_spoils_camp_officer }
+					}
 				}
 			}
 		}
@@ -1177,7 +1302,7 @@ siege.0102 = {
 
 	immediate = {
 		send_interface_message = {
-			type = event_siege_lost_bad
+			type = msg_siege_lost_with_text
 			left_icon = scope:occupant
 			right_icon = scope:barony
 			title = siege.0102.title
@@ -1202,7 +1327,7 @@ siege.0103 = {
 
 	immediate = {
 		send_interface_message = {
-			type = event_siege_lost_bad
+			type = msg_siege_lost_with_text
 			left_icon = scope:occupant
 			right_icon = scope:barony
 			title = siege.0103.title

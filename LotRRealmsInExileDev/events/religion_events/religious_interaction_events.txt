@@ -42,9 +42,7 @@ religious_interaction.1 = { # Faith head divorce event (divorce_character_rel_he
 			}
 			triggered_desc = {
 				trigger = {
-					scope:secondary_recipient = {
-						has_trait = eunuch
-					}
+					scope:secondary_recipient = { is_eunuch_trigger = yes }
 				}
 				desc = religious_interaction.1.eunuch
 			}
@@ -102,11 +100,11 @@ religious_interaction.2 = { # House Head divorce event (divorce_character_house_
 					}
 					scope:secondary_recipient = {
 						fertility < 0.1
+						is_eunuch_trigger = no
 						NOR = {
 							any_child = {
 								is_child_of = scope:actor
 							}
-							has_trait = eunuch
 						}
 					}
 				}
@@ -114,9 +112,7 @@ religious_interaction.2 = { # House Head divorce event (divorce_character_house_
 			}
 			triggered_desc = {
 				trigger = {
-					scope:secondary_recipient = {
-						has_trait = eunuch
-					}
+					scope:secondary_recipient = { is_eunuch_trigger = yes }
 				}
 				desc = religious_interaction.1.eunuch
 			}
@@ -486,9 +482,7 @@ religious_interaction.6 = { # Faith head divorce event via Dynast (divorce_chara
 			}
 			triggered_desc = {
 				trigger = {
-					scope:secondary_recipient = {
-						has_trait = eunuch
-					}
+					scope:secondary_recipient = { is_eunuch_trigger = yes }
 				}
 				desc = religious_interaction.6.eunuch
 			}
@@ -786,11 +780,44 @@ religious_interaction.2002 = {
 	sender = scope:recipient
 
 	immediate = {
+		if = {
+			limit = {
+				is_landless_adventurer = yes
+			}
+			show_as_tooltip = { demand_conversion_interaction_effect = yes }
+		}
+		else = {
 		show_as_tooltip = { demand_conversion_vassal_ruler_interaction_effect = yes }
+	}
 	}
 	
 	option = {
 		name = religious_interaction.2002.a
+		if = {
+			limit = {
+				is_landless_adventurer = yes
+				scope:recipient.highest_held_title_tier >= tier_barony
+			}
+			faith = {
+				change_fervor = {
+					value = {
+						add = 1
+						multiply = scope:recipient.highest_held_title_tier
+					}
+					desc = imperial_capital_sacked_fervor_gain
+				}
+			}
+			add_prestige = {
+				value = 200
+				multiply = scope:recipient.highest_held_title_tier
+				if = {
+					limit = {
+						scope:recipient.highest_held_title_tier >= tier_kingdom
+					}
+					multiply = 2
+				}
+			}
+		}
 	}
 }
 
@@ -814,6 +841,33 @@ religious_interaction.2003 = {
 	}
 
 	immediate = {
+		if = {
+			limit = {
+				is_landless_adventurer = yes
+			}
+			scope:recipient = {
+				#Negative opinions
+				add_opinion = {
+					modifier = unwanted_religious_conversion_opinion
+					target = scope:actor
+				}
+				if = {
+					limit = {
+						is_independent_ruler = no
+						liege ?= {
+							NOT = { faith = scope:actor.faith }
+						}
+					}
+					liege = {
+						add_opinion = {
+							modifier = religious_rebel_opinion
+							target = scope:actor
+						}
+					}
+				}
+			}
+		}
+		else = {
 		hidden_effect = {
 			if = {
 				limit = {
@@ -848,6 +902,9 @@ religious_interaction.2003 = {
 			}
 		}
 	}
+		# If appropriate, give 'em piety.
+		scope:recipient = { give_piety_for_clinging_to_state_faith_effect = yes }
+	}
 	
 	#It's not illegal
 	option = {
@@ -860,13 +917,17 @@ religious_interaction.2003 = {
 				}
 			}
 		}
-
+		if = {
+			limit = {
+				is_landless_adventurer = no
+			}
 		hidden_effect = {
 			add_opinion = {
 				target = scope:recipient
 				modifier = resisted_conversion_opinion
 				years = 15
 			}
+		}
 		}
 		ai_chance = {
 			base = 100
@@ -886,11 +947,15 @@ religious_interaction.2003 = {
 				CHARACTER = scope:recipient
 			}
 		}
-
+		if = {
+			limit = {
+				is_landless_adventurer = no
+			}
 		add_opinion = {
 			target = scope:recipient
 			modifier = illegal_resisted_conversion_opinion
 			years = 10
+		}
 		}
 		ai_chance = {
 			base = 100
@@ -990,8 +1055,13 @@ religious_interaction.2011 = {
 				ai_zeal = 0.5
 			}
 			modifier = {
-				factor = 0.2
-				gold <= 0
+				factor = 0
+				OR = {
+					has_trait = greedy
+					short_term_gold <= major_gold_value
+					ai_has_conqueror_personality = yes
+					ai_should_focus_on_building_in_their_capital = yes
+				}
 			}
 		}
 	}

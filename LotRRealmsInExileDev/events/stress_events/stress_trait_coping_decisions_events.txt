@@ -55,14 +55,29 @@ stress_trait_coping_decisions.1002 = {
 	override_background = { reference = tavern }
 	left_portrait = {
 		character = root
-		animation = toast_goblet
+		triggered_animation = {
+			trigger = { use_goblet_in_tavern_trigger = yes }
+			animation = toast_goblet
+		}
+		triggered_animation = {
+			trigger = { use_goblet_in_tavern_trigger = no }
+			animation = toast
+		}
 	}
 	right_portrait = {
 		character = scope:fellow_drunkard
-		animation = drink
+		triggered_animation = {
+			trigger = { use_goblet_in_tavern_trigger = yes }
+			animation = drink_goblet
+		}
+		triggered_animation = {
+			trigger = { use_goblet_in_tavern_trigger = no }
+			animation = drink
+		}
 	}
 
 	trigger = {
+		is_playable_character = yes
 		is_adult = yes
 		has_trait = drunkard
 		OR = {
@@ -75,6 +90,14 @@ stress_trait_coping_decisions.1002 = {
 				exists = liege
 				liege = {
 					NOT = { this = root }
+					NOT = { has_relation_rival = root }
+					has_trait = drunkard
+					is_available_ai_adult = yes
+				}
+			}
+			trigger_if = {
+				limit = { is_landed = no }
+				any_courtier = {
 					NOT = { has_relation_rival = root }
 					has_trait = drunkard
 					is_available_ai_adult = yes
@@ -130,6 +153,17 @@ stress_trait_coping_decisions.1002 = {
 				}
 			}
 			liege = {
+				save_scope_as = fellow_drunkard
+			}
+		}
+		else_if = {
+			limit = { is_landed = no }
+			random_courtier = {
+				limit = {
+					NOT = { has_relation_rival = root }
+					has_trait = drunkard
+					is_available_ai_adult = yes
+				}
 				save_scope_as = fellow_drunkard
 			}
 		}
@@ -193,11 +227,25 @@ stress_trait_coping_decisions.1003 = {
 	override_background = { reference = tavern }
 	left_portrait = {
 		character = root
-		animation = toast_goblet
+		triggered_animation = {
+			trigger = { use_goblet_in_tavern_trigger = yes }
+			animation = drink_goblet
+		}
+		triggered_animation = {
+			trigger = { use_goblet_in_tavern_trigger = no }
+			animation = drink
+		}
 	}
 	right_portrait = {
 		character = scope:original_drunkard
-		animation = drink
+		triggered_animation = {
+			trigger = { use_goblet_in_tavern_trigger = yes }
+			animation = drink_goblet
+		}
+		triggered_animation = {
+			trigger = { use_goblet_in_tavern_trigger = no }
+			animation = drink
+		}
 	}
 
 	immediate = {
@@ -462,7 +510,15 @@ stress_trait_coping_decisions.2501 = {
 	option = {
 		name = stress_trait_coping_decisions.2501.a
 		trait = reclusive
-		add_prestige = medium_prestige_loss
+		if = { # always lose prestige as the player, ai only does if it can afford it
+			limit = {
+				OR = {
+					is_ai = no
+					prestige > medium_prestige_value
+				}
+			}
+			add_prestige = medium_prestige_loss
+		}
 		add_stress = medium_stress_loss
 	}
 }
@@ -483,13 +539,13 @@ stress_trait_coping_decisions.3001 = {
 				trigger = {
 					exists = scope:vassal_opinion
 				}
-				desc = stress_trait_coping_decisions.3001.desc_vassal
+				desc = stress_trait_coping_decisions.3001.desc_has_target_character
 			}
 			desc = {
 				first_valid = {
 					triggered_desc = {
 						trigger = {
-							exists = scope:vassal
+							exists = scope:target_character
 							exists = scope:vassal_2
 						}
 						desc = stress_trait_coping_decisions.3001.desc_has_vassals
@@ -497,10 +553,8 @@ stress_trait_coping_decisions.3001 = {
 					desc = {
 						first_valid = {
 							triggered_desc = {
-								trigger = {
-									exists = scope:vassal
-								}
-								desc = stress_trait_coping_decisions.3001.desc_has_vassal
+								trigger = { exists = scope:target_character }
+								desc = stress_trait_coping_decisions.3001.desc_has_target_character
 							}
 							desc = stress_trait_coping_decisions.3001.desc
 						}
@@ -514,8 +568,12 @@ stress_trait_coping_decisions.3001 = {
 		character = root
 		animation = schadenfreude
 	}
-	right_portrait = scope:vassal
+	right_portrait = {
+		character = scope:target_character
+		animation = shame
+	}
 	lower_right_portrait = scope:vassal_2
+	override_background = { reference = council_chamber }
 
 	immediate = {
 		get_quirk_character_effect = yes
@@ -523,9 +581,7 @@ stress_trait_coping_decisions.3001 = {
 			random_list = {
 				50 = {
 					trigger = {
-						any_vassal = {
-							count >= 1
-						}
+						any_vassal = { count >= 1 }
 					}
 					#Pick vassal to insult. Preferably not a friend
 					save_scope_value_as = {
@@ -545,15 +601,13 @@ stress_trait_coping_decisions.3001 = {
 						alternative_limit = {
 							is_alive = yes
 						}
-						save_scope_as = vassal
+						save_scope_as = target_character
 					}
 				}
 				50 = {
 					if = {
 						limit = {
-							any_vassal = {
-								count >= 2
-							}
+							any_vassal = { count >= 2 }
 						}
 						#Pick vassals to start insulting. Preferably not friends
 						random_vassal = {
@@ -569,47 +623,60 @@ stress_trait_coping_decisions.3001 = {
 							alternative_limit = {
 								is_alive = yes
 							}
-							save_scope_as = vassal
+							save_scope_as = target_character
 						}
 						random_vassal = {
 							limit = {
-								NOT = { this = scope:vassal }
+								NOT = { this = scope:target_character }
 								NOR = {
 									has_relation_friend = root
 									has_relation_potential_friend = root
 								}
 							}
 							alternative_limit = {
-								NOT = { this = scope:vassal }
+								NOT = { this = scope:target_character }
 								NOT = { has_relation_friend = root }
 							}
 							alternative_limit = {
-								NOT = { this = scope:vassal }
+								NOT = { this = scope:target_character }
 							}
 							save_scope_as = vassal_2
 						}
 					}
 					else_if = {
-						limit = {
-							any_vassal = {
-								count = 1
+						limit = { 
+							any_courtier_or_guest = { 
+								count >= 1
+								OR = { 
+									NOT = { this = root }
+									this = { is_adult = no }
+								}
 							}
 						}
-						#Pick vassal to start insulting. Preferably not a friend
-						random_vassal = {
+						#Find a courtier or follower to insult
+						random_courtier_or_guest = {
 							limit = {
+								OR = { 
+									NOT = { this = root }
+									this = { is_adult = no }
+								} 
 								NOR = {
 									has_relation_friend = root
 									has_relation_potential_friend = root
 								}
 							}
 							alternative_limit = {
+								OR = { 
+									NOT = { this = root }
+									this = { is_adult = no }
+								}
 								NOT = { has_relation_friend = root }
 							}
 							alternative_limit = {
+								NOT = { this = root }
 								is_alive = yes
 							}
-							save_scope_as = vassal
+							save_scope_as = target_character
 						}
 					}
 					else = {
@@ -625,23 +692,21 @@ stress_trait_coping_decisions.3001 = {
 
 	option = {
 		name = {
-			trigger = {
-				exists = scope:vassal_opinion
-			}
-			text = stress_trait_coping_decisions.3001.a_vassal
+			trigger = { exists = scope:target_character }
+			text = stress_trait_coping_decisions.3001.a_target
 		}
 		name = {
 			trigger = {
-				NOT = { exists = scope:vassal_opinion }
+				NOT = { exists = scope:target_character }
 			}
 			text = stress_trait_coping_decisions.3001.a
 		}
 		trait = irritable
 		if = {
 			limit = {
-				exists = scope:vassal_opinion
+				exists = scope:target_character
 			}
-			scope:vassal = {
+			scope:target_character = {
 				add_opinion = {
 					modifier = insult_opinion
 					opinion = medium_negative_opinion
@@ -683,12 +748,28 @@ stress_trait_coping_decisions.3501 = {
 	left_portrait = {
 		character = root
 		animation = pain
+		outfit_tags = { no_clothes }
+	}
+	override_background = { reference = bedchamber }
+
+	immediate = {
+		if = {
+			limit = {
+				is_ai = yes
+			}
+			random_list = { 
+				75 = {}
+				25 = { increase_wounds_effect = { REASON = whipping } }
+			}
+		}
+		else = {
+			increase_wounds_effect = { REASON = whipping }
+		}
 	}
 
 	option = {
 		name = stress_trait_coping_decisions.3501.a
 		trait = flagellant
-		increase_wounds_effect = { REASON = whipping }
 		add_stress = major_stress_loss
 	}
 }
@@ -710,13 +791,7 @@ stress_trait_coping_decisions.4001 = {
 	}
 	left_portrait = {
 		character = root
-		animation = personality_greedy
-	}
-
-	immediate = {
-		capital_county = {
-			save_scope_as = county
-		}
+		animation = steward
 	}
 
 	option = {
@@ -793,6 +868,7 @@ stress_trait_coping_decisions.5001 = {
 		character = root
 		animation = shame
 	}
+	override_background = { reference = throne_room }
 
 	immediate = {
 		if = {
@@ -963,13 +1039,17 @@ stress_trait_coping_decisions.5501 = {
 	desc = stress_trait_coping_decisions.5501.desc
 	theme = mental_break
 	override_background = {
+		trigger = { is_landless_adventurer = no }
 		reference = feast
+	}
+	override_background = {
+		trigger = { is_landless_adventurer = yes }
+		reference = bp1_bonfire
 	}
 	left_portrait = {
 		character = root
 		animation = toast
 	}
-
 	immediate = {
 		set_favorite_treat_effect = yes
 
@@ -984,7 +1064,6 @@ stress_trait_coping_decisions.5501 = {
 			}
 		}
 	}
-
 	option = {
 		name = stress_trait_coping_decisions.5501.a
 		trait = comfort_eater
@@ -998,20 +1077,33 @@ stress_trait_coping_decisions.5501 = {
 stress_trait_coping_decisions.5502 = {
 	type = character_event
 	title = stress_trait_coping_decisions.5502.t
-	desc = stress_trait_coping_decisions.5502.desc
+	desc = {
+		first_valid = {
+			#We're a landless adventurer
+			triggered_desc = {
+				trigger = { is_landless_adventurer = yes }
+				desc = stress_trait_coping_decisions.5502.desc_landless
+			}
+			#We actually have a hallway and basement
+			desc = stress_trait_coping_decisions.5502.desc
+		}
+	}
 	theme = mental_break
 	override_background = {
+		trigger = { is_landless_adventurer = no }
 		reference = feast
+	}
+	override_background = {
+		trigger = { is_landless_adventurer = yes }
+		reference = bp1_bonfire
 	}
 	left_portrait = {
 		character = root
 		animation = personality_greedy
 	}
-
 	trigger = {
 		is_cannibal_trigger = yes
 	}
-
 	immediate = {
 		#weight change
 		if = {
@@ -1030,9 +1122,18 @@ stress_trait_coping_decisions.5502 = {
 			}
 		}
 	}
-
 	option = {
-		name = stress_trait_coping_decisions.5502.a
+		name = {
+			text = {
+				first_valid = {
+					triggered_desc = {
+						trigger = { is_landless_adventurer = yes }
+						desc = stress_trait_coping_decisions.5502.a_landless
+					}
+					desc = stress_trait_coping_decisions.5502.a
+				}
+			}
+		}
 		trait = comfort_eater
 		trait = cannibal
 		remove_short_term_gold = medium_gold_value
@@ -1519,6 +1620,7 @@ stress_trait_coping_decisions.7502 = {
 	#Pay for heavier training weapons
 	option = {
 		name = stress_trait_coping_decisions.7502.b
+		trigger = { is_landless_adventurer = no }
 		remove_short_term_gold = medium_gold_value
 		stress_7502_generic_outcome_effect = yes
 		ai_chance = {
@@ -1586,6 +1688,7 @@ stress_trait_coping_decisions.7502 = {
 						title = stress_trait_coping_decisions.7502.failure
 						left_icon = scope:lifted_child
 						stress_7502_generic_outcome_effect = yes
+						increase_wounds_effect = { REASON = fall }
 						scope:lifted_child = { increase_wounds_effect = { REASON = fall } }
 					}
 				}

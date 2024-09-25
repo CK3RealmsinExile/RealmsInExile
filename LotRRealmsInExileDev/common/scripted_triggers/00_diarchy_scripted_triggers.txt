@@ -19,11 +19,16 @@ character_hates_scope_due_to_strife_guts_trigger = {
 	}
 }
 
-# This is hooked up to the should_invalidate_diarch rule, referenced by Code.
+# This is hooked up to the is_diarch_valid rule, invalidating them if it returns false, referenced by Code.
 is_diarch_valid_trigger = {
 	# Basics.
 	is_alive = yes
-	is_adult = yes
+	OR = {
+		# We always want adults...
+		is_adult = yes
+		# ... _unless_ this is junior emperor, they're always children.
+		liege ?= { has_diarchy_parameter = diarchy_type_is_junior_emperorship }
+	}
 	# If you're in an entrenched regency for some reason, you can't manage a regency yourself.
 	NOT = { has_diarchy_parameter = diarchy_type_is_entrenched_regency }
 	# You need to be mentally & physically sound, to some degree.
@@ -41,11 +46,13 @@ is_diarch_valid_trigger = {
 		highest_held_title_tier <= tier_barony
 	}
 	# We cannot be at war with our liege.
-	OR = {
-		is_independent_ruler = yes
-		AND = {
-			exists = liege
+	## Trigger_if it because otherwise we end up in situations where we're checking this when there actually isn't a liege.
+	trigger_if = {
+		limit = { exists = liege }
+		OR = {
 			NOT = { is_at_war_with = liege }
+			# _Unless_ this is a co-rulership. They're allowed to be at war.
+			liege = { has_diarchy_active_parameter = diarchy_is_co_rulership }
 		}
 	}
 	# If you have somehow managed to get invited to/start an activity outside of your realm (e.g., you're the spouse in a grand wedding), then yeah, you forfeit your position.
@@ -100,7 +107,8 @@ is_diarch_able_trigger = {
 }
 
 # And *this* needs to be added to guest activity intents to keep diarchs from showing up to the same parties as their liege.
-bannable_serving_diarch_trigger = {
+ bannable_serving_diarch_trigger = {
+	liege?= { NOT = { is_landless_adventurer = yes } }
 	OR = {
 		# Diarchs with official responsibilities can't come out to play.
 		is_diarch = yes
@@ -162,16 +170,25 @@ diarch_matches_liege_faith_gender_preference_trigger = {
 # Setup Triggers
 
 basic_eligible_for_diarchy_trigger = {
-	is_landed = yes
+	is_landed_or_landless_administrative = yes
+	NOT = { government_has_flag = government_is_landless_adventurer } # Laamps don't use diarchs
 	highest_held_title_tier >= tier_county
 	NOT = { has_active_diarchy = yes }
 }
 
 regency_for_personal_reasons_trigger = {
-	OR = {
-		is_lotr_adult = no
-		is_incapable = yes
-		has_character_modifier = isolating_modifier
+	custom_tooltip = {
+		text = regency_for_personal_reasons_trigger.tt.cannot_govern_by_themselves
+		OR = {
+			AND = {
+				is_lotr_adult = no
+				NOT = {
+					liege = { has_diarchy_parameter = diarchy_type_is_junior_emperorship }
+				}
+			}
+			is_incapable = yes
+			has_character_modifier = isolating_modifier
+		}
 	}
 }
 
@@ -365,6 +382,225 @@ is_valid_basic_candidate_for_vizier_trigger = {
 	diarch_matches_liege_faith_gender_preference_trigger = yes
 }
 
+# I don't have a problem, I can quit scripted triggers any time I want.
+## But more seriously: mostly just here for brevity/not wanting to re-do script after I had to add a second scripted trigger targeting top lieges.
+character_has_co_emperorship_trigger = {
+	OR = {
+		has_diarchy_parameter = diarchy_type_is_co_emperorship
+		has_diarchy_parameter = diarchy_type_is_junior_emperorship
+	}
+}
+liege_has_co_emperorship_trigger = {
+	liege ?= { character_has_co_emperorship_trigger = yes }
+}
+top_liege_has_co_emperorship_trigger = {
+	liege ?= { character_has_co_emperorship_trigger = yes }
+}
+appointment_interactions_recipient_is_suitable_co_emperor_trigger = {
+	scope:actor = { top_liege_has_co_emperorship_trigger = yes }
+	OR = {
+		scope:recipient = { is_diarch_of_target = scope:secondary_recipient.top_liege }
+		scope:secondary_recipient = { is_diarch_of_target = scope:actor.top_liege }
+	}
+	# Don't get the bonus just because we're promoting our courtiers in our realm.
+	trigger_if = {
+		limit = {
+			NOT = { scope:target = scope:actor.primary_title }
+		}
+		NOT = { scope:target.holder = scope:actor }
+	}
+}
+
+may_appoint_co_emperors_trigger = {
+	highest_held_title_tier >= tier_empire
+	has_realm_law = acclamation_succession_law
+	OR = {
+		# has_title = title:e_byzantium #LotR
+		# has_title = title:e_roman_empire
+		culture = { has_cultural_parameter = unlock_co_emperors }
+	}
+}
+
+may_appoint_co_monarchs_trigger = {
+	highest_held_title_tier >= tier_kingdom
+	government_has_flag = may_elevate_co_monarch
+}
+
+valid_junior_emperor_candidate_trigger = {
+	is_adult = no
+	is_close_or_extended_family_of = scope:actor
+	is_imprisoned = no
+	OR = {
+		is_courtier_of = scope:actor
+		is_vassal_of = scope:actor
+	}
+	# Prevent weird governments from taking place.
+	NOR = {
+		government_has_flag = government_is_republic
+		government_has_flag = government_is_theocracy
+		government_has_flag = government_is_landless_adventurer
+	}
+}
+
+valid_co_emperor_candidate_trigger = {
+	is_adult = yes
+	is_imprisoned = no
+	save_temporary_scope_as = co_emperor_temp
+	custom_tooltip = {
+		text = valid_co_emperor_candidate_liege_trigger
+		top_liege = $LIEGE$
+	}
+	custom_tooltip = {
+		text = valid_co_emperor_candidate_family_trigger
+		OR = {
+			is_close_or_extended_family_of = $LIEGE$
+			AND = {
+				house ?= {
+					OR = {
+						is_powerful_family = yes
+						is_dominant_family = yes
+					}
+				}
+				scope:co_emperor_temp = house.house_head
+				any_held_title = { is_noble_family_title = yes }
+			}
+		}
+	}
+	NOR = {
+		has_trait = blind
+		# has_trait = eunuch #LotR
+		has_trait = incapable
+		# Prevent weird governments from taking place.
+		government_has_flag = government_is_republic
+		government_has_flag = government_is_theocracy
+		government_has_flag = government_is_landless_adventurer
+	}
+}
+
+valid_co_monarch_candidate_trigger = {
+	is_adult = yes
+	is_child_of = scope:actor
+	is_imprisoned = no
+	trigger_if = {
+		limit = { is_ruler = no }
+		is_courtier_of = scope:actor
+	}
+	trigger_else = { is_vassal_of = scope:actor }
+	# Gender restrictions.
+	custom_tooltip = {
+		text = valid_co_monarch_candidate_trigger.tt.gender_wrong_for_co_rule
+		OR = {
+			AND = {
+				is_female = yes
+				scope:actor = {
+					OR = {
+						has_realm_law = female_only_law
+						has_realm_law = female_preference_law
+					}
+				}
+			}
+			AND = {
+				is_male = yes
+				scope:actor = {
+					OR = {
+						has_realm_law = male_only_law
+						has_realm_law = male_preference_law
+					}
+				}
+			}
+			scope:actor = { has_realm_law = equal_law }
+		}
+	}
+	# Prevent weird governments from taking place.
+	NOR = {
+		government_has_flag = government_is_republic
+		government_has_flag = government_is_theocracy
+		government_has_flag = government_is_landless_adventurer
+	}
+}
+
+governor_can_be_called_as_ally_in_expedition_war_basic_trigger = {
+	scope:actor.liege ?= { has_diarchy_parameter = unlock_diarch_requests_military_expedition_interaction }
+	scope:recipient = {
+		liege ?= scope:actor.liege
+		# Must be a governor.
+		government_has_flag = government_is_administrative
+	}
+}
+
+liege_can_maim_co_ruler_without_killing_them_trigger = {
+	culture = {
+		OR = {
+			has_cultural_parameter = can_blind_prisoners
+			has_cultural_parameter = can_castrate_prisoners
+		}
+	}
+}
+
+liege_should_systematically_maim_co_ruler_trigger = {
+	OR = {
+		AND = {
+			has_diarchy_active_parameter = diarchy_is_co_rulership
+			liege_can_maim_co_ruler_without_killing_them_trigger = yes
+			diarch ?= scope:recipient
+		}
+		AND = {
+			liege ?= { has_diarchy_active_parameter = diarchy_is_co_rulership }
+			liege_can_maim_co_ruler_without_killing_them_trigger = yes
+			is_diarch_of_target = scope:recipient
+		}
+	}
+}
+
+valid_kingdom_for_diarch_to_demand_as_despotate_trigger = {
+	tier = tier_kingdom
+	is_landless_type_title = no
+	# Weird formatting for the sake of cleaner tooltips.
+	trigger_if = {
+		limit = { is_title_created = no }
+		is_title_created = no
+	}
+	trigger_else = { holder = scope:recipient }
+	scope:recipient = { completely_controls = scope:target }
+	NOT = {
+		scope:recipient.capital_county = { target_is_de_jure_liege_or_above = scope:target }
+	}
+}
+
+is_in_scapegoating_diarchy_visibility_trigger = {
+	custom_tooltip = {
+		text = is_in_scapegoating_diarchy_visibility_trigger.tt.explanation
+		subject = scope:actor
+		OR = {
+			AND = {
+				scope:recipient = { $PARAMETER_TYPE$ = unlock_scapegoat_counterpart_interaction }
+				scope:actor = { is_diarch_of_target = scope:recipient }
+			}
+			AND = {
+				scope:actor = { $PARAMETER_TYPE$ = unlock_scapegoat_counterpart_interaction }
+				scope:recipient = { is_diarch_of_target = scope:actor }
+			}
+		}
+	}
+}
+
+ai_diarch_would_maim_execute_superior_if_got_chance_trigger = {
+	OR = {
+		opinion = {
+			target = $LIEGE$
+			value <= -1
+		}
+		has_trait = callous
+		has_trait = sadistic
+		has_trait = ambitious
+		has_trait = arrogant
+	}
+	NOR = {
+		has_trait = compassionate
+		has_trait = content
+	}
+}
+
 ##################################################
 # Succession Triggers
 
@@ -480,7 +716,10 @@ action_legal_meddling_suitable_title_trigger = {
 # Decisions
 
 diarch_coup_valid_conspiracy_culmination_vassals_trigger = {
-	is_powerful_vassal_of = $LIEGE$
+	OR = {
+		is_powerful_vassal_of = $LIEGE$
+		house ?= { is_powerful_family = yes }
+	}
 	is_imprisoned = no
 }
 

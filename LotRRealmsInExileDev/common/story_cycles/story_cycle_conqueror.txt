@@ -1,0 +1,394 @@
+﻿story_conqueror = {
+	
+	on_setup = {
+		if = {
+			limit = {
+				has_game_rule = no_conquerors_frequency
+			}
+			story_owner = {
+				remove_trait = conqueror
+				remove_character_modifier = ai_extreme_conqueror_modifier
+				remove_character_modifier = ai_weak_conqueror_modifier
+			}
+			end_story = yes
+		}
+		else = {
+			if = {
+				limit = {
+					NOT = {
+						exists = global_var:active_conquerors
+					}
+				}
+				set_global_variable = {
+					name = active_conquerors
+					value = 1
+				}
+			}
+			else = {
+				change_global_variable = {
+					name = active_conquerors
+					add = 1
+				}
+			}
+			story_owner = {
+				if = {
+					limit = {
+						has_game_rule = random_conquerors_bonuses
+					}
+					random_list = {
+						95 = {
+							add_trait = conqueror
+						}
+						5 = {
+							trigger = {
+								is_ai = yes
+							}
+							add_trait = conqueror
+							add_character_modifier = {
+								modifier = ai_extreme_conqueror_modifier
+							}
+						}
+					}
+				}
+				if = {
+					limit = {
+						has_game_rule = extreme_conquerors_bonuses
+						is_ai = yes
+						NOT = { has_character_modifier = ai_extreme_conqueror_modifier }
+					}
+					add_trait = conqueror
+					add_character_modifier = {
+						modifier = ai_extreme_conqueror_modifier
+					}
+				}
+				else_if = {
+					limit = {
+						has_game_rule = no_conquerors_bonuses
+					}
+					add_character_modifier = {
+						modifier = ai_weak_conqueror_modifier
+					}
+					remove_trait = conqueror
+					remove_character_modifier = ai_extreme_conqueror_modifier
+				}
+				else = {
+					add_trait = conqueror
+				}
+			}
+		}
+	}
+	
+	on_end = {
+		if = {
+			limit = {
+				exists = global_var:active_conquerors
+			}
+			change_global_variable = {
+				name = active_conquerors
+				add = -1
+			}
+		}
+		story_owner = {
+			if = {
+				limit = {
+					is_alive = yes
+				}
+				remove_trait = conqueror
+				remove_character_modifier = ai_extreme_conqueror_modifier
+				remove_character_modifier = ai_weak_conqueror_modifier
+			}
+		}
+	}
+	
+	on_owner_death = {
+		story_owner = {
+			if = {
+				limit = {
+					has_game_rule = no_conquerors_inheritance
+				}
+			}
+			else_if = {
+				limit = {
+					has_game_rule = primary_conquerors_inheritance
+					primary_heir ?= {
+						is_physically_able_adult = yes
+						OR = {
+							ai_has_cautious_personality = no
+							is_ai = no
+						}
+					}
+				}
+				primary_heir ?= {
+					if = {
+						limit = {
+							root.story_owner = { ai_should_get_conqueror_bonuses = yes }
+						}
+						add_trait = conqueror
+						if = {
+							limit = {
+								has_game_rule = extreme_conquerors_bonuses
+								is_ai = yes
+							}
+							add_character_modifier = {
+								modifier = ai_extreme_conqueror_modifier
+							}
+						}
+					}
+					create_story = story_conqueror
+				}
+			}
+			else = {
+				every_heir = {
+					limit = {
+						is_physically_able_adult = yes
+						OR = {
+							ai_has_cautious_personality = no
+							is_ai = no
+						}
+					}
+					if = {
+						limit = {
+							root.story_owner = { ai_should_get_conqueror_bonuses = yes }
+						}
+						add_trait = conqueror
+						if = {
+							limit = {
+								has_game_rule = extreme_conquerors_bonuses
+								is_ai = yes
+							}
+							add_character_modifier = {
+								modifier = ai_extreme_conqueror_modifier
+							}
+						}
+					}
+					create_story = story_conqueror
+				}
+			}
+		}
+		end_story = yes
+	}
+	
+	# Something happens - random events
+	effect_group = {
+		days = { 365 600 }
+	
+		trigger = {
+			story_owner = {
+				is_independent_ruler = yes
+			}
+		}
+	
+		first_valid = {
+			triggered_effect = {
+				trigger = { story_owner = { ai_should_get_conqueror_bonuses = yes } }
+				effect = {
+					story_owner = {
+						trigger_event = {
+							on_action = ongoing_conqueror_events
+						}
+					}
+				}
+			}
+		}
+		
+		triggered_effect = { # Recover slowly over time
+			trigger = {
+				story_owner = {
+					has_variable = lost_wars
+					var:lost_wars >= 2
+					is_at_war = no
+				}
+			}
+			effect = {
+				story_owner = {
+					random = {
+						chance = 25
+						change_variable = {
+							name = lost_wars
+							add = -1
+						}
+					}
+				}
+			}
+		}
+	}
+
+	effect_group = { # Handles the AI behavior
+		days = { 30 60 }
+
+		triggered_effect = {
+			trigger = {
+				story_owner = {
+					is_ai = yes
+				}
+			}
+			effect = {
+				story_owner = {
+					save_scope_as = root
+					ai_conqueror_yearly_effect = yes
+					if = { # Extra, to prevent the pacing mechanic from not working just because someone has partition
+						limit = {
+							OR = {
+								is_independent_ruler = no
+								is_landed = no
+								highest_held_title_tier <= tier_county
+							}
+							# NOT = { this = character:140 } #LotR
+							is_ai = yes
+						}
+						trigger_event = conqueror.0002
+					}
+				}
+			}
+		}
+	}
+
+	effect_group = { # Special bonuses for AI's who have the overpowered modifier
+		days = { 90 180 }
+
+		triggered_effect = {
+			trigger = {
+				story_owner = {
+					is_ai = yes
+					ai_should_get_conqueror_bonuses = yes
+				}
+			}
+			effect = {
+				story_owner = {
+					add_stress = major_stress_loss
+					every_maa_regiment = { # Armies grow
+						limit = {
+							is_maa_in_combat = no
+							can_upgrade_maa = yes
+						}
+						change_maa_regiment_size = {
+							size = 1
+							reinforce = yes
+						}
+					}
+					random_directly_owned_province = { # Capital Duchy grows
+						limit = {
+							is_occupied = no
+							is_raided = no
+							OR = {
+								this = root.story_owner.capital_province
+								this.duchy = root.story_owner.capital_province.county.duchy
+							}
+						}
+						generate_building = yes
+					}
+					if = {
+						limit = {
+							ai_should_get_extreme_conqueror_bonuses = yes
+						}
+						add_prestige = medium_prestige_gain
+						add_gold = medium_gold_value
+						random_list = { # Skills grow
+							100 = {
+								trigger = {
+									martial < 16
+								}
+								add_martial_skill = 2
+							}
+							100 = {
+								trigger = {
+									prowess < 16
+								}
+								add_prowess_skill = 2
+							}
+							10 = {
+								trigger = {
+									intrigue < 16
+								}
+								add_intrigue_skill = 2
+							}
+							10 = {
+								trigger = {
+									stewardship < 16
+								}
+								add_stewardship_skill = 2
+							}
+							10 = {
+								trigger = {
+									learning < 16
+								}
+								add_learning_skill = 2
+							}
+						}
+						random = {
+							chance = 15
+							if = {
+								limit = { has_education_rank_5_trigger = no }
+								if = {
+									limit = { has_trait = education_diplomacy }
+									change_trait_rank = {
+										trait = education_diplomacy
+										rank = 1
+									}
+								}
+								else_if = {
+									limit = { has_trait = education_martial }
+									change_trait_rank = {
+										trait = education_martial
+										rank = 1
+									}
+								}
+								else_if = {
+									limit = { has_trait = education_stewardship }
+									change_trait_rank = {
+										trait = education_stewardship
+										rank = 1
+									}
+								}
+								else_if = {
+									limit = { has_trait = education_intrigue }
+									change_trait_rank = {
+										trait = education_intrigue
+										rank = 1
+									}
+								}
+								else_if = {
+									limit = { has_trait = education_learning }
+									change_trait_rank = {
+										trait = education_learning
+										rank = 1
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
+	effect_group = { # Various ways to end the cycle, for players (AI also ends it by being cautious)
+		days = { 900 1800 }
+	
+		triggered_effect = {
+			trigger = {
+				story_owner = {
+					# NOT = { this = character:140 } #LotR
+					OR = {
+						is_independent_ruler = no
+						is_landed = no
+						days_of_continuous_peace >= 3650 # 10 years
+						prestige_level <= -1
+						debt_level >= 3
+						AND = {
+							exists = var:lost_wars
+							var:lost_wars >= 3
+						}
+						has_trait = incapable
+						highest_held_title_tier <= tier_county
+					}
+				}
+			}
+			effect = {
+				story_owner = {
+					trigger_event = conqueror.0002
+				}
+			}
+		}
+	}
+}
