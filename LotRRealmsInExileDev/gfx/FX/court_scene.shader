@@ -11,6 +11,8 @@ Includes = {
 	"jomini/portrait_coa.fxh"
 	"jomini/portrait_decals.fxh"
 	"jomini/portrait_user_data.fxh"
+	"jomini/hair_lighting.fxh"
+	"jomini/translucency.fxh"
 	"constants.fxh"
 	"standardfuncsgfx.fxh"
 	"parallax.fxh"
@@ -75,6 +77,7 @@ PixelShader =
 		SampleModeV = "Clamp"
 		Type = "Cube"
 	}
+#ifdef ENABLE_TEXTURE_OVERRIDE	
 	TextureSampler DiffuseMapOverride
 	{
 		Index = 9
@@ -102,6 +105,8 @@ PixelShader =
 		SampleModeU = "Wrap"
 		SampleModeV = "Wrap"
 	}
+#endif
+#ifdef COA_ENABLED
 	TextureSampler CoaTexture 
 	{
 		Index = 12
@@ -110,6 +115,16 @@ PixelShader =
 		MipFilter = "Linear"
 		SampleModeU = "Clamp"
 		SampleModeV = "Clamp"
+	}
+#endif
+	TextureSampler AnisotropyHairMap
+	{
+		Index = 13
+		MagFilter = "Linear"
+		MinFilter = "Linear"
+		MipFilter = "Linear"
+		SampleModeU = "Wrap"
+		SampleModeV = "Wrap"
 	}
 	TextureSampler ShadowTexture
 	{
@@ -123,6 +138,98 @@ PixelShader =
 		SamplerType = "Compare"
 		MaxAnisotropy = 0
 	}
+#ifdef RGB_MASK
+	TextureSampler RGBMaksMap
+	{
+		Index = 14
+		MagFilter = "Linear"
+		MinFilter = "Linear"
+		MipFilter = "Linear"
+		SampleModeU = "Wrap"
+		SampleModeV = "Wrap"
+	}
+	TextureSampler DiffuseMap1
+	{
+		Index = 17
+		MagFilter = "Linear"
+		MinFilter = "Linear"
+		MipFilter = "Linear"
+		SampleModeU = "Wrap"
+		SampleModeV = "Wrap"
+	}
+	TextureSampler NormalMap1
+	{
+		Index = 18
+		MagFilter = "Linear"
+		MinFilter = "Linear"
+		MipFilter = "Linear"
+		SampleModeU = "Wrap"
+		SampleModeV = "Wrap"
+	}
+	TextureSampler PropertiesMap1
+	{
+		Index = 19
+		MagFilter = "Linear"
+		MinFilter = "Linear"
+		MipFilter = "Linear"
+		SampleModeU = "Wrap"
+		SampleModeV = "Wrap"
+	}
+	TextureSampler DiffuseMap2
+	{
+		Index = 20
+		MagFilter = "Linear"
+		MinFilter = "Linear"
+		MipFilter = "Linear"
+		SampleModeU = "Wrap"
+		SampleModeV = "Wrap"
+	}
+	TextureSampler NormalMap2
+	{
+		Index = 21
+		MagFilter = "Linear"
+		MinFilter = "Linear"
+		MipFilter = "Linear"
+		SampleModeU = "Wrap"
+		SampleModeV = "Wrap"
+	}
+	TextureSampler PropertiesMap2
+	{
+		Index = 22
+		MagFilter = "Linear"
+		MinFilter = "Linear"
+		MipFilter = "Linear"
+		SampleModeU = "Wrap"
+		SampleModeV = "Wrap"
+	}
+	TextureSampler DiffuseMap3
+	{
+		Index = 23
+		MagFilter = "Linear"
+		MinFilter = "Linear"
+		MipFilter = "Linear"
+		SampleModeU = "Wrap"
+		SampleModeV = "Wrap"
+	}
+	TextureSampler NormalMap3
+	{
+		Index = 24
+		MagFilter = "Linear"
+		MinFilter = "Linear"
+		MipFilter = "Linear"
+		SampleModeU = "Wrap"
+		SampleModeV = "Wrap"
+	}
+	TextureSampler PropertiesMap3
+	{
+		Index = 25
+		MagFilter = "Linear"
+		MinFilter = "Linear"
+		MipFilter = "Linear"
+		SampleModeU = "Wrap"
+		SampleModeV = "Wrap"
+	}
+#endif
 
 	VertexStruct PS_COLOR_SSAO
 	{
@@ -519,12 +626,13 @@ PixelShader =
 			return ClosestPoint;
 		}	
 		
-		void CalculateSceneLights( float3 WorldSpacePos, float ShadowTerm[ SHADOWS_COUNT ], SMaterialProperties MaterialProps, inout float3 DiffuseLightOut, inout float3 SpecularLightOut )
+		void CalculateSceneLights( float3 WorldSpacePos, float ShadowTerm[ SHADOWS_COUNT ], SMaterialProperties MaterialProps, inout float3 DiffuseLightOut, inout float3 SpecularLightOut, inout float3 TranslucencyOut, STranslucencyProperties TranslucencyProps, float3 DiffuseIBL )
 		{
 			for( int i = 0; i < CurrentLightCount; ++i )
 			{
 				float3 DiffuseLight = vec3( 0.0f );
 				float3 SpecularLight = vec3( 0.0f );
+				float3 TranslucencyLight = vec3( 0.0f );
 
 				//Scale color by ShadowTerm
 				int ShadowToUse = int( Light_InnerCone_OuterCone_ShadowToUse[ i ].z );
@@ -535,13 +643,13 @@ PixelShader =
 				}
 				else
 				{
-					float ShadowDecreace = 0.f;
+					float ShadowDecrease = 0.f;
 					for ( int s = 0; s < SHADOWS_COUNT; ++s )
 					{
-						ShadowDecreace += lerp( ShadowTerm[ s ], 1.f, SecondaryShadowStrength );
+						ShadowDecrease += lerp( ShadowTerm[ s ], 1.f, SecondaryShadowStrength );
 					}
-					ShadowDecreace /= SHADOWS_COUNT;
-					LightShadowTerm = clamp( ShadowDecreace, 0.f, 1.f );
+					ShadowDecrease /= SHADOWS_COUNT;
+					LightShadowTerm = clamp( ShadowDecrease, 0.f, 1.f );
 				}
 
 				float4 ColorIntensity = Light_Color_Intensity[i];
@@ -549,6 +657,13 @@ PixelShader =
 				float3 PosToLight = Light_Position_Radius[i].xyz - WorldSpacePos;
 				float DistanceToLight = length( PosToLight );
 				float3 ViewVector = normalize( CameraPosition - WorldSpacePos );
+
+				SLightingProperties LightingProps;
+				LightingProps._ToCameraDir = ViewVector;
+				LightingProps._ShadowTerm = LightShadowTerm;
+				LightingProps._CubemapIntensity = 0.0f;
+				LightingProps._CubemapYRotation = Float4x4Identity();
+
 				//Light types
 				if( Light_Direction_Type[i].w == LIGHT_TYPE_SPOTLIGHT )
 				{
@@ -563,15 +678,13 @@ PixelShader =
 					float OuterAngle = RemapClamped( Light_InnerCone_OuterCone_ShadowToUse[i].y, 0.0f, 1.0f, 0.0f, PI / 2.0f );
 					LightColorIntensity *= GetAngleAttenuation( normalize( PosToLight ), -LightDirection, InnerAngle, OuterAngle );
 
-					// TODO: Could be cleaned up better
-					SLightingProperties LightingProps;
-					LightingProps._ToCameraDir = ViewVector;
 					LightingProps._ToLightDir = normalize( PosToLight );
 					LightingProps._LightIntensity = LightColorIntensity;
-					LightingProps._ShadowTerm = LightShadowTerm;
-					LightingProps._CubemapIntensity = 0.0;
-					LightingProps._CubemapYRotation = Float4x4Identity();
 					CalculateLightingFromLight( MaterialProps, LightingProps, DiffuseLight, SpecularLight );
+
+					#ifdef TRANSLUCENCY
+						TranslucencyLight = CalculateLightingTranslucent( MaterialProps , LightingProps, TranslucencyProps, DiffuseIBL );
+					#endif
 				}
 				else if( Light_Direction_Type[i].w == LIGHT_TYPE_POINTLIGHT )
 				{
@@ -579,26 +692,23 @@ PixelShader =
 					float Attenuation = CalculatePointLightAttenuation( PosToLight, ScaledRadius );
 					float3 LightColorIntensity = Light_Color_Intensity[i].xyz * Light_Color_Intensity[i].w * 1000.0f * Attenuation;
 
-					// TODO: Could be cleaned up better
-					SLightingProperties LightingProps;
-					LightingProps._ToCameraDir = ViewVector;
 					LightingProps._ToLightDir = normalize( PosToLight );
 					LightingProps._LightIntensity = LightColorIntensity;
-					LightingProps._ShadowTerm = LightShadowTerm;
-					LightingProps._CubemapIntensity = 0.0;
-					LightingProps._CubemapYRotation = Float4x4Identity();
 					CalculateLightingFromLight( MaterialProps, LightingProps, DiffuseLight, SpecularLight );
+
+					#ifdef TRANSLUCENCY
+						TranslucencyLight = CalculateLightingTranslucent( MaterialProps , LightingProps, TranslucencyProps, DiffuseIBL );
+					#endif
 				}
 				else if( Light_Direction_Type[i].w == LIGHT_TYPE_DIRECTIONAL )
 				{
-					SLightingProperties LightingProps;
-					LightingProps._ToCameraDir = ViewVector;
 					LightingProps._ToLightDir = -Light_Direction_Type[i].xyz;
 					LightingProps._LightIntensity = ColorIntensity.rgb;
-					LightingProps._ShadowTerm = LightShadowTerm;
-					LightingProps._CubemapIntensity = 0.0f;
-					LightingProps._CubemapYRotation = Float4x4Identity();
 					CalculateLightingFromLight( MaterialProps, LightingProps, DiffuseLight, SpecularLight );
+
+					#ifdef TRANSLUCENCY
+						TranslucencyLight = CalculateLightingTranslucent( MaterialProps , LightingProps, TranslucencyProps, DiffuseIBL );
+					#endif
 				}
 				else if( Light_Direction_Type[i].w == LIGHT_TYPE_DISC )
 				{
@@ -618,15 +728,13 @@ PixelShader =
 					float3 ClosestPoint = CalcDiscSpecMRP( Light_Position_Radius[i].xyz, Light_Position_Radius[i].w, WorldSpacePos, ViewVectorR, LightDirection );
 					ClosestPoint = normalize( ClosestPoint );
 
-					// TODO: Could be cleaned up better
-					SLightingProperties LightingProps;
-					LightingProps._ToCameraDir = ViewVector;
 					LightingProps._ToLightDir = normalize( PosToLight );
 					LightingProps._LightIntensity = LightColorIntensity;
-					LightingProps._ShadowTerm = LightShadowTerm;
-					LightingProps._CubemapIntensity = 0.0;
-					LightingProps._CubemapYRotation = Float4x4Identity();
 					CalculateLightingFromAreaLight( MaterialProps, LightingProps, DiffuseLight, SpecularLight, ClosestPoint );
+
+					#ifdef TRANSLUCENCY
+						TranslucencyLight = CalculateLightingTranslucent( MaterialProps , LightingProps, TranslucencyProps, DiffuseIBL );
+					#endif
 				}
 				else if( Light_Direction_Type[i].w == LIGHT_TYPE_SPHERE )
 				{
@@ -637,29 +745,47 @@ PixelShader =
 					float3 ClosestPoint = CalcSphereSpecMRP( Light_Position_Radius[i].xyz, Light_Position_Radius[i].w, WorldSpacePos, ViewVectorR );
 					ClosestPoint = normalize( ClosestPoint );
 
-					// TODO: Could be cleaned up better
-					SLightingProperties LightingProps;
-					LightingProps._ToCameraDir = ViewVector;
 					LightingProps._ToLightDir = normalize( PosToLight );
 					LightingProps._LightIntensity = LightColorIntensity;
-					LightingProps._ShadowTerm = LightShadowTerm;
-					LightingProps._CubemapIntensity = 0.0;
-					LightingProps._CubemapYRotation = Float4x4Identity();
 					CalculateLightingFromAreaLight( MaterialProps, LightingProps, DiffuseLight, SpecularLight, ClosestPoint );
+
+					#ifdef TRANSLUCENCY
+						TranslucencyLight = CalculateLightingTranslucent( MaterialProps , LightingProps, TranslucencyProps, DiffuseIBL );
+					#endif
 				}
 			
 				// Return
 				DiffuseLightOut += DiffuseLight;
 				SpecularLightOut += SpecularLight;
+				TranslucencyOut += TranslucencyLight;
 			}
 		}
-
-		void DebugReturn( inout float3 Out, SMaterialProperties MaterialProps, SLightingProperties LightingProps, PdxTextureSamplerCube EnvironmentMap, float3 SssColor, float SssMask )
+		void CalculateSceneLights( float3 WorldSpacePos, float ShadowTerm[ SHADOWS_COUNT ], SMaterialProperties MaterialProps, inout float3 DiffuseLightOut, inout float3 SpecularLightOut )
 		{
-			#if defined(PDX_DEBUG_PORTRAIT_SSS_MASK)
-			Out = SssMask;
-			#elif defined(PDX_DEBUG_PORTRAIT_SSS_COLOR)
-			Out = SssColor;
+			STranslucencyProperties TranslucencyProps = GetDefaultTranslucencyProperties();
+			float3 DiffuseIBL = vec3( 0.0f );
+			float3 TranslucencyOut = vec3( 0.0f );
+			CalculateSceneLights( WorldSpacePos, ShadowTerm, MaterialProps, DiffuseLightOut, SpecularLightOut, TranslucencyOut, TranslucencyProps, DiffuseIBL );
+		}
+		void DebugReturn( inout float3 Out, SMaterialProperties MaterialProps, SLightingProperties LightingProps, PdxTextureSamplerCube EnvironmentMap, float3 ScatteringColor, float ScatteringMask )
+		{
+			#if defined(PDX_DEBUG_PORTRAIT_SCATTERING_MASK)
+			Out = ScatteringMask;
+			#elif defined(PDX_DEBUG_PORTRAIT_SCATTERING_COLOR)
+			Out = ScatteringColor;
+			#else
+			DebugReturn( Out, MaterialProps, LightingProps, EnvironmentMap );
+			#endif
+		}
+
+		void DebugReturn( inout float3 Out, SMaterialProperties MaterialProps, SLightingProperties LightingProps, PdxTextureSamplerCube EnvironmentMap, float3 ScatteringColor, float ScatteringMask, float3 DiffuseTranslucency )
+		{
+			#if defined( PDX_DEBUG_PORTRAIT_SCATTERING_MASK )
+				Out = ScatteringMask;
+			#elif defined( PDX_DEBUG_PORTRAIT_SCATTERING_COLOR )
+				Out = ScatteringColor;
+			#elif defined( PDX_DEBUG_TRANSLUCENCY )
+				Out = DiffuseTranslucency;
 			#else
 			DebugReturn( Out, MaterialProps, LightingProps, EnvironmentMap );
 			#endif
@@ -675,7 +801,10 @@ PixelShader =
 			Color += HOVER_COLOR * HOVER_INTENSITY * FresnelFactor * HoverMult;
 		}
 
-		float3 CommonPixelShader( float4 Diffuse, float4 Properties, float3 NormalSample, in VS_OUTPUT_PDXMESHPORTRAIT Input, float HoverMult )
+		// MOD(godherja)
+		//float3 CommonPixelShader( float4 Diffuse, float4 Properties, float3 NormalSample, in VS_OUTPUT_PDXMESHPORTRAIT Input, float HoverMult )
+		float3 CommonPixelShader( float4 Diffuse, float4 Properties, float3 NormalSample, inout float3 Emissive, in VS_OUTPUT_PDXMESHPORTRAIT Input, float HoverMult )
+		// END MOD
 		{
 			float3x3 TBN = Create3x3( normalize( Input.Tangent ), normalize( Input.Bitangent ), normalize( Input.Normal ) );
 			float3 Normal = normalize( mul( NormalSample, TBN ) );
@@ -702,28 +831,68 @@ PixelShader =
 				{ 1.0, 1.0, 1.0, 1.0 };
 			#endif
 			CalculateShadowTerms( Input.WorldSpacePos, Shadows );
-			CalculateSceneLights( Input.WorldSpacePos, Shadows, MaterialProps, DiffuseLight, SpecularLight );
 
-			float3 Color = DiffuseIBL + SpecularIBL + DiffuseLight + SpecularLight;
+			float3 ScatteringColor = vec3( 0.0f );
+			float ScatteringMask = Properties.r;
+			float3 DiffuseTranslucency = vec3( 0.0f );
+			#ifdef TRANSLUCENCY
+				STranslucencyProperties TranslucencyProps;
+				#if defined( SKIN_SCATTERING )
+					float3 SkinColor = RGBtoHSV( Diffuse.rgb );
+					SkinColor.z = 1.0f;
+					ScatteringColor = HSVtoRGB( SkinColor ) * MaterialProps._DiffuseColor;
+					TranslucencyProps = GetTranslucencyProperties( 0.3f, 2.0f, 1.0f, 1.0f, 0.2f, ScatteringMask, ScatteringColor );
+				#elif defined( THICKNESS_MAP )
+					TranslucencyProps = GetTranslucencyProperties( 0.3f, 1.5f, 1.0f, 1.0f, 0.2f, Properties.r, Diffuse.rgb );
+				#else
+					TranslucencyProps = GetTranslucencyProperties( 0.3f, 1.5f, 1.0f, 1.0f, 0.2f, 0.5f, Diffuse.rgb );
+				#endif
+				CalculateSceneLights( Input.WorldSpacePos, Shadows, MaterialProps, DiffuseLight, SpecularLight, DiffuseTranslucency, TranslucencyProps, DiffuseIBL );
+			#else
+				CalculateSceneLights( Input.WorldSpacePos, Shadows, MaterialProps, DiffuseLight, SpecularLight );
+			#endif
+
+			float3 Color = DiffuseIBL + SpecularIBL + DiffuseLight + SpecularLight + DiffuseTranslucency;
 			
 			#ifdef VARIATIONS_ENABLED
 				ApplyClothFresnel( Input, CameraPosition, Normal, Color );
 			#endif
 
-			float3 SssColor = vec3(0.0f);
-			float SssMask = Properties.r;
-			#ifdef FAKE_SSS_EMISSIVE
+			#ifdef FAKE_SCATTERING_EMISSIVE
 				float3 SkinColor = RGBtoHSV( Diffuse.rgb );
 				SkinColor.z = 1.0f;
-				SssColor = HSVtoRGB( SkinColor ) * SssMask * 0.5f * MaterialProps._DiffuseColor;
-				Color += SssColor;
+				ScatteringColor = HSVtoRGB( SkinColor ) * ScatteringMask * 0.5f * MaterialProps._DiffuseColor;
+				Color += ScatteringColor;
 			#endif
 
-			DebugReturn( Color, MaterialProps, LightingProps, EnvironmentMap, SssColor, SssMask );
+			// MOD(godherja)
+			// Vanilla already does emission in court shader, for which EMISSIVE is defined.
+			#if !defined(GH_EMISSION_DISABLED) && !defined(EMISSIVE)
+				// This can be increased to achieve stronger bloom effect
+				/*static const*/ float EMISSIVENESS_MULTIPLIER = EmissiveStrength;
+
+				float  BaseEmission = PdxTex2D(NormalMap, Input.UV0).b;
+				float3 BaseEmissive = BaseEmission*Diffuse.rgb;
+
+				Emissive += BaseEmissive;
+				Color    += EMISSIVENESS_MULTIPLIER*Emissive;
+			#endif
+			// END MOD
+
+			DebugReturn( Color, MaterialProps, LightingProps, EnvironmentMap, ScatteringColor, ScatteringMask, DiffuseTranslucency );
 
 			AddHoverHighlight( Color, Normal, LightingProps._ToCameraDir, HoverMult );
 			return Color;
 		}
+
+		// MOD(godherja)
+		void GH_AdjustSSAOFromEmissive(inout float4 SSAOColor, in float3 Emissive)
+		{
+			float EmissionStrength = saturate(length(Emissive)); // Uhh...
+
+			SSAOColor = lerp(SSAOColor, float4(0.0, 0.0, 0.0, 0.0), EmissionStrength);
+		}
+		// END MOD
 
 		// Remaps Value to [IntervalStart, IntervalEnd]
 		// Assumes Value is in [0,1] and that 0 <= IntervalStart < IntervalEnd <= 1
@@ -800,7 +969,156 @@ PixelShader =
 			}
 			return UV;
 		}
+		void CalculateHairLights( float3 WorldSpacePos, float ShadowTerm[ SHADOWS_COUNT ], SMaterialProperties MaterialProps, SHairProperties HairProps, inout float3 DiffuseLightOut, inout float3 SpecularLightOut )
+		{
+			for( int i = 0; i < CurrentLightCount; ++i )
+			{
+				float3 DiffuseLight = vec3( 0.0f );
+				float3 SpecularLight = vec3( 0.0f );
 
+				//Scale color by ShadowTerm
+				int ShadowToUse = int( Light_InnerCone_OuterCone_ShadowToUse[ i ].z );
+				float LightShadowTerm = 1.0f;
+				if ( ShadowToUse >= 0.0f )
+				{
+					LightShadowTerm = ShadowTerm[ ShadowToUse ];
+				}
+				else
+				{
+					float ShadowDecrease = 0.0f;
+					for ( int s = 0; s < SHADOWS_COUNT; ++s )
+					{
+						ShadowDecrease += lerp( ShadowTerm[ s ], 1.0f, SecondaryShadowStrength );
+					}
+					ShadowDecrease /= SHADOWS_COUNT;
+					LightShadowTerm = clamp( ShadowDecrease, 0.0f, 1.0f );
+				}
+
+				float4 ColorIntensity = Light_Color_Intensity[ i ];
+				
+				float3 PosToLight = Light_Position_Radius[ i ].xyz - WorldSpacePos;
+				float DistanceToLight = length( PosToLight );
+				float3 ViewVector = normalize( CameraPosition - WorldSpacePos );
+				SLightingProperties LightingProps;
+				LightingProps._ToCameraDir = ViewVector;
+				LightingProps._ShadowTerm = LightShadowTerm;
+				LightingProps._CubemapIntensity = 0.0;
+				LightingProps._CubemapYRotation = Float4x4Identity();
+				//Light types
+				if( Light_Direction_Type[ i ].w == LIGHT_TYPE_SPOTLIGHT )
+				{
+					float3 LightDirection = normalize( Light_Direction_Type[ i ].xyz );
+					
+					float ScaledRadius = Light_Position_Radius[ i ].w;
+					float Attenuation = CalculatePointLightAttenuation( PosToLight, ScaledRadius );
+					float3 LightColorIntensity = Light_Color_Intensity[ i ].xyz * Light_Color_Intensity[ i ].w * 1000.0f * Attenuation;
+					if ( all( LightColorIntensity > 0.0f ) )
+					{
+						// Angle Attenuation
+						float InnerAngle = RemapClamped( Light_InnerCone_OuterCone_ShadowToUse[ i ].x, 0.0f, 1.0f, 0.0f, PI / 2.0f );
+						float OuterAngle = RemapClamped( Light_InnerCone_OuterCone_ShadowToUse[ i ].y, 0.0f, 1.0f, 0.0f, PI / 2.0f );
+						LightColorIntensity *= GetAngleAttenuation( normalize( PosToLight ), -LightDirection, InnerAngle, OuterAngle );
+
+						LightingProps._ToLightDir = normalize( PosToLight );
+						LightingProps._LightIntensity = LightColorIntensity;
+						CalculateHairLightingFromLight( MaterialProps, LightingProps, HairProps, DiffuseLight, SpecularLight);
+					}
+				}
+				else if( Light_Direction_Type[ i ].w == LIGHT_TYPE_POINTLIGHT )
+				{
+					float ScaledRadius = Light_Position_Radius[ i ].w;
+					float Attenuation = CalculatePointLightAttenuation( PosToLight, ScaledRadius );
+					float3 LightColorIntensity = Light_Color_Intensity[ i ].xyz * Light_Color_Intensity[ i ].w * 1000.0f * Attenuation;
+					if ( all( LightColorIntensity > 0.0f ) )
+					{
+						LightingProps._ToLightDir = normalize( PosToLight );
+						LightingProps._LightIntensity = LightColorIntensity;
+						CalculateHairLightingFromLight( MaterialProps, LightingProps, HairProps, DiffuseLight, SpecularLight);
+					}
+				}
+				else if( Light_Direction_Type[ i ].w == LIGHT_TYPE_DIRECTIONAL )
+				{
+					LightingProps._ToLightDir = -Light_Direction_Type[ i ].xyz;
+					LightingProps._LightIntensity = ColorIntensity.rgb;
+					CalculateHairLightingFromLight( MaterialProps, LightingProps, HairProps, DiffuseLight, SpecularLight);
+				}
+				else if( Light_Direction_Type[ i ].w == LIGHT_TYPE_DISC )
+				{
+					// Frostbite Disc
+					float3 LightDirection = normalize( Light_Direction_Type[ i ].xyz );
+					float LightIntensity = CalcDiscDiffuse( PosToLight, Light_Position_Radius[ i ].w, MaterialProps._Normal, LightDirection );
+					float3 LightColorIntensity = Light_Color_Intensity[ i ].xyz * Light_Color_Intensity[ i ].w * LightIntensity;
+					if ( all( LightColorIntensity > 0.0f ) )
+					{
+						// Angle Attenuation
+						float InnerAngle = RemapClamped( Light_InnerCone_OuterCone_ShadowToUse[ i ].x, 0.0f, 1.0f, 0.0f, PI );
+						float OuterAngle = RemapClamped( Light_InnerCone_OuterCone_ShadowToUse[ i ].y, 0.0f, 1.0f, 0.0f, PI );
+						float HalfOuterAngle = OuterAngle * 0.5f;
+						float3 VirtualPos = Light_Position_Radius[ i ].xyz - LightDirection * ( Light_Position_Radius[ i ].w / tan( HalfOuterAngle ) );
+						LightColorIntensity *= GetAngleAttenuation( normalize( VirtualPos - WorldSpacePos ), -LightDirection, InnerAngle, OuterAngle );
+						
+						float3 ViewVectorR = reflect( ViewVector, MaterialProps._Normal );
+						float3 ClosestPoint = CalcDiscSpecMRP( Light_Position_Radius[ i ].xyz, Light_Position_Radius[ i ].w, WorldSpacePos, ViewVectorR, LightDirection );
+						ClosestPoint = normalize( ClosestPoint );
+
+						LightingProps._ToLightDir = normalize( PosToLight );
+						LightingProps._LightIntensity = LightColorIntensity;
+						CalculateHairLightingFromAreaLight( MaterialProps, LightingProps, HairProps, DiffuseLight, SpecularLight, ClosestPoint );
+					}
+				}
+				else if( Light_Direction_Type[ i ].w == LIGHT_TYPE_SPHERE )
+				{
+					// Frostbite Sphere
+					float LightIntensity = CalcSphereDiffuse( PosToLight, Light_Position_Radius[ i ].w, MaterialProps._Normal ) * 0.1f;
+					float3 LightColorIntensity = Light_Color_Intensity[ i ].xyz * Light_Color_Intensity[ i ].w * LightIntensity;
+					if ( all( LightColorIntensity > 0.0f ) )
+					{
+						float3 ViewVectorR = reflect( ViewVector, MaterialProps._Normal );
+						float3 ClosestPoint = CalcSphereSpecMRP( Light_Position_Radius[ i ].xyz, Light_Position_Radius[ i ].w, WorldSpacePos, ViewVectorR );
+						ClosestPoint = normalize( ClosestPoint );
+					
+						LightingProps._ToLightDir = normalize( PosToLight );
+						LightingProps._LightIntensity = LightColorIntensity;
+						CalculateHairLightingFromAreaLight( MaterialProps, LightingProps, HairProps, DiffuseLight, SpecularLight, ClosestPoint );
+					}
+				}
+				// Return
+				DiffuseLightOut += DiffuseLight;
+				SpecularLightOut += SpecularLight;
+			}
+		}
+
+		void CalculateHairLightingFromLights( float3 WorldSpacePosition, float ShadowTerm[ SHADOWS_COUNT ], SMaterialProperties MaterialProps, SLightingProperties LightingProps, SHairProperties HairProps, out float3 DiffuseOut, out float3 SpecularOut)
+		{
+			CalculateHairLights( WorldSpacePosition, ShadowTerm, MaterialProps, HairProps, DiffuseOut, SpecularOut);
+		}
+
+		void CalculateDiffuseIBL( SMaterialProperties MaterialProps, SLightingProperties LightingProps, PdxTextureSamplerCube EnvironmentMap, out float3 DiffuseIBLOut )
+		{
+			float3 RotatedDiffuseCubemapUV = mul( CastTo3x3( LightingProps._CubemapYRotation ), MaterialProps._Normal );
+			float3 DiffuseRad = PdxTexCubeLod( EnvironmentMap, RotatedDiffuseCubemapUV, ( PDX_NumMips - 1 - PDX_MipOffset ) ).rgb * LightingProps._CubemapIntensity; // TODO, maybe we should split diffuse and spec intensity?
+			DiffuseIBLOut = DiffuseRad * MaterialProps._DiffuseColor;
+		}
+
+		float3 CalculateHairLighting( float3 WorldSpacePosition, float ShadowTerm[ SHADOWS_COUNT ], SMaterialProperties MaterialProps, SLightingProperties LightingProps, SHairProperties HairProps, PdxTextureSamplerCube EnvironmentMap )
+		{
+			float3 DiffuseLight = vec3( 0.0f );
+			float3 SpecularLight = vec3( 0.0f );
+			CalculateHairLightingFromLights( WorldSpacePosition, ShadowTerm, MaterialProps, LightingProps, HairProps,  DiffuseLight, SpecularLight );
+			
+			float3 DiffuseIBL;
+			float3 SpecularIBL;
+			CalculateDiffuseIBL( MaterialProps, LightingProps, EnvironmentMap, DiffuseIBL );
+			CalculateHairSpecularIBL( MaterialProps, LightingProps, HairProps, EnvironmentMap, SpecularIBL );
+
+			return DiffuseIBL + SpecularIBL + DiffuseLight + SpecularLight;
+		}
+
+		float3 CalculateHairLighting( float2 PixelPosition, float3 WorldSpacePosition, float ShadowTerm[ SHADOWS_COUNT ], SMaterialProperties MaterialProps, SLightingProperties LightingProps, SHairProperties HairProps, PdxTextureSamplerCube EnvironmentMap )
+		{
+			float3 Lighting = CalculateHairLighting( WorldSpacePosition, ShadowTerm, MaterialProps, LightingProps, HairProps, EnvironmentMap );	
+			return Lighting;
+		}
 	]]
 
 	#// Character shaders
@@ -850,18 +1168,28 @@ PixelShader =
 				NormalSample = UnpackRRxGNormal( PdxTex2D( NormalMap, UV0 ) );
 			#endif
 
-				AddDecals( Diffuse.rgb, NormalSample, Properties, UV0, Input.InstanceIndex, 0, PreSkinColorDecalCount );
+				// MOD(godherja)
+				float3 Emissive = float3(0.0f, 0.0f, 0.0f);
+				// END MOD
+
+				AddDecals( Diffuse.rgb, NormalSample, Properties, Emissive, UV0, Input.InstanceIndex, 0, PreSkinColorDecalCount );
 
 				float ColorMaskStrength = Diffuse.a;
 				Diffuse.rgb = GetColorMaskColorBLend( Diffuse.rgb, vPaletteColorSkin.rgb, Input.InstanceIndex, ColorMaskStrength );
 
-				AddDecals( Diffuse.rgb, NormalSample, Properties, UV0, Input.InstanceIndex, PreSkinColorDecalCount, DecalCount );
+				AddDecals( Diffuse.rgb, NormalSample, Properties, Emissive, UV0, Input.InstanceIndex, PreSkinColorDecalCount, DecalCount );
 
-				float3 Color = CommonPixelShader( Diffuse, Properties, NormalSample, Input, HoverMult );
+				float3 Color = CommonPixelShader( Diffuse, Properties, NormalSample, Emissive, Input, HoverMult );
+
 				Out.Color = float4( Color, 1.0f );
 
 				Out.SSAOColor = PdxTex2D( SSAOColorMap, UV0 );
 				Out.SSAOColor.rgb *= vPaletteColorSkin.rgb;
+
+				// MOD(godherja)
+				GH_AdjustSSAOFromEmissive(Out.SSAOColor, Emissive);
+				// END MOD
+
 				return Out;
 			}
 		]]
@@ -885,10 +1213,18 @@ PixelShader =
 				float ColorMaskStrength = Diffuse.a;
 				Diffuse.rgb = GetColorMaskColorBLend( Diffuse.rgb, vPaletteColorEyes.rgb, Input.InstanceIndex, ColorMaskStrength );
 
-				float3 Color = CommonPixelShader( Diffuse, Properties, NormalSample, Input, 0.f );
+				// MOD(godherja)
+				float3 Emissive = float3(0.0f, 0.0f, 0.0f);
+				// END MOD
+
+				float3 Color = CommonPixelShader( Diffuse, Properties, NormalSample, Emissive, Input, 0.f );
 
 				Out.Color = float4( Color, 1.0f );
 				Out.SSAOColor = float4( vec3( 0.0f ), 1.0f );
+
+				// MOD(godherja)
+				GH_AdjustSSAOFromEmissive(Out.SSAOColor, Emissive);
+				// END MOD
 
 				return Out;
 			}
@@ -918,10 +1254,14 @@ PixelShader =
 				Properties.r = 1.0; // wipe this clean now, ready to be modified later
 				Diffuse.a = PdxMeshApplyOpacity( Diffuse.a, Input.Position.xy, PdxMeshGetOpacity( Input.InstanceIndex ) );
 
+				// MOD(godherja)
+				float3 Emissive = float3(0.0f, 0.0f, 0.0f);
+				// END MOD
+
 				#ifdef VARIATIONS_ENABLED
 					ApplyVariationPatterns( Input, Diffuse, Properties, NormalSample );
 				#endif
-				
+
 				#ifdef COA_ENABLED
 					ApplyCoa( Input, Diffuse, CoaColor1, CoaColor2, CoaColor3, CoaOffsetAndScale.xy, CoaOffsetAndScale.zw, CoaTexture, Properties.r );
 				#endif
@@ -944,10 +1284,15 @@ PixelShader =
 					#endif
 				#endif
 
-				float3 Color = CommonPixelShader( Diffuse, Properties, NormalSample, Input, AppliedHover );
+				float3 Color = CommonPixelShader( Diffuse, Properties, NormalSample, Emissive, Input, AppliedHover );
 
 				Out.Color = float4( Color, Diffuse.a );
 				Out.SSAOColor = float4( vec3( 0.0f ), 1.0f );
+
+				// MOD(godherja)
+				GH_AdjustSSAOFromEmissive(Out.SSAOColor, Emissive);
+				// END MOD
+
 				return Out;
 			}
 		]]
@@ -986,7 +1331,11 @@ PixelShader =
 				float ColorMaskStrength = NormalSampleRaw.b;
 				Diffuse.rgb = GetColorMaskColorBLend( Diffuse.rgb, vPaletteColorHair.rgb, Input.InstanceIndex, ColorMaskStrength );
 
-				float3 Color = CommonPixelShader( Diffuse, Properties, NormalSample, Input, HoverMult );
+				// MOD(godherja)
+				float3 Emissive = float3(0.0f, 0.0f, 0.0f);
+				// END MOD
+
+				float3 Color = CommonPixelShader( Diffuse, Properties, NormalSample, Emissive, Input, HoverMult );
 
 				#ifdef ALPHA_TO_COVERAGE
 					Diffuse.a = RescaleAlphaByMipLevel( Diffuse.a, UV0, DiffuseMap );
@@ -1009,6 +1358,10 @@ PixelShader =
 				#endif
 
 				Out.SSAOColor = float4( vec3( 0.0f ), 1.0f );
+
+				// MOD(godherja)
+				GH_AdjustSSAOFromEmissive(Out.SSAOColor, Emissive);
+				// END MOD
 
 				return Out;
 			}
@@ -1037,10 +1390,263 @@ PixelShader =
 				Properties *= vHairPropertyMult;
 				Diffuse.rgb *= vPaletteColorHair.rgb;
 
-				float3 Color = CommonPixelShader( Diffuse, Properties, NormalSample, Input, HoverMult );
+				// MOD(godherja)
+				float3 Emissive = float3(0.0f, 0.0f, 0.0f);
+				// END MOD
+
+				float3 Color = CommonPixelShader( Diffuse, Properties, NormalSample, Emissive, Input, HoverMult );
 
 				Out.Color = float4( Color, Diffuse.a );
 				Out.SSAOColor = float4( vec3( 0.0f ), 1.0f );
+
+				// MOD(godherja)
+				GH_AdjustSSAOFromEmissive(Out.SSAOColor, Emissive);
+				// END MOD
+
+				return Out;
+			}
+		]]
+	}
+
+	MainCode PS_anisotropic_hair
+	{
+		Input = "VS_OUTPUT_PDXMESHPORTRAIT"
+		Output = "PS_COLOR_SSAO"
+		Code
+		[[
+			#ifndef DIFFUSE_UV_SET
+			#define DIFFUSE_UV_SET Input.UV0
+			#endif
+			#ifndef NORMAL_UV_SET
+			#define NORMAL_UV_SET Input.UV0
+			#endif
+			#ifndef PROPERTIES_UV_SET
+			#define PROPERTIES_UV_SET Input.UV0
+			#endif	
+			#ifndef ANISOTROPY_UV_SET
+			#define ANISOTROPY_UV_SET Input.UV0
+			#endif
+			#ifndef FLOWMAP_UV_SET
+			#define FLOWMAP_UV_SET Input.UV0
+			#endif
+			
+			SCharacterHairSettings GetCharacterHairSettings()
+			{
+				SCharacterHairSettings HairSettings;
+				HairSettings._EdgeColor = float4( vPaletteColorHair.rgb * 0.1f, 1.0f );
+				HairSettings._StrandDirection = float3( 0.0f, -1.0f, 0.0f );
+				HairSettings._PrimaryHighlightShift = -0.5f;
+				HairSettings._AnisotropyShiftScale = float2( 1.0f, 1.0f );
+				HairSettings._AnisotropySmoothnessMin = 0.0f;
+				HairSettings._AnisotropySmoothnessMax = 1.0f;
+				HairSettings._SecondaryHighlightShift = -0.9f;
+				HairSettings._NormalStrength = 1.0f;
+				float SpecularPowerScale = ( vPaletteColorHair.r + vPaletteColorHair.g + vPaletteColorHair.b ) / 3;
+				SpecularPowerScale = lerp( 1.0f ,3.0f , SpecularPowerScale );
+				HairSettings._SpecularPower = 5.0f * SpecularPowerScale;
+				HairSettings._AlphaCutoffTreshold = 0.5f;
+				HairSettings._RoughnessMin = 0.0f;
+				HairSettings._RoughnessMax = 1.0f;
+				return HairSettings;
+			}
+
+			PDX_MAIN
+			{
+				float4 NormalSampleRaw = PdxTex2D( NormalMap, NORMAL_UV_SET );
+				float3 UnpackedNormal = UnpackRRxGNormal( NormalSampleRaw ) * ( PDX_IsFrontFace ? 1 : -1 );
+				float3x3 TBN = Create3x3( normalize( Input.Tangent ), normalize( Input.Bitangent ), normalize( Input.Normal ) );
+				float3 Normal = normalize( mul( UnpackedNormal, TBN ) );
+
+				SCharacterHairSettings HairSettings = GetCharacterHairSettings();
+
+				float4 Diffuse = PdxTex2D( DiffuseMap, DIFFUSE_UV_SET );
+
+				float3 HairBaseDiffuse;
+
+				float ColorMaskStrength = NormalSampleRaw.b;
+				HairBaseDiffuse.rgb = GetColorMaskColorBLend( Diffuse.rgb, vPaletteColorHair.rgb, Input.InstanceIndex, ColorMaskStrength );
+
+				float4 Properties = PdxTex2D( PropertiesMap, PROPERTIES_UV_SET );
+				Properties *= vHairPropertyMult;
+				float AnisotropyShift = PdxTex2D( AnisotropyHairMap, ANISOTROPY_UV_SET * HairSettings._AnisotropyShiftScale ).b;
+				AnisotropyShift = lerp( HairSettings._AnisotropySmoothnessMin, HairSettings._AnisotropySmoothnessMax, AnisotropyShift );
+
+				SMaterialProperties MaterialProps = GetMaterialProperties( HairBaseDiffuse, Normal, saturate( lerp( HairSettings._RoughnessMin, HairSettings._RoughnessMax, Properties.a ) ), Properties.g + 0.01f, Properties.b );
+
+				SLightingProperties LightingProps = GetSunLightingProperties( Input.WorldSpacePos, ShadowTexture );
+
+				//The specular will stretch along the input tangent. This can be provided via a flowmap or a vector.
+				#ifdef USE_FLOWMAP
+					float3 Flow = float3( PdxTex2D( AnisotropyHairMap, FLOWMAP_UV_SET ).rg, 0.0f );
+					Flow.rg = Flow.rg * 2.0f - 1.0f;
+					Flow.g = -Flow.g;
+					float3 T = normalize( mul( Flow, TBN ) );
+				#else
+					float3 T = normalize( mul( HairSettings._StrandDirection, TBN ) );
+				#endif
+
+				float3 N = lerp( Input.Normal, Normal, HairSettings._NormalStrength );
+
+				//Hair mainly produces two highlights. The primary highlight which reflects the light color and the secondary highlight which also reflects some of the hair color in addition to the light color.
+				//We shift them slightly manually to fake the light scattering effect.
+				float3 T1 = ShiftTangent( T, N, HairSettings._PrimaryHighlightShift + AnisotropyShift );
+				float3 T2 = ShiftTangent( T, N, HairSettings._SecondaryHighlightShift + AnisotropyShift );
+
+				SHairProperties HairProps;
+				HairProps._UVs = DIFFUSE_UV_SET;
+				HairProps._PrimaryTangent = T1;
+				HairProps._SecondaryTangent = T2;
+				HairProps._EdgeColor = HairSettings._EdgeColor.rgb;
+				HairProps._SpecularPower = HairSettings._SpecularPower;
+				HairProps._SmoothnessMin = HairSettings._AnisotropySmoothnessMin;
+				HairProps._SmoothnessMax = HairSettings._AnisotropySmoothnessMax;
+				HairProps._ColorMaskStrength = ColorMaskStrength;
+
+				// Must match in size with CCourtSceneShadowMap::MaxShadows
+				float Shadows[ SHADOWS_COUNT ] = 
+				#ifdef PDX_GLSL
+					float[ SHADOWS_COUNT ]( 1.0f, 1.0f, 1.0f, 1.0f );
+				#else
+					{ 1.0f, 1.0f, 1.0f, 1.0f };
+				#endif
+				CalculateShadowTerms( Input.WorldSpacePos, Shadows );
+
+				float3 Color = CalculateHairLighting( Input.Position.xy, Input.WorldSpacePos, Shadows, MaterialProps, LightingProps, HairProps, EnvironmentMap );
+
+				#ifdef ALPHA_TO_COVERAGE
+					Diffuse.a = RescaleAlphaByMipLevel( Diffuse.a, DIFFUSE_UV_SET, DiffuseMap );
+					Diffuse.a = SharpenAlpha( Diffuse.a, HairSettings._AlphaCutoffTreshold );
+				#endif
+				#ifdef HAIR_TRANSPARENCY_HACK
+					clip( Diffuse.a - 0.5f );
+				#endif
+				AddHoverHighlight( Color, Normal, LightingProps._ToCameraDir, HoverMult );
+				float Alpha = Diffuse.a;
+
+				PS_COLOR_SSAO Out;
+				Out.Color = float4( Color.rgb, Alpha );
+				Out.SSAOColor = float4( vec3( 0.0f ), 1.0f );
+				return Out;
+			}
+		]]
+	}
+	MainCode PS_rgb_mask_blend
+	{
+		Input = "VS_OUTPUT_PDXMESHPORTRAIT"
+		Output = "PS_COLOR_SSAO"
+		Code
+		[[
+			PDX_MAIN
+			{
+				PS_COLOR_SSAO Out;
+
+				float2 UV0 = Input.UV0;
+				float2 UV1 = Input.UV1;
+				float2 RGBUV1 = UV1;
+				#ifdef TILING1
+					float2 UVTiling1 = RGBUV1 * TILING1.xy;
+				#else
+					float2 UVTiling1 = RGBUV1;
+				#endif
+				#ifdef TILING2
+					float2 UVTiling2 = RGBUV1 * TILING2.xy;
+				#else
+					float2 UVTiling2 = RGBUV1;
+				#endif
+				#ifdef TILING3
+					float2 UVTiling3 = RGBUV1 * TILING3.xy;
+				#else
+					float2 UVTiling3 = RGBUV1;
+				#endif
+
+				float4 RgbMask = PdxTex2D( RGBMaksMap, UV1 );
+				
+				float4 BaseDiffuse = PdxTex2D( DiffuseMap, UV0 );
+				float4 Diffuse1 = PdxTex2D( DiffuseMap1, UVTiling1 );
+				float4 Diffuse2 = PdxTex2D( DiffuseMap2, UVTiling2 );
+				float4 Diffuse3 = PdxTex2D( DiffuseMap3, UVTiling3 );
+				float4 Diffuse = BaseDiffuse;
+				Diffuse = lerp( Diffuse, Diffuse1, RgbMask.r );
+				Diffuse = lerp( Diffuse, Diffuse2, RgbMask.g );
+				Diffuse = lerp( Diffuse, Diffuse3, RgbMask.b );
+				Diffuse.a = PdxMeshApplyOpacity( BaseDiffuse.a, Input.Position.xy, PdxMeshGetOpacity( Input.InstanceIndex ) );
+				
+				float4 BaseProperties = PdxTex2D( PropertiesMap, UV0 );
+				float4 Properties1 = PdxTex2D( PropertiesMap1, UVTiling1 );
+				float4 Properties2 = PdxTex2D( PropertiesMap2, UVTiling2 );
+				float4 Properties3 = PdxTex2D( PropertiesMap3, UVTiling3 );
+				float4 Properties = BaseProperties;
+				Properties = lerp( Properties, Properties1, RgbMask.r );
+				Properties = lerp( Properties, Properties2, RgbMask.g );
+				Properties = lerp( Properties, Properties3, RgbMask.b );
+
+				float4 BaseNormalMap = PdxTex2D( NormalMap, UV0 );
+				float4 NormalMap01 = PdxTex2D( NormalMap1, UVTiling1 );
+				float4 NormalMap02 = PdxTex2D( NormalMap2, UVTiling2 );
+				float4 NormalMap03 = PdxTex2D( NormalMap3, UVTiling3 );
+
+				float4 BlendNormal = lerp( BaseNormalMap,NormalMap01, RgbMask.r );
+				BlendNormal = lerp( BlendNormal, NormalMap02, RgbMask.g );
+				BlendNormal = lerp( BlendNormal, NormalMap03, RgbMask.b );
+				
+				float3 NormalSample = UnpackRRxGNormal( BaseNormalMap );
+				float3 BlendNormalSample = UnpackRRxGNormal( BlendNormal );
+				float3 ReorientNormal01 = ReorientNormal( NormalSample, BlendNormalSample );
+				float3x3 TBN = Create3x3( normalize( Input.Tangent ), normalize( Input.Bitangent ), normalize( Input.Normal ) );
+				float3 Normal = normalize( mul( ReorientNormal01, TBN ) );
+
+				SMaterialProperties MaterialProps = GetMaterialProperties( Diffuse.rgb, Normal, saturate( Properties.a ), Properties.g, Properties.b );
+				SLightingProperties LightingProps = GetSunLightingProperties( Input.WorldSpacePos, ShadowTexture );
+
+				#ifdef GEMCUBE
+					LightingProps._CubemapIntensity = GemCubeStrength;
+				#endif
+
+				float3 DiffuseIBL;
+				float3 SpecularIBL;
+				CalculateLightingFromIBL( MaterialProps, LightingProps, EnvironmentMap, DiffuseIBL, SpecularIBL );
+
+				float3 DiffuseLight = vec3( 0.0f );
+				float3 SpecularLight = vec3( 0.0f );
+
+				// Must match in size with CCourtSceneShadowMap::MaxShadows
+				float Shadows[ SHADOWS_COUNT ] = 
+				#ifdef PDX_GLSL
+					float[ SHADOWS_COUNT ]( 1.0, 1.0, 1.0, 1.0 );
+				#else
+					{ 1.0, 1.0, 1.0, 1.0 };
+				#endif
+				CalculateShadowTerms( Input.WorldSpacePos, Shadows );
+				CalculateSceneLights( Input.WorldSpacePos, Shadows, MaterialProps, DiffuseLight, SpecularLight );
+				float3 Color = DiffuseIBL + SpecularIBL + DiffuseLight + SpecularLight;
+
+				float3 ScatteringColor = vec3(0.0f);
+				float ScatteringMask = Properties.r;
+				#ifdef FAKE_SCATTERING_EMISSIVE
+					float3 SkinColor = RGBtoHSV( Diffuse.rgb );
+					SkinColor.z = 1.0f;
+					ScatteringColor = HSVtoRGB( SkinColor ) * ScatteringMask * 0.5f * MaterialProps._DiffuseColor;
+					Color += ScatteringColor;
+				#endif
+
+				DebugReturn( Color, MaterialProps, LightingProps, EnvironmentMap, ScatteringColor, ScatteringMask );
+
+				AddHoverHighlight( Color, Normal, LightingProps._ToCameraDir, HoverMult );
+
+				#ifdef ALPHA_TO_COVERAGE
+					Diffuse.a = RescaleAlphaByMipLevel( Diffuse.a, Input.UV0, DiffuseMap );
+					const float CUTOFF = 0.5f;
+					Diffuse.a = SharpenAlpha( Diffuse.a, CUTOFF );
+				#endif
+
+				#if defined( EMISSIVE )
+					float emissiveMask = PdxTex2D( NormalMap, Input.UV0 ).b;
+					float3 emissiveColor = Diffuse.rgb * EmissiveStrength;
+					Color = lerp(Color, emissiveColor, emissiveMask);
+				#endif
+
+				Out.Color = float4( Color, Diffuse.a );
+				Out.SSAOColor = float4( 0.0f, 0.0f, 0.0f, Diffuse.a );
 
 				return Out;
 			}
@@ -1094,7 +1700,7 @@ PixelShader =
 			PDX_MAIN
 			{
 				PS_COLOR_SSAO Out;
-				
+
 				#ifdef PARALLAX
 					#ifdef LOW_SPEC_SHADERS
 						Input.UV0 = ParallaxMappingLowSpec( ParallaxMap, Input.UV0, Input.Tangent, Input.Bitangent, Input.Normal, Input.WorldSpacePos, CameraPosition );
@@ -1159,7 +1765,12 @@ PixelShader =
 
 				Properties.g = 0.16f;	// Fixed specular mesh value /JR
 				float HoverMult = GetUserData( Input.InstanceIndex, USER_DATA_HOVER_SLOT ).r;
-				float3 Color = CommonPixelShader( Diffuse, Properties, NormalSample, Input, HoverMult );
+
+				// MOD(godherja)
+				float3 Emissive = float3(0.0f, 0.0f, 0.0f);
+				// END MOD
+
+				float3 Color = CommonPixelShader( Diffuse, Properties, NormalSample, Emissive, Input, HoverMult );
 
 				#ifdef ALPHA_TO_COVERAGE
 					Diffuse.a = RescaleAlphaByMipLevel( Diffuse.a, Input.UV0, DiffuseMap );
@@ -1176,6 +1787,9 @@ PixelShader =
 				Out.Color = float4( Color, Diffuse.a );
 				Out.SSAOColor = float4( 0.0f, 0.0f, 0.0f, Diffuse.a );
 
+				// MOD(godherja)
+				GH_AdjustSSAOFromEmissive(Out.SSAOColor, Emissive);
+				// END MOD
 				return Out;
 			}
 		]]
@@ -1250,14 +1864,14 @@ Effect portrait_skin
 {
 	VertexShader = "VS_standard"
 	PixelShader = "PS_skin"
-	Defines = { "FAKE_SSS_EMISSIVE" "PDX_MESH_BLENDSHAPES" }
+	Defines = { "SKIN_SCATTERING" "TRANSLUCENCY" "PDX_MESH_BLENDSHAPES" }
 }
 
 Effect portrait_teeth
 {
 	VertexShader = "VS_standard"
 	PixelShader = "PS_skin"
-	Defines = { "FAKE_SSS_EMISSIVE" "PDX_MESH_BLENDSHAPES" }
+	Defines = { "SKIN_SCATTERING" "TRANSLUCENCY" "PDX_MESH_BLENDSHAPES" }
 }
 
 Effect portrait_skin_selection
@@ -1286,7 +1900,7 @@ Effect portrait_skin_face
 {
 	VertexShader = "VS_standard"
 	PixelShader = "PS_skin"
-	Defines = { "FAKE_SSS_EMISSIVE" "ENABLE_TEXTURE_OVERRIDE" "PDX_MESH_BLENDSHAPES" }
+	Defines = { "SKIN_SCATTERING" "TRANSLUCENCY" "ENABLE_TEXTURE_OVERRIDE" "PDX_MESH_BLENDSHAPES" }
 }
 
 Effect portrait_skin_face_selection
@@ -1521,7 +2135,10 @@ Effect portrait_hair
 	PixelShader = "PS_hair"
 	BlendState = "alpha_to_coverage"
 	RasterizerState = "rasterizer_no_culling"
-	Defines = { "ALPHA_TO_COVERAGE" "PDX_MESH_BLENDSHAPES" }
+	# MOD(godherja)
+	#Defines = { "ALPHA_TO_COVERAGE" "PDX_MESH_BLENDSHAPES" }
+	Defines = { "ALPHA_TO_COVERAGE" "PDX_MESH_BLENDSHAPES" "GH_EMISSION_DISABLED" }
+	# END MOD
 }
 
 Effect portrait_hair_selection
@@ -1538,7 +2155,10 @@ Effect portrait_hair_transparency_hack
 	PixelShader = "PS_hair"
 	BlendState = "alpha_to_coverage"
 	RasterizerState = "rasterizer_no_culling"
-	Defines = { "HAIR_TRANSPARENCY_HACK" "PDX_MESH_BLENDSHAPES" }
+	# MOD(godherja)
+	#Defines = { "HAIR_TRANSPARENCY_HACK" "PDX_MESH_BLENDSHAPES" }
+	Defines = { "HAIR_TRANSPARENCY_HACK" "PDX_MESH_BLENDSHAPES" "GH_EMISSION_DISABLED" }
+	# END MOD
 }
 
 Effect portrait_hair_transparency_hack_selection
@@ -1547,7 +2167,10 @@ Effect portrait_hair_transparency_hack_selection
 	PixelShader = "PS_hair"
 	BlendState = "alpha_to_coverage"
 	RasterizerState = "rasterizer_no_culling"
-	Defines = { "HAIR_TRANSPARENCY_HACK" "PDX_MESH_BLENDSHAPES" }
+	# MOD(godherja)
+	#Defines = { "HAIR_TRANSPARENCY_HACK" "PDX_MESH_BLENDSHAPES" }
+	Defines = { "HAIR_TRANSPARENCY_HACK" "PDX_MESH_BLENDSHAPES" "GH_EMISSION_DISABLED" }
+	# END MOD
 }
 
 Effect portrait_hair_double_sided
@@ -1557,7 +2180,10 @@ Effect portrait_hair_double_sided
 	BlendState = "alpha_to_coverage"
 	#DepthStencilState = "test_and_write"
 	RasterizerState = "rasterizer_no_culling"
-	Defines = { "PDX_MESH_BLENDSHAPES" }
+	# MOD(godherja)
+	#Defines = { "PDX_MESH_BLENDSHAPES" }
+	Defines = { "PDX_MESH_BLENDSHAPES" "GH_EMISSION_DISABLED" }
+	# END MOD
 }
 
 Effect portrait_hair_double_sided_selection
@@ -1574,7 +2200,10 @@ Effect portrait_hair_alpha
 	PixelShader = "PS_hair"
 	BlendState = "hair_alpha_blend"
 	DepthStencilState = "hair_alpha_blend"
-	Defines = { "PDX_MESH_BLENDSHAPES" }
+	# MOD(godherja)
+	#Defines = { "PDX_MESH_BLENDSHAPES" }
+	Defines = { "PDX_MESH_BLENDSHAPES" "GH_EMISSION_DISABLED" }
+	# END MOD
 }
 
 Effect portrait_hair_alpha_selection
@@ -1597,7 +2226,10 @@ Effect portrait_hair_opaque
 	VertexShader = "VS_standard"
 	PixelShader = "PS_hair"
 	
-	Defines = { "WRITE_ALPHA_ONE" "PDX_MESH_BLENDSHAPES" }
+	# MOD(godherja)
+	#Defines = { "WRITE_ALPHA_ONE" "PDX_MESH_BLENDSHAPES" }
+	Defines = { "WRITE_ALPHA_ONE" "PDX_MESH_BLENDSHAPES" "GH_EMISSION_DISABLED" }
+	# END MOD
 }
 
 Effect portrait_hair_opaque_selection
@@ -1686,7 +2318,10 @@ Effect court_usercolor
 	VertexShader = "VS_standard"
 	PixelShader = "PS_court"
 
-	Defines = { "USER_COLOR" }
+	# MOD(godherja)
+	#Defines = { "USER_COLOR" }
+	Defines = { "USER_COLOR" "GH_EMISSION_DISABLED" }
+	# END MOD
 }
 
 Effect court_usercolor_coa
@@ -1694,7 +2329,10 @@ Effect court_usercolor_coa
 	VertexShader = "VS_standard"
 	PixelShader = "PS_court"
 
-	Defines = { "USER_COLOR" "COA" }
+	# MOD(godherja)
+	#Defines = { "USER_COLOR" "COA" }
+	Defines = { "USER_COLOR" "COA" "GH_EMISSION_DISABLED" }
+	# END MOD
 }
 
 Effect courtShadow
@@ -1878,62 +2516,6 @@ Effect sine_flag_animation_selection
 	VertexShader = "VS_standard"
 	PixelShader = "PS_noop"
 }
-
-# MOD(court-skybox)
-Effect SKYX_court_sky
-{
-	VertexShader = "VS_standard"
-	PixelShader = "PS_SKYX_court_sky"
-}
-
-Effect SKYX_court_sky_selection
-{
-	VertexShader = "VS_standard"
-	PixelShader = "PS_SKYX_court_sky"
-}
-
-# Same as SKYX_court_sky, included for backwards compatibility
-Effect COOP_court_sky
-{
-	VertexShader = "VS_standard"
-	PixelShader = "PS_SKYX_court_sky"
-}
-
-# Same as SKYX_court_sky_selection, included for backwards compatibility
-Effect COOP_court_sky_selection
-{
-	VertexShader = "VS_standard"
-	PixelShader = "PS_SKYX_court_sky"
-}
-# END MOD
-
-# MOD(map-skybox)
-# The following effects are not used but need to be defined here to suppress errors
-
-Effect SKYX_sky
-{
-	VertexShader = "VS_standard"
-	PixelShader = "PS_noop"
-}
-
-Effect SKYX_sky_selection
-{
-	VertexShader = "VS_standard"
-	PixelShader = "PS_noop"
-}
-
-Effect SKYX_sky_mapobject
-{
-	VertexShader = "VS_standard"
-	PixelShader = "PS_noop"
-}
-
-Effect SKYX_sky_selection_mapobject
-{
-	VertexShader = "VS_standard"
-	PixelShader = "PS_noop"
-}
-# END MOD
 
 Effect selection_marker_selection
 {
@@ -2308,6 +2890,123 @@ Effect sine_flag_animation
 	PixelShader = "PS_noop"
 }
 
+Effect portrait_anisotropic_hair
+{
+	VertexShader = "VS_standard"
+	PixelShader = "PS_anisotropic_hair"
+	BlendState = "alpha_to_coverage"
+	RasterizerState = "rasterizer_no_culling"
+	Defines = { "ALPHA_TO_COVERAGE" "PDX_MESH_BLENDSHAPES" "USE_FLOWMAP"}
+}
+
+Effect portrait_anisotropic_hair_selection
+{
+	VertexShader = "VS_standard"
+	PixelShader = "PS_court_selection_backfacing"
+	RasterizerState = "rasterizer_backfaces"
+	Defines = { "PDX_MESH_BLENDSHAPES" }
+}
+
+Effect portrait_anisotropic_hair_no_flow
+{
+	VertexShader = "VS_standard"
+	PixelShader = "PS_anisotropic_hair"
+	BlendState = "alpha_to_coverage"
+	RasterizerState = "rasterizer_no_culling"
+	Defines = { "ALPHA_TO_COVERAGE" "PDX_MESH_BLENDSHAPES" }
+}
+
+Effect portrait_anisotropic_hair_no_flow_selection
+{
+	VertexShader = "VS_standard"
+	PixelShader = "PS_court_selection_backfacing"
+	RasterizerState = "rasterizer_backfaces"
+	Defines = { "PDX_MESH_BLENDSHAPES" }
+}
+
+Effect court_rgb_mask_blend
+{
+	VertexShader = "VS_standard"
+	PixelShader = "PS_rgb_mask_blend"
+	Defines = { "EMISSIVE" "RGB_MASK" }
+}
+
+Effect court_rgb_mask_blend_selection
+{
+	VertexShader = "VS_standard"
+	PixelShader = "PS_court_selection"
+}
+
+Effect court_rgb_mask_blend_alpha_to_coverage
+{
+	VertexShader = "VS_standard"
+	PixelShader = "PS_rgb_mask_blend"
+	BlendState = "alpha_to_coverage"
+	Defines = { "EMISSIVE" "ALPHA_TO_COVERAGE" "RGB_MASK" }
+}
+
+Effect court_rgb_mask_blend_alpha_to_coverage_selection
+{
+	VertexShader = "VS_standard"
+	PixelShader = "PS_court_selection"
+}
+
+# MOD(court-skybox)
+Effect SKYX_court_sky
+{
+	VertexShader = "VS_standard"
+	PixelShader = "PS_SKYX_court_sky"
+}
+
+Effect SKYX_court_sky_selection
+{
+	VertexShader = "VS_standard"
+	PixelShader = "PS_SKYX_court_sky"
+}
+
+# Same as SKYX_court_sky, included for backwards compatibility
+Effect COOP_court_sky
+{
+	VertexShader = "VS_standard"
+	PixelShader = "PS_SKYX_court_sky"
+}
+
+# Same as SKYX_court_sky_selection, included for backwards compatibility
+Effect COOP_court_sky_selection
+{
+	VertexShader = "VS_standard"
+	PixelShader = "PS_SKYX_court_sky"
+}
+# END MOD
+
+# MOD(map-skybox)
+# The following effects are not used but need to be defined here to suppress errors
+
+Effect SKYX_sky
+{
+	VertexShader = "VS_standard"
+	PixelShader = "PS_noop"
+}
+
+Effect SKYX_sky_selection
+{
+	VertexShader = "VS_standard"
+	PixelShader = "PS_noop"
+}
+
+Effect SKYX_sky_mapobject
+{
+	VertexShader = "VS_standard"
+	PixelShader = "PS_noop"
+}
+
+Effect SKYX_sky_selection_mapobject
+{
+	VertexShader = "VS_standard"
+	PixelShader = "PS_noop"
+}
+# END MOD
+
 # MOD(godherja)
 Effect standard_winter_mapobject
 {
@@ -2326,5 +3025,4 @@ Effect standard_winter_selection_mapobject
 	VertexShader = "VS_standard"
 	PixelShader = "PS_noop"
 }
-
 # END MOD
