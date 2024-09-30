@@ -5790,10 +5790,6 @@ ep3_decisions_event.4090 = {
 			trigger = {	has_trait_benevolent_trigger = yes }
 			animation = worry
 		}
-		triggered_animation = {
-			trigger = { has_trait_malicious_trigger = yes }
-			animation = arrogant
-		}
 		animation = scheme
 	}
 	lower_left_portrait = scope:new_governor
@@ -6261,7 +6257,7 @@ ep3_decisions_event.5000 = {
 
 ### Hire Chief Eunuch
 scripted_trigger mediocre_eunuch_trigger = {
-	has_trait = eunuch_1
+	has_trait = eunuch
 	can_be_employed_as = chief_eunuch_court_position
 	is_available_healthy_ai_adult = yes
 	diplomacy > average_skill_rating
@@ -6269,7 +6265,7 @@ scripted_trigger mediocre_eunuch_trigger = {
 }
 
 scripted_trigger good_eunuch_trigger = {
-	has_trait = eunuch_1
+	has_trait = eunuch
 	can_be_employed_as = chief_eunuch_court_position
 	is_available_healthy_ai_adult = yes
 	NOR = {
@@ -7091,12 +7087,52 @@ ep3_decisions_event.6001 = {
 					}
 				}
 			}
+			location.duchy = {
+				any_de_jure_county = {
+					NOT = { this = scope:liege.capital_county }
+				}
+			}
 		}
 		scope:liege = { save_scope_as = new_liege }
 		set_variable = separatist_uprising_decision_var
 		set_variable = became_landed_through_separatist_uprising_var
 		location.duchy = {
 			add_to_list = transfer_titles
+			# All De Jure Counties held by the liege will be moved over
+			every_de_jure_county = {
+				limit = {
+					holder = scope:liege
+					NOT = { this = scope:liege.capital_county }
+				}
+				add_to_list = transfer_titles
+			}
+			# If no counties can be taken from the liege, grab one from vassals
+			if = {
+				limit = {
+					NOT = {
+						any_in_list = {
+							list = transfer_titles
+							tier = tier_county
+						}
+					}
+				}
+				random_de_jure_county = {
+					limit = {
+						holder = { any_liege_or_above = { this = scope:liege } }
+					}
+					weight = {
+						base = 1
+						modifier = {
+							add = 100
+							NOR = { 
+								holder.primary_title = this 
+								holder.capital_county = this
+							}
+						}
+					}
+					add_to_list = transfer_titles
+				}
+			}
 			holder ?= {
 				if = { # Handle noble family heads you are stealing duchy from
 					limit = {
@@ -7137,6 +7173,7 @@ ep3_decisions_event.6001 = {
 		}
 		if = {
 			limit = {
+				exists = scope:old_heir
 				any_in_list = { list = heir_titles }
 			}
 			hidden_effect = {
@@ -7163,7 +7200,7 @@ ep3_decisions_event.6001 = {
 			REASON = flag:culture_champion
 		}
 		hidden_effect = {
-			scope:old_heir = {
+			scope:old_heir ?= {
 				create_title_and_vassal_change = {
 					type = granted
 					save_scope_as = heir_change2
