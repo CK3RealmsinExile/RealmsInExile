@@ -45,11 +45,10 @@
 	}
 	valid_to_continue = {
 		# Standard triggers.
-		always = yes
-		# valid_laamp_basic_trigger = {
-		# 	EMPLOYER = root.task_contract_employer
-		# 	LAAMP = root.task_contract_taker
-		# }
+		valid_laamp_basic_trigger = {
+			EMPLOYER = root.task_contract_employer
+			LAAMP = root.task_contract_taker
+		}
 	}
 	valid_to_keep = {
 		# Standard triggers.
@@ -62,10 +61,28 @@
 	# On_actions
 	on_accepted = {
 		task_contract_taker = { play_sound_effect = "event:/DLC/EP3/SFX/UI/Contracts/ep3_ui_contracts_accept_contract" }
-		# For the intro event.
 		save_scope_as = task_contract
+		set_variable = {
+			name = contract_taker
+			value = task_contract_taker
+		}
+		task_contract_taker = {
+			domicile ?= { move_domicile = root.var:task_contract_destination }
+			every_character_active_contract = {
+				limit = { has_task_contract_type = lotr_story }
+				# task_contract_taker.domicile ?= { move_domicile = task_contract_employer.location }
+				complete_task_contract = success_standard
+			}
+			current_travel_plan ?= { cancel_travel_plan = yes }
+		}
 	}
 	on_create = {
+		scope:contract = {
+			set_variable = {
+				name = task_contract_destination
+				value = task_contract_employer.capital_province
+			}
+		}
 	}
 
 	# Rewards root - task_contract
@@ -74,7 +91,7 @@
 			should_print_on_complete = yes
 			effect = {
 				task_contract_taker = { play_sound_effect = "event:/DLC/EP3/SFX/UI/Contracts/ep3_ui_contracts_success_on_contract" }
-				
+				task_contract_employer = { save_scope_as = contract_employer }
 				if = {
 					limit = { task_contract_employer = { has_variable = bountig_start_story } }
 					custom_tooltip = {
@@ -85,15 +102,14 @@
 								target = title:k_rohan.holder
 							}
 						}
+						task_contract_employer = {
+							random_character_war = {
+								limit = { using_cb = raid_for_captives_cb }
+								add_attacker = root.var:contract_taker
+							}
+						}
 					}
 				}
-			}
-		}
-		success_critical = {
-			should_print_on_complete = yes
-			effect = {
-				task_contract_taker = { play_sound_effect = "event:/DLC/EP3/SFX/UI/Contracts/ep3_ui_contracts_success_on_contract" }
-				
 			}
 		}
 		failure_standard = {
