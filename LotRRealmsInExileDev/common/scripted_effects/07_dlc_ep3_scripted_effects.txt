@@ -3730,9 +3730,12 @@ spawn_governance_contract_effect = {
 					any_sub_realm_county = {
 						any_county_province = {
 							any_province_domicile = {
-								owner != scope:governor
 								is_domicile_type = estate
-								owner = { is_ai = yes }
+								owner = {
+									NOT = { this = scope:governor }
+									is_ai = yes
+									is_alive = yes
+								}
 							}
 						}
 					}
@@ -3744,18 +3747,24 @@ spawn_governance_contract_effect = {
 				limit = {
 					any_county_province = {
 						any_province_domicile = {
-							owner != scope:governor
 							is_domicile_type = estate
-							owner = { is_ai = yes }
+							owner = {
+								NOT = { this = scope:governor }
+								is_ai = yes
+								is_alive = yes
+							}
 						}
 					}
 				}
 				random_county_province = {
 					limit = {
 						any_province_domicile = {
-							owner != scope:governor
 							is_domicile_type = estate
-							owner = { is_ai = yes }
+							owner = {
+								NOT = { this = scope:governor }
+								is_ai = yes
+								is_alive = yes
+							}
 						}
 
 					}
@@ -3764,9 +3773,12 @@ spawn_governance_contract_effect = {
 				scope:target_province ?= {
 					random_province_domicile = {
 						limit = {
-							owner != scope:governor
 							is_domicile_type = estate
-							owner = { is_ai = yes }
+							owner = {
+								NOT = { this = scope:governor }
+								is_ai = yes
+								is_alive = yes
+							}
 						}
 						owner = { save_scope_as = employer }
 					}
@@ -4102,22 +4114,88 @@ add_influence_attacker_defeat_effect = {
 	}
 }
 
-admin_independence_government_change_effect = {
-	# Effect to change the government of an admin ruler becoming independent
-	#if = { # Check if we prefer to become clan (as defined in 00_government_types.txt)
-	#	limit = { #LotR
-	#		OR = {
-	#			culture = { has_cultural_pillar = heritage_arabic }
-	#			culture = { has_cultural_pillar = heritage_iranian }
-	#			culture = { has_cultural_pillar = heritage_turkic }
-	#			has_religion = religion:islam_religion
-	#		}
-	#	}
-	#	change_government = clan_government
-	#}
-	#else = { # Otherwise, become feudal
+admin_change_government_effect = {
+	# Make sure you only use this effect on characters you are sure should change government! Since we don't do any extended triggers here.
+	# For a consistent behaviour, this effect is based on "convert_whole_realm_to_feudalism_effect"
+	
+	# First, let's see if the character only has their noble family title - then we don't bother changing their government
+	# We only destroy the family title to make sure it doesn't linger
+	if = {
+		limit = {
+			is_landed = no
+			any_held_title = {
+				is_noble_family_title = yes
+			}
+			NOT = {
+				any_held_title = {
+					is_noble_family_title = no
+				}
+			}
+		}
+		every_held_title = {
+			limit = {
+				is_noble_family_title = yes
+			}
+			save_temporary_scope_as = family_title
+			prev = { destroy_title = scope:family_title }
+		}
+	}
+	
+	# If not, let's change the government type
+	# If liege has clan - Become clan!
+	else_if = {
+		limit = {
+			is_independent_ruler = no
+			OR = {
+				liege = { government_has_flag = government_is_clan }
+				AND = {
+					liege = { government_has_flag = government_is_tribal }
+					# religion = religion:islam_religion #LotR
+				}
+			}
+		}
+		change_government = clan_government
+	}
+	# If liege has feudal - Become feudal!
+	else_if = {
+		limit = {
+			is_independent_ruler = no
+			OR = {
+				liege = { government_has_flag = government_is_feudal }
+				AND = {
+					liege = { government_has_flag = government_is_tribal }
+					# NOT = { religion = religion:islam_religion } #LotR
+				}
+			}
+		}
 		change_government = feudal_government
-	#}
+	}
+	# If you're an independent Muslim ruler - Become clan!
+	# else_if = { #LotR
+	# 	limit = {
+	# 		is_independent_ruler = yes
+	# 		# faith = { religion_tag = islam_religion }
+	# 	}
+	# 	change_government = clan_government
+	# }
+	# If you're an independent ruler with anything else - Become feudal!
+	else = { change_government = feudal_government }
+	
+	# Finally, let's double-check and see if there are any remaining family titles we should destroy
+	if = {
+		limit = {
+			any_held_title = {
+				is_noble_family_title = yes
+			}
+		}
+		every_held_title = {
+			limit = {
+				is_noble_family_title = yes
+			}
+			save_temporary_scope_as = family_title
+			prev = { destroy_title = scope:family_title }
+		}
+	}
 }
 
 ##################################################
@@ -4386,7 +4464,6 @@ gather_charioteers_effect = {
 					}
 				}
 			}
-
 		}
 
 		# Finalize the list of charioteers
@@ -4394,14 +4471,11 @@ gather_charioteers_effect = {
 		chariot_racers_setup_effect = { TEAM = blue }
 		chariot_racers_setup_effect = { TEAM = red }
 		chariot_racers_setup_effect = { TEAM = white }
-
-		# Fill spectators guest subset
+		# And filter everyone remaining to spectators.
 		every_attending_character = {
 			limit = {
 				NOT = {
-					is_in_guest_subset = {
-						name = charioteers
-					}
+					is_in_guest_subset = { name = charioteers }
 				}
 			}
 			save_scope_as = temp_character
@@ -5593,6 +5667,14 @@ disburse_chariot_race_activity_host_rewards = {
 							}
 						}
 						add_legitimacy = miniscule_legitimacy_gain
+						if = {
+							limit = { has_activity_intent = reduce_stress_intent }
+							stress_impact = {
+								base = major_stress_loss
+								athletic = miniscule_stress_loss
+								gregarious = miniscule_stress_loss
+							}
+						}
 						custom_tooltip = chariot_race_reward_high_county_opinion_tt
 					}
 					else_if = {
@@ -5602,6 +5684,14 @@ disburse_chariot_race_activity_host_rewards = {
 							}
 						}
 						add_legitimacy = 5
+						if = {
+							limit = { has_activity_intent = reduce_stress_intent }
+							stress_impact = {
+								base = medium_stress_loss
+								athletic = miniscule_stress_loss
+								gregarious = miniscule_stress_loss
+							}
+						}
 						custom_tooltip = chariot_race_reward_low_county_opinion_tt
 					}
 					else = {
@@ -5624,9 +5714,18 @@ disburse_chariot_race_activity_host_rewards = {
 							}
 						}
 						add_legitimacy = minor_legitimacy_gain
+						if = {
+							limit = { has_activity_intent = reduce_stress_intent }
+							stress_impact = {
+								base = massive_stress_loss
+								athletic = miniscule_stress_loss
+								gregarious = miniscule_stress_loss
+							}
+						}
 						capital_county = {
 							change_county_control = miniscule_county_control_gain
 						}
+
 						custom_tooltip = chariot_race_reward_high_county_opinion_tt
 					}
 					else_if = {
@@ -5636,6 +5735,14 @@ disburse_chariot_race_activity_host_rewards = {
 							}
 						}
 						add_legitimacy = 10
+						if = {
+							limit = { has_activity_intent = reduce_stress_intent }
+							stress_impact = {
+								base = major_stress_loss
+								athletic = miniscule_stress_loss
+								gregarious = miniscule_stress_loss
+							}
+						}
 						custom_tooltip = chariot_race_reward_low_county_opinion_tt
 					}
 					else = {
@@ -5664,6 +5771,14 @@ disburse_chariot_race_activity_host_rewards = {
 							}
 						}
 						add_legitimacy = medium_legitimacy_gain
+						if = {
+							limit = { has_activity_intent = reduce_stress_intent }
+							stress_impact = {
+								base = monumental_stress_loss
+								athletic = miniscule_stress_loss
+								gregarious = miniscule_stress_loss
+							}
+						}
 						capital_county = {
 							change_county_control = minor_county_control_gain
 						}
@@ -5676,6 +5791,14 @@ disburse_chariot_race_activity_host_rewards = {
 							}
 						}
 						add_legitimacy = miniscule_legitimacy_gain
+						if = {
+							limit = { has_activity_intent = reduce_stress_intent }
+							stress_impact = {
+								base = miniscule_stress_loss
+								athletic = massive_stress_loss
+								gregarious = miniscule_stress_loss
+							}
+						}
 						custom_tooltip = chariot_race_reward_low_county_opinion_tt
 					}
 					else = {
@@ -5724,6 +5847,14 @@ disburse_chariot_race_activity_spectator_rewards = {
 			}
 		}
 		change_influence = monumental_influence_gain
+		if = {
+			limit = { has_activity_intent = reduce_stress_intent }
+			stress_impact = {
+				base = monumental_stress_loss
+				athletic = miniscule_stress_loss
+				gregarious = miniscule_stress_loss
+			}
+		}
 	}
 	else_if = {
 		limit = {
@@ -5733,6 +5864,14 @@ disburse_chariot_race_activity_spectator_rewards = {
 			}
 		}
 		change_influence = massive_influence_gain
+		if = {
+			limit = { has_activity_intent = reduce_stress_intent }
+			stress_impact = {
+				base = massive_stress_loss
+				athletic = miniscule_stress_loss
+				gregarious = miniscule_stress_loss
+			}
+		}
 	}
 	else_if = {
 		limit = {
@@ -5742,6 +5881,22 @@ disburse_chariot_race_activity_spectator_rewards = {
 			}
 		}
 		change_influence = major_influence_gain
+		if = {
+			limit = { has_activity_intent = reduce_stress_intent }
+			stress_impact = {
+				base = massive_stress_loss
+				athletic = miniscule_stress_loss
+				gregarious = miniscule_stress_loss
+			}
+		}
+	}
+	else_if = {
+		limit = { has_activity_intent = reduce_stress_intent }
+		stress_impact = {
+			base = miniscule_stress_loss
+			athletic = major_stress_loss
+			gregarious = miniscule_stress_loss
+		}
 	}
 }
 
@@ -7386,7 +7541,7 @@ ep3_greek_fire_crit_fail_effect = {
 		}
 	}
 	#You lose the greek fire fleet modifier
-	# title:c_byzantion = {
+	# title:c_byzantion = { #LotR
 	# 	remove_county_modifier = defensive_fire_dromons_modifier
 	# }
 }
@@ -7801,7 +7956,7 @@ ep3_pick_random_maa_regiment_effect = {
 				}
 			}
 			# TRIBAL
-			# 1 = {
+			# 1 = { #LotR
 			# 	trigger = {
 			# 		culture = { has_innovation = innovation_elephantry }
 			# 	}
@@ -7810,7 +7965,7 @@ ep3_pick_random_maa_regiment_effect = {
 			# 		value = flag:war_elephant
 			# 	}
 			# }
-			# 1 = {
+			# 1 = { #LotR
 			# 	trigger = {
 			# 		culture = { has_innovation = innovation_war_camels }
 			# 	}
@@ -7890,7 +8045,7 @@ ep3_pick_random_maa_regiment_effect = {
 				}
 			}
 			# CULTURAL INNOVATIONS
-			# 1 = {
+			# 1 = { #LotR
 			# 	trigger = {
 			# 		culture = { has_innovation = innovation_bamboo_bows }
 			# 	}
@@ -7899,7 +8054,7 @@ ep3_pick_random_maa_regiment_effect = {
 			# 		value = flag:paiks
 			# 	}
 			# }
-			# 1 = {
+			# 1 = { #LotR
 			# 	trigger = {
 			# 		culture = { has_innovation = innovation_zweihanders }
 			# 	}
@@ -7908,7 +8063,7 @@ ep3_pick_random_maa_regiment_effect = {
 			# 		value = flag:landsknecht
 			# 	}
 			# }
-			# 1 = {
+			# 1 = { #LotR
 			# 	trigger = {
 			# 		culture = { has_innovation = innovation_adaptive_militia }
 			# 	}
@@ -7917,7 +8072,7 @@ ep3_pick_random_maa_regiment_effect = {
 			# 		value = flag:goedendag
 			# 	}
 			# }
-			# 1 = {
+			# 1 = { #LotR
 			# 	trigger = {
 			# 		culture = { has_innovation = innovation_valets }
 			# 	}
@@ -7926,7 +8081,7 @@ ep3_pick_random_maa_regiment_effect = {
 			# 		value = flag:gendarme
 			# 	}
 			# }
-			# 1 = {
+			# 1 = { #LotR
 			# 	trigger = {
 			# 		culture = { has_innovation = innovation_pike_columns }
 			# 	}
@@ -7935,7 +8090,7 @@ ep3_pick_random_maa_regiment_effect = {
 			# 		value = flag:picchieri
 			# 	}
 			# }
-			# 1 = {
+			# 1 = { #LotR
 			# 	trigger = {
 			# 		culture = { has_innovation = innovation_legionnaires }
 			# 	}
@@ -7944,7 +8099,7 @@ ep3_pick_random_maa_regiment_effect = {
 			# 		value = flag:praetorian
 			# 	}
 			# }
-			# 1 = {
+			# 1 = { #LotR
 			# 	trigger = {
 			# 		culture = { has_innovation = innovation_desert_tactics }
 			# 	}
@@ -7953,7 +8108,7 @@ ep3_pick_random_maa_regiment_effect = {
 			# 		value = flag:chasseur
 			# 	}
 			# }
-			# 1 = {
+			# 1 = { #LotR
 			# 	trigger = {
 			# 		culture = { has_innovation = innovation_caballeros }
 			# 	}
@@ -7962,7 +8117,7 @@ ep3_pick_random_maa_regiment_effect = {
 			# 		value = flag:caballero
 			# 	}
 			# }
-			# 1 = {
+			# 1 = { #LotR
 			# 	trigger = {
 			# 		culture = { has_innovation = innovation_hobbies }
 			# 	}
@@ -7971,7 +8126,7 @@ ep3_pick_random_maa_regiment_effect = {
 			# 		value = flag:hobelar
 			# 	}
 			# }
-			# 1 = {
+			# 1 = { #LotR
 			# 	trigger = {
 			# 		culture = { has_innovation = innovation_rectilinear_schiltron }
 			# 	}
@@ -7980,7 +8135,7 @@ ep3_pick_random_maa_regiment_effect = {
 			# 		value = flag:schiltron
 			# 	}
 			# }
-			# 1 = {
+			# 1 = { #LotR
 			# 	trigger = {
 			# 		culture = { has_innovation = innovation_sahel_horsemen }
 			# 	}
@@ -7989,7 +8144,7 @@ ep3_pick_random_maa_regiment_effect = {
 			# 		value = flag:sahel_horsemen
 			# 	}
 			# }
-			# 1 = {
+			# 1 = { #LotR
 			# 	trigger = {
 			# 		culture = { has_innovation = innovation_sarawit }
 			# 	}
@@ -7998,7 +8153,7 @@ ep3_pick_random_maa_regiment_effect = {
 			# 		value = flag:sarawit
 			# 	}
 			# }
-			# 1 = {
+			# 1 = { #LotR
 			# 	trigger = {
 			# 		culture = { has_innovation = innovation_repeating_crossbow }
 			# 	}
@@ -8007,7 +8162,7 @@ ep3_pick_random_maa_regiment_effect = {
 			# 		value = flag:chu_ko_nu
 			# 	}
 			# }
-			# 1 = {
+			# 1 = { #LotR
 			# 	trigger = {
 			# 		culture = { has_innovation = innovation_pole_vault }
 			# 	}
@@ -8016,7 +8171,7 @@ ep3_pick_random_maa_regiment_effect = {
 			# 		value = flag:guanch_vaulter
 			# 	}
 			# }
-			# 1 = {
+			# 1 = { #LotR
 			# 	trigger = {
 			# 		culture = { has_cultural_parameter = unlock_maa_huscarls }
 			# 	}
@@ -8025,16 +8180,16 @@ ep3_pick_random_maa_regiment_effect = {
 			# 		value = flag:huscarl
 			# 	}
 			# }
-			1 = {
-				trigger = {
-					culture = { has_cultural_parameter = unlock_maa_longbowmen }
-				}
-				save_scope_value_as = {
-					name = maa_to_create
-					value = flag:longbowmen
-				}
-			}
-			# 1 = {
+			# 1 = { #LotR
+			# 	trigger = {
+			# 		culture = { has_cultural_parameter = unlock_maa_longbowmen }
+			# 	}
+			# 	save_scope_value_as = {
+			# 		name = maa_to_create
+			# 		value = flag:longbowmen
+			# 	}
+			# }
+			# 1 = { #LotR
 			# 	trigger = {
 			# 		culture = { has_cultural_parameter = unlock_maa_monaspa }
 			# 	}
@@ -8043,7 +8198,7 @@ ep3_pick_random_maa_regiment_effect = {
 			# 		value = flag:monaspa
 			# 	}
 			# }
-			# 1 = {
+			# 1 = { #LotR
 			# 	trigger = {
 			# 		culture = { has_cultural_parameter = unlock_maa_cataphract }
 			# 	}
@@ -8052,7 +8207,7 @@ ep3_pick_random_maa_regiment_effect = {
 			# 		value = flag:cataphract
 			# 	}
 			# }
-			# 1 = {
+			# 1 = { #LotR
 			# 	trigger = {
 			# 		culture = { has_cultural_parameter = unlock_maa_metsanvartija }
 			# 	}
@@ -8061,7 +8216,7 @@ ep3_pick_random_maa_regiment_effect = {
 			# 		value = flag:metsanvartija
 			# 	}
 			# }
-			# 1 = {
+			# 1 = { #LotR
 			# 	trigger = {
 			# 		culture = { has_cultural_parameter = unlock_maa_horse_archers }
 			# 	}
@@ -8070,7 +8225,7 @@ ep3_pick_random_maa_regiment_effect = {
 			# 		value = flag:horse_archers
 			# 	}
 			# }
-			# 1 = {
+			# 1 = { #LotR
 			# 	trigger = {
 			# 		culture = { has_cultural_parameter = unlock_maa_ayyar }
 			# 	}
@@ -8079,7 +8234,7 @@ ep3_pick_random_maa_regiment_effect = {
 			# 		value = flag:ayyar
 			# 	}
 			# }
-			# 1 = {
+			# 1 = { #LotR
 			# 	trigger = {
 			# 		culture = { has_cultural_parameter = unlock_maa_mubarizun }
 			# 	}
@@ -8088,7 +8243,7 @@ ep3_pick_random_maa_regiment_effect = {
 			# 		value = flag:mubarizun
 			# 	}
 			# }
-			# 1 = {
+			# 1 = { #LotR
 			# 	trigger = {
 			# 		culture = { has_cultural_parameter = unlock_maa_mulaththamun }
 			# 	}
@@ -8097,7 +8252,7 @@ ep3_pick_random_maa_regiment_effect = {
 			# 		value = flag:mulaththamun
 			# 	}
 			# }
-			# 1 = {
+			# 1 = { #LotR
 			# 	trigger = {
 			# 		culture = { has_cultural_parameter = unlock_maa_archers_of_the_nile }
 			# 	}
@@ -8106,7 +8261,7 @@ ep3_pick_random_maa_regiment_effect = {
 			# 		value = flag:archers_of_the_nile
 			# 	}
 			# }
-			# 1 = {
+			# 1 = { #LotR
 			# 	trigger = {
 			# 		culture = { has_cultural_parameter = unlock_maa_druzhina }
 			# 	}
@@ -8115,7 +8270,7 @@ ep3_pick_random_maa_regiment_effect = {
 			# 		value = flag:druzhina
 			# 	}
 			# }
-			# 1 = {
+			# 1 = { #LotR
 			# 	trigger = {
 			# 		culture = { has_cultural_parameter = unlock_maa_hussar }
 			# 	}
@@ -8124,7 +8279,7 @@ ep3_pick_random_maa_regiment_effect = {
 			# 		value = flag:hussar
 			# 	}
 			# }
-			# 1 = {
+			# 1 = { #LotR
 			# 	trigger = {
 			# 		culture = { has_cultural_parameter = unlock_maa_horn_warrior }
 			# 	}
@@ -8133,7 +8288,7 @@ ep3_pick_random_maa_regiment_effect = {
 			# 		value = flag:horn_warrior
 			# 	}
 			# }
-			# 1 = {
+			# 1 = { #LotR
 			# 	trigger = {
 			# 		culture = { has_cultural_parameter = unlock_maa_bush_hunter }
 			# 	}
@@ -8142,7 +8297,7 @@ ep3_pick_random_maa_regiment_effect = {
 			# 		value = flag:bush_hunter
 			# 	}
 			# }
-			# 1 = {
+			# 1 = { #LotR
 			# 	trigger = {
 			# 		culture = { has_cultural_parameter = unlock_maa_shomer }
 			# 	}
@@ -8151,7 +8306,7 @@ ep3_pick_random_maa_regiment_effect = {
 			# 		value = flag:shomer
 			# 	}
 			# }
-			# 1 = {
+			# 1 = { #LotR
 			# 	trigger = {
 			# 		culture = { has_cultural_parameter = unlock_maa_garudas }
 			# 	}
@@ -8160,7 +8315,7 @@ ep3_pick_random_maa_regiment_effect = {
 			# 		value = flag:garudas
 			# 	}
 			# }
-			# 1 = {
+			# 1 = { #LotR
 			# 	trigger = {
 			# 		culture = { has_cultural_parameter = unlock_maa_khandayat }
 			# 	}
@@ -8169,7 +8324,7 @@ ep3_pick_random_maa_regiment_effect = {
 			# 		value = flag:khandayat
 			# 	}
 			# }
-			# 1 = {
+			# 1 = { #LotR
 			# 	trigger = {
 			# 		culture = { has_cultural_parameter = unlock_maa_mountaineer }
 			# 	}
@@ -8178,7 +8333,7 @@ ep3_pick_random_maa_regiment_effect = {
 			# 		value = flag:mountaineer
 			# 	}
 			# }
-			# 1 = {
+			# 1 = { #LotR
 			# 	trigger = {
 			# 		culture = { has_cultural_parameter = unlock_maa_guinea_warrior }
 			# 	}
@@ -8187,7 +8342,7 @@ ep3_pick_random_maa_regiment_effect = {
 			# 		value = flag:guinea_warrior
 			# 	}
 			# }
-			# 1 = {
+			# 1 = { #LotR
 			# 	trigger = {
 			# 		culture = { has_cultural_parameter = unlock_maa_abudrar }
 			# 	}
@@ -8196,7 +8351,7 @@ ep3_pick_random_maa_regiment_effect = {
 			# 		value = flag:abudrar
 			# 	}
 			# }
-			# 1 = {
+			# 1 = { #LotR
 			# 	trigger = {
 			# 		culture = { has_cultural_parameter = unlock_maa_zbrojnosh }
 			# 	}
@@ -8205,7 +8360,7 @@ ep3_pick_random_maa_regiment_effect = {
 			# 		value = flag:zbrojnosh
 			# 	}
 			# }
-			# 1 = {
+			# 1 = { #LotR
 			# 	trigger = {
 			# 		culture = { has_cultural_parameter = unlock_maa_palace_guards }
 			# 	}
@@ -8226,7 +8381,7 @@ ep3_pick_random_maa_regiment_effect = {
 					value = flag:asawira
 				}
 			}
-			# 1 = {
+			# 1 = { #LotR
 			# 	trigger = {
 			# 		culture = { has_cultural_parameter = unlock_maa_tarkhan }
 			# 	}
@@ -8235,7 +8390,7 @@ ep3_pick_random_maa_regiment_effect = {
 			# 		value = flag:tarkhan
 			# 	}
 			# }
-			# 1 = {
+			# 1 = { #LotR
 			# 	trigger = {
 			# 		culture = { has_cultural_parameter = unlock_maa_zupin_warrior }
 			# 	}
@@ -8244,7 +8399,7 @@ ep3_pick_random_maa_regiment_effect = {
 			# 		value = flag:zupin_warrior
 			# 	}
 			# }
-			# 1 = {
+			# 1 = { #LotR
 			# 	trigger = {
 			# 		culture = { has_cultural_parameter = unlock_maa_tawashi }
 			# 	}
@@ -8477,7 +8632,7 @@ ep3_pick_random_maa_regiment_effect = {
 					value = flag:skoutatoi
 				}
 			}
-			# 1 = {
+			# 1 = { #LotR
 			# 	trigger = {
 			# 		exists = scope:title
 			# 		scope:title = title:e_byzantium
@@ -8561,10 +8716,10 @@ ep3_create_random_maa_regiment_effect = {
 					SIZE = $SIZE$
 				}
 			}
-			# flag:war_elephant = {	#LotR
+			# flag:war_elephant = {	 #LotR
 			# 	create_maa_or_upgrade_regiment_effect = {
-			# 		type = war_elephant
-			# 		size = $SIZE$
+			# 		TYPE = war_elephant
+			# 		SIZE = $SIZE$
 			# 	}
 			# }
 			flag:camel_rider = {	
@@ -8615,118 +8770,118 @@ ep3_create_random_maa_regiment_effect = {
 					SIZE = $SIZE$
 				}
 			}
-			# flag:paiks = { #LotR	
+			# flag:paiks = { #LotR
 			# 	create_maa_or_upgrade_regiment_effect = {
-			# 		type = paiks
-			# 		size = $SIZE$
+			# 		TYPE = paiks
+			# 		SIZE = $SIZE$
 			# 	}
 			# }
-			# flag:landsknecht = {	
+			# flag:landsknecht = { #LotR
 			# 	create_maa_or_upgrade_regiment_effect = {
-			# 		type = landsknecht
-			# 		size = $SIZE$
+			# 		TYPE = landsknecht
+			# 		SIZE = $SIZE$
 			# 	}
 			# }
-			# flag:goedendag = {	
+			# flag:goedendag = { #LotR
 			# 	create_maa_or_upgrade_regiment_effect = {
-			# 		type = goedendag
-			# 		size = $SIZE$
+			# 		TYPE = goedendag
+			# 		SIZE = $SIZE$
 			# 	}
 			# }
-			# flag:gendarme = {	
+			# flag:gendarme = { #LotR
 			# 	create_maa_or_upgrade_regiment_effect = {
-			# 		type = gendarme
-			# 		size = $SIZE$
+			# 		TYPE = gendarme
+			# 		SIZE = $SIZE$
 			# 	}
 			# }
-			# flag:picchieri = {	
+			# flag:picchieri = { #LotR
 			# 	create_maa_or_upgrade_regiment_effect = {
-			# 		type = picchieri
-			# 		size = $SIZE$
+			# 		TYPE = picchieri
+			# 		SIZE = $SIZE$
 			# 	}
 			# }
-			# flag:praetorian = {	
+			# flag:praetorian = { #LotR
 			# 	create_maa_or_upgrade_regiment_effect = {
-			# 		type = praetorian
-			# 		size = $SIZE$
+			# 		TYPE = praetorian
+			# 		SIZE = $SIZE$
 			# 	}
 			# }
-			# flag:chasseur = {	
+			# flag:chasseur = { #LotR
 			# 	create_maa_or_upgrade_regiment_effect = {
-			# 		type = chasseur
-			# 		size = $SIZE$
+			# 		TYPE = chasseur
+			# 		SIZE = $SIZE$
 			# 	}
 			# }
-			# flag:caballero = {	
+			# flag:caballero = { #LotR
 			# 	create_maa_or_upgrade_regiment_effect = {
-			# 		type = caballero
-			# 		size = $SIZE$
+			# 		TYPE = caballero
+			# 		SIZE = $SIZE$
 			# 	}
 			# }
-			# flag:hobelar = {	
+			# flag:hobelar = { #LotR
 			# 	create_maa_or_upgrade_regiment_effect = {
-			# 		type = hobelar
-			# 		size = $SIZE$
+			# 		TYPE = hobelar
+			# 		SIZE = $SIZE$
 			# 	}
 			# }
-			# flag:schiltron = {	
+			# flag:schiltron = { #LotR
 			# 	create_maa_or_upgrade_regiment_effect = {
-			# 		type = schiltron
-			# 		size = $SIZE$
+			# 		TYPE = schiltron
+			# 		SIZE = $SIZE$
 			# 	}
 			# }
-			# flag:sahel_horsemen = {	
+			# flag:sahel_horsemen = { #LotR	
 			# 	create_maa_or_upgrade_regiment_effect = {
-			# 		type = sahel_horsemen
-			# 		size = $SIZE$
+			# 		TYPE = sahel_horsemen
+			# 		SIZE = $SIZE$
 			# 	}
 			# }
-			# flag:sarawit = {	
+			# flag:sarawit = { #LotR
 			# 	create_maa_or_upgrade_regiment_effect = {
-			# 		type = sarawit
-			# 		size = $SIZE$
+			# 		TYPE = sarawit
+			# 		SIZE = $SIZE$
 			# 	}
 			# }
-			# flag:chu_ko_nu = {	
+			# flag:chu_ko_nu = { #LotR
 			# 	create_maa_or_upgrade_regiment_effect = {
-			# 		type = chu_ko_nu
-			# 		size = $SIZE$
+			# 		TYPE = chu_ko_nu
+			# 		SIZE = $SIZE$
 			# 	}
 			# }
-			# flag:guanch_vaulter = {
+			# flag:guanch_vaulter = { #LotR	
 			# 	create_maa_or_upgrade_regiment_effect = {
-			# 		type = guanch_vaulter
-			# 		size = $SIZE$
+			# 		TYPE = guanch_vaulter
+			# 		SIZE = $SIZE$
 			# 	}
 			# }
-			# flag:huscarl = {	
+			# flag:huscarl = { #LotR
 			# 	create_maa_or_upgrade_regiment_effect = {
-			# 		type = huscarl
-			# 		size = $SIZE$
+			# 		TYPE = huscarl
+			# 		SIZE = $SIZE$
 			# 	}
 			# }
-			# flag:longbowmen = {	
+			# flag:longbowmen = { #LotR
 			# 	create_maa_or_upgrade_regiment_effect = {
-			# 		type = longbowmen
-			# 		size = $SIZE$
+			# 		TYPE = longbowmen
+			# 		SIZE = $SIZE$
 			# 	}
 			# }
-			# flag:monaspa = { #LotR	
+			# flag:monaspa = { #LotR
 			# 	create_maa_or_upgrade_regiment_effect = {
-			# 		type = monaspa
-			# 		size = $SIZE$
+			# 		TYPE = monaspa
+			# 		SIZE = $SIZE$
 			# 	}
 			# }
-			# flag:cataphract = {	
+			# flag:cataphract = { #LotR
 			# 	create_maa_or_upgrade_regiment_effect = {
-			# 		type = cataphract
-			# 		size = $SIZE$
+			# 		TYPE = cataphract
+			# 		SIZE = $SIZE$
 			# 	}
 			# }
-			# flag:metsanvartija = {	
+			# flag:metsanvartija = { #LotR
 			# 	create_maa_or_upgrade_regiment_effect = {
-			# 		type = metsanvartija
-			# 		size = $SIZE$
+			# 		TYPE = metsanvartija
+			# 		SIZE = $SIZE$
 			# 	}
 			# }
 			flag:horse_archers = {	
@@ -8737,122 +8892,122 @@ ep3_create_random_maa_regiment_effect = {
 			}
 			# flag:ayyar = { #LotR
 			# 	create_maa_or_upgrade_regiment_effect = {
-			# 		type = ayyar
-			# 		size = $SIZE$
+			# 		TYPE = ayyar
+			# 		SIZE = $SIZE$
 			# 	}
 			# }
-			# flag:mubarizun = {	
+			# flag:mubarizun = { #LotR	
 			# 	create_maa_or_upgrade_regiment_effect = {
-			# 		type = mubarizun
-			# 		size = $SIZE$
+			# 		TYPE = mubarizun
+			# 		SIZE = $SIZE$
 			# 	}
 			# }
-			# flag:mulaththamun = {	
+			# flag:mulaththamun = { #LotR
 			# 	create_maa_or_upgrade_regiment_effect = {
-			# 		type = mulaththamun
-			# 		size = $SIZE$
+			# 		TYPE = mulaththamun
+			# 		SIZE = $SIZE$
 			# 	}
 			# }
-			# flag:archers_of_the_nile = {	
+			# flag:archers_of_the_nile = { #LotR	
 			# 	create_maa_or_upgrade_regiment_effect = {
-			# 		type = archers_of_the_nile
-			# 		size = $SIZE$
+			# 		TYPE = archers_of_the_nile
+			# 		SIZE = $SIZE$
 			# 	}
 			# }
-			# flag:druzhina = {	
+			# flag:druzhina = { #LotR
 			# 	create_maa_or_upgrade_regiment_effect = {
-			# 		type = druzhina
-			# 		size = $SIZE$
+			# 		TYPE = druzhina
+			# 		SIZE = $SIZE$
 			# 	}
 			# }
-			# flag:hussar = {	
+			# flag:hussar = { #LotR
 			# 	create_maa_or_upgrade_regiment_effect = {
-			# 		type = hussar
-			# 		size = $SIZE$
+			# 		TYPE = hussar
+			# 		SIZE = $SIZE$
 			# 	}
 			# }
-			# flag:horn_warrior = {	
+			# flag:horn_warrior = { #LotR	
 			# 	create_maa_or_upgrade_regiment_effect = {
-			# 		type = horn_warrior
-			# 		size = $SIZE$
+			# 		TYPE = horn_warrior
+			# 		SIZE = $SIZE$
 			# 	}
 			# }
-			# flag:bush_hunter = {	
+			# flag:bush_hunter = { #LotR	
 			# 	create_maa_or_upgrade_regiment_effect = {
-			# 		type = bush_hunter
-			# 		size = $SIZE$
+			# 		TYPE = bush_hunter
+			# 		SIZE = $SIZE$
 			# 	}
 			# }
-			# flag:shomer = {	
+			# flag:shomer = { #LotR
 			# 	create_maa_or_upgrade_regiment_effect = {
-			# 		type = shomer
-			# 		size = $SIZE$
+			# 		TYPE = shomer
+			# 		SIZE = $SIZE$
 			# 	}
 			# }
-			# flag:garudas = {	
+			# flag:garudas = { #LotR
 			# 	create_maa_or_upgrade_regiment_effect = {
-			# 		type = garudas
-			# 		size = $SIZE$
+			# 		TYPE = garudas
+			# 		SIZE = $SIZE$
 			# 	}
 			# }
-			# flag:khandayat = {	
+			# flag:khandayat = { #LotR
 			# 	create_maa_or_upgrade_regiment_effect = {
-			# 		type = khandayat
-			# 		size = $SIZE$
+			# 		TYPE = khandayat
+			# 		SIZE = $SIZE$
 			# 	}
 			# }
-			# flag:mountaineer = {	
+			# flag:mountaineer = { #LotR
 			# 	create_maa_or_upgrade_regiment_effect = {
-			# 		type = mountaineer
-			# 		size = $SIZE$
+			# 		TYPE = mountaineer
+			# 		SIZE = $SIZE$
 			# 	}
 			# }
-			# flag:guinea_warrior = {	
+			# flag:guinea_warrior = { #LotR
 			# 	create_maa_or_upgrade_regiment_effect = {
-			# 		type = guinea_warrior
-			# 		size = $SIZE$
+			# 		TYPE = guinea_warrior
+			# 		SIZE = $SIZE$
 			# 	}
 			# }
-			# flag:abudrar = {	
+			# flag:abudrar = { #LotR
 			# 	create_maa_or_upgrade_regiment_effect = {
-			# 		type = abudrar
-			# 		size = $SIZE$
+			# 		TYPE = abudrar
+			# 		SIZE = $SIZE$
 			# 	}
 			# }
-			# flag:zbrojnosh = {	
+			# flag:zbrojnosh = { #LotR
 			# 	create_maa_or_upgrade_regiment_effect = {
-			# 		type = zbrojnosh
-			# 		size = $SIZE$
+			# 		TYPE = zbrojnosh
+			# 		SIZE = $SIZE$
 			# 	}
 			# }
-			# flag:palace_guards = {	
+			# flag:palace_guards = { #LotR	
 			# 	create_maa_or_upgrade_regiment_effect = {
-			# 		type = palace_guards
-			# 		size = $SIZE$
+			# 		TYPE = palace_guards
+			# 		SIZE = $SIZE$
 			# 	}
 			# }
-			# flag:asawira = {	
+			# flag:asawira = { #LotR
 			# 	create_maa_or_upgrade_regiment_effect = {
-			# 		type = asawira
-			# 		size = $SIZE$
+			# 		TYPE = asawira
+			# 		SIZE = $SIZE$
 			# 	}
 			# }
-			# flag:tarkhan = {	
+			# flag:tarkhan = { #LotR
 			# 	create_maa_or_upgrade_regiment_effect = {
-			# 		type = tarkhan
-			# 		size = $SIZE$
+			# 		TYPE = tarkhan
+			# 		SIZE = $SIZE$
 			# 	}
 			# }
-			# flag:zupin_warrior = {	
+			# flag:zupin_warrior = { #LotR	
 			# 	create_maa_or_upgrade_regiment_effect = {
-			# 		type = zupin_warrior
-			# 		size = $SIZE$
+			# 		TYPE = zupin_warrior
+			# 		SIZE = $SIZE$
 			# 	}
 			# }
-			# flag:tawashi = {	
+			# flag:tawashi = { #LotR
 			# 	create_maa_or_upgrade_regiment_effect = {
-			# 		type = tawashi
-			# 		size = $SIZE$
+			# 		TYPE = tawashi
+			# 		SIZE = $SIZE$
 			# 	}
 			# }
 			flag:house_guard = {	
@@ -9109,10 +9264,10 @@ hasan_sabbah_ignite_decision_effect = {
 		}
 		spawn_army = {
 			name = hasan_fanatics
-			#men_at_arms = {
-			#	type = asawira
-			#	stacks = 1
-			#}
+			# men_at_arms = { #LotR
+			# 	type = asawira
+			# 	stacks = 1
+			# }
 			levies = hasan_sabbah_event_troops_value
 			inheritable = yes
 			location = root.domicile.domicile_location
@@ -9120,10 +9275,10 @@ hasan_sabbah_ignite_decision_effect = {
 		}
 		spawn_army = {
 			name = hasan_fanatics
-			#men_at_arms = {
-			#	type = asawira
-			#	stacks = 1
-			#}
+			# men_at_arms = { #LotR
+			# 	type = asawira
+			# 	stacks = 1
+			# }
 			levies = hasan_sabbah_event_troops_value
 			inheritable = yes
 			location = root.domicile.domicile_location
@@ -9131,10 +9286,10 @@ hasan_sabbah_ignite_decision_effect = {
 		}
 		spawn_army = {
 			name = hasan_fanatics
-			#men_at_arms = {
-			#	type = ayyar
-			#	stacks = 1
-			#}
+			# men_at_arms = { #LotR
+			# 	type = ayyar
+			# 	stacks = 1
+			# }
 			levies = hasan_sabbah_event_troops_value
 			inheritable = yes
 			location = root.domicile.domicile_location
@@ -9142,10 +9297,10 @@ hasan_sabbah_ignite_decision_effect = {
 		}
 		spawn_army = {
 			name = hasan_fanatics
-			#men_at_arms = {
-			#	type = ayyar
-			#	stacks = 1
-			#}
+			# men_at_arms = { #LotR
+			# 	type = ayyar
+			# 	stacks = 1
+			# }
 			levies = hasan_sabbah_event_troops_value
 			inheritable = yes
 			location = root.domicile.domicile_location
@@ -9153,10 +9308,10 @@ hasan_sabbah_ignite_decision_effect = {
 		}
 		spawn_army = {
 			name = hasan_fanatics
-			#men_at_arms = {
-			#	type = ayyar
-			#	stacks = 1
-			#}
+			# men_at_arms = { #LotR
+			# 	type = ayyar
+			# 	stacks = 1
+			# }
 			levies = hasan_sabbah_event_troops_value
 			inheritable = yes
 			location = root.domicile.domicile_location
@@ -9169,14 +9324,14 @@ hasan_sabbah_ignite_decision_effect = {
 		}
 		spawn_army = {
 			name = hasan_fanatics
-			#men_at_arms = {
-			#	type = asawira
-			#	stacks = 1
-			#}
-			#men_at_arms = {
-			#	type = ayyar
-			#	stacks = 1
-			#}
+			# men_at_arms = { #LotR
+			# 	type = asawira
+			# 	stacks = 1
+			# }
+			# men_at_arms = { #LotR
+			# 	type = ayyar
+			# 	stacks = 1
+			# }
 			levies = hasan_sabbah_event_troops_value
 			inheritable = yes
 			location = root.domicile.domicile_location
@@ -9184,14 +9339,14 @@ hasan_sabbah_ignite_decision_effect = {
 		}
 		spawn_army = {
 			name = hasan_fanatics
-			#men_at_arms = {
-			#	type = asawira
-			#	stacks = 1
-			#}
-			#men_at_arms = {
-			#	type = ayyar
-			#	stacks = 1
-			#}
+			# men_at_arms = { #LotR
+			# 	type = asawira
+			# 	stacks = 1
+			# }
+			# men_at_arms = { #LotR
+			# 	type = ayyar
+			# 	stacks = 1
+			# }
 			levies = hasan_sabbah_event_troops_value
 			inheritable = yes
 			location = root.domicile.domicile_location
@@ -9199,14 +9354,14 @@ hasan_sabbah_ignite_decision_effect = {
 		}
 		spawn_army = {
 			name = hasan_fanatics
-			#men_at_arms = {
-			#	type = asawira
-			#	stacks = 1
-			#}
-			#men_at_arms = {
-			#	type = ayyar
-			#	stacks = 1
-			#}
+			# men_at_arms = { #LotR
+			# 	type = asawira
+			# 	stacks = 1
+			# }
+			# men_at_arms = { #LotR
+			# 	type = ayyar
+			# 	stacks = 1
+			# }
 			levies = hasan_sabbah_event_troops_value
 			inheritable = yes
 			location = root.domicile.domicile_location
@@ -9214,14 +9369,14 @@ hasan_sabbah_ignite_decision_effect = {
 		}
 		spawn_army = {
 			name = hasan_fanatics
-			#men_at_arms = {
-			#	type = asawira
-			#	stacks = 1
-			#}
-			#men_at_arms = {
-			#	type = ayyar
-			#	stacks = 1
-			#}
+			# men_at_arms = { #LotR
+			# 	type = asawira
+			# 	stacks = 1
+			# }
+			# men_at_arms = { #LotR
+			# 	type = ayyar
+			# 	stacks = 1
+			# }
 			levies = hasan_sabbah_event_troops_value
 			inheritable = yes
 			location = root.domicile.domicile_location
@@ -9229,10 +9384,10 @@ hasan_sabbah_ignite_decision_effect = {
 		}
 		spawn_army = {
 			name = hasan_fanatics
-			#men_at_arms = {
-			#	type = ayyar
-			#	stacks = 2
-			#}
+			# men_at_arms = { #LotR
+			# 	type = ayyar
+			# 	stacks = 2
+			# }
 			levies = hasan_sabbah_event_troops_value
 			inheritable = yes
 			location = root.domicile.domicile_location
@@ -9245,14 +9400,14 @@ hasan_sabbah_ignite_decision_effect = {
 		}
 		spawn_army = {
 			name = hasan_fanatics
-			#men_at_arms = {
-			#	type = asawira
-			#	stacks = 1
-			#}
-			#men_at_arms = {
-			#	type = ayyar
-			#	stacks = 2
-			#}
+			# men_at_arms = { #LotR
+			# 	type = asawira
+			# 	stacks = 1
+			# }
+			# men_at_arms = {
+			# 	type = ayyar
+			# 	stacks = 2
+			# }
 			levies = hasan_sabbah_event_troops_value
 			inheritable = yes
 			location = root.domicile.domicile_location
@@ -9260,14 +9415,14 @@ hasan_sabbah_ignite_decision_effect = {
 		}
 		spawn_army = {
 			name = hasan_fanatics
-			#men_at_arms = {
-			#	type = asawira
-			#	stacks = 1
-			#}
-			#men_at_arms = {
-			#	type = ayyar
-			#	stacks = 2
-			#}
+			# men_at_arms = { #LotR
+			# 	type = asawira
+			# 	stacks = 1
+			# }
+			# men_at_arms = { #LotR
+			# 	type = ayyar
+			# 	stacks = 2
+			# }
 			levies = hasan_sabbah_event_troops_value
 			inheritable = yes
 			location = root.domicile.domicile_location
@@ -9275,14 +9430,14 @@ hasan_sabbah_ignite_decision_effect = {
 		}
 		spawn_army = {
 			name = hasan_fanatics
-			#men_at_arms = {
-			#	type = asawira
-			#	stacks = 1
-			#}
-			#men_at_arms = {
-			#	type = ayyar
-			#	stacks = 2
-			#}
+			# men_at_arms = { #LotR
+			# 	type = asawira
+			# 	stacks = 1
+			# }
+			# men_at_arms = { #LotR
+			# 	type = ayyar
+			# 	stacks = 2
+			# }
 			levies = hasan_sabbah_event_troops_value
 			inheritable = yes
 			location = root.domicile.domicile_location
@@ -9290,14 +9445,14 @@ hasan_sabbah_ignite_decision_effect = {
 		}
 		spawn_army = {
 			name = hasan_fanatics
-			#men_at_arms = {
-			#	type = asawira
-			#	stacks = 1
-			#}
-			#men_at_arms = {
-			#	type = ayyar
-			#	stacks = 2
-			#}
+			# men_at_arms = { #LotR
+			# 	type = asawira
+			# 	stacks = 1
+			# }
+			# men_at_arms = { #LotR
+			# 	type = ayyar
+			# 	stacks = 2
+			# }
 			levies = hasan_sabbah_event_troops_value
 			inheritable = yes
 			location = root.domicile.domicile_location
@@ -9305,14 +9460,14 @@ hasan_sabbah_ignite_decision_effect = {
 		}
 		spawn_army = {
 			name = hasan_fanatics
-			#men_at_arms = {
-			#	type = asawira
-			#	stacks = 1
-			#}
-			#men_at_arms = {
-			#	type = ayyar
-			#	stacks = 2
-			#}
+			# men_at_arms = { #LotR
+			# 	type = asawira
+			# 	stacks = 1
+			# }
+			# men_at_arms = { #LotR
+			# 	type = ayyar
+			# 	stacks = 2
+			# }
 			levies = hasan_sabbah_event_troops_value
 			inheritable = yes
 			location = root.domicile.domicile_location
@@ -9325,14 +9480,14 @@ hasan_sabbah_ignite_decision_effect = {
 		}
 		spawn_army = {
 			name = hasan_fanatics
-			#men_at_arms = {
-			#	type = asawira
-			#	stacks = 2
-			#}
-			#men_at_arms = {
-			#	type = ayyar
-			#	stacks = 2
-			#}
+			# men_at_arms = { #LotR
+			# 	type = asawira
+			# 	stacks = 2
+			# }
+			# men_at_arms = { #LotR
+			# 	type = ayyar
+			# 	stacks = 2
+			# }
 			levies = hasan_sabbah_event_troops_value
 			inheritable = yes
 			location = root.domicile.domicile_location
@@ -9340,14 +9495,14 @@ hasan_sabbah_ignite_decision_effect = {
 		}
 		spawn_army = {
 			name = hasan_fanatics
-			#men_at_arms = {
-			#	type = asawira
-			#	stacks = 2
-			#}
-			#men_at_arms = {
-			#	type = ayyar
-			#	stacks = 2
-			#}
+			# men_at_arms = { #LotR
+			# 	type = asawira
+			# 	stacks = 2
+			# }
+			# men_at_arms = { #LotR
+			# 	type = ayyar
+			# 	stacks = 2
+			# }
 			levies = hasan_sabbah_event_troops_value
 			inheritable = yes
 			location = root.domicile.domicile_location
@@ -9355,14 +9510,14 @@ hasan_sabbah_ignite_decision_effect = {
 		}
 		spawn_army = {
 			name = hasan_fanatics
-			#men_at_arms = {
-			#	type = asawira
-			#	stacks = 2
-			#}
-			#men_at_arms = {
-			#	type = ayyar
-			#	stacks = 2
-			#}
+			# men_at_arms = { #LotR
+			# 	type = asawira
+			# 	stacks = 2
+			# }
+			# men_at_arms = { #LotR
+			# 	type = ayyar
+			# 	stacks = 2
+			# }
 			levies = hasan_sabbah_event_troops_value
 			inheritable = yes
 			location = root.domicile.domicile_location
@@ -9370,14 +9525,14 @@ hasan_sabbah_ignite_decision_effect = {
 		}
 		spawn_army = {
 			name = hasan_fanatics
-			#men_at_arms = {
-			#	type = asawira
-			#	stacks = 2
-			#}
-			#men_at_arms = {
-			#	type = ayyar
-			#	stacks = 2
-			#}
+			# men_at_arms = { #LotR
+			# 	type = asawira
+			# 	stacks = 2
+			# }
+			# men_at_arms = { #LotR
+			# 	type = ayyar
+			# 	stacks = 2
+			# }
 			levies = hasan_sabbah_event_troops_value
 			inheritable = yes
 			location = root.domicile.domicile_location
@@ -9385,14 +9540,14 @@ hasan_sabbah_ignite_decision_effect = {
 		}
 		spawn_army = {
 			name = hasan_fanatics
-			#men_at_arms = {
-			#	type = asawira
-			#	stacks = 2
-			#}
-			#men_at_arms = {
-			#	type = ayyar
-			#	stacks = 2
-			#}
+			# men_at_arms = { #LotR
+			# 	type = asawira
+			# 	stacks = 2
+			# }
+			# men_at_arms = { #LotR
+			# 	type = ayyar
+			# 	stacks = 2
+			# }
 			levies = hasan_sabbah_event_troops_value
 			inheritable = yes
 			location = root.domicile.domicile_location
@@ -9404,36 +9559,30 @@ hasan_sabbah_ignite_decision_effect = {
 	# 	target = root.location.county.holder.top_liege
 	# 	target_title = root.location.county.holder.top_liege.primary_title
 	# }
-	# start_war = { #LotR
-	# 	cb = ep3_hasan_assassin_war
-	# 	target = root.location.county.holder.top_liege
-	# 	target_title = root.location.county.holder.top_liege.primary_title
-	# }
 }
 hasan_sabbah_end_war = {
 	# Offer Hasan the opportunity to become landed
 	hidden_effect = {
-		# if = { #LotR
-		# 	limit = {
-		# 		$SELJUK$ = {
-		# 			any_sub_realm_barony = {
-		# 				title_province = { has_building_or_higher = alamut_castle_01 }
-		# 			}
-		# 		}
-		# 	}
-		# 	$SELJUK$ = {
-		# 		random_sub_realm_barony = {
-		# 			limit = {
-		# 				title_province = { has_building_or_higher = alamut_castle_01 }
-		# 			}
-		# 			county = {
-		# 				save_scope_as = hasan_home
-		# 			}
-		# 		}
-		# 	}
-		# }
-		# else_if = {
-		if = { #LotR
+		if = {
+			limit = {
+				$SELJUK$ = {
+					any_sub_realm_barony = {
+						title_province = { has_building_or_higher = alamut_castle_01 }
+					}
+				}
+			}
+			$SELJUK$ = {
+				random_sub_realm_barony = {
+					limit = {
+						title_province = { has_building_or_higher = alamut_castle_01 }
+					}
+					county = {
+						save_scope_as = hasan_home
+					}
+				}
+			}
+		}
+		if = {
 			limit = {
 				$SELJUK$ = {
 					any_sub_realm_county = {
@@ -9670,28 +9819,21 @@ admin_government_reset_effect = {
 			change_government = tribal_government
 		}
 		### CLAN - are you a Muslim or from a Clan culture?
-		else_if = {
-			limit = {
-				OR = {
-					# faith = { religion_tag = islam_religion } #LotR
-					culture = {
-						OR = {
-							# has_cultural_pillar = heritage_arabic #LotR
-							# has_cultural_pillar = heritage_iranian
-							# has_cultural_pillar = heritage_turkic
-							has_cultural_pillar = heritage_ioriag 
-							has_cultural_pillar = heritage_igath 
-							has_cultural_pillar = heritage_northern_apysaic 
-							has_cultural_pillar = heritage_southern_apysaic 
-							has_cultural_pillar = heritage_middle_apysaic 
-							has_cultural_pillar = heritage_nafarati 
-							has_cultural_pillar = heritage_tedjin
-						}
-					}
-				}
-			}
-			change_government = clan_government
-		}
+		# else_if = { #LotR
+		# 	limit = {
+		# 		OR = {
+		# 			faith = { religion_tag = islam_religion }
+		# 			culture = {
+		# 				OR = {
+		# 					has_cultural_pillar = heritage_arabic
+		# 					has_cultural_pillar = heritage_iranian
+		# 					has_cultural_pillar = heritage_turkic
+		# 				}
+		# 			}
+		# 		}
+		# 	}
+		# 	change_government = clan_government
+		# }
 		### FEUDAL - fallback playable case
 		else = { change_government = feudal_government }
 	}
@@ -11775,7 +11917,8 @@ ep3_increase_pacification_effect = {
 		name = pacification_gui
 		value = scope:story.var:pacification
 	}
-	# if = { #Display in red if Anglo-Saxon #LotR
+	#LotR
+	# if = { #Display in red if Anglo-Saxon
 	# 	limit = {
 	# 		culture = culture:anglo_saxon
 	# 	}
@@ -11852,7 +11995,8 @@ ep3_increase_pacification_large_effect = {
 		name = pacification_gui
 		value = scope:story.var:pacification
 	}
-	# if = { #Display in red if Anglo-Saxon #LotR
+	#LotR
+	# if = { #Display in red if Anglo-Saxon
 	# 	limit = {
 	# 		culture = culture:anglo_saxon
 	# 	}
@@ -11929,7 +12073,8 @@ ep3_increase_resistance_effect = {
 		name = resistance_gui
 		value = scope:story.var:resistance
 	}
-	# if = { #Display in green if Anglo-Saxon #LotR
+	#LotR
+	# if = { #Display in green if Anglo-Saxon
 	# 	limit = {
 	# 		culture = culture:anglo_saxon
 	# 	}
@@ -11952,7 +12097,8 @@ ep3_increase_resistance_effect = {
 		}
 	}
 
-	# if = { #LotR
+	#LotR
+	# if = {
 	# 	limit = {
 	# 		character:90028 = {
 	# 			is_alive = yes
@@ -11970,7 +12116,8 @@ ep3_increase_resistance_effect = {
 	# 	}
 	# }
 
-	# if = { #LotR
+    #LotR
+	# if = {
 	# 	limit = {
 	# 		scope:story.var:ruler_england = {
 	# 			any_vassal = {
@@ -12006,7 +12153,8 @@ ep3_increase_resistance_large_effect = {
 		name = resistance_gui
 		value = scope:story.var:resistance
 	}
-	# if = { #Display in green if Anglo-Saxon #LotR
+	#LotR
+	# if = { #Display in green if Anglo-Saxon
 	# 	limit = {
 	# 		culture = culture:anglo_saxon
 	# 	}
@@ -12028,8 +12176,8 @@ ep3_increase_resistance_large_effect = {
 			}
 		}
 	}
-
-	# if = { #LotR
+	#LotR
+	# if = {
 	# 	limit = {
 	# 		character:90028 = {
 	# 			is_alive = yes
@@ -12047,7 +12195,8 @@ ep3_increase_resistance_large_effect = {
 	# 	}
 	# }
 
-	# if = { #LotR
+    #LotR
+	# if = {
 	# 	limit = {
 	# 		scope:story.var:ruler_england = {
 	# 			any_vassal = {
@@ -12085,7 +12234,8 @@ ep3_decrease_pacification_effect = {
 			name = pacification_gui
 			add = -1
 		}
-		# if = { #Display in green if Anglo-Saxon #LotR
+		#LotR
+		# if = { #Display in green if Anglo-Saxon
 		# 	limit = {
 		# 		culture = culture:anglo_saxon
 		# 	}
@@ -12107,8 +12257,8 @@ ep3_decrease_pacification_effect = {
 				}
 			}
 		}
-
-		# if = { #LotR
+	    #LotR
+		# if = {
 		# 	limit = {
 		# 		character:90028 = {
 		# 			is_alive = yes
@@ -12125,8 +12275,8 @@ ep3_decrease_pacification_effect = {
 		# 		}
 		# 	}
 		# }
-
-		# if = { #LotR
+		#LotR
+		# if = {
 		# 	limit = {
 		# 		scope:story.var:ruler_england = {
 		# 			any_vassal = {
@@ -12165,7 +12315,8 @@ ep3_decrease_resistance_effect = {
 			name = resistance_gui
 			add = -1
 		}
-		# if = { #Display in red if Anglo-Saxon #LotR
+		#LotR
+		# if = { #Display in red if Anglo-Saxon
 		# 	limit = {
 		# 		culture = culture:anglo_saxon
 		# 	}
@@ -12557,5 +12708,286 @@ assign_favourite_child_effect = {
 				}
 			}
 		} 
+	}
+}
+
+add_random_internal_estate_building = {
+	random_list = {
+		10 = {
+			trigger = {
+				NOT = { has_domicile_building_or_higher = servants_quarters_01 }
+			}
+			add_domicile_building = servants_quarters_01
+			if = {
+				limit = { has_domicile_building = estate_main_03 }
+				add_domicile_building = servants_quarters_02
+			}
+		}
+		10 = {
+			trigger = {
+				NOT = { has_domicile_building_or_higher = library_01 }
+			}
+			add_domicile_building = library_01
+			if = {
+				limit = { has_domicile_building = estate_main_03 }
+				add_domicile_building = library_02
+			}
+		}
+		10 = {
+			trigger = {
+				NOT = { has_domicile_building_or_higher = bath_01 }
+			}
+			add_domicile_building = bath_01
+			if = {
+				limit = { has_domicile_building = estate_main_03 }
+				add_domicile_building = bath_02
+			}
+		}
+		10 = {
+			trigger = {
+				NOT = { has_domicile_building_or_higher = courtyard_01 }
+			}
+			add_domicile_building = courtyard_01
+			if = {
+				limit = { has_domicile_building = estate_main_03 }
+				add_domicile_building = courtyard_02
+			}
+		}
+		10 = {
+			trigger = {
+				NOT = { has_domicile_building_or_higher = prison_01 }
+			}
+			add_domicile_building = prison_01
+			if = {
+				limit = { has_domicile_building = estate_main_03 }
+				add_domicile_building = prison_02
+			}
+		}
+		10 = {
+			trigger = {
+				NOT = { has_domicile_building_or_higher = living_quarters_01 }
+			}
+			add_domicile_building = living_quarters_01
+			if = {
+				limit = { has_domicile_building = estate_main_03 }
+				add_domicile_building = living_quarters_02
+			}
+		}
+		10 = {
+			trigger = {
+				NOT = { has_domicile_building_or_higher = trophy_room_01 }
+			}
+			add_domicile_building = trophy_room_01
+			if = {
+				limit = { has_domicile_building = estate_main_03 }
+				add_domicile_building = trophy_room_02
+			}
+		}
+		10 = {
+			trigger = {
+				NOT = { has_domicile_building_or_higher = office_01 }
+			}
+			add_domicile_building = office_01
+			if = {
+				limit = { has_domicile_building = estate_main_03 }
+				add_domicile_building = office_02
+			}
+		}
+		10 = {
+			trigger = {
+				NOT = { has_domicile_building_or_higher = guest_room_01 }
+			}
+			add_domicile_building = guest_room_01
+			if = {
+				limit = { has_domicile_building = estate_main_03 }
+				add_domicile_building = guest_room_02
+			}
+		}
+		10 = {
+			trigger = {
+				NOT = { has_domicile_building_or_higher = wine_cellar_01 }
+			}
+			add_domicile_building = wine_cellar_01
+			if = {
+				limit = { has_domicile_building = estate_main_03 }
+				add_domicile_building = wine_cellar_02
+			}
+		}
+	}
+}
+
+fill_external_estate_building_effect = {
+	switch = {
+		trigger = has_domicile_building_or_higher
+		estate_main_05 = {
+			while = {
+				limit = { free_external_domicile_building_slots >= 1 }
+				add_random_external_estate_building = yes
+			}
+		}
+		estate_main_04 = {
+			while = {
+				limit = { free_external_domicile_building_slots >= 2 }
+				add_random_external_estate_building = yes
+			}
+		}
+		estate_main_03 = {
+			while = {
+				limit = { free_external_domicile_building_slots >= 3 }
+				add_random_external_estate_building = yes
+			}
+		}
+		estate_main_02 = {
+			while = {
+				limit = { free_external_domicile_building_slots >= 4 }
+				add_random_external_estate_building = yes
+			}
+		}
+		estate_main_01 = {
+			while = {
+				limit = { free_external_domicile_building_slots >= 5 }
+				add_random_external_estate_building = yes
+			}
+		}
+	}
+}
+
+add_random_external_estate_building = {
+	if = {
+		limit = {
+			free_external_domicile_building_slots >= 1
+		}
+		random_list = {
+			10 = {
+				trigger = {
+					NOT = { has_domicile_building_or_higher = temple_small_01 }
+				}
+				add_domicile_building = temple_small_01
+				if = {
+					limit = { has_domicile_building = estate_main_03 }
+					add_domicile_building = temple_small_02
+				}
+			}
+			10 = {
+				trigger = {
+					NOT = { has_domicile_building_or_higher = barracks_01 }
+				}
+				add_domicile_building = barracks_01
+				if = {
+					limit = { has_domicile_building = estate_main_03 }
+					add_domicile_building = barracks_02
+				}
+			}
+			10 = {
+				trigger = {
+					NOT = { has_domicile_building_or_higher = watchtower_01 }
+				}
+				add_domicile_building = watchtower_01
+				if = {
+					limit = { has_domicile_building = estate_main_03 }
+					add_domicile_building = watchtower_02
+				}
+			}
+			10 = {
+				trigger = {
+					NOT = { has_domicile_building_or_higher = vineyard_01 }
+				}
+				add_domicile_building = vineyard_01
+				if = {
+					limit = { has_domicile_building = estate_main_03 }
+					add_domicile_building = vineyard_02
+				}
+			}
+			10 = {
+				trigger = {
+					NOT = { has_domicile_building_or_higher = guardhouse_01 }
+				}
+				add_domicile_building = guardhouse_01
+				if = {
+					limit = { has_domicile_building = estate_main_03 }
+					add_domicile_building = guardhouse_02
+				}
+			}
+			10 = {
+				trigger = {
+					NOT = { has_domicile_building_or_higher = garden_01 }
+				}
+				add_domicile_building = garden_01
+				if = {
+					limit = { has_domicile_building = estate_main_03 }
+					add_domicile_building = garden_02
+				}
+			}
+			10 = {
+				trigger = {
+					NOT = { has_domicile_building_or_higher = storage_01 }
+				}
+				add_domicile_building = storage_01
+				if = {
+					limit = { has_domicile_building = estate_main_03 }
+					add_domicile_building = storage_02
+				}
+			}
+			10 = {
+				trigger = {
+					NOT = { has_domicile_building_or_higher = grain_field_01 }
+				}
+				add_domicile_building = grain_field_01
+				if = {
+					limit = { has_domicile_building = estate_main_03 }
+					add_domicile_building = grain_field_02
+				}
+			}
+			10 = {
+				trigger = {
+					NOT = { has_domicile_building_or_higher = stable_01 }
+				}
+				add_domicile_building = stable_01
+				if = {
+					limit = { has_domicile_building = estate_main_03 }
+					add_domicile_building = stable_02
+				}
+			}
+			10 = {
+				trigger = {
+					NOT = { has_domicile_building_or_higher = workshop_01 }
+				}
+				add_domicile_building = workshop_01
+				if = {
+					limit = { has_domicile_building = estate_main_03 }
+					add_domicile_building = workshop_02
+				}
+			}
+			10 = {
+				trigger = {
+					NOT = { has_domicile_building_or_higher = market_01 }
+				}
+				add_domicile_building = market_01
+				if = {
+					limit = { has_domicile_building = estate_main_03 }
+					add_domicile_building = market_02
+				}
+			}
+			10 = {
+				trigger = {
+					NOT = { has_domicile_building_or_higher = grazing_land_01 }
+				}
+				add_domicile_building = grazing_land_01
+				if = {
+					limit = { has_domicile_building = estate_main_03 }
+					add_domicile_building = grazing_land_02
+				}
+			}
+			10 = {
+				trigger = {
+					NOT = { has_domicile_building_or_higher = olive_01 }
+				}
+				add_domicile_building = olive_01
+				if = {
+					limit = { has_domicile_building = estate_main_03 }
+					add_domicile_building = olive_02
+				}
+			}
+		}
 	}
 }
