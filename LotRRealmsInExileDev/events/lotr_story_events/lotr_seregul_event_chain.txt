@@ -32,6 +32,12 @@ scripted_effect change_oligarchic_holdings_rulers = {
 			title:c_kwambiri = { add_to_list = transfer_list }	
 		}
 
+		create_title_and_vassal_change = {
+			type = $TYPE_TITLE_CHANGE$
+			save_scope_as = change
+			add_claim_on_loss = no
+		}
+
 		every_in_list = {
 			list = transfer_list
 			change_title_holder = {
@@ -390,7 +396,6 @@ lotr_seregul_events.0004 = { #How to deal with the city?
 	
 }
 
-
 lotr_seregul_events.0005 = { #What to do with the defeated? 
 	content_source = realms_dlc
 	type = character_event
@@ -429,6 +434,7 @@ lotr_seregul_events.0005 = { #What to do with the defeated?
 			NEW_HOLDER = title:k_pel.holder
 			HOLDING_TYPE = castle_holding
 			CONTROL_LOWERED_BOOL = yes
+			TYPE_TITLE_CHANGE = usurped
 		}
 	}
 
@@ -440,6 +446,7 @@ lotr_seregul_events.0005 = { #What to do with the defeated?
 			NEW_HOLDER = scope:potential_oligarchic_vassal
 			HOLDING_TYPE = city_holding
 			CONTROL_LOWERED_BOOL = no
+			TYPE_TITLE_CHANGE = swear_fealty
 		}
 	}
 	option = { #I shall endure it
@@ -701,7 +708,7 @@ lotr_seregul_events.0101 = { # Bandits and Magri
 	title = lotr_seregul_events.0101.t
 	desc = lotr_seregul_events.0101.desc.a
 	left_portrait = {
-		character = scope:tamska_ruler
+		character = scope:mag_ruler
 		animation = eyeroll
 	}
 	right_portrait = {
@@ -710,8 +717,14 @@ lotr_seregul_events.0101 = { # Bandits and Magri
 	}
 
 	immediate = {
-		title:c_igwanja.holder = { save_scope_as = bandit_ruler }
-		title:e_mag_tumag.holder ?= { save_scope_as = tamska_ruler }
+		title:c_obishamba.holder = { save_scope_as = bandit_ruler }
+		if = {
+			limit = { title:c_igwanja.holder.culture = culture:mag }
+			title:c_igwanja.holder ?= { save_scope_as = mag_ruler }
+		} else_if = {
+			limit = { title:d_chupiga_deg.holder.culture = culture:mag }
+			title:d_chupiga_deg.holder ?= { save_scope_as = mag_ruler }
+		} 
 	}
    
 	option = { #Play the bandits and mag against each other. Triggers a tough diplo/intrigue challenge where success sets the 2 of them at war, and failure gives them an alliance.
@@ -734,7 +747,7 @@ lotr_seregul_events.0101 = { # Bandits and Magri
 					title = lotr_seregul_events.0101.a.tt.success
 					left_icon = root
 				}
-				scope:tamska_ruler = {
+				scope:mag_ruler = {
 					start_war = {
 						casus_belli = vassalization_cb
 						target = scope:bandit_ruler
@@ -754,17 +767,17 @@ lotr_seregul_events.0101 = { # Bandits and Magri
 					title = lotr_seregul_events.0101.a.tt.failure
 					left_icon = root
 				}
-				scope:tamska_ruler = {
+				scope:mag_ruler = {
 					create_alliance = {
 						target = scope:bandit_ruler
-						allied_through_owner = scope:tamska_ruler
-						allied_through_target = scope:tamska_ruler
+						allied_through_owner = scope:mag_ruler
+						allied_through_target = scope:mag_ruler
 					}
 				}
 				scope:bandit_ruler = {
 					add_opinion = {
 						modifier = perk_negotiated_alliance_opinion
-						target = scope:tamska_ruler
+						target = scope:mag_ruler
 					}
 				}
 			}
@@ -783,7 +796,7 @@ lotr_seregul_events.0101 = { # Bandits and Magri
 			add_unpressed_claim = title:k_mag
 			start_war = {
 				casus_belli = claim_cb
-				target = scope:tamska_ruler
+				target = scope:mag_ruler
 				claimant = scope:bandit_ruler
 				target_title = title:k_mag
 			}
@@ -793,7 +806,7 @@ lotr_seregul_events.0101 = { # Bandits and Magri
 			random_character_war = {
 				limit = {
 					using_cb = claim_cb
-					primary_defender = scope:tamska_ruler
+					primary_defender = scope:mag_ruler
 				}
 				save_scope_as = claimant_war
 			}
@@ -807,14 +820,14 @@ lotr_seregul_events.0101 = { # Bandits and Magri
    
 	option = {#Gives a truce with bandits, and the bandits start a war with you as an ally to take out the Magr
 		name = lotr_seregul_events.0101.d
-		scope:tamska_ruler = {
+		scope:mag_ruler = {
 			start_war = {
 				casus_belli = vassalization_cb
 				target = scope:bandit_ruler
 			}
 		}
 
-		scope:tamska_ruler = {
+		scope:mag_ruler = {
 			random_character_war = {
 				limit = {
 					using_cb = vassalization_cb
@@ -824,7 +837,7 @@ lotr_seregul_events.0101 = { # Bandits and Magri
 			}
 		}
 		add_truce_both_ways = {
-			character = scope:tamska_ruler
+			character = scope:mag_ruler
 			days = 3650
 			name = TRUCE_ENFORCE_TRUCE
 		}
@@ -845,16 +858,209 @@ lotr_seregul_events.0102 = { # How to Pacify the Bandits?
 		character = root
 		animation = eyeroll
 	}
+	right_portrait = {
+		character = scope:bandit_king
+		animation = personality_bold
+	}
 
 	immediate = {
-		
+		title:c_obishamba.holder = { save_scope_as = bandit_king }
 	}
    
-	option = { #Make minor concessions to the tulwangi rebels
-		name = lotr_seregul_events.0102.a 
+	option = {
+		name = lotr_seregul_events.0102.a
 
+		duel = {
+			skill = stewardship
+			value = medium_skill_rating
+			33 = { # The two of them go to war with each other
+				compare_modifier = {
+					value = scope:duel_value
+					multiplier = 3.5
+					# Always give _some_ chance.
+					min = -39
+				}
+				desc = lotr_seregul_events.0102.a.tt.success
+				send_interface_toast = {
+					type = event_toast_effect_good
+					title = lotr_seregul_events.0102.a.tt.success
+					left_icon = root
+				}
+				duel = {
+					skill = stewardship
+					value = low_skill_rating
+					33 = { 
+						compare_modifier = {
+							value = scope:duel_value
+							multiplier = 3.5
+							# Always give _some_ chance.
+							min = -39
+						}
+						pay_short_term_gold = {
+							target = scope:bandit_king
+							gold = 50
+						}
+					}
+					33 = {
+						compare_modifier = {
+							value = scope:duel_value
+							multiplier = -3.5
+							# Limit how low the off-chance can go.
+							min = -19
+						}
+						pay_short_term_gold = {
+							target = scope:bandit_king
+							gold = 100
+						}
+					}
+				}
+				create_title_and_vassal_change = {
+					type = swear_fealty
+					save_scope_as = change
+					add_claim_on_loss = no
+				}
+				scope:bandit_king = {
+					change_liege = {
+						liege = root
+						change = scope:change
+					}
+				}
+				resolve_title_and_vassal_change = scope:change
+
+				scope:bandit_king = {
+					set_variable = bandit_king_vassalized
+
+					every_held_county = {
+						change_county_control = -50
+					}
+				}
+				add_truce_both_ways = {
+					character = scope:bandit_king
+					days = 1095
+					name = TRUCE_ENFORCE_TRUCE
+				}
+			}
+			33 = { # Two of them get an alliance
+				compare_modifier = {
+					value = scope:duel_value
+					multiplier = -3.5
+					# Limit how low the off-chance can go.
+					min = -19
+				}
+				desc = lotr_seregul_events.0102.a.tt.failure
+				send_interface_toast = {
+					type = event_toast_effect_bad
+					title = lotr_seregul_events.0102.a.tt.failure
+					left_icon = root
+				}
+			}
+		}
 	}
-	
+   
+	option = {
+		name = lotr_seregul_events.0102.b
+
+		duel = {
+			skill = martial
+			value = high_skill_rating
+			33 = { # The two of them go to war with each other
+				compare_modifier = {
+					value = scope:duel_value
+					multiplier = 3.5
+					# Always give _some_ chance.
+					min = -39
+				}
+				desc = lotr_seregul_events.0102.a.tt.success
+				send_interface_toast = {
+					type = event_toast_effect_good
+					title = lotr_seregul_events.0102.a.tt.success
+					left_icon = root
+				}
+				duel = {
+					skill = stewardship
+					value = low_skill_rating
+					33 = { 
+						compare_modifier = {
+							value = scope:duel_value
+							multiplier = 3.5
+							# Always give _some_ chance.
+							min = -39
+						}
+						pay_short_term_gold = {
+							target = scope:bandit_king
+							gold = 50
+						}
+					}
+					33 = {
+						compare_modifier = {
+							value = scope:duel_value
+							multiplier = -3.5
+							# Limit how low the off-chance can go.
+							min = -19
+						}
+						pay_short_term_gold = {
+							target = scope:bandit_king
+							gold = 100
+						}
+					}
+				}
+				scope:bandit_king = {
+					random_maa_regiment = {
+						limit = {  is_event_maa_regiment = yes }
+						destroy_maa_regiment = yes
+					}
+				}
+				add_truce_both_ways = {
+					character = scope:bandit_king
+					days = 730
+					name = TRUCE_ENFORCE_TRUCE
+				}
+			}
+			33 = { # Two of them get an alliance
+				compare_modifier = {
+					value = scope:duel_value
+					multiplier = -3.5
+					# Limit how low the off-chance can go.
+					min = -19
+				}
+				desc = lotr_seregul_events.0102.a.tt.failure
+				send_interface_toast = {
+					type = event_toast_effect_bad
+					title = lotr_seregul_events.0102.a.tt.failure
+					left_icon = root
+				}
+			}
+		}
+	}
+   
+	option = {
+		name = lotr_seregul_events.0102.c
+		start_war = {
+			casus_belli = county_conquest_cb
+			target = scope:bandit_king
+			target_title = scope:bandit_king.primary_title
+		}
+
+		every_vassal_or_below = {
+			limit = {
+				OR = {
+					culture = scope:bandit_king.culture
+					faith = scope:bandit_king.faith
+				}
+				highest_held_title_tier > tier_barony
+			}
+			add_opinion = { modifier = insult_opinion target = root opinion = -50 }
+		}
+	}
+
+	after = {
+		if = {
+			limit = { scope:bandit_king = { has_variable = bandit_king_vassalized } }
+			vassal_contract_set_obligation_level = { type = feudal_government_taxes level = 1 }
+			vassal_contract_set_obligation_level = { type = feudal_government_levies level = 1 }
+			remove_variable = bandit_king_vassalized
+		}
+	}
 }
 
 lotr_seregul_events.0103 = { # How to tackle the Mag? 
@@ -862,36 +1068,45 @@ lotr_seregul_events.0103 = { # How to tackle the Mag?
 	type = character_event
 	theme = corruption
 	title = lotr_seregul_events.0103.t
-	desc = {
-		desc = lotr_seregul_events.0103.desc.a
-		triggered_desc = {
-			trigger = { scope:tulwangi_leader = { NOT =  { has_character_flag = new_tulwangi_leader } } }
-			desc = lotr_seregul_events.0103.desc.b
-		}
-		desc = lotr_seregul_events.0103.desc.c
-	}
+	desc = lotr_seregul_events.0103.desc.a
 	left_portrait = {
 		character = root
 		animation = eyeroll
 	}
 	right_portrait = {
-		character = scope:outspoken_rebel
-		animation = worry
-	}
-	lower_left_portrait = {
-		trigger = { scope:tulwangi_leader = { NOT =  { has_character_flag = new_tulwangi_leader } } }
-		character = scope:tulwangi_leader
+		character = scope:mag_holder
+		animation = personality_bold
 	}
 
 	immediate = {
+		title:d_chupiga_deg.holder = { save_scope_as = mag_holder }
 		
 	}
    
-	option = { #Make minor concessions to the tulwangi rebels
-		name = lotr_seregul_events.0103.a 
+	option = {
+		name = lotr_seregul_events.0103.a
+		start_war = {
+			casus_belli = duchy_conquest_cb
+			target = scope:mag_holder
+			target_title = scope:bandit_king.primary_title
+		}
+
+		every_vassal_or_below = {
+			limit = {
+				highest_held_title_tier > tier_barony
+			}
+			add_opinion = { modifier = insult_opinion target = root opinion = -50 }
+		}
 
 	}
-	
+	option = {
+		name = lotr_seregul_events.0103.b
+
+	}
+	option = {
+		name = lotr_seregul_events.0103.c
+
+	}
 }
 
 # Focus West
