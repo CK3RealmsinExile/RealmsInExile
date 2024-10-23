@@ -63,6 +63,67 @@ ask_for_conversion_interaction = {
 	ai_accept = {
 		base = 0
 		religion_demand_conversion_default_modifier = yes
+		
+		# We add a few extra modifiers if you have a state faith, to make the initial conversion rate more immersive and plausible
+		modifier = {
+			scope:actor = {
+				government_allows = state_faith
+				
+				# If you fulfill a minimum amount of the below triggers, we consider that you hold enough sway within the realm to make it easier for others to abandon the state faith
+				calc_true_if = {
+					amount >= 4
+					
+					diplomacy >= excellent_skill_level
+					learning >= excellent_skill_level
+					has_trait = august # You finished the August lifestyle tree
+					has_trait = theologian # You finished the Theologian lifestyle tree
+					AND = {
+						is_independent_ruler = yes
+						legitimacy_level >= 4
+					}
+					influence_level >= 3
+					house = {
+						OR = {
+							is_dominant_family = yes
+							is_powerful_family = yes
+						}
+					}
+				}
+			}
+			add = {
+				value = 50
+				if = {
+					limit = {
+						scope:actor.influence_level = 5
+					}
+					add = 50
+				}
+				else_if = {
+					limit = {
+						scope:actor.influence_level >= 4
+					}
+					add = 25
+				}
+				if = {
+					limit = {
+						scope:actor = {
+							is_independent_ruler = yes
+							legitimacy_level >= 5
+						}
+					}
+					add = 50
+				}
+			}
+			desc = STATE_FAITH_CREATE_FAITH_REASON
+		}
+		modifier = { # If you have the prophet perk, let's increase acceptance equal to half your diplomacy and learning
+			scope:actor = {
+				government_allows = state_faith
+				has_perk = prophet_perk
+			}
+			add = { value = scope:actor.learning add = scope:actor.diplomacy multiply = 0.5 }
+			desc = HAS_PERK_PROPHET_REASON
+		}
 	}
 	
 	ai_min_reply_days = 1
@@ -1646,7 +1707,9 @@ convert_to_religion_interaction = {
 		## If we have a valid state faith, we go there.
 		if = {
 			limit = {
-				government_allows = state_faith
+				scope:actor = {
+					government_allows = state_faith
+				}
 				scope:actor.top_liege.primary_title.state_faith ?= scope:recipient.faith
 			}
 			decision:adopt_state_faith = {
@@ -6740,7 +6803,23 @@ attempt_conversion_of_local_ruler_interaction = {
 			is_ai = yes
 			is_ruler = yes
 			is_landed = yes
-		}
+			#LotR
+			is_elf = no
+			cannot_be_killed = no
+			trigger_if = {
+				limit = { 
+					scope:actor = {
+						faith_is_good = yes
+						OR = {
+							is_elf = yes
+							is_istari = yes 
+						}
+					}
+				}
+				faith_is_good = no
+				is_orc = no
+			}
+		}	
 	}
 	
 	is_highlighted = {
@@ -6929,7 +7008,162 @@ attempt_conversion_of_local_ruler_interaction = {
 				}
 			}
 		}
-		demand_conversion_interaction_effect = yes
+		if = {
+			limit = { 
+				scope:actor = {
+					faith_is_good = yes
+					OR = {
+						is_elf = yes
+						is_istari = yes 
+					}
+				}
+			}
+			if = {
+				limit = { religion = { is_in_family = rf_darkness } }
+				if = {
+					limit = {
+						religion = {
+							any_faith = {
+								OR = { 
+									has_doctrine = doctrine_echoes_of_the_ainur
+									has_doctrine = special_doctrine_is_freepeople_faith
+								}
+							}
+						}
+					}
+					religion = {
+						random_faith = { #Find a good faith to convert to in the same religion
+							limit = {
+								OR = { 
+									has_doctrine = doctrine_echoes_of_the_ainur
+									has_doctrine = special_doctrine_is_freepeople_faith
+								}
+							}
+						}
+						save_scope_as = new_faith
+					}
+				}
+				else = {
+					faith:faith_edain = { save_scope_as = new_faith }
+				}
+			}
+			else = { #If forces of evil, find an appropriate local faith
+				if = {
+					limit = { is_dwarf = yes }
+					faith:faith_khazad = { save_scope_as = new_faith }
+				}
+				else_if = {
+					limit = {is_hobbit = yes }
+					faith:faith_hobbit = { save_scope_as = new_faith }
+				}
+				else_if = {
+					limit = { is_druedain = yes }
+					faith:faith_druedain = { save_scope_as = new_faith }
+				}
+				else_if = {
+					limit = { location = { geographical_region = middleearth_west_rohan } }
+					faith:faith_rohirric = { save_scope_as = new_faith }
+				}
+				else_if = {
+					limit = { location = { geographical_region = middleearth_west_enedhwaith } }
+					faith:faith_dunlending_turthalis = { save_scope_as = new_faith }
+				}
+				else_if = {
+					limit = { location = { geographical_region = middleearth_west_rhovanion } }
+					faith:faith_woodmen = { save_scope_as = new_faith }
+				}
+				else_if = {
+					limit = { location = { geographical_region = middleearth_west } }
+					faith:faith_edain = { save_scope_as = new_faith }
+				}
+				else_if = {
+					limit = { location = { geographical_region = middleearth_rhun_dorwinion } }
+					faith:faith_dorwinion = { save_scope_as = new_faith }
+				}
+				else_if = {
+					limit = { location = { geographical_region = middleearth_rhun } }
+					faith:faith_rhun_araw_triumvirate = { save_scope_as = new_faith }
+				}
+				else_if = {
+					limit = { location = { geographical_region = middleearth_mordor } }
+					faith:faith_rhun_araw_triumvirate = { save_scope_as = new_faith }
+				}
+				else_if = {
+					limit = { location = { geographical_region = middleearth_haradwaith_near } }
+					faith:faith_chelkar = { save_scope_as = new_faith }
+				}
+				else_if = {
+					limit = { location = { geographical_region = middleearth_haradwaith_far } }
+					faith:faith_conservative_eruism = { save_scope_as = new_faith }
+				}
+				else_if = {
+					limit = { location = { geographical_region = middleearth_uttersouth } }
+					faith:faith_gimileth = { save_scope_as = new_faith }
+				}
+				else = {
+					faith:faith_edain = { save_scope_as = new_faith }
+				}
+			}
+			#LotR : add all the nesting effects here... Yes I know it's painful to read
+			grab_spouses_and_family_to_convert_effect = yes
+			every_in_list = {
+				list = spouses_and_family_to_convert
+				set_character_faith = scope:new_faith
+			}
+			scope:recipient = {
+				if = { #If you're a bastard and your new faith says they don't exist! 
+					limit = {
+						has_trait = bastard
+						scope:new_faith = { has_doctrine_parameter = bastards_none }
+						trigger_if = { #If you have a highborn parent, then you have to have their dynasty and their faith has to say no to bastards as well! Otherwise we might mess up too many successions... 
+							limit = {
+								any_parent = {
+									exists = dynasty
+								}
+							}
+							exists = scope:recipient.dynasty
+							any_parent = {
+								dynasty = scope:recipient.dynasty
+								faith = { has_doctrine_parameter = bastards_none }
+							}
+						}
+					}
+					remove_trait = bastard
+					add_trait_force_tooltip = wild_oat
+				}
+			}
+			# Struggle Catalysts.
+			if = {
+				limit = {
+					scope:recipient = { is_important_or_vip_struggle_character = yes }
+					scope:actor = {
+						any_character_struggle = {
+							involvement = involved
+							activate_struggle_catalyst_secondary_character_involvement_involved_trigger = {
+								CATALYST = catalyst_demanding_important_conversion
+								CHAR = scope:recipient
+							}
+						}
+					}
+				}
+				scope:actor = {
+					every_character_struggle = {
+						involvement = involved
+						limit = {
+							activate_struggle_catalyst_secondary_character_involvement_involved_trigger = {
+								CATALYST = catalyst_demanding_important_conversion
+								CHAR = scope:recipient
+							}
+						}
+						activate_struggle_catalyst = {
+							catalyst = catalyst_demanding_important_conversion
+							character = scope:actor
+						}
+					}
+				}
+			}
+		}
+		else = { demand_conversion_interaction_effect = yes }
 		scope:recipient = {
 			if = {
 				limit = {
