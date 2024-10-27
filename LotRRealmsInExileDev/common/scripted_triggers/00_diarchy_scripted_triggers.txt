@@ -29,15 +29,32 @@ is_diarch_valid_trigger = {
 		# ... _unless_ this is junior emperor, they're always children.
 		liege ?= { has_diarchy_parameter = diarchy_type_is_junior_emperorship }
 	}
-	# If you're in an entrenched regency for some reason, you can't manage a regency yourself.
-	NOT = { has_diarchy_parameter = diarchy_type_is_entrenched_regency }
-	# You need to be mentally & physically sound, to some degree.
-	regency_for_personal_reasons_trigger = no
+	# Event blocks.
+	OR = {
+		is_ai = no
+		NOT = { has_character_flag = cannot_be_diarch }
+	}
+	trigger_if = {
+		limit = {
+			exists = liege
+		}
+	# Being in a diarchy yourself will disable you, outside of co-rulerships.
+	trigger_if = {
+		limit = {
+			NOT = {
+					liege = { has_diarchy_active_parameter = diarchy_is_co_rulership }
+			}
+		}
+		# If you're in an entrenched regency for some reason, you can't manage a regency yourself.
+		NOT = { has_diarchy_parameter = diarchy_type_is_entrenched_regency }
+		# You need to be mentally & physically sound, to some degree.
+		regency_for_personal_reasons_trigger = no
+	}
 	# Diarchy-specific checks.
 	## Viziers.
 	trigger_if = {
 		limit = {
-			liege ?= { has_diarchy_parameter = diarchy_is_vizierate }
+				liege = { has_diarchy_parameter = diarchy_is_vizierate }
 		}
 		# Must match their liege's gender preference.
 		diarch_matches_liege_faith_gender_preference_trigger = yes
@@ -45,43 +62,39 @@ is_diarch_valid_trigger = {
 		## Not in this way, at least.
 		highest_held_title_tier <= tier_barony
 	}
-	# We cannot be at war with our liege.
-	## Trigger_if it because otherwise we end up in situations where we're checking this when there actually isn't a liege.
-	trigger_if = {
-		limit = { exists = liege }
-		OR = {
-			NOT = { is_at_war_with = liege }
-			# _Unless_ this is a co-rulership. They're allowed to be at war.
-			liege = { has_diarchy_active_parameter = diarchy_is_co_rulership }
-		}
-	}
 	# If you have somehow managed to get invited to/start an activity outside of your realm (e.g., you're the spouse in a grand wedding), then yeah, you forfeit your position.
-	NAND = {
-		# Is it redundant to check twice?
-		## Yes.
-		### Do the machine spirits demand this thoroughness of us?
-		#### Also yes.
-		##### Do not ask why the God-Machine commands it, merely be glad that it commanded it of you.
-		is_travelling = yes
-		exists = current_travel_plan
-		# We check your liege so that you can attend business within the realm easily.
-		## Schemes are their own special lil guys so we take care of them separately.
-		trigger_if = {
-			limit = {
-				exists = scope:owner
-				exists = scope:target
+	## ... unless you're a co-ruler.
+	trigger_if = {
+		limit = {
+			NOT = {
+					liege = { has_diarchy_active_parameter = diarchy_is_co_rulership }
 			}
-			travel_would_cause_regency_trigger = { REALM_HOLDER = scope:owner.liege }
 		}
-		## Else, we're an ordinary, gods-fearing root scope, so use that.
-		trigger_else = {
-			travel_would_cause_regency_trigger = { REALM_HOLDER = this.liege }
+			# We cannot be at war with our liege.
+			NOT = { is_at_war_with = liege }
+		NAND = {
+			# Is it redundant to check twice?
+			## Yes.
+			### Do the machine spirits demand this thoroughness of us?
+			#### Also yes.
+			##### Do not ask why the God-Machine commands it, merely be glad that it commanded it of you.
+			is_travelling = yes
+			exists = current_travel_plan
+			# We check your liege so that you can attend business within the realm easily.
+			## Schemes are their own special lil guys so we take care of them separately.
+			trigger_if = {
+				limit = {
+					exists = scope:owner
+					exists = scope:target
+				}
+				travel_would_cause_regency_trigger = { REALM_HOLDER = scope:owner.liege }
+			}
+			## Else, we're an ordinary, gods-fearing root scope, so use that.
+			trigger_else = {
+				travel_would_cause_regency_trigger = { REALM_HOLDER = this.liege }
+			}
 		}
 	}
-	# Event blocks.
-	OR = {
-		is_ai = no
-		NOT = { has_character_flag = cannot_be_diarch }
 	}
 }
 
@@ -89,6 +102,9 @@ is_diarch_valid_trigger = {
 is_diarch_able_trigger = {
 	# You can't possibly manage someone else's realm from prison.
 	is_imprisoned = no
+	# You need to be mentally & physically sound, to some degree.
+	## Mostly, this will invalidate, but it won't for co-rulerships so we just disable them here.
+	regency_for_personal_reasons_trigger = no
 	# You'd clearly be preoccupied.
 	trigger_if = {
 		limit = { exists = involved_activity }
@@ -102,8 +118,8 @@ is_diarch_able_trigger = {
 			}
 		}
 	}
-	# If you're in a temporary regency for any other reason, you need to chill.
-	NOT = { has_diarchy_active_parameter = diarchy_type_is_temporary_regency }
+	# If you're in a diarchy for any other reason, you need to chill.
+	NOT = { has_active_diarchy = yes }
 }
 
 # And *this* needs to be added to guest activity intents to keep diarchs from showing up to the same parties as their liege.
@@ -144,22 +160,12 @@ diarch_matches_liege_faith_gender_preference_trigger = {
 		# Female preference.
 		AND = {
 			is_female = yes
-			liege.faith = {
-				OR = {
-					has_doctrine = doctrine_gender_female_dominated
-					has_doctrine = doctrine_gender_female_orientated #LotR
-				}
-			}
+			liege.faith = { has_doctrine = doctrine_gender_female_dominated }
 		}
 		# Male preference.
 		AND = {
 			is_male = yes
-			liege.faith = {
-				OR = {
-					has_doctrine = doctrine_gender_male_dominated
-					has_doctrine = doctrine_gender_male_orientated #LotR
-				}
-			}
+			liege.faith = { has_doctrine = doctrine_gender_male_dominated }
 		}
 		# Equality.
 		liege.faith = { has_doctrine = doctrine_gender_equal }
@@ -769,6 +775,11 @@ diarch_coup_attempt_is_valid_trigger = {
 	}
 	# And finally, for ease of sanity, your liege must be of a certain size.
 	$LIEGE$.sub_realm_size >= minor_realm_size
+	is_wastelands = no #LOTR
+	NAND = { #LOTR
+		is_ai = yes
+		is_elf = yes
+	}
 }
 
 diarch_coup_attempt_is_valid_showing_failure_only_trigger = {

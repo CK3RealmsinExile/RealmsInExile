@@ -32,7 +32,7 @@ on_title_destroyed = {
 	}
 
 	effect = {
-		scope:landed_title ?= {
+		scope:landed_title = {
 			every_claimant = { remove_claim = prev } # remove existing claims
 		}
 		# Adjust the size of the laamps tally.
@@ -152,12 +152,7 @@ on_title_destroyed = {
 					}
 				}
 			}
-			every_vassal = {
-				trigger_event = {
-					id = ep3_admin_events.0003
-					days = 1
-				}
-			}
+			admin_change_government_effect = yes
 		}
 	}
 }
@@ -201,10 +196,10 @@ on_title_gain = {
 		# Note: anything that should be run after creation can go in on_noble_family_title_created
 		if = {
 			limit = {
-				highest_held_title_tier >= tier_duchy
 				government_allows = administrative
 				is_house_head = yes
-				top_liege = {
+				highest_held_title_tier >= tier_duchy
+				liege = {
 					is_independent_ruler = yes
 					government_allows = administrative
 				}
@@ -241,13 +236,11 @@ on_title_gain = {
 			if = { # Get legitimacy from Reception Hall House Bonus
 				limit = {
 					house = { has_variable = ep3_legacy_legitimacy_counter }
+					primary_title = scope:title
 				}
-				send_interface_message = {
-					type = event_toast_effect_good
-					title = ep3_dynasty_legacy_gain_legitimacy_effect_title
-					left_icon = root
-					right_icon = root.primary_title
-					add_legitimacy = house.var:ep3_legacy_legitimacy_counter
+				trigger_event = {
+					id = ep3_admin_events.0010
+					days = 1
 				}
 			}
 		}
@@ -820,20 +813,25 @@ on_title_gain = {
 			# 	}
 			# }
 			# else = {
-				#normal triggering
-				every_vassal_or_below = {
+				if = {
 					limit = {
-						is_playable_character = yes
-						exists = scope:previous_holder
-						government_allows = administrative
-						OR = {
-							highest_held_title_tier >= tier_duchy
-							liege = scope:emperor
-						}
+						exists = root.house
 					}
-					trigger_event = {
-						id = ep3_governor_yearly.3060
-						days = 1
+					#normal triggering
+					every_vassal_or_below = {
+						limit = {
+							is_playable_character = yes
+							exists = scope:previous_holder
+							government_allows = administrative
+							OR = {
+								highest_held_title_tier >= tier_duchy
+								liege = root
+							}
+						}
+						trigger_event = {
+							id = ep3_governor_yearly.3060
+							days = 1
+						}
 					}
 				}
 			# }
@@ -1412,6 +1410,7 @@ on_title_gain = {
 		### Give title back to Tom if Tom tried to give a wastelands title away
 		if = {
 			limit = { 
+				NOT = { has_variable = grant_wilderness_titles }
 				scope:previous_holder ?= { is_alive = yes }
 				scope:previous_holder ?= character:k_wastelands_holder
 				scope:transfer_type ?= flag:granted
@@ -2326,7 +2325,7 @@ on_title_gain = {
 		delay = { days = 1 }
 		realm_maintenance.2001		#Big notification about inheriting emperor tier title
 		wraith.001 # Corruption of Minas Ithil
-		gondor.2300 # Reclamation of Minas Ithil
+		#gondor.2300 # Reclamation of Minas Ithil
 		lotr_artifact.0005 # Arnor regalia
 		# british_isles.1032			# Danelaw-England partition calc.
 		# fp1_major_decisions.1011	# Harald Tanglehair becomes Harald Fairhair.
@@ -3129,16 +3128,16 @@ on_title_lost = {
 							
 							# First, let's do some damage to the estate - We randomize the level of damage taken
 							random_list = {
-								35 = { # Damage 1
+								40 = { # Damage 1
 									trigger = {
-										num_domicile_buildings <= 8
+										num_domicile_buildings <= 6
 									}
 									set_variable = {
 										name = domicile_damage_count
 										value = 1
 									}
 								}
-								30 = { # Damage 2
+								35 = { # Damage 2
 									trigger = {
 										num_domicile_buildings > 2
 									}
@@ -3147,22 +3146,40 @@ on_title_lost = {
 										value = 2
 									}
 								}
-								25 = { # Damage 3
+								30 = { # Damage 3
 									trigger = {
-										num_domicile_buildings > 6
+										num_domicile_buildings > 4
 									}
 									set_variable = {
 										name = domicile_damage_count
 										value = 3
 									}
 								}
-								20 = { # Damage 4
+								25 = { # Damage 4
+									trigger = {
+										num_domicile_buildings > 6
+									}
+									set_variable = {
+										name = domicile_damage_count
+										value = 4
+									}
+								}
+								20 = { # Damage 5
+									trigger = {
+										num_domicile_buildings > 8
+									}
+									set_variable = {
+										name = domicile_damage_count
+										value = 5
+									}
+								}
+								15 = { # Damage 6
 									trigger = {
 										num_domicile_buildings > 10
 									}
 									set_variable = {
 										name = domicile_damage_count
-										value = 4
+										value = 6
 									}
 								}
 							}
@@ -3421,9 +3438,41 @@ on_title_lost = {
 				years = 10
 			}
 		}
-		
+		if = {
+            limit = {
+                any_held_title = { count = 0 }
+                has_trait = balan_lai_member
+            }
+            remove_trait = balan_lai_member
+            dynasty ?= { # Give it to a valid dynasty member if possible
+                random_dynasty_member = {
+                    limit = {
+                        is_independent_ruler = yes
+                        highest_held_title_tier > tier_county
+                    }
+                    add_trait = balan_lai_member
+                }
+            }
+        }
 		correct_wastelands_tracker = yes
 		scope:new_holder = { correct_wastelands_tracker = yes }
+
+		if = {
+			limit = {
+				any_held_title = { count = 0 }
+				has_trait = balan_lai_member
+			}
+			remove_trait = balan_lai_member
+			dynasty ?= { # Give it to a valid dynasty member if possible
+				random_dynasty_member = {
+					limit = {
+						is_independent_ruler = yes
+						highest_held_title_tier > tier_county
+					}
+					add_trait = balan_lai_member
+				}
+			}
+		}
 	}
 }
 
@@ -3785,7 +3834,7 @@ on_vassal_gained = {
 			additional_flavor_check_effect = yes
 		}
 
-		scope:vassal ?= {
+		scope:vassal ?= { 
 			# LotR - if vassalised character is a protector, break protectorates
 			every_relation = {
 				type = tributary_protectorate
@@ -3888,30 +3937,37 @@ on_vassal_gained = {
 			limit = {
 				# Verify if vassal used to be independent
 				NOT = { exists = scope:old_liege }
-				root = {
-					any_character_struggle = {
-						involvement = involved
-						activate_struggle_catalyst_secondary_character_involvement_involved_trigger = {
-							CATALYST = catalyst_vassalize_independent_ruler
-							CHAR = scope:vassal
-						}
+				scope:transfer_type ?= flag:swear_fealty
+				any_character_struggle = {
+					involvement = involved
+					activate_struggle_catalyst_secondary_character_involvement_involved_trigger = {
+						CATALYST = catalyst_vassalize_independent_ruler
+						CHAR = scope:vassal
 					}
 				}
 			}
 			root = {
-				every_character_struggle = {
-					involvement = involved
-					limit = {
-						activate_struggle_catalyst_secondary_character_involvement_involved_trigger = {
-							CATALYST = catalyst_vassalize_independent_ruler
-							CHAR = scope:vassal
+				set_variable = dont_trigger_again_please
+			}
+			if = {
+				limit = { NOT = { root = { has_variable = dont_trigger_again_please } } }
+				scope:vassal = {
+					every_character_struggle = {
+						involvement = involved
+						limit = {
+							activate_struggle_catalyst_secondary_character_involvement_involved_trigger = {
+								CATALYST = catalyst_vassalize_independent_ruler
+								CHAR = scope:vassal
+							}
+						}
+						activate_struggle_catalyst = {
+							catalyst = catalyst_vassalize_independent_ruler
+							character = root
 						}
 					}
-					activate_struggle_catalyst = {
-						catalyst = catalyst_vassalize_independent_ruler
-						character = root
-					}
 				}
+			} else = {
+				root = { remove_variable = dont_trigger_again_please }
 			}
 		}
 	}
@@ -3960,7 +4016,7 @@ on_vassal_change = {
 				title = new_liege_government_changed_title
 				desc = new_liege_government_changed_desc
 				right_icon = scope:new_liege
-				admin_government_reset_effect = yes
+				admin_change_government_effect = yes
 			}
 			hidden_effect = {
 				# VASSALS AND BELOW
@@ -3971,10 +4027,32 @@ on_vassal_change = {
 						title = new_liege_government_changed_title
 						desc = new_liege_government_changed_desc
 						right_icon = scope:new_liege
-						admin_government_reset_effect = yes
+						admin_change_government_effect = yes
 					}
 				}
 			}
+		}
+		### If a admin duke-tier character becomes the top-liege's direct vassal, ensure that they have a noble family title
+		if = {
+			limit = {
+				government_allows = administrative
+				is_house_head = yes
+				highest_held_title_tier >= tier_duchy
+				liege = {
+					is_independent_ruler = yes
+					government_allows = administrative
+				}
+				NOR = {
+					any_held_title = { is_noble_family_title = yes }
+					house = {
+						any_house_member = {
+							any_held_title = { is_noble_family_title = yes }
+						}
+					}
+				}
+			}
+			create_noble_family_effect = yes
+			domicile ?= { set_up_domicile_estate_effect = yes }
 		}
 		### If an admin ruler becomes independent, who are not of a high enough rank, changes government
 		if = {
@@ -3983,7 +4061,7 @@ on_vassal_change = {
 				government_has_flag = government_is_administrative
 				highest_held_title_tier < tier_kingdom
 			}
-			admin_independence_government_change_effect = yes
+			admin_change_government_effect = yes
 		}
 
 		# Additional Flavor Title

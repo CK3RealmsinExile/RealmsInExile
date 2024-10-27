@@ -1,0 +1,269 @@
+﻿namespace = tamska
+
+tamska.0001 = { # A Tamskangi has been found - does the Tamska approve?
+	content_source = realms_dlc
+	type = character_event
+	title = tamska.0001.t
+	desc = tamska.0001.desc
+	theme = crown
+	left_portrait = {
+		character = root
+		animation = personality_cynical
+	}
+    lower_center_portrait = scope:discoverer
+	right_portrait = {
+		character = scope:tamska_heir
+		animation = throne_room_bow_1
+	}
+
+	immediate = {
+		## Find a holy man/woman to discover the Tamskangi
+        if = {
+            limit = {
+                exists = root.cp:councillor_court_chaplain
+            }
+            root.cp:councillor_court_chaplain = { save_scope_as = discoverer }
+        }
+        else_if = {
+            limit = {
+                any_vassal_or_below = {
+                    capital_province = { has_holding_type = church_holding }
+                    faith = root.faith
+                }
+            }
+            random_vassal_or_below = {
+                limit = { 
+                    capital_province = { has_holding_type = church_holding }
+                    faith = root.faith
+                }
+                save_scope_as = discoverer
+            }
+        }
+        else = {
+            create_character = {
+                template = priest_character_template
+                gender_female_chance = 65
+                culture = root.culture
+                faith = root.faith
+                location = root.location
+                dynasty = none
+                save_scope_as = discoverer
+            }
+        }
+        
+        ## Find a Tamskangi
+        random_list = {
+            1 = { #Tamskangi is found from a non-lowborn family
+                if = {
+                    limit = {
+                        any_living_character = {
+                            faith = {
+                                has_doctrine = tenet_tamska_main
+                            }
+                            is_female = yes
+                            age <= 14
+                            age >= 4
+                            is_lowborn = no
+                            NOT = { has_character_flag = rejected_tamskangi }
+                            NOT = { has_trait = tamska_heir }
+                            NOT = { mother = root }
+                        }
+                    }
+                    random_living_character = {
+                        limit = {
+                            faith = {
+                                has_doctrine = tenet_tamska_main
+                            }
+                            is_female = yes
+                            age <= 14
+                            age >= 4
+                            is_lowborn = no
+                            NOT = { has_character_flag = rejected_tamskangi }
+                            NOT = { has_trait = tamska_heir }
+                            NOT = { mother = root }
+                        }
+                        weight = {
+                            base = 1
+                            modifier = { # Weight for higher skills, focusing on learning
+                                add = {
+                                    value = learning
+                                    multiply = 2
+                                    add = diplomacy
+                                    add = martial
+                                    add = stewardship
+                                    add = intrigue
+                                }
+                            }
+                            modifier = { # Counter-balance as older will have higher skills
+                                add = {
+                                    subtract = {
+                                        value = age
+                                    }
+                                    multiply = 2
+                                }    
+                            }
+                        }
+                        save_scope_as = tamska_heir
+                        father = { save_scope_as = tamska_heir_father }
+                        mother = { save_scope_as = tamska_heir_mother }
+                    }
+                }
+                else = { # Unless she isn't...
+                    create_character = {
+                        template = pool_repopulate_learning
+                        gender_female_chance = 100
+                        age = { 4 9 }
+                        culture = root.culture
+                        faith = root.faith
+                        location = root.location
+                        dynasty = none
+                        save_scope_as = tamska_heir
+                    }
+                }
+            }
+            3 = { #Tamskangi is a lowborn
+                if = {
+                    limit = {
+                        any_living_character = {
+                            faith = {
+                                has_doctrine = tenet_tamska_main
+                            }
+                            is_female = yes
+                            age <= 14
+                            age >= 4
+                            is_lowborn = yes
+                            NOT = { has_character_flag = rejected_tamskangi }
+                            NOT = { has_trait = tamska_heir }
+                        }
+                    }
+                    random_living_character = {
+                        limit = {
+                            faith = {
+                                has_doctrine = tenet_tamska_main
+                            }
+                            is_female = yes
+                            age <= 14
+                            age >= 4
+                            is_lowborn = yes
+                            NOT = { has_character_flag = rejected_tamskangi }
+                            NOT = { has_trait = tamska_heir }
+                        }
+                        weight = {
+                            base = 1
+                            modifier = { # Weight for higher skills, focusing on learning
+                                add = {
+                                    value = learning
+                                    multiply = 2
+                                    add = diplomacy
+                                    add = martial
+                                    add = stewardship
+                                    add = intrigue
+                                }
+                            }
+                            modifier = { # Counter-balance as older will have higher skills
+                                add = {
+                                    subtract = {
+                                        value = age
+                                    }
+                                    multiply = 2
+                                }   
+                            }
+                        }
+                        save_scope_as = tamska_heir
+                    }
+                }
+                else = {
+                    create_character = {
+                        template = pool_repopulate_learning
+                        gender_female_chance = 100
+                        age = { 4 9 }
+                        culture = root.culture
+                        faith = root.faith
+                        location = root.location
+                        dynasty = none
+                        save_scope_as = tamska_heir
+                    }
+                }
+            }
+        }
+	}
+	
+	option = {
+		name = tamska.0001.a
+        save_scope_as = current_tamska
+        every_vassal_or_below = { # Notify the player vassals
+            limit = {
+                is_ai = no
+            }
+            trigger_event = tamska.0002
+        }
+        add_legitimacy = 400
+        if = {
+            limit = {
+                scope:tamska_heir = {
+                    is_lowborn = no
+                }
+            }
+            scope:tamska_heir.dynasty = {
+                save_scope_as = tamska_heir_former_dynasty
+            }
+            scope:tamska_heir.dynasty = {
+                add_dynasty_prestige = 500
+                add_dynasty_modifier = {
+                    modifier = tamskangi_found_in_dynasty_dynasty_modifier
+                    years = 80
+                }
+            }
+        }
+        scope:tamska_heir = {
+			add_trait = tamska_heir
+			set_house = root.house
+
+		}
+		adopt = scope:tamska_heir
+        create_character_memory = {
+            type = adopted_a_child
+            participants = {
+                child = scope:tamska_heir
+            }
+        }
+	}
+
+    option = {
+		name = tamska.0001.b
+        scope:tamska_heir = {
+            add_pressed_claim = title:e_mag_tumag
+            add_pressed_claim = title:k_mag
+            add_pressed_claim = title:k_tumag
+        }
+        add_legitimacy = -750
+        add_piety_level = -1
+        scope:tamska_heir = {
+            add_character_flag = rejected_tamskangi
+        }
+        add_character_modifier = {
+            modifier = rejected_tamskangi_character_modifier
+            years = 50
+        }
+	}
+}
+
+tamska.0002 = { # A Tamskangi has been found - does the Tamska approve?
+	content_source = realms_dlc
+	type = character_event
+	title = tamska.0002.t
+	desc = tamska.0002.desc
+	theme = crown
+	left_portrait = {
+		character = scope:current_tamska
+		animation = happiness
+	}
+	right_portrait = {
+		character = scope:tamska_heir
+		animation = personality_bold
+	}
+	
+	option = {
+		name = tamska.0002.a
+	}
+}
