@@ -606,6 +606,248 @@ yes_yes = {
 	}
 }
 
+lotr_sunset_invasion_adventurer_effect = {
+	save_scope_as = new_landless_adventurer
+	if = {
+		limit = {
+			exists = house
+		}
+		house = { save_scope_as = new_landless_adventurer_house }
+	}
+	if = {
+		limit = {
+			exists = location
+		}
+		location = { save_scope_as = new_landless_adventurer_location }
+	}
+	save_scope_value_as = {
+		name = adventurer_creation_reason
+		value = $REASON$
+	}
+	hidden_effect = {
+		create_adventurer_title = {
+			name = d_eonwe_host_valinor_landing
+			holder = scope:new_landless_adventurer
+			article = DEFAULT_TITLE_NAME_ARTICLE
+			save_scope_as = new_title
+		}
+		create_title_and_vassal_change = {
+			type = created
+			save_scope_as = change
+			add_claim_on_loss = no
+		}
+		scope:new_title ?= {
+			create_landless_adventurer_title_history_effect = yes
+			set_variable = {
+				name = adventurer_creation_reason
+				value = scope:adventurer_creation_reason
+			}
+			change_title_holder = {
+				holder = scope:new_landless_adventurer
+				change = scope:change
+			}
+		}
+		resolve_title_and_vassal_change = scope:change
+		scope:new_title = { save_scope_as = new_landless_adventurer_title }
+		scope:new_landless_adventurer = {
+			if = {
+				limit = {
+					NOT = { has_government = landless_adventurer_government }
+				}
+				change_government = landless_adventurer_government
+			}
+			if = {
+				limit = {
+					NOT = { has_realm_law = landless_adventurer_succession_law }
+				}
+				add_realm_law = landless_adventurer_succession_law
+			}
+			if = {
+				limit = {
+					has_realm_law = crown_authority_0
+				}
+				remove_realm_law = crown_authority_0
+			}
+			domicile = {
+				change_provisions = starting_provisions_value
+			}
+		}
+		every_player = {
+			limit = {
+				NOR = {
+					root ?= this
+					this = scope:new_landless_adventurer
+				}
+				OR = {
+					# Either they're important to us.
+					is_close_or_extended_family_of = scope:new_landless_adventurer
+					is_consort_of = scope:new_landless_adventurer
+					has_important_relationship_with_character_trigger = { CHARACTER = scope:new_landless_adventurer }
+					# Or they're just close enough.
+					AND = {
+						capital_province = { "squared_distance(scope:new_landless_adventurer.location)" <= squared_distance_medium }
+						OR = {
+							top_liege = root.top_liege
+							any_neighboring_and_across_water_top_liege_realm_owner = { this = root.top_liege }
+						}
+					}
+				}
+			}
+			send_interface_message = {
+				type = msg_landless_adventurer_nearby
+				title = nearby_landless_adventurer_created_message_title
+				left_icon = scope:new_landless_adventurer
+				switch = {
+					trigger = scope:adventurer_creation_reason
+					flag:conquest = { custom_tooltip = nearby_landless_adventurer_created_message_conquest_tt }
+					flag:deposition = { custom_tooltip = nearby_landless_adventurer_created_message_deposition_tt }
+					flag:succession = { custom_tooltip = nearby_landless_adventurer_created_message_succession_tt }
+					flag:exile = { custom_tooltip = nearby_landless_adventurer_created_message_exile_tt }
+					flag:voluntary = { custom_tooltip = nearby_landless_adventurer_created_message_voluntary_tt }
+					flag:revocation = { custom_tooltip = nearby_landless_adventurer_created_message_revocation_tt }
+					flag:runaway_allowed = { custom_tooltip = nearby_landless_adventurer_created_message_runaway_allowed_tt }
+					flag:runaway_forbidden = { custom_tooltip = nearby_landless_adventurer_created_message_runaway_forbidden_tt }
+					flag:wanderer = { custom_tooltip = nearby_landless_adventurer_created_message_wanderer_tt }
+					fallback = { custom_tooltip = nearby_landless_adventurer_created_message_fallback_tt }
+				}
+			}
+		}
+	}
+	custom_tooltip = laamp_become_adventurer_tt
+	hidden_effect = {
+		if = {
+			limit = {
+				scope:new_landless_adventurer = {
+					is_ai = no
+				}
+				NOT = { exists = scope:expelled }
+			}
+			populate_location_with_contracts_effect = {
+				AREA_CHAR = scope:new_landless_adventurer
+				AMOUNT = 3
+			}
+		}
+		scope:new_landless_adventurer = {
+			every_councillor = {
+				if = {
+					limit = {
+						NOR = {
+							has_council_position = councillor_court_chaplain
+							has_council_position = councillor_spouse
+						}
+					}
+					scope:new_landless_adventurer = {
+						fire_councillor = prev
+					}
+					remove_opinion = {
+						modifier = fired_from_council_opinion
+						target = scope:new_landless_adventurer
+					}
+				}
+				else_if = {
+					limit = {
+						NOR = {
+							is_close_or_extended_family_of = scope:new_landless_adventurer
+							has_relation_lover = scope:new_landless_adventurer
+							has_relation_friend = scope:new_landless_adventurer
+							is_consort_of = scope:new_landless_adventurer
+							has_council_position = councillor_spouse
+						}
+					}
+					death = {
+						death_reason = death_vanished
+					}
+				}
+			}
+			every_courtier = {
+				limit = {
+					NOR = {
+						is_close_or_extended_family_of = scope:new_landless_adventurer
+						has_relation_lover = scope:new_landless_adventurer
+						has_relation_friend = scope:new_landless_adventurer
+						is_consort_of = scope:new_landless_adventurer
+					}
+				}
+				move_to_pool = yes
+			}
+			# Give us a couple of starting chars if we're almost completely bereft.
+			if = {
+				limit = {
+					any_courtier = { count <= 2 }
+				}
+				trigger_event = {
+					id = ep3_laamps.1001
+					weeks = { 2 6 }
+				}
+			}
+		}
+		trigger_event = { id = misc.0001 days = 1 }
+	}
+	add_to_global_variable_list = {
+		name = laamps_tally
+		target = scope:new_landless_adventurer.primary_title
+	}
+	set_variable = flavourise_camp_purpose_wanderers
+
+	add_realm_law_skip_effects = camp_purpose_mercenaries
+	set_invasion_camp_buildings = yes
+}
+
+set_invasion_camp_buildings = {
+	domicile = {
+		# Domicile
+		add_domicile_building = camp_main_02
+		add_domicile_building = camp_main_03
+		add_domicile_building = camp_main_04
+
+		# Supply Tent
+		add_domicile_building = supply_tent_01
+		add_domicile_building = supply_tent_02
+		add_domicile_building = supply_tent_03
+		add_domicile_building = supply_tent_04
+		add_domicile_building = supply_tent_05
+		add_domicile_building = supply_tent_06
+
+		# Camp Perimeter
+		add_domicile_building = camp_perimeter_01
+		add_domicile_building = camp_perimeter_02
+		add_domicile_building = camp_perimeter_03
+		add_domicile_building = camp_perimeter_04
+		add_domicile_building = camp_perimeter_05
+		add_domicile_building = camp_perimeter_06
+		add_domicile_building = camp_perimeter_fixed_layout
+
+		# Proving Grounds
+		add_domicile_building = proving_grounds_01
+		add_domicile_building = proving_grounds_02
+		add_domicile_building = proving_grounds_03
+		add_domicile_building = proving_grounds_04
+		add_domicile_building = proving_grounds_05
+		add_domicile_building = proving_grounds_06
+		add_domicile_building = proving_grounds_nightly_barding_drills
+		add_domicile_building = proving_grounds_the_stump
+		add_domicile_building = proving_grounds_personal_bouts
+		add_domicile_building = proving_grounds_training_circle
+		add_domicile_building = proving_grounds_horse_run
+		add_domicile_building = proving_grounds_mock_battle_drills
+
+		# Baggage Trains
+		add_domicile_building = baggage_train_01
+		add_domicile_building = baggage_train_02
+		add_domicile_building = baggage_train_03
+		add_domicile_building = baggage_train_04
+		add_domicile_building = baggage_train_05
+		add_domicile_building = baggage_train_06
+		add_domicile_building = baggage_train_ample_steeds
+		add_domicile_building = baggage_train_porters
+		add_domicile_building = baggage_train_trackers
+		add_domicile_building = baggage_train_siege_engineers
+
+		# Provisions
+		change_provisions = max_provisions
+	}
+}
+
 ### Tamska System
 make_former_tamska_effect = {
 	remove_trait = tamska
