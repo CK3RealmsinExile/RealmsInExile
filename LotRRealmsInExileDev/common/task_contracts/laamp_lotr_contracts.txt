@@ -1,0 +1,360 @@
+﻿##################################################
+# INFO
+# For laamp contracts that are broadly applicable: that is, they should be able to trigger virtually anywhere and with a minimum of triggers.
+# The idea is that any given laamp led by a character skilled in any one thing should always be viable — maybe through crime, maybe by demeaning themselves, but they should always have some contracts around to work with.
+##################################################
+
+
+
+##################################################
+# GROUPS (for populate_task_contracts_for_area)
+# 
+# laamp_contracts_criminal_group
+# laamp_contracts_diplomacy_group
+# laamp_contracts_hireling_group
+# laamp_contracts_hunting_group
+# laamp_contracts_intrigue_group
+# laamp_contracts_learning_group
+# laamp_contracts_martial_group
+# laamp_contracts_stewardship_group
+# laamp_contracts_justicar_group
+# 
+
+##################################################
+# #Diplo Contracts laamp_lotr_0xxx
+#
+# #Martial Contracts laamp_lotr_1xxx
+#
+# #Stewardship Contracts laamp_lotr_2xxx
+#
+# #Intrigue Contracts laamp_lotr_3xxx
+#
+# #Learning Contracts laamp_lotr_4xxx
+# laamp_lotr_4001		Heal courtier or ruler
+#
+# #Prowess Contracts laamp_lotr_5xxx
+#
+# #Justicar Contracts laamp_lotr_6xxx
+#
+##################################################
+
+
+
+
+
+
+
+
+
+
+##################################################
+# DIPLO CONTRACTS
+
+
+##################################################
+# MARTIAL & PROWESS CONTRACTS
+
+
+##################################################
+# STEWARDSHIP CONTRACTS
+
+
+##################################################
+# INTRIGUE CONTRACTS
+
+
+#################################################
+# LEARNING CONTRACTS
+
+# Heal courtier or ruler
+laamp_lotr_4001 = {
+	group = laamp_contracts_learning_group
+	icon = "gfx/interface/icons/scheme_types/learning.dds"
+
+	travel = yes
+	use_diplomatic_range = no
+
+	weight = {
+		# Standard weights.
+		value = task_contract_weight_default_value
+		add = laamp_contracts_weight_up_learning_value
+		# Employer weights.
+		scope:employer = {
+			add = {
+				# Weight up.
+				## Traits that appreciate works of learning.
+				if = {
+					limit = { has_trait = scholar }
+					add = task_contract_weight_bonus_employer_has_associated_traits_value
+				}
+				if = {
+					limit = { has_trait = theologian }
+					add = task_contract_weight_bonus_employer_has_associated_traits_value
+				}
+				if = {
+					limit = { has_trait = eccentric }
+					add = task_contract_weight_bonus_employer_has_associated_traits_value
+				}
+				if = {
+					limit = { has_trait = patient }
+					add = task_contract_weight_bonus_employer_has_associated_traits_value
+				}
+				if = {
+					limit = { has_trait = shy }
+					add = task_contract_weight_bonus_employer_has_associated_traits_value
+				}
+				# Weight down.
+				## Traits that don't support these gorramned NERDS.
+				if = {
+					limit = { has_trait = gregarious }
+					add = task_contract_weight_malus_employer_has_associated_traits_value
+				}
+				if = {
+					limit = { has_trait = impatient }
+					add = task_contract_weight_malus_employer_has_associated_traits_value
+				}
+				if = {
+					limit = { has_trait = athletic }
+					add = task_contract_weight_malus_employer_has_associated_traits_value
+				}
+				# Restrictions.
+				min = task_contract_weight_employer_associated_traits_min_value
+				max = task_contract_weight_employer_associated_traits_max_value
+			}
+			multiply = task_contract_weight_by_tier_value
+			# This weight is an override, so make sure it's placed at the bottom.
+			add = task_contract_weight_employer_contact_list_value
+		}
+	}
+
+	# Validity Triggers
+	valid_to_create = {
+		# Standard triggers.
+		valid_laamp_basic_trigger = {
+			EMPLOYER = scope:employer
+			LAAMP = root
+		}
+		employer_has_treasury_to_offer_job_trigger = yes
+		valid_laamp_sensible_start_trigger = yes
+		rule_out_dramatic_laamp_employers_trigger = yes
+		scope:employer = {
+			OR = {
+				has_serious_disease_trigger = yes
+				any_courtier = {
+					has_serious_disease_trigger = yes
+					OR = {
+						is_of_major_interest_trigger = { CHARACTER = scope:employer }
+						is_of_minor_interest_trigger = { CHARACTER = scope:employer }
+					}
+				}
+			}
+		}
+		root = {
+			faith_is_good = yes
+			OR = {
+				is_elf = yes
+				is_maiar = yes
+				has_trait = lifestyle_physician
+				any_character_artifact = {
+					has_variable = elessar
+				}
+			}
+		}
+	}
+	valid_to_accept = {
+		# Standard triggers.
+		valid_laamp_basic_accept_only_trigger = yes
+		valid_laamp_basic_trigger = {
+			EMPLOYER = scope:employer
+			LAAMP = root
+		}
+		scope:employer = { is_landed = yes }
+	}
+	valid_to_continue = {
+		# Standard triggers.
+		valid_laamp_basic_trigger = {
+			EMPLOYER = root.task_contract_employer
+			LAAMP = root.task_contract_taker
+		}
+		task_contract_employer = { is_landed = yes }
+		task_contract_target ?= { 
+			has_serious_disease_trigger = yes
+			is_alive = yes
+		}
+	}
+	valid_to_keep = {
+		# Standard triggers.
+		valid_laamp_basic_trigger = {
+			EMPLOYER = root.task_contract_employer
+			LAAMP = root.task_contract_taker
+		}
+		root.task_contract_employer = { is_landed = yes }
+		root.var:task_contract_target ?= { has_serious_disease_trigger = yes }
+		exists = root.var:task_contract_target
+		root.var:task_contract_target = {
+			is_courtier_of = root.task_contract_employer
+		}
+	}
+	
+	# On_actions
+	on_accepted = {
+		task_contract_taker = { play_sound_effect = "event:/DLC/EP3/SFX/UI/Contracts/ep3_ui_contracts_accept_contract" }
+		# For the intro event.
+		save_scope_as = task_contract
+		# Then we start the scheme.
+		task_contract_taker ?= {
+			start_scheme = {
+				type = laamp_lotr_4001_contract_scheme
+				contract = root
+				target_character = root.task_contract_employer
+			}
+			# Make a note of what the scheme even is; we'll need this for the event too.
+			scope:task_contract.scheme = { save_scope_as = scheme }
+			trigger_event = laamp_lotr_contract_schemes.4001
+		}
+	}
+	on_create = {
+		scope:contract = {
+			save_scope_as = task_contract
+			task_contract_employer = { 
+				if = {
+					limit = { has_serious_disease_trigger = yes }
+					save_scope_as = target
+					save_scope_as = task_contract_target
+				}
+				else = {
+					random_courtier = {
+						limit = { 
+							is_of_major_interest_trigger = { CHARACTER = scope:employer }
+							has_serious_disease_trigger = yes
+						}
+						alternative_limit = { 
+							is_of_minor_interest_trigger = { CHARACTER = scope:employer }
+							has_serious_disease_trigger = yes
+						}
+						save_scope_as = target
+						save_scope_as = task_contract_target
+					}
+				}
+			}	
+			set_variable = {
+				name = task_contract_employer
+				value = scope:task_contract.task_contract_employer
+			}
+			if = {
+				limit = {
+					exists = scope:task_contract.task_contract_target
+				}
+				set_variable = {
+					name = task_contract_target
+					value = scope:task_contract.task_contract_target
+				}
+			}
+			else = {
+				set_variable = {
+					name = task_contract_target
+					value = scope:task_contract_target
+				}
+				set_task_contract_target = scope:task_contract_target
+			}
+			# Make our gold rewards static.
+			grab_gold_fuzz_number_effect = yes
+			set_variable = {
+				name = gold_success_standard
+				value = task_contract_taker.task_contract_success_gold_gain_full_value
+			}
+			# Make sure critical values are a bit higher.
+			save_scope_value_as = { name = gold_safety_margin value = flag:yes }
+			set_variable = {
+				name = gold_success_critical
+				value = task_contract_taker.task_contract_success_gold_gain_critical_value
+			}
+		}
+	}
+
+	# Rewards
+	task_contract_reward = {
+		success_standard = {
+			should_print_on_complete = yes
+			effect = {
+				task_contract_taker = { play_sound_effect = "event:/DLC/EP3/SFX/UI/Contracts/ep3_ui_contracts_success_on_contract" }
+				# Camp building extra Learning Rewards: +50%.
+				if = {
+					limit = {
+						task_contract_taker.domicile ?= { has_domicile_parameter = camp_improved_learning_contract_rewards }
+					}
+					save_scope_value_as = { name = extra_reward value = flag:yes }
+				}
+				else = {
+					save_scope_value_as = { name = extra_reward value = flag:no }
+				}
+				laamp_rewards_disburse_ordinary_currency_effect = {
+					GOLD = scope:task_contract.var:gold_success_standard
+					PRESTIGE = task_contract_success_prestige_gain_half_value
+					PIETY = task_contract_success_piety_gain_half_value
+					PROVISIONS = task_contract_success_provisions_gain_minor_value
+					OPINION = task_contract_opinion_standard_reward_value
+					OPINION_TYPE = succeeded_task_contract_opinion
+					CONTACT = yes
+					CONTACT_HOOK = no
+					EXTRA_REWARD = scope:extra_reward
+				}
+			}
+		}
+		success_critical = {
+			should_print_on_complete = yes
+			effect = {
+				task_contract_taker = { play_sound_effect = "event:/DLC/EP3/SFX/UI/Contracts/ep3_ui_contracts_success_on_contract" }
+				# Camp building extra Learning Rewards: +50%.
+				if = {
+					limit = {
+						task_contract_taker.domicile ?= { has_domicile_parameter = camp_improved_learning_contract_rewards }
+					}
+					save_scope_value_as = { name = extra_reward value = flag:yes }
+				}
+				else = {
+					save_scope_value_as = { name = extra_reward value = flag:no }
+				}
+				laamp_rewards_disburse_ordinary_currency_effect = {
+					GOLD = scope:task_contract.var:gold_success_critical
+					PRESTIGE = task_contract_success_prestige_gain_full_value
+					PIETY = task_contract_success_piety_gain_full_value
+					PROVISIONS = task_contract_success_provisions_gain_medium_value
+					OPINION = task_contract_opinion_excelled_reward_value
+					OPINION_TYPE = critically_succeeded_task_contract_opinion
+					CONTACT = yes
+					CONTACT_HOOK = yes
+					EXTRA_REWARD = scope:extra_reward
+				}
+			}
+		}
+		failure_standard = {
+			positive = no
+			should_print_on_complete = yes
+			effect = {
+				task_contract_taker = { play_sound_effect = "event:/DLC/EP3/SFX/UI/Contracts/ep3_ui_contracts_failure_on_contract" }
+				save_scope_value_as = { name = extra_reward value = flag:no }
+				# Standard Penalties.
+				laamp_rewards_disburse_ordinary_currency_effect = {
+					GOLD = 0
+					PRESTIGE = task_contract_failure_prestige_loss_full_value
+					PIETY = 0
+					PROVISIONS = task_contract_failure_provisions_gain_minor_value
+					OPINION = task_contract_opinion_standard_failure_value
+					OPINION_TYPE = failed_task_contract_opinion
+					CONTACT = no
+					CONTACT_HOOK = no
+					EXTRA_REWARD = scope:extra_reward
+				}
+			}
+		}
+	}
+}
+
+
+##################################################
+# JUSTICAR CONTRACTS
+
+##################################################
+# DEPRECATED CONTRACTS
+
