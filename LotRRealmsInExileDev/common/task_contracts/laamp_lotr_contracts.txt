@@ -192,7 +192,10 @@ laamp_lotr_4001 = {
 		root.var:task_contract_target ?= { has_serious_disease_trigger = yes }
 		exists = root.var:task_contract_target
 		root.var:task_contract_target = {
-			is_courtier_of = root.task_contract_employer
+			OR = {
+				this = root.task_contract_employer
+				is_courtier_of = root.task_contract_employer
+			}
 		}
 	}
 	
@@ -201,12 +204,52 @@ laamp_lotr_4001 = {
 		task_contract_taker = { play_sound_effect = "event:/DLC/EP3/SFX/UI/Contracts/ep3_ui_contracts_accept_contract" }
 		# For the intro event.
 		save_scope_as = task_contract
+		# Find a suitable patient
+		task_contract_employer = { 
+			if = {
+				limit = { has_serious_disease_trigger = yes }
+				save_scope_as = task_contract_target
+			}
+			else = {
+				random_courtier = {
+					limit = { 
+						is_of_major_interest_trigger = { CHARACTER = scope:employer }
+						has_serious_disease_trigger = yes
+					}
+					alternative_limit = { 
+						is_of_minor_interest_trigger = { CHARACTER = scope:employer }
+						has_serious_disease_trigger = yes
+					}
+					save_scope_as = task_contract_target
+				}
+			}
+		}
+		set_variable = {
+			name = task_contract_employer
+			value = scope:task_contract.task_contract_employer
+		}
+		if = {
+			limit = {
+				exists = scope:task_contract.task_contract_target
+			}
+			set_variable = {
+				name = task_contract_target
+				value = scope:task_contract.task_contract_target
+			}
+		}
+		else = {
+			set_variable = {
+				name = task_contract_target
+				value = scope:task_contract_target
+			}
+			set_task_contract_target = scope:task_contract_target
+		}
 		# Then we start the scheme.
 		task_contract_taker ?= {
 			start_scheme = {
 				type = laamp_lotr_4001_contract_scheme
 				contract = root
-				target_character = root.task_contract_employer
+				target_character = root.var:task_contract_target
 			}
 			# Make a note of what the scheme even is; we'll need this for the event too.
 			scope:task_contract.scheme = { save_scope_as = scheme }
@@ -216,47 +259,6 @@ laamp_lotr_4001 = {
 	on_create = {
 		scope:contract = {
 			save_scope_as = task_contract
-			task_contract_employer = { 
-				if = {
-					limit = { has_serious_disease_trigger = yes }
-					save_scope_as = target
-					save_scope_as = task_contract_target
-				}
-				else = {
-					random_courtier = {
-						limit = { 
-							is_of_major_interest_trigger = { CHARACTER = scope:employer }
-							has_serious_disease_trigger = yes
-						}
-						alternative_limit = { 
-							is_of_minor_interest_trigger = { CHARACTER = scope:employer }
-							has_serious_disease_trigger = yes
-						}
-						save_scope_as = target
-						save_scope_as = task_contract_target
-					}
-				}
-			}	
-			set_variable = {
-				name = task_contract_employer
-				value = scope:task_contract.task_contract_employer
-			}
-			if = {
-				limit = {
-					exists = scope:task_contract.task_contract_target
-				}
-				set_variable = {
-					name = task_contract_target
-					value = scope:task_contract.task_contract_target
-				}
-			}
-			else = {
-				set_variable = {
-					name = task_contract_target
-					value = scope:task_contract_target
-				}
-				set_task_contract_target = scope:task_contract_target
-			}
 			# Make our gold rewards static.
 			grab_gold_fuzz_number_effect = yes
 			set_variable = {
