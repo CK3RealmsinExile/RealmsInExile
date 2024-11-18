@@ -1,0 +1,683 @@
+﻿@event_in_same_scheme_cooldown_years_value = 2
+
+@laamp_base_contract_schemes_on_going_duel_diff_t1_value = medium_skill_rating
+@laamp_base_contract_schemes_on_going_duel_diff_t2_value = decent_skill_rating
+@laamp_base_contract_schemes_on_going_duel_diff_t3_value = high_skill_rating
+
+@laamp_base_contract_schemes_duel_stress_wager_value = 30
+
+
+namespace = laamp_lotr_contract_schemes
+
+##################################################
+# #Contract Schemes (Diplo)
+#
+# #Contract Schemes (Martial)
+#
+# #Contract Schemes (Stewardship)
+#
+# #Contract Schemes (Intrigue)
+#
+# #Contract Schemes (Learning)
+# 4001 - 4010	Heal ruler or courtier
+#
+# #Contract Schemes (Prowess)
+#
+##################################################
+
+##################################################
+# SCRIPTED TRIGGERS & EFFECTS
+
+# Syncs stress lost from successfully completing a non-criminal contract scheme.
+scripted_effect laamp_lotr_contract_schemes_acknowledge_success_stress_effect = {
+	stress_impact = { arrogant = minor_stress_impact_loss }
+}
+
+# Syncs stress gained from failing a non-criminal contract scheme.
+scripted_effect laamp_lotr_contract_schemes_acknowledge_failure_stress_effect = {
+	if = {
+		limit = { scope:task_contract_tier >= 2 }
+		stress_impact = {
+			base = miniscule_stress_impact_gain
+			humble = minor_stress_impact_loss
+			arrogant = minor_stress_impact_gain
+		}
+	}
+}
+
+# Syncs stress gained from successfully completing a non-criminal contract scheme.
+scripted_effect laamp_lotr_contract_schemes_acknowledge_success_criminal_stress_effect = {
+	stress_impact = {
+		arrogant = minor_stress_impact_loss
+		arbitrary = minor_stress_impact_loss
+		just = medium_stress_impact_gain
+	}
+}
+
+# Syncs stress gained from failing a non-criminal contract scheme.
+scripted_effect laamp_lotr_contract_schemes_acknowledge_failure_criminal_stress_effect = {
+	stress_impact = {
+		base = minor_stress_impact_gain
+		humble = minor_stress_impact_loss
+		arrogant = minor_stress_impact_gain
+		just = medium_stress_impact_gain
+	}
+}
+
+# Syncs arbitrary duel difficulty + rewards to the tier of a contract, so that the same effect can dish out scaling rewards/have scaling odds if you're impressing a king rather than a baron.
+scripted_effect laamp_lotr_contract_schemes_check_contract_difficulty_and_rewards_effect = {
+	task_contract = {
+		if = {
+			limit = { task_contract_tier >= task_contract_t3_value }
+			save_scope_value_as = {
+				name = duel_diff
+				value = @laamp_base_contract_schemes_on_going_duel_diff_t3_value
+			}
+			save_scope_value_as = {
+				name = prestige_gain
+				value = major_prestige_gain
+			}
+			save_scope_value_as = {
+				name = piety_gain
+				value = major_piety_gain
+			}
+			save_scope_value_as = {
+				name = provisions_gain
+				value = massive_provisions_gain
+			}
+		}
+		else_if = {
+			limit = { task_contract_tier >= task_contract_t2_value }
+			save_scope_value_as = {
+				name = duel_diff
+				value = @laamp_base_contract_schemes_on_going_duel_diff_t2_value
+			}
+			save_scope_value_as = {
+				name = prestige_gain
+				value = medium_prestige_gain
+			}
+			save_scope_value_as = {
+				name = piety_gain
+				value = medium_piety_gain
+			}
+			save_scope_value_as = {
+				name = provisions_gain
+				value = major_provisions_gain
+			}
+		}
+		else = {
+			save_scope_value_as = {
+				name = duel_diff
+				value = @laamp_base_contract_schemes_on_going_duel_diff_t1_value
+			}
+			save_scope_value_as = {
+				name = prestige_gain
+				value = minor_prestige_gain
+			}
+			save_scope_value_as = {
+				name = piety_gain
+				value = minor_piety_gain
+			}
+			save_scope_value_as = {
+				name = provisions_gain
+				value = medium_provisions_gain 
+			}
+		}
+	}
+}
+
+##################################################
+# SETUP — INTRIGUE
+
+
+##################################################
+# Murder an enemy commander
+# by Brice Underhill
+# 3011 - 3030
+##################################################
+
+#	Intro event.
+laamp_lotr_contract_schemes.3011 = {
+	type = character_event
+	title = laamp_lotr_contract_schemes.3011.t
+	left_portrait = {
+		character = root
+		animation = spymaster
+	}
+	right_portrait = {
+		character = scope:employer
+		animation = personality_vengeful
+	}
+	desc = {
+		first_valid = {
+			triggered_desc = {
+				trigger = {
+					scope:employer = {
+						is_orc = yes
+					}
+				}
+				desc = laamp_lotr_contract_schemes.3011.orc.desc
+			}
+			triggered_desc = {
+				trigger = {
+					always = yes
+				}
+				desc = laamp_lotr_contract_schemes.3011.desc
+			}
+		}
+	}
+	theme = intrigue
+	lower_center_portrait = scope:target
+	override_background = { reference = study }
+	widget = {
+		gui = "event_window_widget_scheme"
+		container = "custom_widgets_container"
+	}
+
+	immediate = {
+		scope:task_contract = {
+			task_contract_employer = { save_scope_as = employer }
+			var:target = { save_scope_as = target }
+		}
+	}
+
+	# Go for a balanced agent mix.
+	option = {
+		name = laamp_lotr_contract_schemes.3011.d
+		reason = give_me_balanced_agents
+		flavor = EVENT_WINDOW_OPTION_AGENTS_BALANCED
+
+		scope:scheme = {
+			# Success.
+			add_agent_slot = agent_assassin
+			add_agent_slot = agent_assassin
+			# Speed.
+			add_agent_slot = agent_infiltrator
+			add_agent_slot = agent_footpad
+			# Secrecy.
+			add_agent_slot = agent_lookout
+		}
+
+		# No stress, we're just selecting our starter batch.
+		# AI always selects balanced agents.
+		ai_chance = { base = 1000 }
+	}
+
+	# Focus on success chance agents.
+	option = {
+		name = laamp_lotr_contract_schemes.3011.a
+		reason = give_me_success_agents
+		flavor = EVENT_WINDOW_OPTION_AGENTS_SUCCESS
+
+		scope:scheme = {
+			# Success.
+			add_agent_slot = agent_assassin
+			add_agent_slot = agent_assassin
+			add_agent_slot = agent_thug
+			# Speed.
+			add_agent_slot = agent_infiltrator
+			# Secrecy.
+			add_agent_slot = agent_lookout
+		}
+
+		# No stress, we're just selecting our starter batch.
+		# AI always picks the balanced config.
+	}
+	
+	# Focus on speedy agents.
+	option = {
+		name = laamp_lotr_contract_schemes.3011.b
+		reason = give_me_speed_agents
+		flavor = EVENT_WINDOW_OPTION_AGENTS_SPEED
+
+		scope:scheme = {
+			# Speed.
+			add_agent_slot = agent_infiltrator
+			add_agent_slot = agent_infiltrator
+			add_agent_slot = agent_footpad
+			# Success.
+			add_agent_slot = agent_assassin
+			# Secrecy.
+			add_agent_slot = agent_lookout
+		}
+
+		# No stress, we're just selecting our starter batch.
+		# AI always picks the balanced config.
+	}
+	
+	# Focus on secrecy agents.
+	option = {
+		name = laamp_lotr_contract_schemes.3011.c
+		reason = give_me_secrecy_agents
+		flavor = EVENT_WINDOW_OPTION_AGENTS_SECRECY
+
+		scope:scheme = {
+			# Secrecy.
+			add_agent_slot = agent_lookout
+			add_agent_slot = agent_lookout
+			add_agent_slot = agent_decoy
+			# Success.
+			add_agent_slot = agent_assassin
+			# Speed.
+			add_agent_slot = agent_infiltrator
+		}
+
+		# No stress, we're just selecting our starter batch.
+		# AI always picks the balanced config.
+	}
+	
+	# Now show us the panel.
+	after = {
+		hidden_effect = {
+			if = {
+				limit = {
+					domicile ?= { has_domicile_parameter = camp_unlocks_poisoner_scheme_agents }
+				}
+				scope:scheme = { add_agent_slot = agent_poisoner }
+			}
+		}
+		open_view = {
+			view = intrigue_window
+			player = root
+		}
+	}
+}
+
+#	Success event.
+laamp_lotr_contract_schemes.3012 = {
+	type = character_event
+	window = scheme_successful_event
+	title = laamp_lotr_contract_schemes.3012.t
+	center_portrait = {
+		character = root
+		animation = marshal
+	}
+	right_portrait = {
+		character = scope:employer
+		animation = admiration
+	}
+	desc = {
+		first_valid = {
+			triggered_desc = {
+				trigger = {
+					scope:employer = {
+						is_orc = yes
+					}
+				}
+				desc = laamp_lotr_contract_schemes.3012.orc.desc
+			}
+			triggered_desc = {
+				trigger = {
+					always = yes
+				}
+				desc = laamp_lotr_contract_schemes.3012.desc
+			}
+		}
+	}
+	theme = intrigue
+	lower_center_portrait = scope:target
+	override_background = { reference = council_chamber }
+
+	immediate = {
+		# Employer outcome.
+		scope:employer = { add_stress = massive_stress_loss }
+		scope:scheme.task_contract = { complete_task_contract = success_standard }
+	}
+
+	# Acknowledge.
+	option = {
+		name = laamp_lotr_contract_schemes.3012.a
+		
+		custom_tooltip = laamp_base_contract_schemes.0000.f.contract_concluded
+
+		laamp_lotr_contract_schemes_acknowledge_success_stress_effect = yes
+	}
+}
+
+#	Failure event.
+laamp_lotr_contract_schemes.3013 = {
+	type = character_event
+	window = scheme_failed_event
+	title = laamp_lotr_contract_schemes.3013.t
+	center_portrait = {
+		character = root
+		animation = shame
+	}
+	right_portrait = {
+		character = scope:employer
+		animation = go_to_your_room
+	}
+	desc = {
+		first_valid = {
+			triggered_desc = {
+				trigger = {
+					scope:employer = {
+						is_orc = yes
+					}
+				}
+				desc = laamp_lotr_contract_schemes.3011.orc.desc
+			}
+			triggered_desc = {
+				trigger = {
+					always = yes
+				}
+				desc = laamp_lotr_contract_schemes.3011.desc
+			}
+		}
+	}
+	desc = laamp_lotr_contract_schemes.3013.desc
+	theme = intrigue
+	lower_center_portrait = scope:target
+	override_background = { reference = council_chamber }
+
+	immediate = {
+		# Employer outcome.
+		scope:employer = { add_stress = massive_stress_gain }
+		scope:scheme.task_contract = { complete_task_contract = failure_standard }
+	}
+
+	# Acknowledge.
+	option = {
+		name = laamp_base_contract_schemes.3013.a
+		
+		custom_tooltip = laamp_base_contract_schemes.0000.f.contract_concluded
+
+		laamp_lotr_contract_schemes_acknowledge_failure_stress_effect = yes
+	}
+}
+
+
+##################################################
+# SETUP — LEARNING
+
+##################################################
+# Heal ruler/character
+# by Brice Underhill
+# 4001 - 4010
+##################################################
+
+#	Intro event.
+laamp_lotr_contract_schemes.4001 = {
+	content_source = realms_dlc
+	type = character_event
+	title = laamp_lotr_contract_schemes.4001.t
+	desc = {
+		first_valid = {
+			triggered_desc = {
+				trigger = { scope:employer = scope:target }
+				desc = laamp_lotr_contract_schemes.4001.desc.employer
+			}
+			desc = laamp_lotr_contract_schemes.4001.desc
+		}
+	}
+	theme = learning
+	left_portrait = {
+		character = root
+		animation = personality_cynical
+	}
+	right_portrait = {
+		character = scope:employer
+		triggered_animation = {
+			trigger = {
+				scope:employer = scope:target
+			}
+			animation = idle
+		}
+		triggered_animation = {
+			trigger = { always = yes }
+			animation = worry
+		}
+	}
+	lower_center_portrait = {
+		trigger = { NOT = { scope:employer = scope:target } }
+		character = scope:target
+	}
+	override_background = { reference = study }
+	widget = {
+		gui = "event_window_widget_scheme"
+		container = "custom_widgets_container"
+	}
+
+	immediate = {
+		scope:task_contract = {
+			task_contract_employer = { save_scope_as = employer }
+			var:task_contract_target = { save_scope_as = target }
+		}
+	}
+
+	# Go for a balanced agent mix.
+	option = {
+		name = laamp_lotr_contract_schemes.4001.d
+		reason = give_me_balanced_agents
+		flavor = EVENT_WINDOW_OPTION_AGENTS_BALANCED
+
+		scope:scheme = {
+			# Success.
+			add_agent_slot = agent_alchemist
+			add_agent_slot = agent_physic
+			add_agent_slot = agent_physic
+			# Speed.
+			add_agent_slot = agent_cleric
+			add_agent_slot = agent_supplier
+		}
+
+		# No stress, we're just selecting our starter batch.
+		# AI always selects balanced agents.
+		ai_chance = { base = 1000 }
+	}
+
+	# Focus on success chance agents.
+	option = {
+		name = laamp_lotr_contract_schemes.4001.a
+		reason = give_me_success_agents
+		flavor = EVENT_WINDOW_OPTION_AGENTS_SUCCESS
+
+		scope:scheme = {
+			# Success.
+			add_agent_slot = agent_cleric_success
+			add_agent_slot = agent_physic
+			add_agent_slot = agent_physic
+			add_agent_slot = agent_alchemist
+			# Speed.
+			add_agent_slot = agent_supplier
+		}
+
+		# No stress, we're just selecting our starter batch.
+		# AI always picks the balanced config.
+	}
+	
+	# Focus on speedy agents.
+	option = {
+		name = laamp_lotr_contract_schemes.4001.b
+		reason = give_me_speed_agents
+		flavor = EVENT_WINDOW_OPTION_AGENTS_SPEED
+
+		scope:scheme = {
+			# Success.
+			add_agent_slot = agent_physic
+			# Speed.
+			add_agent_slot = agent_theologian
+			add_agent_slot = agent_cleric
+			add_agent_slot = agent_justiciar_speed
+			add_agent_slot = agent_supplier
+		}
+
+		# No stress, we're just selecting our starter batch.
+		# AI always picks the balanced config.
+	}
+	
+	# Now show us the panel.
+	after = {
+		open_view = {
+			view = intrigue_window
+			player = root
+		}
+	}
+}
+
+scripted_effect laamp_lotr_contract_schemes_4002_heal_character = {
+	#General cooldown
+	add_character_flag = {
+		flag = contraction_cooldown_general
+		years = 2
+	}
+
+	if = {
+		limit = { has_trait = consumption }
+		remove_trait_force_tooltip = consumption
+		add_character_flag = { flag = contraction_cooldown_consumption years = 20 }
+	}
+	else_if = {
+		limit = { has_trait = cancer }
+		remove_trait_force_tooltip = cancer
+		add_character_flag = { flag = contraction_cooldown_cancer years = 20 }
+	}
+	else_if = {
+		limit = { has_trait = great_pox }
+		remove_trait_force_tooltip = great_pox
+		add_character_flag = { flag = contraction_cooldown_great_pox years = 20 }
+	}
+	else_if = {
+		limit = { has_trait = gout_ridden }
+		remove_trait_force_tooltip = gout_ridden
+		add_character_flag = { flag = contraction_cooldown_gout_ridden years = 20 }
+	}
+	else_if = {
+		limit = { has_trait = ill }
+		remove_trait_force_tooltip = ill
+		#No cooldown, common disease
+	}
+	else_if = {
+		limit = { has_trait = pneumonic }
+		remove_trait_force_tooltip = pneumonic
+		add_character_flag = { flag = contraction_cooldown_pneumonic years = 20 }
+	}
+	else_if = {
+		limit = { has_trait = typhus }
+		remove_trait_force_tooltip = typhus
+		add_character_flag = { flag = contraction_cooldown_typhus years = 20 }
+	}
+	else_if = {
+		limit = { has_trait = measles }
+		remove_trait_force_tooltip = measles
+		#No cooldown, immunity
+	}
+	else_if = {
+		limit = { has_trait = dysentery }
+		remove_trait_force_tooltip = dysentery
+		add_character_flag = { flag = contraction_cooldown_dysentery years = 20 }
+	}
+	else_if = {
+		limit = { has_trait = ergotism }
+		remove_trait_force_tooltip = ergotism
+		add_character_flag = { flag = contraction_cooldown_ergotism years = 20 }
+	}
+	else_if = {
+		limit = { has_trait = smallpox }
+		remove_trait_force_tooltip = smallpox
+		#No cooldown, immunity
+	}
+	else_if = {
+		limit = { has_trait = bubonic_plague }
+		remove_trait_force_tooltip = bubonic_plague
+		#No cooldown, immunity
+	}
+}
+
+#	Success event.
+laamp_lotr_contract_schemes.4002 = {
+	content_source = realms_dlc
+	type = character_event
+	window = scheme_successful_event
+	title = laamp_lotr_contract_schemes.4002.t
+	desc = laamp_lotr_contract_schemes.4002.desc
+	theme = learning
+	center_portrait = {
+		character = root
+		animation = personality_bold
+	}
+	right_portrait = {
+		character = scope:employer
+		animation = dismissal
+	}
+	override_background = { reference = study }
+
+	immediate = {
+		laamp_base_contract_schemes_set_up_outcome_immediate_effect = yes
+		scope:target = {
+			laamp_lotr_contract_schemes_4002_heal_character = yes
+			# remove_trait_force_tooltip = consumption
+		}
+		random_list = {
+			67 = {
+				scope:scheme.task_contract = { complete_task_contract = success_standard }
+				add_trait_xp = {
+					trait = lifestyle_physician
+					value = 5
+				}
+			}
+			33 = {
+				scope:scheme.task_contract = { complete_task_contract = critical_success }
+				scope:employer = {
+					add_character_modifier = {
+						modifier = critical_epidemic_treatment
+						years = 10
+					}
+				}
+				add_trait_xp = {
+					trait = lifestyle_physician
+					value = 5
+				}
+			}
+		}
+		
+		# And wrap things up.
+		scope:scheme ?= { end_scheme = yes }
+	}
+
+	# Acknowledge.
+	option = {
+		name = laamp_lotr_contract_schemes.4002.a
+		flavor = laamp_base_contract_schemes.0000.f.contract_concluded
+
+		laamp_lotr_contract_schemes_acknowledge_success_stress_effect = yes
+	}
+}
+
+#	Failure event.
+laamp_lotr_contract_schemes.4003 = {
+	content_source = realms_dlc
+	type = character_event
+	window = scheme_failed_event
+	title = laamp_lotr_contract_schemes.4003.t
+	desc = laamp_lotr_contract_schemes.4003.desc
+	theme = learning
+	center_portrait = {
+		character = root
+		animation = shame
+	}
+	right_portrait = {
+		character = scope:employer
+		animation = disapproval
+	}
+	override_background = { reference = study }
+
+	immediate = {
+		laamp_base_contract_schemes_set_up_outcome_immediate_effect = yes
+		scope:scheme.task_contract = { complete_task_contract = failure_standard }
+		scope:scheme.task_contract.task_contract_target = {
+			add_disease_treatment_modifier_effect = { TREATMENT = risky OUTCOME = failure }
+			inform_liege_about_disease_treatment_effect = { TREATMENT = risky OUTCOME = failure }
+		}
+		# And wrap things up.
+		scope:scheme ?= { end_scheme = yes }
+	}
+
+	# Acknowledge.
+	option = {
+		name = laamp_lotr_contract_schemes.4003.a
+		flavor = laamp_base_contract_schemes.0000.f.contract_concluded
+
+		laamp_lotr_contract_schemes_acknowledge_failure_stress_effect = yes
+	}
+}
