@@ -135,7 +135,7 @@ minor_decisions.0001 = {
 			random_list = {
 				40 = {}
 				60 = {
-					trigger = { has_dlc = tours_and_tournaments }
+					trigger = { has_dlc_feature = tours_and_tournaments }
 					scope:knight = {
 						add_trait = tourney_participant
 						add_random_tourney_participant_level_effect = yes
@@ -286,7 +286,7 @@ minor_decisions.0003 = {
 	title = minor_decisions.0003.t
 	left_portrait = {
 		character = root
-		animation = stewardship
+		animation = steward
 	}
 	right_portrait = {
 		character = scope:barrel_character
@@ -465,7 +465,7 @@ minor_decisions.0003 = {
 							one_legged = {}
 							disfigured = {}
 							blind = {}
-							eunuch = {
+							eunuch_1 = {
 								trigger = {
 									is_female = no
 								}
@@ -588,7 +588,7 @@ minor_decisions.0003 = {
 							one_legged = {}
 							disfigured = {}
 							blind = {}
-							eunuch = {}
+							eunuch_1 = {}
 						}
 
 						health = 8
@@ -632,9 +632,10 @@ minor_decisions.0003 = {
 			scope:barrel_character = { NOT = { has_character_flag = executioner_flag } }
 		}
 		change_current_court_grandeur = minor_court_grandeur_gain
-		appoint_court_position = {
-			recipient = scope:barrel_character
-			court_position = executioner_court_position
+		court_position_grant_effect = {
+			EMPLOYER = root
+			POS = executioner
+			CANDIDATE = scope:barrel_character
 		}
 	}
 	# I don't like this person, get me another
@@ -660,6 +661,105 @@ minor_decisions.0003 = {
 		add_prestige_no_experience = 150
 		scope:barrel_character = {
 			silent_disappearance_effect = yes
+		}
+	}
+}
+
+#Inviting poets for invite_poets_decision
+minor_decisions.0004 = {
+	hidden = yes
+
+	trigger = {
+		exists = var:number_of_invite_poets_countdown
+	}
+
+	immediate = {
+		save_temporary_scope_as = host
+
+		#Set up a list of provinces, one per duchy in the realm, find all relevant pool characters there
+		every_realm_province = {
+			if = {
+				limit = {
+					save_temporary_scope_as = potential_province
+					NOT = {
+						any_in_list = {
+							list = pool_provinces
+							county.duchy = scope:potential_province.county.duchy
+						}
+					}
+				}
+				add_to_temporary_list = pool_provinces
+			}
+		}
+
+		every_in_list = {
+			list = pool_provinces
+			save_temporary_scope_as = pool_province
+
+			every_pool_character = {
+				province = scope:pool_province
+				limit = {
+					diplomacy >= invite_poets_decision_standard_value
+					guest_poet_candidate_trigger = yes
+				}
+				add_to_temporary_list = potential_poets
+			}
+		}
+
+		#Randomize a good knight from the realm pool characters
+		random_in_list = {
+			list = potential_poets
+			limit = { is_alive = yes }
+			weight = {
+				base = 1
+				modifier = {
+					add = {
+						value = diplomacy
+						subtract = invite_poets_decision_standard_value
+						multiply = 5
+					}
+				}
+			}
+			save_scope_as = poet
+		}
+
+		#If no one was found, make one
+		if = {
+			limit = { NOT = { exists = scope:poet } }
+
+			create_character = {
+				location = root.capital_province
+				template = ep3_poet_template
+				diplomacy = { invite_poets_decision_standard_value invite_poets_decision_upper_value }
+				save_scope_as = poet
+			}
+		}
+
+		add_courtier = scope:poet
+		send_interface_message = {
+			title = minor_decisions.0004.t
+			desc = minor_decisions.0004.desc
+			type = event_diplomacy_good
+			left_icon = scope:poet
+		}
+
+
+		#Count down the number of extra poets and either end the chain or resend this event
+		change_variable = {
+			name = number_of_invite_poets_countdown
+			subtract = 1
+		}
+
+		if = {
+			limit = { var:number_of_invite_poets_countdown = 0 }
+			remove_variable = number_of_invite_poets_countdown
+		}
+		else = {
+			clear_saved_scope = poet
+			trigger_event = {
+				id = minor_decisions.0004
+				days = { 100 200 }
+			}
 		}
 	}
 }

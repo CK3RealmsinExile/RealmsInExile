@@ -691,9 +691,18 @@ types JominiMultiplayerIngame {
 			margin = { 10 10 }
 			spacing = 5
 
-			text_single = {
-				text = "JOMINI_MULTIPLAYER_GUI_OOS_MESSAGE_HEADER"
-				autoresize = yes
+			header_pattern = {
+				layoutpolicy_horizontal = expanding
+
+				blockoverride "header_text"
+				{
+					text = "JOMINI_MULTIPLAYER_GUI_OOS_MESSAGE_HEADER"
+				}
+
+				blockoverride "button_close"
+				{
+					onclick = "[OosWindow.Continue]"
+				}
 			}
 
 			text_multi = {
@@ -719,55 +728,57 @@ types JominiMultiplayerIngame {
 				layoutpolicy_horizontal = expanding
 			}
 
-			scrollarea = {
+			scrollbox = {
 				layoutpolicy_horizontal = expanding
 				layoutpolicy_vertical = expanding
-				scrollbarpolicy_horizontal = always_off
 
-				scrollbar_vertical = {
-					using = editor_vertical_scrollbar
-				}
+				blockoverride "scrollbox_content"
+				{
+					margin = { 5 5 }
+					layoutpolicy_horizontal = expanding
 
-				scrollwidget = {
 					vbox = {
-						vbox = {
-							margin = { 5 5 }
-							layoutpolicy_horizontal = expanding
-							datamodel = "[OosWindow.GetOosData]"
+						datamodel = "[OosWindow.GetOosData]"
+						layoutpolicy_horizontal = expanding
 
-							item = {
-								vbox = {
-									block "oos_item" {
+						item = {
+							vbox = {
+								block "oos_item" {
+									layoutpolicy_horizontal = expanding
+
+									text_single = {
+										text = "JOMINI_MULTIPLAYER_GUI_OOS_MESSAGE_PLAYER_NAME"
+										max_width = 490
+										autoresize = yes
 										layoutpolicy_horizontal = expanding
+									}
 
-										text_single = {
-											text = "JOMINI_MULTIPLAYER_GUI_OOS_MESSAGE_PLAYER_NAME"
-											max_width = 490
-											autoresize = yes
-											layoutpolicy_horizontal = expanding
-										}
+									text_single = {
+										text = "JOMINI_MULTIPLAYER_GUI_OOS_MESSAGE_TYPE"
+										max_width = 490
+										autoresize = yes
+										layoutpolicy_horizontal = expanding
+									}
 
-										text_single = {
-											text = "JOMINI_MULTIPLAYER_GUI_OOS_MESSAGE_TYPE"
-											max_width = 490
-											autoresize = yes
-											layoutpolicy_horizontal = expanding
-										}
-
-										text_single = {
-											text = "JOMINI_MULTIPLAYER_GUI_OOS_MESSAGE_FOLDER"
-											max_width = 490
-											autoresize = yes
-											layoutpolicy_horizontal = expanding
-										}
+									text_single = {
+										text = "JOMINI_MULTIPLAYER_GUI_OOS_MESSAGE_FOLDER"
+										max_width = 490
+										autoresize = yes
+										layoutpolicy_horizontal = expanding
 									}
 								}
 							}
 						}
-
-						expand = {}
 					}
 				}
+			}
+
+			button_primary = {
+				size = { 300 30 }
+				datacontext = "[OosWindow]"
+				text = "JOMINI_MULTIPLAYER_GUI_OOS_MESSAGE_CONTINUE"
+				onclick = "[OosWindow.Continue]"
+				visible = "[JominiIsHostOrLocal]"
 			}
 
 			button_standard = {
@@ -775,12 +786,21 @@ types JominiMultiplayerIngame {
 				datacontext = "[OosWindow]"
 				text = "JOMINI_MULTIPLAYER_GUI_OOS_MESSAGE_CONTINUE"
 				onclick = "[OosWindow.Continue]"
+				visible = "[Not( JominiIsHostOrLocal )]"
 			}
 
 			button_standard = {
 				size = { 300 30 }
 				text = "JOMINI_MULTIPLAYER_GUI_OOS_MESSAGE_EXIT_BUTTON"
 				onclick = "[OosWindow.GoToMenu]"
+				visible = "[JominiIsHostOrLocal]"
+			}
+
+			button_primary = {
+				size = { 300 30 }
+				text = "JOMINI_MULTIPLAYER_GUI_OOS_MESSAGE_EXIT_BUTTON"
+				onclick = "[OosWindow.GoToMenu]"
+				visible = "[Not( JominiIsHostOrLocal )]"
 			}
 		}
 	}
@@ -1810,43 +1830,7 @@ types JominiMultiplayerLobby
 			using = JominiLobbyViewModuleBackground
 		}
 
-
-		text_multi = {
-			layoutpolicy_horizontal = expanding
-			layoutpolicy_vertical = expanding
-			default_format = "#I"
-			align = center
-			text = "MULTIPLAYER_GUI_CLICK_TO_SELECT"
-			visible = "[And( Not( LobbyView.HasSelectedPlayable ), Not( LobbyView.IsObserver ) )]"
-		}
-
-
-		vbox = {
-			layoutpolicy_horizontal = expanding
-			layoutpolicy_vertical = expanding
-			visible = "[And( Not( LobbyView.HasSelectedPlayable ), LobbyView.IsObserver )]"
-
-			spacer = {size = {0 20}}
-
-			text_label_center = {
-				name = "header"
-				text = "JOMINI_MULTIPLAYER_GUI_OBSERVER"
-			}
-
-			text_multi = {
-				name = "desc"
-				text = "FRONTEND_OBSERVER_DESC"
-				autoresize = yes
-				max_width = 300
-				align = left
-			}
-
-			expand = {}
-		}
-
-		# Playable Selected
 		widget = {
-			visible = "[LobbyView.HasSelectedPlayable]"
 			layoutpolicy_horizontal = expanding
 			layoutpolicy_vertical = expanding
 
@@ -1883,6 +1867,7 @@ types JominiMultiplayerLobby
 		layoutpolicy_horizontal = expanding
 		margin_left = 10
 		margin_bottom = 10
+		spacing = 10
 
 
 		background = {
@@ -1899,14 +1884,63 @@ types JominiMultiplayerLobby
 			text = "JOMINI_MULTIPLAYER_GUI_WAIT_HOST_START"
 		}
 
+
 		button_standard = {
+			datacontext = "[GetLobbyHelper]"
+			datacontext = "[LobbyView.GetSelectedPlayable.GetCharacter]"
+			visible = "[And( Not( IsPreparationLobby ), LobbyView.CanMakeLandlessCharacter )]"
 			size = { 380 45 }
+
+			onclick = "[TryStartRulerDesigning( Character.Self, '(bool)yes' )]"
+
+			enabled = "[And(LobbyView.HasSelectedPlayable,GetScriptedGui( 'lotr_cannot_play_as_wilderness_or_valinor_adventurer' ).IsValid( GuiScope.SetRoot( GetTitleByKey('k_wastelands').MakeScope ).AddScope('selected_ruler', Character.MakeScope).End))]"
+			tooltip = "[LobbyHelperWindow.GetTryStartLandlessDesigningDesc( LobbyView.HasSelectedPlayable )][GetScriptedGui( 'lotr_cannot_play_as_wilderness_or_valinor_adventurer' ).BuildTooltip( GuiScope.SetRoot( GetTitleByKey('k_wastelands').MakeScope ).AddScope('selected_ruler', Character.MakeScope).End)]"
+			text = RULER_DESIGNER_OPEN_LANDLESS
+
+			icon = {
+				visible = "[And( ShouldPromptForRulerDesigner, LobbyView.CanTryStartRulerDesigning( Character.Self ) )]"
+				size = { 100% 100% }
+				texture = "gfx/interface/component_masks/mask_fade_circle.dds"
+				using = Color_Bright_Yellow
+				alpha = 0
+
+				state = {
+					name = a
+					next = b
+					trigger_on_create = yes
+
+					alpha = 0.3
+					duration = 1
+					using = Animation_Curve_Default
+				}
+
+				state = {
+					name = b
+					next = a
+
+					alpha = 0
+					duration = 2
+					using = Animation_Curve_Default
+				}
+			}
+
+			button_icon = {
+				size = { 30 30 }
+				parentanchor = left|vcenter
+				position = { 5 0 }
+				alwaystransparent = yes
+				texture = "gfx/interface/icons/flat_icons/adventurer.dds"
+			}
+		}
+
+		button_standard = {
 			datacontext = "[LobbyView.GetSelectedPlayable.GetCharacter]"
 			visible = "[Not( IsPreparationLobby )]"
-
 			enabled = "[LobbyView.CanTryStartRulerDesigning( Character.Self )]"
+			
+			size = { 380 45 }
 
-			onclick = "[TryStartRulerDesigning( Character.Self )]"
+			onclick = "[TryStartRulerDesigning( Character.Self, '(bool)no' )]"
 
 			tooltip = "[LobbyView.GetTryStartRulerDesigningDesc( Character.Self )]"
 			text = "RULER_DESIGNER_OPEN"
@@ -1938,24 +1972,24 @@ types JominiMultiplayerLobby
 				}
 			}
 
-			button_edit_text = {
+			button_icon = {
 				size = { 30 30 }
 				parentanchor = left|vcenter
 				position = { 5 0 }
 				alwaystransparent = yes
+				texture = "gfx/interface/icons/flat_icons/heir.dds"
 			}
 		}
 
-		spacer = {
-			size = { 10 10 }
-		}
-
 		button_primary_big = {
-			size = { 380 50 }
 			visible = "[And( IsPreparationLobby, PlayerIsHost )]"
+			size = { 380 50 }
+
+			onclick = "[CloseGameView( 'find_title' )]"
 			onclick = "[LobbyView.Start]"
 			enabled = "[LobbyView.CanStart]"
 			tooltip = "[LobbyView.StartToolTip]"
+
 			text = "JOMINI_MULTIPLAYER_GUI_START"
 
 			oversound = "event:/SFX/UI/Generic/sfx_ui_generic_pointer_over"
@@ -1975,7 +2009,24 @@ types JominiMultiplayerLobby
 			}
 		}
 
+		button_primary_big = {
+			datacontext = "[LobbyView.GetSelectedPlayable.GetCharacter]"
+			
+			visible = "[HasGameStartedForTheFirstTime]"
+			size = { 380 50 }
+
+			onclick = "[CloseGameView( 'find_title' )]"
+			onclick = "[LobbyView.Control( Character.GetPlayable )]"
+			onclick = "[LobbyView.Ready]"
+			enabled = "[And( LobbyView.CanControl( Character.GetPlayable ), Character.IsRuler )]"
+			tooltip = "[LobbyView.GetControlToolTip( Character.GetPlayable )]"
+
+			text = "JOMINI_MULTIPLAYER_GUI_START"
+		}
+		
 		hbox = {
+			datacontext = "[LobbyView.GetSelectedPlayable.GetCharacter]"
+			
 			### DW Addition ###
 
 			button_primary_big = {
@@ -1983,7 +2034,7 @@ types JominiMultiplayerLobby
 				visible = "[And(Not( IsPreparationLobby ),Not(HasGameStartedForTheFirstTime))]"
 				text = "DW_OPEN_WASTELAND_WINDOW"
 				onclick = "[GetVariableSystem.Toggle('DW_wastelands_window')]"
-				enabled = "[Not(LobbyView.CanControlSelected)]"
+				enabled = "[Not(LobbyView.CanControl( Character.GetPlayable ))]"
 
 				tooltip = "DW_TOOLTIP"
 			}
@@ -1992,14 +2043,15 @@ types JominiMultiplayerLobby
 
 			button_primary_big = {
 				size = { 185 50 }
-				visible = "[Not( IsPreparationLobby )]"
-				text = "JOMINI_MULTIPLAYER_GUI_START"
+				visible = "[And(Not( IsPreparationLobby ),Not(HasGameStartedForTheFirstTime))]"
 
-				onclick = "[LobbyView.ControlSelected]"
+				onclick = "[CloseGameView( 'find_title' )]"
+				onclick = "[LobbyView.Control( Character.GetPlayable )]"
 				onclick = "[LobbyView.Ready]"
-				enabled = "[LobbyView.CanControlSelected]"
+				enabled = "[And( LobbyView.CanControl( Character.GetPlayable ), Character.IsRuler )]"
+				tooltip = "[LobbyView.GetControlToolTip( Character.GetPlayable )]"
 
-				tooltip = "[LobbyView.GetControlToolTip]"
+				text = "JOMINI_MULTIPLAYER_GUI_START"
 			}
 		}
 	}
@@ -2255,7 +2307,7 @@ types JominiMultiplayerLobby
 
 				block "right_panel_properties"
 				{
-					size = { 410 100% }
+					size = { 420 100% }
 				}
 
 				using = Window_Background_Sidebar_Multiplayer_Right
@@ -2554,8 +2606,9 @@ types JominiMultiplayerLobby
 
 						hbox = {
 							vbox = {
+								spacing = 25
 								button_primary = {
-									size = { 170 50 }
+									size = { 170 35 }
 									text_single = {
 										text = DW_WASTELANDS_SET_WASTELAND
 										parentanchor = center
@@ -2566,17 +2619,33 @@ types JominiMultiplayerLobby
 									onclick = "[GetScriptedGui('set_empire_to_wastelands').Execute( GuiScope.SetRoot( GetTitleByKey('e_valinor').MakeScope ).End)]"
 								}
 
-								spacer = { size = { 0 25 } }
-
 								button_primary = {
-									size = { 170 50 }
+									size = { 170 35 }
 									text_single = {
-										text = DW_WASTELANDS_GO_BACK
+										text = DW_CLEAR_SET_WASTELAND
 										parentanchor = center
 										default_format = "#high"
 										fontsize = 18
 									}
-									onclick = "[GetVariableSystem.Toggle('DW_wastelands_window')]"
+									enabled = "[GetScriptedGui('clear_selected_titles').IsValid( GuiScope.SetRoot( GetTitleByKey('e_valinor').MakeScope ).End)]"
+									onclick = "[GetScriptedGui('clear_selected_titles').Execute( GuiScope.SetRoot( GetTitleByKey('e_valinor').MakeScope ).End)]"
+								}
+
+								button_checkbox = {
+									enabled = "[GetScriptedGui('set_wastelands_to_colonisable').IsValid(GuiScope.SetRoot( GetTitleByKey('e_valinor').MakeScope ).End)]"
+									checked = "[GetVariableSystem.Exists( 'toggle_wastelands_colonisable' )]"
+									onclick = "[GetVariableSystem.Toggle( 'toggle_wastelands_colonisable' )]"
+									onclick = "[GetScriptedGui('set_wastelands_to_colonisable').Execute(GuiScope.SetRoot( GetTitleByKey('e_valinor').MakeScope ).End)]"
+									size = { 35 35 }
+									text_single = {
+										text = DW_WASTELANDS_SET_UNCOLONISABLE
+										parentanchor = center
+										default_format = "#high"
+										fontsize = 18
+										position = { 0 30 }
+									}
+									oversound = "event:/SFX/UI/Generic/sfx_ui_generic_pointer_over"
+									clicksound = "event:/SFX/UI/Generic/sfx_ui_generic_select"
 								}
 							}
 
@@ -2595,18 +2664,17 @@ types JominiMultiplayerLobby
 									onclick = "[GetScriptedGui('canon_regions').Execute( GuiScope.SetRoot( GetTitleByKey('e_valinor').MakeScope ).End)]"
 								}
 									
-								spacer = { size = { 0 25 } }
+								spacer = { size = { 0 55 } }
 
 								button_primary = {
 									size = { 170 50 }
 									text_single = {
-										text = DW_CLEAR_SET_WASTELAND
+										text = DW_WASTELANDS_GO_BACK
 										parentanchor = center
 										default_format = "#high"
 										fontsize = 18
 									}
-									enabled = "[GetScriptedGui('clear_selected_titles').IsValid( GuiScope.SetRoot( GetTitleByKey('e_valinor').MakeScope ).End)]"
-									onclick = "[GetScriptedGui('clear_selected_titles').Execute( GuiScope.SetRoot( GetTitleByKey('e_valinor').MakeScope ).End)]"
+									onclick = "[GetVariableSystem.Toggle('DW_wastelands_window')]"
 								}
 							}
 						}

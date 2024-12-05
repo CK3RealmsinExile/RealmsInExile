@@ -1,11 +1,13 @@
 ﻿create_cadet_branch_decision = {
-	picture = "gfx/interface/illustrations/decisions/decision_dynasty_house.dds"
+	picture = {
+		reference = "gfx/interface/illustrations/decisions/decision_dynasty_house.dds"
+	}
 
-	major = yes
+	decision_group_type = major
 	ai_check_interval = 60
 
 	is_shown = {
-		is_landed = yes
+		is_playable_character = yes
 		exists = house
 		exists = house.house_head
 		is_house_head = no
@@ -22,12 +24,46 @@
 
 	is_valid = {
 		government_allows = create_cadet_branches
-		house.house_head = {
-			# due to the new system, cadet branch for Clans should only be available is the character is in another realm than their House Head
+		
+		# If you are Clan, you cannot be in the same realm as your House Head. For simplicity, we'll just force you to be independent.
+		trigger_if = {
+			limit = {
+				government_has_flag = government_is_clan
+			}
+			is_independent_ruler = yes
+		}
+		# If you are Administrative, we let the player create a new House much easier, as to have easy access to their own Family Title and Estate.
+		trigger_else_if = {
+			limit = {
+				government_allows = administrative
+			}
 			trigger_if = {
-				limit = { NOT = { government_has_flag = government_is_clan } }
+				limit = {
+					is_ai = yes # We don't want the AI to create cadet branches willy nilly, so they have additional restrictions.
+					top_liege = house.house_head.top_liege # But we do want the AI to create a cadet branch ASAP if the house head is in a different realm
+				}
+				NOT = { is_close_or_extended_family_of = house.house_head }
 				custom_description = {
 					text = create_cadet_branch_decision_succession_line
+					house.house_head = {
+						NOT = {
+							any_held_title = {
+								place_in_line_of_succession = {
+									target = root
+									value <=3
+								}
+							}
+						}
+					}
+				}
+			}
+			# No triggers for players.
+		}
+		# For everyone else, you cannot be too close in the line of succession.
+		trigger_else = {
+			custom_description = {
+				text = create_cadet_branch_decision_succession_line
+				house.house_head = {
 					NOT = {
 						any_held_title = {
 							place_in_line_of_succession = {
@@ -38,9 +74,6 @@
 					}
 				}
 			}
-			trigger_else = {
-				root = { is_independent_ruler = yes }
-			}
 		}
 		
 		trigger_if = {
@@ -50,6 +83,7 @@
 			always = no
 		}
 
+		# No living ancestors should belong to your house.
 		custom_description = {
 			text = create_cadet_branch_decision_ancestor_in_house
 			NOT = {
@@ -113,13 +147,21 @@
 
 	is_valid_showing_failures_only = {
 		is_available_adult = yes
-		is_landed = yes
+		is_playable_character = yes
 	}
 
 	effect = {
 		found_cadet_house_decision_effect = {
 			CHARACTER = root
 			PRESTIGE = major_prestige_gain
+		}
+		if = {
+			limit = {
+				government_allows = administrative
+				highest_held_title_tier >= tier_duchy
+			}
+			create_noble_family_effect = yes
+			change_influence = major_influence_gain
 		}
 	}
 	
@@ -198,6 +240,14 @@
 				target = house.house_head
 				value >= -50
 			}
+		}
+		
+		# If an admin top liege ever ends up having their house head in a different realm, they should create a cadet branch ASAP
+		modifier = {
+			add = 1000
+			government_has_flag = government_is_administrative
+			is_independent_ruler = yes
+			this != house.house_head.top_liege
 		}
 	}
 }

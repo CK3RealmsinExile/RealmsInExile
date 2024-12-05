@@ -9,7 +9,7 @@ ai_budget_manipulation_effect = {
 		limit = {
 			is_ai = yes
 			is_at_war = no
-			is_landed = yes
+			is_playable_character = yes
 			gold >= 50
 			gold < minimum_ai_gold_value_for_tyranny_wars
 			NOT = {
@@ -152,7 +152,7 @@ ai_budget_manipulation_effect = {
 	else_if = {
 		limit = {
 			is_ai = yes
-			is_landed = yes
+			is_playable_character = yes
 			primary_title.tier >= tier_duchy
 			years_from_game_start >= 3
 			NOR = {
@@ -163,11 +163,30 @@ ai_budget_manipulation_effect = {
 		add_character_flag = { flag = ai_revoke_recheck_cooldown years = 6 }
 	}
 	
+	if = { # Conquerors are special; they don't care about states or eras - they just want to conquer, and put their resources towards just that.
+		limit = {
+			ai_has_conqueror_personality = yes
+		}
+		# For now they just buff the war chest, and nothing else
+		move_budget_gold = { gold = long_term_gold from = budget_long_term to = budget_war_chest }
+		move_budget_gold = { gold = short_term_gold from = budget_short_term to = budget_war_chest }
+		# Conquerors have no concern for the future; only here and now matters
+		move_budget_gold = { gold = long_term_gold from = budget_long_term to = budget_short_term }
+	}
+	else_if = { # Adventurers only need short term gold.
+		limit = {
+			is_ai = yes
+			is_landless_adventurer = yes
+		}
+		move_budget_gold = { gold = long_term_gold from = budget_long_term to = budget_short_term }
+		move_budget_gold = { gold = war_chest_gold from = budget_war_chest to = budget_short_term }
+	}
+	else = {
 	if = {
 		limit = {
 			is_ai = yes
 			is_at_war = no # While at war, the War Chest should be preserved at all costs
-			is_landed = yes
+				is_playable_character = yes
 			gold > 0
 			war_chest_gold >= 10
 			NOR = {
@@ -226,9 +245,12 @@ ai_budget_manipulation_effect = {
 		# At this point, the AI will boom more aggressively than normal
 		if = {
 			limit = {
-				any_held_title = {
-					tier = tier_county
-					title_province = { free_building_slots > 0 }
+				OR = {
+					any_held_title = {
+						tier = tier_county
+						title_province = { free_building_slots > 0 }
+					}
+					ai_should_focus_on_building_in_their_capital = yes
 				}
 				ai_has_warlike_personality = no # Warlike AI's go straight to the more restrictive second set of conditions
 			}
@@ -385,7 +407,6 @@ ai_budget_manipulation_effect = {
 			}
 			move_budget_gold = { gold = halved_ai_war_chest_gold from = budget_war_chest to = budget_short_term }
 		}
-		
 		else_if = { # Special logic for warlike AI's during the Iranian Intermezzo, they need to be more aggressive than usual
 			limit = {
 				has_trait = fp3_struggle_detractor
@@ -396,6 +417,14 @@ ai_budget_manipulation_effect = {
 			move_budget_gold = { gold = short_term_gold from = budget_short_term to = budget_war_chest }
 			move_budget_gold = { gold = long_term_gold from = budget_long_term to = budget_war_chest }
 		}
+			else_if = { # Warlike AI's will invest their long term gold into their war chest if it's not full
+				limit = {
+					ai_has_warlike_personality = yes
+					war_chest_gold < war_chest_gold_maximum
+					long_term_gold >= 1
+				}
+				move_budget_gold = { gold = long_term_gold from = budget_long_term to = budget_war_chest }
+			}
 		
 		# For AI's with no particular personality, warlike, booming, or cautious, we have them boom through a flag system
 		# Bold AI's boom with all their war chest gold, non-bold with half
@@ -451,6 +480,7 @@ ai_budget_manipulation_effect = {
 			}
 			move_budget_gold = { gold = feudalize_tribal_holding_interaction_cost from = budget_war_chest to = budget_long_term }
 			move_budget_gold = { gold = feudalize_tribal_holding_interaction_cost from = budget_short_term to = budget_long_term }
+			}
 		}
 	}
 }

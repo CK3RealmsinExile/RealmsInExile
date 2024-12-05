@@ -21,6 +21,7 @@ overseer_of_the_mines_court_position = {
 	# How good is this character in this position? root scope is the holder of the court position
 	aptitude = {
 		value = 25
+		add = court_position_aptitude_boon_voyager_trait
 		add = {
 			value = stewardship
 			multiply = 2
@@ -85,6 +86,7 @@ overseer_of_the_mines_court_position = {
 
 	is_shown = {
 		is_dwarf = no
+		is_landless_adventurer = no
 	}
 
 	# Is this an available position for this court? (root is court owner)
@@ -263,6 +265,7 @@ stone_singer_court_position = {
 	# How good is this character in this position? root scope is the holder of the court position
 	aptitude = {
 		value = 1
+		add = court_position_aptitude_boon_voyager_trait
 		add = {
 			value = diplomacy
 			multiply = 2
@@ -324,6 +327,7 @@ stone_singer_court_position = {
 
 	is_shown = {
 		is_dwarf = yes
+		is_landless_adventurer = no
 	}
 
 	# Is this an available position for this court? (root is court owner)
@@ -494,6 +498,351 @@ stone_singer_court_position = {
                 }
             }
         }
+		add = court_position_debt_considerations_value
+	}
+}
+
+second_marshal_of_rohan_position = {
+	max_available_positions = 1
+	category = court_position_category_royal
+	minimum_rank = kingdom # Should only be available for kings and emperors
+	skill = martial
+
+	opinion = {
+		value = ceremonial_court_position_opinion
+	}
+
+	# How high the aptitude has to be to reach the 5 different modifier levels
+	aptitude_level_breakpoints = { 20 40 60 80 }
+
+	# How good is this character in this position? root scope is the holder of the court position
+	aptitude = {
+		value = 20
+		add = court_position_aptitude_boon_voyager_trait
+		add = {
+			value = martial
+			multiply = 3
+			max = 80
+			desc = court_position_skill_martial
+		}
+		if = {
+			limit = { var:bonus_aptitude_role ?= flag:master_of_horse }
+			add = {
+				value = cp_bonus_aptitude_value
+				desc = cp_bonus_aptitude
+			}
+		}
+	}
+
+	is_shown = {
+		NOT = { government_has_flag = government_is_landless_adventurer }
+		primary_title = title:k_rohan
+	}
+
+	# Is this an available position for this court? (root is court owner)
+	valid_position = {
+		highest_held_title_tier >= tier_kingdom
+	}
+
+	is_shown_character = {  # Can't employ the 3rd marshal as 2nd marshal
+		scope:employee = {
+			is_imprisoned = no
+			is_lotr_adult = yes
+			is_landed = yes
+		}
+		trigger_if = {
+			limit = { scope:liege = { employs_court_position = third_marshal_of_rohan_position } }
+			scope:liege = {
+				any_court_position_holder = {
+					type = third_marshal_of_rohan_position
+					NOT = { this = scope:employee }
+				}
+			}
+		}
+	}
+
+	valid_character = {
+		scope:employee = {
+			base_court_position_validity_trigger = { EMPLOYER = scope:liege }
+			NOR = {
+				has_trait = blind
+				has_trait = infirm
+			}
+			can_be_combatant_based_on_gender_trigger = { ARMY_OWNER = scope:liege }
+		}
+	}
+
+	revoke_cost = { # root is the liege, no other scopes are passed here!
+		prestige =  {
+			value = major_court_position_prestige_revoke_cost
+			# Set to 0 via obligation hook
+			if = {
+				limit = { 
+					court_position_obligation_hook_salary_trigger = {
+						POS = master_of_horse
+						LIEGE = root
+					}
+				}
+				multiply = 0
+			}
+			# Avoid AI prestige issues
+			if = {
+				limit = {
+					exists = this
+					is_ai = yes
+				}
+				multiply = 0
+			}
+			# Special case for events
+			if = {
+				limit = {
+					exists = this
+					has_character_flag = free_revoke_cost
+				}
+				multiply = 0
+			}
+			#Lowering for LAAMPS, to match Camp Officer revoke cost
+			if = {
+				limit = { 
+					exists = this
+					is_landless_adventurer = yes
+				}
+				value = minor_court_position_prestige_revoke_cost
+			}
+		}
+	}
+
+	salary = {
+		round = no
+		gold = 0
+	}
+
+	# These modifiers are employed based on what level the aptitude reaches (levels are defined as breakpoints)
+	scaling_employer_modifiers = {
+		terrible = {
+			light_cavalry_damage_mult = 0.03
+			light_cavalry_screen_mult = 0.02
+		}
+		poor = {
+			light_cavalry_damage_mult = 0.06
+			light_cavalry_screen_mult = 0.04
+		}
+		average = {
+			court_grandeur_baseline_add = 1
+			monthly_county_control_growth_add = 0.02
+			light_cavalry_damage_mult = 0.09
+			light_cavalry_screen_mult = 0.06
+		}
+		good = {
+			court_grandeur_baseline_add = 2
+			monthly_county_control_growth_add = 0.05
+			light_cavalry_damage_mult = 0.12
+			light_cavalry_screen_mult = 0.08
+		}
+		excellent = {
+			court_grandeur_baseline_add = 3
+			monthly_county_control_growth_add = 0.10
+			light_cavalry_damage_mult = 0.15
+			light_cavalry_screen_mult = 0.10
+		}
+	}
+
+	modifier = {
+		monthly_prestige = minor_court_position_prestige_salary
+	}
+
+	on_court_position_received = {
+		second_marshal_of_rohan_title_accepted_effect = yes
+	}
+	on_court_position_revoked = {
+		second_marshal_of_rohan_title_revoked_effect = yes
+	}
+	on_court_position_invalidated = {
+		second_marshal_of_rohan_title_invalidated_effect = yes
+	}
+
+	# Scripted value to determine whether an AI will hire/fire a position or not. Hires over 0, fires under -50. Look in _court_positions.info for more extensive documentation!
+	candidate_score = {
+		value = 50
+		add = scope:base_value
+		add = court_position_candidate_score_base_value
+		add = court_position_candidate_aptitude_value
+		add = court_position_debt_considerations_value
+	}
+}
+
+third_marshal_of_rohan_position = {
+	max_available_positions = 1
+	category = court_position_category_royal
+	minimum_rank = kingdom # Should only be available for kings and emperors
+	skill = martial
+
+	opinion = {
+		value = ceremonial_court_position_opinion
+	}
+
+	# How high the aptitude has to be to reach the 5 different modifier levels
+	aptitude_level_breakpoints = { 20 40 60 80 }
+
+	# How good is this character in this position? root scope is the holder of the court position
+	aptitude = {
+		value = 20
+		add = court_position_aptitude_boon_voyager_trait
+		add = {
+			value = martial
+			multiply = 3
+			max = 80
+			desc = court_position_skill_martial
+		}
+		if = {
+			limit = { var:bonus_aptitude_role ?= flag:master_of_horse }
+			add = {
+				value = cp_bonus_aptitude_value
+				desc = cp_bonus_aptitude
+			}
+		}
+	}
+
+	is_shown = {
+		NOT = { government_has_flag = government_is_landless_adventurer }
+		primary_title = title:k_rohan
+	}
+
+	# Is this an available position for this court? (root is court owner)
+	valid_position = {
+		highest_held_title_tier >= tier_kingdom
+	}
+
+	is_shown_character = {
+		scope:employee = {
+			is_imprisoned = no
+			is_lotr_adult = yes
+			is_landed = yes
+		}
+		trigger_if = { # Can't employ the 2nd marshal as 3rd marshal
+			limit = { scope:liege = { employs_court_position = second_marshal_of_rohan_position } }
+			scope:liege = {
+				any_court_position_holder = {
+					type = second_marshal_of_rohan_position
+					NOT = { this = scope:employee }
+				}
+			}
+		}
+	}
+
+	valid_character = {
+		scope:employee = {
+			base_court_position_validity_trigger = { EMPLOYER = scope:liege }
+			NOR = {
+				has_trait = blind
+				has_trait = infirm
+			}
+			can_be_combatant_based_on_gender_trigger = { ARMY_OWNER = scope:liege }
+			trigger_if = {
+				limit = { scope:liege = { employs_court_position = second_marshal_of_rohan_position } }
+				any_court_position_holder = {
+				    type = second_marshal_of_rohan_position
+					NOT = { this = scope:employee }
+				}
+			}
+		}
+	}
+
+	revoke_cost = { # root is the liege, no other scopes are passed here!
+		prestige =  {
+			value = major_court_position_prestige_revoke_cost
+			# Set to 0 via obligation hook
+			if = {
+				limit = { 
+					court_position_obligation_hook_salary_trigger = {
+						POS = master_of_horse
+						LIEGE = root
+					}
+				}
+				multiply = 0
+			}
+			# Avoid AI prestige issues
+			if = {
+				limit = {
+					exists = this
+					is_ai = yes
+				}
+				multiply = 0
+			}
+			# Special case for events
+			if = {
+				limit = {
+					exists = this
+					has_character_flag = free_revoke_cost
+				}
+				multiply = 0
+			}
+			#Lowering for LAAMPS, to match Camp Officer revoke cost
+			if = {
+				limit = { 
+					exists = this
+					is_landless_adventurer = yes
+				}
+				value = minor_court_position_prestige_revoke_cost
+			}
+		}
+	}
+
+	salary = {
+		round = no
+		gold = 0
+	}
+
+	# These modifiers are employed based on what level the aptitude reaches (levels are defined as breakpoints)
+	scaling_employer_modifiers = {
+		terrible = {
+			heavy_cavalry_damage_mult = 0.03
+			heavy_cavalry_toughness_mult = 0.02
+		}
+		poor = {
+			heavy_cavalry_damage_mult = 0.06
+			heavy_cavalry_toughness_mult = 0.04
+		}
+		average = {
+			court_grandeur_baseline_add = 1
+			monthly_county_control_growth_add = 0.02
+			heavy_cavalry_damage_mult = 0.09
+			heavy_cavalry_toughness_mult = 0.06
+		}
+		good = {
+			court_grandeur_baseline_add = 2
+			monthly_county_control_growth_add = 0.05
+			heavy_cavalry_damage_mult = 0.12
+			heavy_cavalry_toughness_mult = 0.08
+		}
+		excellent = {
+			court_grandeur_baseline_add = 3
+			monthly_county_control_growth_add = 0.10
+			heavy_cavalry_damage_mult = 0.15
+			heavy_cavalry_toughness_mult = 0.10
+		}
+	}
+
+	modifier = {
+		monthly_prestige = minor_court_position_prestige_salary
+	}
+
+	on_court_position_received = {
+		third_marshal_of_rohan_title_accepted_effect = yes
+	}
+	on_court_position_revoked = {
+		third_marshal_of_rohan_title_revoked_effect = yes
+	}
+	on_court_position_invalidated = {
+		third_marshal_of_rohan_title_invalidated_effect = yes
+	}
+
+	# Scripted value to determine whether an AI will hire/fire a position or not. Hires over 0, fires under -50. Look in _court_positions.info for more extensive documentation!
+	candidate_score = {
+		value = 50
+		add = scope:base_value
+		add = court_position_candidate_score_base_value
+		add = court_position_candidate_aptitude_value
 		add = court_position_debt_considerations_value
 	}
 }

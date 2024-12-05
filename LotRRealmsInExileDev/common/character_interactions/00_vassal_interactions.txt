@@ -49,7 +49,11 @@ grant_vassal_interaction = {
 
 	is_valid_showing_failures_only = {
 		scope:recipient = { is_busy_in_events_localised = yes }
-		scope:recipient = { is_landed = yes }
+		scope:recipient = { is_landed_or_landless_administrative = yes }
+		# Gallivanters won't accept additional responsibilities.
+		scope:recipient = {
+			NOT = { has_trait = gallivanter }
+		}
 		NOT = { scope:actor = { is_at_war_with = scope:recipient } }
 		trigger_if = {
 			limit = { exists = scope:secondary_actor }
@@ -131,6 +135,20 @@ grant_vassal_interaction = {
 				}
 			}
 		}
+		
+		# EP3 Admin - You cannot give away noble families
+		custom_description = {
+			text = admin_cannot_grant_vassal_noble_family
+			subject = root
+			trigger_if = {
+				limit = {
+					government_allows = administrative
+				}
+				any_held_title = {
+					is_noble_family_title = no
+				}
+			}
+		}
 	}
 	
 	auto_accept = {
@@ -145,6 +163,7 @@ grant_vassal_interaction = {
 	on_accept = {
 		scope:actor = {
 			send_interface_toast = {
+				type = event_toast_effect_good
 				title = grant_vassal_interaction_notification
 				right_icon = scope:recipient
 				left_icon = scope:secondary_actor
@@ -302,16 +321,24 @@ retract_vassal_interaction = {
 		# Plus make sure there's a legal right to retract.
 		scope:actor = {
 			trigger_if = {
-				limit = { government_has_flag = government_is_tribal }
+				limit = {
+					government_has_flag = government_is_tribal
+				}
 				custom_description = {
 					text = "has_law_allowing_vassal_retraction_tribal"
 					has_realm_law_flag = vassal_retraction_allowed
 				}
 			}
-			trigger_if = {
+			trigger_else_if = {
 				limit = {
-					NOT = { government_has_flag = government_is_tribal }
+					government_has_flag = government_is_administrative
 				}
+				custom_description = {
+					text = "has_law_allowing_vassal_retraction_admin"
+					has_realm_law_flag = vassal_retraction_allowed
+				}
+			}
+			trigger_else = {
 				custom_description = {
 					text = "has_law_allowing_vassal_retraction_crown"
 					has_realm_law_flag = vassal_retraction_allowed
@@ -656,6 +683,13 @@ retract_vassal_interaction = {
 			}
 			add = 500
 		}
+		modifier = {
+			add = -25
+			scope:recipient = {
+				culture = { has_cultural_parameter = vassals_more_likely_to_refuse_demands }
+			}
+			desc = VASSALS_REFUSAL_indomitable_azatani
+		}
 	}
 
 	#Use hook
@@ -989,6 +1023,7 @@ start_independence_faction_interaction = {
 			is_a_faction_member = no
 		}
 		scope:recipient = {
+			is_landed_or_landless_administrative = no
 			NOT = {
 				any_targeting_faction = {
 					faction_is_type = independence_faction
@@ -1013,6 +1048,7 @@ start_independence_faction_interaction = {
 	on_accept = {
 		scope:actor = {
 			send_interface_toast = {
+				type = event_toast_effect_neutral
 				title = start_independence_faction_interaction_notification
 
 				left_icon = scope:actor					
@@ -1055,6 +1091,7 @@ join_independence_faction_interaction = {
 		NOT = { scope:actor = scope:recipient }
 		scope:actor.liege = scope:recipient
 		scope:actor = {
+			is_landed_or_landless_administrative = no
 			is_a_faction_member = no
 			highest_held_title_tier > tier_barony
 		}
@@ -1101,6 +1138,7 @@ join_independence_faction_interaction = {
 
 		scope:actor = {
 			send_interface_toast = {
+				type = event_toast_effect_neutral
 				title = join_independence_faction_interaction_notification
 
 				left_icon = scope:actor					
@@ -1178,7 +1216,6 @@ create_claimant_faction_against_interaction = {
 					}
 				}
 			}
-
 			trigger_if = {
 				limit = {
 					exists = scope:landed_title
@@ -1214,9 +1251,33 @@ create_claimant_faction_against_interaction = {
 			}
 		}
 		scope:secondary_actor = { NOT = { has_strong_hook = scope:actor } }
-		custom_tooltip = {
+		custom_tooltip = { #LotR
 			text = defensively_allied_to_target_tooltip
 			NOT = { scope:actor = { is_defensive_allied_to = { RECIPIENT = scope:recipient } } }
+		}
+		
+		# Admin vassals can only start and join a claimant faction if the target is independent
+		trigger_if = {
+			limit = {
+				scope:actor = { government_allows = administrative }
+			}
+			scope:secondary_actor = { is_independent_ruler = yes }
+		}
+
+		# Byzantium does not brook
+		trigger_if = {
+			limit = {
+				scope:landed_title ?= {
+					OR = {
+						has_title_law = acclamation_succession_law
+						holder ?= { has_realm_law = acclamation_succession_law }
+					}
+				}
+			}
+			scope:recipient = {
+				is_eunuch_trigger = no
+				NOT = { has_trait = blind }
+			}
 		}
 	}
 
@@ -1517,6 +1578,7 @@ force_onto_council = {
 			#And notify exactly which councillor type they've become.
 			hidden_effect = {
 				send_interface_toast = {	
+					type = event_toast_effect_good
 					title = force_onto_council.actor.tt
 					left_icon = scope:recipient
 					custom_tooltip = force_onto_council.actor.tt.duration
@@ -1533,6 +1595,7 @@ force_onto_council = {
 			#And notify exactly which councillor type they've become.
 			hidden_effect = {
 				send_interface_toast = {	
+					type = event_toast_effect_neutral
 					title = force_onto_council.recipient.tt
 					left_icon = scope:actor
 					if = {
@@ -2079,13 +2142,15 @@ ask_for_pardon_interaction = {
 						}
 					}
 				}
-				every_character_struggle = {
-					involvement = involved
-					activate_struggle_catalyst = {
-						catalyst = catalyst_grants_pardon_supporter_detractor
-						character = scope:recipient
+				scope:recipient = {
+					every_character_struggle = {
+						involvement = involved
+						activate_struggle_catalyst = {
+							catalyst = catalyst_grants_pardon_supporter_detractor
+							character = scope:recipient
+						}
+						log_debug_variable_for_persian_struggle_effect = { VAR = concession_catalyst_grants_pardon_supporter_detractor }
 					}
-					log_debug_variable_for_persian_struggle_effect = { VAR = concession_catalyst_grants_pardon_supporter_detractor }
 				}
 			}
 		}
@@ -2100,6 +2165,7 @@ ask_for_pardon_interaction = {
 	on_decline = {
 		scope:recipient = {
 			send_interface_toast = {
+				type = event_toast_effect_bad
 				title = ask_for_pardon_interaction_decline_toast
 				left_icon = scope:actor
 
@@ -2275,6 +2341,7 @@ pardon_interaction = {
 			}
 			
 			send_interface_toast = {
+				type = event_toast_effect_neutral
 				title = pardon_interaction_toast
 				left_icon = scope:actor
             }			
@@ -2395,9 +2462,13 @@ vassal_claim_liege_title_interaction = {
 		scope:recipient = scope:actor.liege
 
 		scope:recipient = {
-			is_landed = yes
+			is_playable_character = yes
 			any_held_title = {
 				tier >= tier_duchy
+				NOR = {
+					has_title_law = noble_family_succession_law
+					has_title_law = landless_adventurer_succession_law
+				}
 				scope:actor = {
 					NOT = {
 						has_claim_on = prev
@@ -2425,7 +2496,7 @@ vassal_claim_liege_title_interaction = {
 		}
 		trigger_if = {
 			limit = {
-				scope:actor = { legitimacy_level ?= 5 }
+				scope:actor = { legitimacy_level = 5 }
 			}
 			scope:target = {
 				tier >= tier_duchy
@@ -2451,7 +2522,7 @@ vassal_claim_liege_title_interaction = {
 		}
 		trigger_if = {
 			limit = {
-				scope:actor = { legitimacy_level ?= 4 }
+				scope:actor = { legitimacy_level = 4 }
 			}
 			scope:target = {
 				tier >= tier_duchy
@@ -2477,7 +2548,7 @@ vassal_claim_liege_title_interaction = {
 		}
 		trigger_if = {
 			limit = {
-				scope:actor = { legitimacy_level ?= 3 }
+				scope:actor = { legitimacy_level = 3 }
 			}
 			scope:target = {
 				tier >= tier_duchy
@@ -2503,7 +2574,7 @@ vassal_claim_liege_title_interaction = {
 		}
 		trigger_if = {
 			limit = {
-				scope:actor = { legitimacy_level ?= 2 }
+				scope:actor = { legitimacy_level = 2 }
 			}
 			scope:target = {
 				tier >= tier_duchy
@@ -2531,9 +2602,9 @@ vassal_claim_liege_title_interaction = {
 			limit = {
 				scope:actor = {
 					OR = {
-						legitimacy_level ?= 1
-						legitimacy_level ?= 0
-						NOT = { legitimacy >= 0 } #if you don't have legitimacy at all we fall back to the default
+						legitimacy_level = 1
+						legitimacy_level = 0
+						has_legitimacy = no #if you don't have legitimacy at all we fall back to the default
 					}
 				}
 			}
@@ -2567,6 +2638,22 @@ vassal_claim_liege_title_interaction = {
 				}
 			}
 			text = "already_have_a_claim_on_this_title"
+		}
+		trigger_if = {
+			limit = {
+				scope:target = {
+					tier = tier_duchy
+				}
+			}
+			custom_description = {
+				text = not_family_or_adventurer_title
+				scope:target = {
+					NOR = {
+						has_title_law = noble_family_succession_law
+						has_title_law = landless_adventurer_succession_law
+					}
+				}
+			}
 		}
 	}
 	
@@ -2621,6 +2708,7 @@ vassal_claim_liege_title_interaction = {
 	on_accept = {
 		scope:actor = {
 			send_interface_toast = {
+				type = event_toast_effect_good
 				title = buy_claim_interaction.message
 				left_icon = scope:actor
 				right_icon = scope:recipient
@@ -2824,6 +2912,381 @@ vassal_claim_liege_title_interaction = {
 					has_relation_friend = scope:actor
 					has_relation_best_friend = scope:actor
 					has_relation_soulmate = scope:actor
+				}
+			}
+		}
+	}
+}
+
+give_vassal_directive_interaction = {
+	category = interaction_category_vassal
+	icon = icon_scheme_challenge_status
+
+	desc = give_vassal_directive_interaction_desc
+
+	auto_accept = yes
+	
+	is_shown = {
+		scope:recipient = {
+			trigger_if = {
+				limit = {
+					scope:actor = { government_allows = administrative }
+				}
+				is_vassal_or_below_of = scope:actor
+			}
+			trigger_else = {
+				is_vassal_of = scope:actor
+			}
+			is_landed = yes
+			highest_held_title_tier >= tier_county
+			is_ai = yes
+		}
+	}
+	
+	is_valid = {
+		vassal_follows_directive_trigger = { VASSAL = scope:recipient LIEGE = scope:actor }
+	}
+	
+	is_valid_showing_failures_only = {
+		vassal_follows_directive_valid_trigger = { VASSAL = scope:recipient LIEGE = scope:actor }
+		scope:recipient = { is_physically_able = yes }
+	}
+	
+	send_option = {
+		flag = improve_development
+		is_shown = {
+			scope:recipient = {
+				government_allows = administrative
+			}
+		}
+		is_valid = {
+			scope:recipient = {
+				highest_held_title_tier >= tier_duchy
+			}
+		}
+	}
+	
+	send_option = {
+		flag = train_commanders
+		is_shown = {
+			scope:recipient = {
+				government_allows = administrative
+			}
+		}
+		is_valid = {
+		}
+	}
+	
+	send_option = {
+		flag = build_maa
+		is_shown = {
+			scope:recipient = {
+				government_allows = administrative
+			}
+		}
+		is_valid = {
+		}
+	}
+	
+	send_option = {
+		flag = convert_faith
+		is_shown = {
+		}
+		is_valid = {
+			scope:recipient = {
+				custom_tooltip = {
+					text = subrealm_has_county_of_other_faith
+					any_sub_realm_county = {
+						NOT = { faith = scope:recipient.faith }
+					}
+				}
+			}
+		}
+	}
+	
+	send_option = {
+		flag = convert_culture
+		is_shown = {
+		}
+		is_valid = {
+			scope:recipient = {
+				custom_tooltip = {
+					text = subrealm_has_county_of_other_culture
+					any_sub_realm_county = {
+						NOT = { culture = scope:recipient.culture }
+					}
+				}
+			}
+		}
+	}
+	
+	send_option = {
+		flag = improve_cultural_acceptance
+		is_shown = {
+		}
+		is_valid = {
+			scope:recipient = {
+				highest_held_title_tier >= tier_duchy
+				custom_tooltip = {
+					text = subrealm_has_county_of_other_culture
+					any_sub_realm_county = {
+						NOT = { culture = scope:recipient.culture }
+					}
+				}
+			}
+		}
+	}
+	
+	send_option = {
+		flag = building_focus_fortification
+		is_shown = {
+		}
+		is_valid = {
+		}
+	}
+	
+	send_option = {
+		flag = building_focus_military
+		is_shown = {
+		}
+		is_valid = {
+		}
+	}
+	
+	send_option = {
+		flag = building_focus_economy
+		is_shown = {
+		}
+		is_valid = {
+		}
+	}
+	
+	send_option = {
+		flag = settle_wastelands
+		is_shown = {
+		}
+		is_valid = {
+		}
+	}
+	
+	send_option = {
+		flag = remove_directive
+		is_shown = {
+		}
+		is_valid = {
+			custom_tooltip = {
+				text = has_any_directive
+				scope:recipient = {
+					OR = {
+						has_character_flag = vassal_directive_improve_development
+						has_character_flag = vassal_directive_train_commanders
+						has_character_flag = vassal_directive_build_maa
+						has_character_flag = vassal_directive_convert_faith
+						has_character_flag = vassal_directive_convert_culture
+						has_character_flag = vassal_directive_improve_cultural_acceptance
+						has_character_flag = vassal_directive_building_focus_fortification
+						has_character_flag = vassal_directive_building_focus_military
+						has_character_flag = vassal_directive_building_focus_economy
+						has_character_flag = vassal_directive_settle_wastelands #LotR
+					}
+				}
+			}
+		}
+	}
+
+	on_accept = {
+		scope:recipient = {
+			switch = {
+				trigger = yes
+				
+				scope:improve_development ?= {
+					custom_tooltip = {
+						text = vassal_directive_improve_development
+						remove_vassal_directives = yes
+						add_character_flag = vassal_directive_improve_development
+					}
+				}
+				
+				scope:train_commanders ?= {
+					custom_tooltip = {
+						text = vassal_directive_train_commanders
+						remove_vassal_directives = yes
+						add_character_flag = vassal_directive_train_commanders
+					}
+				}
+				
+				scope:build_maa ?= {
+					custom_tooltip = {
+						text = vassal_directive_build_maa
+						remove_vassal_directives = yes
+						add_character_flag = vassal_directive_build_maa
+					}
+				}
+				
+				scope:convert_faith ?= {
+					custom_tooltip = {
+						text = vassal_directive_convert_faith
+						remove_vassal_directives = yes
+						add_character_flag = vassal_directive_convert_faith
+					}
+				}
+				
+				scope:convert_culture ?= {
+					custom_tooltip = {
+						text = vassal_directive_convert_culture
+						remove_vassal_directives = yes
+						add_character_flag = vassal_directive_convert_culture
+					}
+				}
+				
+				scope:improve_cultural_acceptance ?= {
+					custom_tooltip = {
+						text = vassal_directive_improve_cultural_acceptance
+						remove_vassal_directives = yes
+						add_character_flag = vassal_directive_improve_cultural_acceptance
+					}
+				}
+				
+				scope:building_focus_fortification ?= {
+					custom_tooltip = {
+						text = vassal_directive_building_focus_fortification
+						remove_vassal_directives = yes
+						add_character_flag = vassal_directive_building_focus_fortification
+					}
+				}
+				
+				scope:building_focus_military ?= {
+					custom_tooltip = {
+						text = vassal_directive_building_focus_military
+						remove_vassal_directives = yes
+						add_character_flag = vassal_directive_building_focus_military
+					}
+				}
+				
+				scope:building_focus_economy ?= {
+					custom_tooltip = {
+						text = vassal_directive_building_focus_economy
+						remove_vassal_directives = yes
+						add_character_flag = vassal_directive_building_focus_economy
+					}
+				}
+				
+				scope:settle_wastelands ?= { #LotR
+					custom_tooltip = {
+						text = vassal_directive_settle_wastelands
+						remove_vassal_directives = yes
+						add_character_flag = vassal_directive_settle_wastelands
+					}
+				}
+				
+				scope:remove_directive ?= {
+					custom_tooltip = {
+						text = vassal_directive_remove_directive
+						remove_vassal_directives = yes
+					}
+				}
+			}
+		}
+	}
+
+	ai_potential = {
+		government_allows = administrative
+		highest_held_title_tier >= tier_kingdom
+	}
+	ai_targets = {
+		ai_recipients = vassals
+	}
+	ai_frequency = 1
+	ai_will_do = {
+		base = 0
+
+		modifier = {
+			add = 100
+			scope:improve_development ?= yes
+			scope:recipient = {
+				NOR = {
+					has_character_flag = vassal_directive_building_focus_economy
+					has_character_flag = vassal_directive_improve_development
+					has_character_flag = vassal_directive_settle_wastelands #LotR
+				}
+				OR = {
+					vassal_contract_has_flag = admin_theme_civilian
+					vassal_contract_has_flag = admin_theme_balanced
+				}
+			}
+		}
+
+		modifier = {
+			add = 100
+			scope:building_focus_economy ?= yes
+			scope:recipient = {
+				NOR = {
+					has_character_flag = vassal_directive_building_focus_economy
+					has_character_flag = vassal_directive_improve_development
+					has_character_flag = vassal_directive_settle_wastelands #LotR
+				}
+				OR = {
+					vassal_contract_has_flag = admin_theme_civilian
+					vassal_contract_has_flag = admin_theme_balanced
+				}
+			}
+		}
+
+		modifier = {
+			add = 100
+			scope:settle_wastelands = yes 
+			scope:recipient = {
+				NOR = {
+					has_character_flag = vassal_directive_building_focus_economy
+					has_character_flag = vassal_directive_improve_development
+					has_character_flag = vassal_directive_settle_wastelands #LotR
+				}
+				OR = {
+					vassal_contract_has_flag = admin_theme_civilian
+					vassal_contract_has_flag = admin_theme_balanced
+				}
+			}
+		}
+
+		modifier = {
+			add = 100
+			scope:building_focus_fortification ?= yes
+			scope:recipient = {
+				NOR = {
+					has_character_flag = vassal_directive_building_focus_fortification
+					has_character_flag = vassal_directive_build_maa
+				}
+				vassal_contract_has_flag = admin_theme_frontier
+			}
+		}
+
+		modifier = {
+			add = 100
+			scope:build_maa ?= yes
+			scope:recipient = {
+				NOR = {
+					has_character_flag = vassal_directive_building_focus_fortification
+					has_character_flag = vassal_directive_building_focus_military
+					has_character_flag = vassal_directive_build_maa
+				}
+				OR = {
+					vassal_contract_has_flag = admin_theme_military
+					vassal_contract_has_flag = admin_theme_frontier
+				}
+			}
+		}
+
+		modifier = {
+			add = 100
+			scope:building_focus_military ?= yes
+			scope:recipient = {
+				NOR = {
+					has_character_flag = vassal_directive_building_focus_military
+					has_character_flag = vassal_directive_build_maa
+				}
+				OR = {
+					vassal_contract_has_flag = admin_theme_military
+					vassal_contract_has_flag = admin_theme_naval
 				}
 			}
 		}

@@ -25,23 +25,18 @@ lotr_war_events.0001 = {
         }
 
 		ai_chance = {
-			base = 100
-			
-            modifier = { # Defender isn't an involved ruler in Struggle of TH
-                add = 100
-                
-                NOT = { 
-                    scope:attacker = {
-                        any_character_struggle = { 
-                            is_struggle_type = thani_hazad_struggle 
-                            involvement = involved
-                            is_struggle_phase = struggle_thani_hazad_phase_confederation
-                        } 
-                    }
+			base = 0
+            modifier = { # Willingness to join changes depending on the struggle phase
+                scope:defender = {
+                    any_character_struggle = { 
+                        is_struggle_type = thani_hazad_struggle 
+                        involvement = involved
+                        is_struggle_phase = struggle_thani_hazad_phase_unification
+                    } 
                 }
+                add = 90
             }
-
-            modifier = { # If Attackers Realms Size > Defenders Realm Size; Both are involved
+            modifier = { # Willingness to join changes depending on the struggle phase
                 scope:defender = {
                     any_character_struggle = { 
                         is_struggle_type = thani_hazad_struggle 
@@ -49,16 +44,18 @@ lotr_war_events.0001 = {
                         is_struggle_phase = struggle_thani_hazad_phase_confederation
                     } 
                 }
-                scope:attacker = {
+                add = 70
+            }
+            modifier = { # Willingness to join changes depending on the struggle phase
+                scope:defender = {
                     any_character_struggle = { 
                         is_struggle_type = thani_hazad_struggle 
                         involvement = involved
-                        is_struggle_phase = struggle_thani_hazad_phase_confederation
+                        is_struggle_phase = struggle_thani_hazad_phase_disintegration
                     } 
                 }
-                add = 30
+                add = 50
             }
-
             modifier = { # If you're allied with the attackers, don't join
                 OR = {
                     is_allied_to = scope:attacker
@@ -72,8 +69,14 @@ lotr_war_events.0001 = {
                 scope:interested_war = {
                     war_attacker_total_strength_value < war_defender_total_strength_value
                 }
+                factor = 0.5
+            }
 
-                factor = 0
+            modifier = { # If the defender is an involved ruler and their troops already outweigh the attacker
+                scope:interested_war = {
+                    war_attacker_total_strength_value < war_defender_total_strength_value.mult2
+                }
+                factor = 0.5
             }
 		}
     }
@@ -81,7 +84,9 @@ lotr_war_events.0001 = {
     option = { # Don't join the war of the defender
         name = lotr_war_events.0001.b
 
-		ai_chance = { base = 10 }
+		ai_chance = { 
+            base = 10
+        }
     }
 }
 
@@ -147,7 +152,7 @@ lotr_war_events.0003 = {
 	option = { # Can't help, sorry
 		name = lotr_war_events.0003.b
         
-		ai_chance = { base = 10 }
+		ai_chance = { base = 0 }
 	}
 }
 
@@ -194,11 +199,11 @@ scripted_effect spawn_valinorian_army_effect = {
                 target_title = title:d_celosien
                 target_title = title:d_lond_ernil
                 target_title = title:d_methrast
-                target_title = title:d_anghabar
+                target_title = title:d_dor_en_ernil
                 target_title = title:d_edhelion
                 target_title = title:d_tolfalas
                 target_title = title:d_lamedon
-                target_title = title:d_tarlang
+                target_title = title:d_glandhir
                 target_title = title:d_morthond_vale
                 target_title = title:d_rhandir
                 target_title = title:d_anfalas
@@ -213,7 +218,7 @@ scripted_effect spawn_valinorian_army_effect = {
                 target_title = title:d_harfalas
                 target_title = title:d_annun
                 target_title = title:d_laergaladrin
-                target_title = title:d_eredtir
+                target_title = title:d_eredir
                 target_title = title:d_aegardh
                 target_title = title:d_doriant
                 target_title = title:d_carnentir
@@ -228,7 +233,7 @@ scripted_effect spawn_valinorian_army_effect = {
                     this = $TARGET_COUNTY$
                 }
                 any_county_in_region = {
-                    region = middleearth_beleriand
+                    region = middleearth_west_beleriand
                     this = $TARGET_COUNTY$
                 }
                 any_county_in_region = {
@@ -374,7 +379,7 @@ scripted_effect spawn_valinorian_army_effect = {
 	 		}
 	 		men_at_arms = {
 	 			type = song_smiths
-	 			stacks = host_of_valinor_special_troop_amount.div2
+	 			stacks = host_of_valinor_special_troop_amount
 	 		}
 	 		location = $TARGET_COUNTY$.title_province
 	 		origin = $TARGET_COUNTY$.title_province
@@ -390,6 +395,7 @@ lotr_war_events.0004 = {
     hidden = yes
     trigger = {
         NOT = { exists = global_var:spawned_valinor_invasion }
+        NOT = { has_game_rule = no_intervention }
         trigger_if = {
             limit = { has_game_rule = default_invasion_delay }
             any_county_in_region = {
@@ -401,11 +407,19 @@ lotr_war_events.0004 = {
                     holder = { is_vassal_or_below_of = title:k_wastelands.holder } # Tom Bombadil
                     trigger_if = { # Tributary
                         limit = { holder = { has_variable = my_suzerain } }
-                        OR = {
-                            holder.var:my_suzerain = character:lineofsauron
-                            holder.var:my_suzerain = { is_vassal_or_below_of = character:lineofsauron }
+                        holder.var:my_suzerain = character:lineofsauron
+                    } 
+                    trigger_if = { # My suzerain's suzerain is Sauron
+                        limit = {
+                            holder = { has_variable = my_suzerain }
+                            holder.var:my_suzerain = { has_variable = my_suzerain }
                         }
+                        holder.var:my_suzerain.var:my_suzerain = character:lineofsauron
                     }
+                    trigger_if = { # Tributary
+                        limit = { holder.top_liege = { has_variable = my_suzerain } }
+                        holder.top_liege.var:my_suzerain = character:lineofsauron
+                    } 
                 }
                 percent >= 0.70
             }
@@ -421,11 +435,19 @@ lotr_war_events.0004 = {
                     holder = { is_vassal_or_below_of = title:k_wastelands.holder } # Tom Bombadil
                     trigger_if = { # Tributary
                         limit = { holder = { has_variable = my_suzerain } }
-                        OR = {
-                            holder.var:my_suzerain = character:lineofsauron
-                            holder.var:my_suzerain = { is_vassal_or_below_of = character:lineofsauron }
+                        holder.var:my_suzerain = character:lineofsauron
+                    } 
+                    trigger_if = { # My suzerain's suzerain is Sauron
+                        limit = {
+                            holder = { has_variable = my_suzerain }
+                            holder.var:my_suzerain = { has_variable = my_suzerain }
                         }
+                        holder.var:my_suzerain.var:my_suzerain = character:lineofsauron
                     }
+                    trigger_if = { # Tributary
+                        limit = { holder.top_liege = { has_variable = my_suzerain } }
+                        holder.top_liege.var:my_suzerain = character:lineofsauron
+                    } 
                 }
                 percent >= 0.50
             }
@@ -441,11 +463,19 @@ lotr_war_events.0004 = {
                     holder = { is_vassal_or_below_of = title:k_wastelands.holder } # Tom Bombadil
                     trigger_if = { # Tributary
                         limit = { holder = { has_variable = my_suzerain } }
-                        OR = {
-                            holder.var:my_suzerain = character:lineofsauron
-                            holder.var:my_suzerain = { is_vassal_or_below_of = character:lineofsauron }
+                        holder.var:my_suzerain = character:lineofsauron
+                    } 
+                    trigger_if = { # My suzerain's suzerain is Sauron
+                        limit = {
+                            holder = { has_variable = my_suzerain }
+                            holder.var:my_suzerain = { has_variable = my_suzerain }
                         }
+                        holder.var:my_suzerain.var:my_suzerain = character:lineofsauron
                     }
+                    trigger_if = { # Tributary
+                        limit = { holder.top_liege = { has_variable = my_suzerain } }
+                        holder.top_liege.var:my_suzerain = character:lineofsauron
+                    } 
                 }
                 percent >= 0.90
             }
@@ -454,7 +484,6 @@ lotr_war_events.0004 = {
     }
 
     immediate = {
-        set_global_variable = spawned_valinor_invasion
         character:lineofeonwe = { save_scope_as = invader_scope }
         character:lineofsauron = { save_scope_as = sauron_scope }
 
@@ -467,6 +496,7 @@ lotr_war_events.0004 = {
                         holder = character:lineofsauron
                         holder = { is_vassal_or_below_of = character:lineofsauron }
                         is_tributary_of = { SUZERAIN = character:lineofsauron TRIBUTARY = holder }
+                        is_tributary_of = { SUZERAIN = character:lineofsauron TRIBUTARY = holder.top_liege }
                     }
                 }
                 order_by = {
@@ -502,6 +532,7 @@ lotr_war_events.0004 = {
                         this = character:lineofsauron
                         this = { is_vassal_or_below_of = character:lineofsauron }
                         is_tributary_of = { SUZERAIN = character:lineofsauron TRIBUTARY = this }
+                        is_tributary_of = { SUZERAIN = character:lineofsauron TRIBUTARY = holder.top_liege }
                     }
                 }
             }
@@ -515,6 +546,7 @@ lotr_war_events.0004 = {
                         this = character:lineofsauron
                         this = { is_vassal_or_below_of = character:lineofsauron }
                         is_tributary_of = { SUZERAIN = character:lineofsauron TRIBUTARY = this }
+                        is_tributary_of = { SUZERAIN = character:lineofsauron TRIBUTARY = holder.top_liege }
                     }
                 }
             }
@@ -530,7 +562,8 @@ lotr_war_events.0004 = {
                         OR = {
                             holder = character:lineofsauron
                             holder = { is_vassal_or_below_of = character:lineofsauron }
-                            holder = { is_tributary_of = { SUZERAIN = character:lineofsauron TRIBUTARY = holder } }
+                            is_tributary_of = { SUZERAIN = character:lineofsauron TRIBUTARY = holder }
+                            is_tributary_of = { SUZERAIN = character:lineofsauron TRIBUTARY = holder.top_liege }
                         }
                     }
                     order_by = {
@@ -556,7 +589,8 @@ lotr_war_events.0004 = {
                         OR = {
                             holder = character:lineofsauron
                             holder = { is_vassal_or_below_of = character:lineofsauron }
-                            holder = { is_tributary_of = { SUZERAIN = character:lineofsauron TRIBUTARY = holder } }
+                            is_tributary_of = { SUZERAIN = character:lineofsauron TRIBUTARY = holder }
+                            is_tributary_of = { SUZERAIN = character:lineofsauron TRIBUTARY = holder.top_liege }
                         }
                     }
                     order_by = {
@@ -572,49 +606,77 @@ lotr_war_events.0004 = {
                 }
             }
         }
-
-        if = {
-            limit = {
-                OR = {
-                    scope:landing_county.holder = character:lineofsauron
-                    scope:landing_county.holder = { is_vassal_or_below_of = character:lineofsauron }
-                }
-            }
-            create_title_and_vassal_change = {
-                type = independency
-                save_scope_as = change
-            }
-            scope:landing_county = {
-                every_county_province = {
-                    limit = { 
-                        has_holding = yes 
-                        NOT = { has_holding_type = castle_holding }
-                    }
-                    set_holding_type = castle_holding
-                }
-                change_title_holder = {
-                    holder = scope:invader_scope
-                    change = scope:change
-                }
-            }
-	        resolve_title_and_vassal_change = scope:change
-
+        if = { # If they have RtP DLC
+            limit = { has_ep3_dlc_trigger = yes }
             scope:invader_scope = {
+                set_location = scope:landing_county.title_province
+                lotr_sunset_invasion_adventurer_effect = { REASON = flag:voluntary }
+            }
+            
+        } else = {
+            scope:landing_county = {
+                set_county_faith = faith:faith_eldar
+                set_county_culture = culture:noldor
+                every_county_province = {
+                    add_building = castle_04
+                    add_building = curtain_walls_08
+                    add_building = barracks_05
+                    add_building = pastures_05
+
+                    add_province_modifier = {
+                        modifier = landing_of_valinor_host_modifier
+                        years = 10
+                    }
+                }
+                remove_county_modifier = marauding_orc_drags_modifier
+                remove_county_modifier = hidden_elven_refugees_modifier
+                change_county_control = 100
+                change_development_level = -100 
+                change_development_level = 25
+            }
+
+            if = {
+                limit = {
+                    OR = {
+                        scope:landing_county.holder = character:lineofsauron
+                        scope:landing_county.holder = { is_vassal_or_below_of = character:lineofsauron }
+                    }
+                }
                 create_title_and_vassal_change = {
                     type = independency
-                    save_scope_as = independent_change
+                    save_scope_as = change
                 }
-                becomes_independent = {
-                    change = scope:independent_change
+                scope:landing_county = {
+                    every_county_province = {
+                        limit = { 
+                            NOT = { has_holding_type = castle_holding }
+                        }
+                        set_holding_type = castle_holding
+                    }
+                    change_title_holder = {
+                        holder = scope:invader_scope
+                        change = scope:change
+                    }
                 }
-                resolve_title_and_vassal_change = scope:independent_change
+                resolve_title_and_vassal_change = scope:change
+
+                scope:invader_scope = {
+                    create_title_and_vassal_change = {
+                        type = independency
+                        save_scope_as = independent_change
+                    }
+                    becomes_independent = {
+                        change = scope:independent_change
+                    }
+                    resolve_title_and_vassal_change = scope:independent_change
+                }
+            }
+
+            scope:invader_scope = {
+                get_title = title:e_eonwe_host
             }
         }
 
-        scope:landing_county = {
-            set_county_faith = faith:faith_eldar
-            set_county_culture = culture:noldor
-        }
         scope:invader_scope = {
             add_piety_level = 5
             add_prestige_level = 5
@@ -622,7 +684,6 @@ lotr_war_events.0004 = {
             add_prestige = 5000
             add_piety = 5000
             add_gold = 1500
-            get_title = title:e_eonwe_host
             set_variable = invasion_cb_unlock
         }
 
@@ -630,6 +691,206 @@ lotr_war_events.0004 = {
  			TARGET_COUNTY = scope:landing_county
  			REBEL_LEADER = scope:invader_scope
  		}
+
+        if = { #Ingwion
+            limit = { title:c_tol_eressea.holder = character:lineofingwe5 } 
+            character:lineofingwe5 = {
+                save_scope_as = ingwion
+                set_variable = override_valinor_trigger
+                remove_trait = sailed_west
+            }
+            
+            create_title_and_vassal_change = {
+                type = usurped
+                save_scope_as = change
+            }
+            title:c_tol_eressea = {
+                change_title_holder = {
+                    holder = character:lineofingwe6
+                    change = scope:change
+                }
+            }
+            resolve_title_and_vassal_change = scope:change
+
+            create_title_and_vassal_change = {
+                type = swear_fealty
+                save_scope_as = change
+            }
+            scope:ingwion = { change_liege = { liege = scope:invader_scope change = scope:change } }
+            resolve_title_and_vassal_change = scope:change
+
+            scope:ingwion = {
+                set_employer = scope:invader_scope
+                set_location = scope:invader_scope.location
+            }
+            if = { # If they have RtP DLC
+                limit = { has_ep3_dlc_trigger = yes }
+                scope:invader_scope = {
+                    appoint_court_position = {
+						recipient = scope:ingwion
+						court_position = second_camp_officer
+					}
+                }
+                scope:invader_scope = {
+                    appoint_court_position = {
+						recipient = scope:ingwion
+						court_position = second_camp_officer
+					}
+                }
+                scope:invader_scope = {
+                    appoint_court_position = {
+						recipient = scope:ingwion
+						court_position = heavy_cavalry_captain_camp_officer
+					}
+                }
+                scope:invader_scope = {
+                    appoint_court_position = {
+						recipient = scope:ingwion
+						court_position = archer_captain_camp_officer
+					}
+                }
+                scope:invader_scope = {
+                    appoint_court_position = {
+						recipient = scope:ingwion
+						court_position = heavy_infantry_captain_camp_officer
+					}
+                }
+                scope:invader_scope = {
+                    appoint_court_position = {
+						recipient = scope:ingwion
+						court_position = light_infantry_captain_camp_officer
+					}
+                }
+                scope:invader_scope = {
+                    appoint_court_position = {
+						recipient = scope:ingwion
+						court_position = head_porter_camp_officer
+					}
+                }
+                scope:invader_scope = {
+                    appoint_court_position = {
+						recipient = scope:ingwion
+						court_position = huntperson_camp_officer
+					}
+                }
+                scope:invader_scope = {
+                    appoint_court_position = {
+						recipient = scope:ingwion
+						court_position = master_of_arms_camp_officer
+					}
+                }
+                scope:invader_scope = {
+                    appoint_court_position = {
+						recipient = scope:ingwion
+						court_position = pike_captain_camp_officer
+					}
+                }
+                scope:invader_scope = {
+                    appoint_court_position = {
+						recipient = scope:ingwion
+						court_position = light_cavalry_captain_camp_officer
+					}
+                }
+                scope:invader_scope = {
+                    appoint_court_position = {
+						recipient = scope:ingwion
+						court_position = chief_engineer_camp_officer
+					}
+                }
+            } else = {
+                scope:invader_scope = {
+                    assign_councillor_type = {
+                        type = councillor_marshal
+                        remove_existing_councillor = yes
+                        target = scope:ingwion
+                    }
+                }
+            }
+        }
+
+        if = { #Finrod Felagund
+            limit = { character:linefinwe33 = { is_alive = yes } } 
+            character:linefinwe33 = {
+                save_scope_as = finrod_felagund
+                set_variable = override_valinor_trigger
+                remove_trait = sailed_west
+            }
+
+            scope:finrod_felagund = {
+                set_employer = scope:invader_scope
+                set_location = scope:invader_scope.location
+            }
+            if = { # If they do NOT have RtP DLC
+                limit = { has_ep3_dlc_trigger = yes }
+                scope:invader_scope = {
+                    appoint_court_position = {
+						recipient = scope:finrod_felagund
+						court_position = bodyguard_court_position
+					}
+                }
+                scope:invader_scope = {
+                    appoint_court_position = {
+						recipient = scope:finrod_felagund
+						court_position = head_groom_camp_officer
+					}
+                }
+            } else = {
+                scope:invader_scope = {
+                    assign_councillor_type = {
+                        type = councillor_chancellor
+                        remove_existing_councillor = yes
+                        target = scope:finrod_felagund
+                    }
+                }
+            }
+        }
+
+        if = { #Finrod Felagund
+            limit = { character:linefinwe33 = { is_alive = yes } } 
+            character:lineofolwe3 = {
+                save_scope_as = earwe
+                set_variable = override_valinor_trigger
+                remove_trait = sailed_west
+            }
+
+            scope:earwe = {
+                set_employer = scope:invader_scope
+                set_location = scope:invader_scope.location
+            }
+            if = { # If they do NOT have RtP DLC
+                limit = { has_ep3_dlc_trigger = yes }
+                scope:invader_scope = {
+                    appoint_court_position = {
+						recipient = scope:earwe
+						court_position = travel_leader_court_position
+					}
+                }
+                scope:invader_scope = {
+                    appoint_court_position = {
+						recipient = scope:earwe
+						court_position = quartermaster_camp_officer
+					}
+                }
+                scope:invader_scope = {
+                    appoint_court_position = {
+						recipient = scope:earwe
+						court_position = bodyguard_court_position
+					}
+                }
+            } else = {
+                scope:invader_scope = {
+                    assign_councillor_type = {
+                        type = councillor_steward
+                        remove_existing_councillor = yes
+                        target = scope:earwe
+                    }
+                }
+            }
+        }
+
+        scope:invader_scope = {
+            every_courtier_or_guest = { trigger_event = race.0001 }
+        }
 
         # Global News Event
 		if = {
@@ -640,5 +901,24 @@ lotr_war_events.0004 = {
 				trigger_event = news_event.0034
 			}
 		}
+
+        scope:finrod_felagund ?= { remove_variable = override_valinor_trigger }
+        scope:ingwion ?= { remove_variable = override_valinor_trigger }
+        scope:earwe ?= { remove_variable = override_valinor_trigger }
+        scope:invader_scope = {
+            trigger_event = { # Need to do it with slight delay, otherwise event doesn't fire
+                id = lotr_war_events.0005
+                days = 1
+            }
+        }
     }
+
+    option = {
+        name = "a"
+    }
+}
+
+lotr_war_events.0005 = {
+    hidden = yes
+    immediate = { set_global_variable = spawned_valinor_invasion }
 }

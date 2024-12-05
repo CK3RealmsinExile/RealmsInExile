@@ -1,0 +1,329 @@
+﻿namespace = ep3_laamp_flavor_oltner
+
+scripted_trigger suitable_pool_marriage_trigger = {
+	save_temporary_scope_as = pool_marriage_target
+	is_physically_able_adult = yes
+	allowed_to_marry_character_gender_trigger = { CHARACTER = $FOLLOWER_TARGET$ }
+	lotr_marriage_to_allowed = { TARGET = $FOLLOWER_TARGET$ }
+	$FOLLOWER_TARGET$ ?= { allowed_to_marry_character_gender_trigger = { CHARACTER = prev } }
+	are_characters_sensible_lovers_trigger = { INSTIGATING_LOVER = $FOLLOWER_TARGET$ TARGET_OF_LOVE = scope:pool_marriage_target }
+	is_married = no
+	can_marry_trigger = yes
+	is_concubine = no
+	NOT = {
+		exists = betrothed
+	}
+	has_no_particular_noble_roots_trigger = yes
+}
+
+scripted_trigger suitable_follower_marriage_character_trigger = {
+	is_physically_able_adult = yes
+	NOT = { this = root }
+	is_married = no
+	can_marry_trigger = yes
+	is_concubine = no
+	age <= old_age
+	health >= fine_health
+	NOR = {
+		house = root.house
+		is_close_family_of = root
+		exists = betrothed
+		has_relation_rival = root
+	}
+	save_temporary_scope_as = entourage_member
+	any_pool_character = { 
+		province = root.location
+		age <= 40
+		health >= fine_health
+		suitable_pool_marriage_trigger = { FOLLOWER_TARGET = scope:entourage_member } 
+	}
+}
+
+# A Follower's Heart
+ep3_laamp_flavor_oltner.0001 = {
+	type = character_event
+	title = ep3_laamp_flavor_oltner.3001.t
+	desc = ep3_laamp_flavor_oltner.3001.desc
+	theme = marriage
+	override_background = { reference = market_scope }
+	left_portrait = {
+		character = scope:entourage_to_marry_2
+		animation = beg
+		camera = camera_event_very_left
+	}
+	right_portrait = {
+		character = scope:marriage_material
+		animation = dismissal
+		camera = camera_event_right_pointing_left
+	}
+	cooldown = { years = 10 }
+
+	trigger = {
+		is_landless_adventurer = yes
+		location = {
+			has_holding = yes
+		}
+		any_courtier = {
+			suitable_follower_marriage_character_trigger = yes
+		}
+	}
+
+	immediate = {
+		save_scope_as = root_char
+		random_courtier = {
+			limit = {
+				suitable_follower_marriage_character_trigger = yes
+			}
+			save_scope_as = entourage_to_marry_2
+		}
+		random_pool_character = {
+			province = root.location
+			limit = {
+				suitable_pool_marriage_trigger = { FOLLOWER_TARGET = scope:entourage_to_marry_2 }
+			}
+			save_scope_as = marriage_material
+		}
+		location.county.title_province = { save_scope_as = background_market_scope }
+	}
+	
+	option = { # Tell them to pay it themselves
+		name = ep3_laamp_flavor_oltner.0001.a
+		
+		trigger = {
+			scope:entourage_to_marry_2.gold >= {
+				add = scope:marriage_material.sum_of_all_skills_and_prowess_value
+			}
+		}
+		
+		scope:entourage_to_marry_2 = {
+			remove_short_term_gold = {
+				add = scope:marriage_material.sum_of_all_skills_value
+				add = scope:marriage_material.prowess
+			}
+		}
+		
+		add_courtier = scope:marriage_material
+		scope:entourage_to_marry_2 = {
+			if = {
+				limit = {
+					is_female = yes
+					is_lowborn = no
+					scope:marriage_material = {
+						is_lowborn = yes
+					}
+				}
+				marry_matrilineal = scope:marriage_material
+			}
+			else_if = {
+				limit = {
+					is_male = yes
+					is_lowborn = yes
+					scope:marriage_material = {
+						is_lowborn = no
+					}
+				}
+				marry_matrilineal = scope:marriage_material
+			}
+			else = {
+				marry = scope:marriage_material
+			}
+		}
+		
+		ai_chance = {
+			base = 100
+		}
+	}
+	
+	option = { # Pay the dowry
+		name = ep3_laamp_flavor_oltner.0001.b
+		stress_impact = {
+			generous = massive_stress_impact_loss
+			greedy = medium_stress_impact_gain
+		}
+		
+		remove_short_term_gold = {
+			add = scope:marriage_material.sum_of_all_skills_and_prowess_value
+		}
+		
+		add_courtier = scope:marriage_material
+		scope:entourage_to_marry_2 = {
+			if = {
+				limit = {
+					is_female = yes
+					is_lowborn = no
+					scope:marriage_material = {
+						is_lowborn = yes
+					}
+				}
+				marry_matrilineal = scope:marriage_material
+			}
+			else_if = {
+				limit = {
+					is_male = yes
+					is_lowborn = yes
+					scope:marriage_material = {
+						is_lowborn = no
+					}
+				}
+				marry_matrilineal = scope:marriage_material
+			}
+			else = {
+				marry = scope:marriage_material
+			}
+			progress_towards_friend_effect = {
+				CHARACTER = root
+				OPINION = 0
+				REASON = friend_helped_me_marry
+			}
+			add_opinion = {
+				target = root
+				modifier = grateful_opinion
+				opinion = 50
+			}
+		}
+		
+		scope:marriage_material = { save_scope_as = relationship_reason_involved_character }
+		
+		clear_saved_scope = relationship_reason_involved_character
+		
+		ai_chance = {
+			base = 10
+			
+			modifier = {
+				factor = 0
+				OR = {
+					has_trait = greedy
+					gold <= {
+						add = scope:marriage_material.sum_of_all_skills_and_prowess_value
+						multiply = 2
+					}
+				}
+			}
+		}
+	}
+	
+	option = { # Convince them to run away with you
+		name = ep3_laamp_flavor_oltner.0001.c
+		skill = intrigue
+		stress_impact = {
+			generous = medium_stress_impact_gain
+		}
+		
+		duel = {
+			skill = intrigue
+			value = high_skill_rating
+			50 = {
+				compare_modifier = {
+					value = scope:duel_value
+					multiplier = 3.5
+					min = -49
+				}
+				desc = ep3_laamp_flavor_oltner.0001.c.success
+				send_interface_toast = {
+					title = ep3_laamp_flavor_oltner.0001.c.success
+					left_icon = scope:entourage_to_marry_2
+					right_icon = scope:marriage_material
+					add_courtier = scope:marriage_material
+					scope:entourage_to_marry_2 = {
+						if = {
+							limit = {
+								is_female = yes
+								is_lowborn = no
+								scope:marriage_material = {
+									is_lowborn = yes
+								}
+							}
+							marry_matrilineal = scope:marriage_material
+						}
+						else_if = {
+							limit = {
+								is_male = yes
+								is_lowborn = yes
+								scope:marriage_material = {
+									is_lowborn = no
+								}
+							}
+							marry_matrilineal = scope:marriage_material
+						}
+						else = {
+							marry = scope:marriage_material
+						}
+						progress_towards_friend_effect = {
+							CHARACTER = root
+							OPINION = 0
+							REASON = friend_helped_me_marry
+						}
+						add_opinion = {
+							target = root
+							modifier = grateful_opinion
+							opinion = 50
+						}
+					}
+					
+					scope:marriage_material = { save_scope_as = relationship_reason_involved_character }
+					clear_saved_scope = relationship_reason_involved_character
+				}
+			}
+			50 = {
+				compare_modifier = {
+					value = scope:duel_value
+					multiplier = -3.5
+					min = -49
+				}
+				desc =  ep3_laamp_flavor_oltner.0001.c.failure
+				send_interface_toast = {
+					title =  ep3_laamp_flavor_oltner.0001.c.failure
+					left_icon = scope:entourage_to_marry_2
+					right_icon = scope:marriage_material
+					scope:entourage_to_marry_2 = {
+						add_stress = medium_stress_gain
+						add_opinion = {
+							target = root
+							modifier = disappointed_opinion
+							opinion = -30
+						}
+					}
+				}
+			}
+		}
+		
+		ai_chance = {
+			base = 10
+			
+			modifier = {
+				factor = 0
+				has_trait = generous
+			}
+		}
+	}
+	
+	option = { # Ignore your follower
+		name = ep3_laamp_flavor_oltner.0001.d
+		stress_impact = {
+			compassionate = medium_stress_impact_gain
+			generous = medium_stress_impact_gain
+			callous = minor_stress_impact_loss
+			sadistic = minor_stress_impact_loss
+			chaste = minor_stress_impact_loss
+			shy = minor_stress_impact_loss
+		}
+		scope:entourage_to_marry_2 = {
+			add_opinion = {
+				target = root
+				modifier = heartbroken_opinion
+				opinion = -30
+			}
+		}
+		ai_chance = {
+			base = 10
+			
+			modifier = {
+				factor = 0
+				OR = {
+					has_trait = compassionate
+					has_trait = generous
+				}
+			}
+		}
+	}
+}

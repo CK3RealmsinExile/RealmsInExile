@@ -39,12 +39,15 @@ join_faction_with_leave_blocker_effect = {
 }
 
 add_faction_cooldown_effect = {
-	custom_description = {
-		text = faction_cooldown_effect
-		value = $YEARS$
-		add_character_flag = {
-			flag = joining_faction_block
-			years = $YEARS$
+	if = {
+		limit = { is_landless_adventurer = no }
+		custom_description = {
+			text = faction_cooldown_effect
+			value = $YEARS$
+			add_character_flag = {
+				flag = joining_faction_block
+				years = $YEARS$
+			}
 		}
 	}
 }
@@ -344,6 +347,8 @@ split_noncontiguous_counties_from_revolt_effect = {
 # Parameters:
 #	$FACTION_LEADER$
 #	$TARGET_TITLE$
+#	$SOURCE_GOVERNMENT$
+#
 successful_popular_revolt_outcome_effect = {
 	# Save scopes for later usage.
 	$FACTION_LEADER$ = {
@@ -357,6 +362,98 @@ successful_popular_revolt_outcome_effect = {
 			}
 		}
 	}
+
+	if = { # Populists factions in an admin realm should aim to change state faith, if they are of the capital culture
+		limit = {
+			$SOURCE_GOVERNMENT$ = { government_allows = state_faith }
+			$FACTION_LEADER$.culture = scope:faction_target.capital_county.culture
+			$FACTION_LEADER$.faith != scope:faction_target.primary_title.state_faith
+		}
+
+		$SOURCE_GOVERNMENT$.primary_title = {
+			# Change the state faith
+			set_state_faith = $FACTION_LEADER$.faith
+			
+			# Try grabbing someone from the line of succession who practices the State Faith
+			if = {
+				limit = {
+					any_title_heir = {
+						faith = $FACTION_LEADER$.faith
+					}
+				}
+				ordered_title_heir = {
+					order_by = "appointment_candidate_score(prev)"
+					limit = {
+						faith = $FACTION_LEADER$.faith
+					}
+					save_scope_as = new_ruler
+				}
+			}
+			# Otherwise, make the peasant leader the new emperor
+			else = { $FACTION_LEADER$ = { save_scope_as = new_ruler } }
+
+			# Actually make the switch
+			create_title_and_vassal_change = {
+				type = conquest_populist
+				save_scope_as = change
+			}
+			# Transfer all titles to heir of primary title if only one governorship is held
+			hidden_effect = {
+				$SOURCE_GOVERNMENT$ = {
+					every_held_title = {
+						limit = {
+							tier >= tier_county
+							is_landless_type_title = no
+							is_noble_family_title = no
+						}
+						change_title_holder_include_vassals = {
+							holder = scope:new_ruler
+							change = scope:change
+							take_baronies = no
+						}
+					}
+				}
+			}
+			resolve_title_and_vassal_change = scope:change
+		}
+	}
+	else_if = { # Populists factions of the state faith in an admin realm where the emperor is of a heretical faith simply take the empire
+		limit = {
+			$SOURCE_GOVERNMENT$ = { government_allows = state_faith }
+			$FACTION_LEADER$.faith = scope:faction_target.primary_title.state_faith
+			$FACTION_LEADER$.faith != scope:faction_target.faith
+		}
+
+		$SOURCE_GOVERNMENT$.primary_title = {
+			
+			$FACTION_LEADER$ = { save_scope_as = new_ruler }
+
+			# Actually make the switch
+			create_title_and_vassal_change = {
+				type = conquest_populist
+				save_scope_as = change
+			}
+			# Transfer all titles to heir of primary title if only one governorship is held
+			hidden_effect = {
+				$SOURCE_GOVERNMENT$ = {
+					every_held_title = {
+						limit = {
+							tier >= tier_county
+							is_landless_type_title = no
+							is_noble_family_title = no
+						}
+						change_title_holder_include_vassals = {
+							holder = scope:new_ruler
+							change = scope:change
+							take_baronies = no
+						}
+					}
+				}
+			}
+			resolve_title_and_vassal_change = scope:change
+		}
+	}
+	else = { # Otherwise we run the normal script
 
 	# Compile a list of all counties belonging to the faction.
 	scope:popular_faction = {
@@ -479,7 +576,6 @@ successful_popular_revolt_outcome_effect = {
 			}
 		}
 	}
-
 	# CHANGE ONE: Give the leader an appropriately-ranked title.
 	create_title_and_vassal_change = {
 		type = conquest_populist
@@ -653,7 +749,6 @@ successful_popular_revolt_outcome_effect = {
 			}
 		}
 	}
-
 	else_if = {
 		# Check if we can give them a duchy.
 		limit = {
@@ -881,6 +976,7 @@ successful_popular_revolt_outcome_effect = {
 					change = scope:change_three
 				}
 				send_interface_toast = {
+						type = event_toast_effect_good
 					title = POPULIST_FACTION_INDEPENDENCE_TITLE
 					custom_tooltip = POPULIST_FACTION_INDEPENDENCE_DESC
 					left_icon = $FACTION_LEADER$
@@ -959,6 +1055,7 @@ successful_popular_revolt_outcome_effect = {
 			}
 		}
 	}
+	}
 }
 
 create_popular_revolt_title_effect = {
@@ -976,6 +1073,7 @@ create_popular_revolt_title_effect = {
 
 			save_scope_as = base_county
 		}
+		$FACTION_LEADER$.culture = { save_scope_as = founder_culture }
 		create_dynamic_title = {
 			tier = $TIER$
 			name = FACTION_POPULIST_CREATED_TITLE_NAME
@@ -985,6 +1083,7 @@ create_popular_revolt_title_effect = {
 				name = faction
 				value = $FACTION$
 			}
+			set_color_from_title = scope:base_county
 		}
 	}
 }
@@ -1163,6 +1262,24 @@ spawn_popular_revolt_troops = {
 			name = populist_faction_event_troops
 		}
 	}
+
+	if = {
+		limit = { has_variable = ep3_governor_yearly_8150_ignored }
+		root.faction_leader = {
+			spawn_army = {
+				name = ep3_governor_yearly_8150_troop_name
+				men_at_arms = {
+					type = light_footmen
+					stacks = 2
+				}
+				war = root.faction_war
+				location = scope:local_center_of_rebellion
+				origin = scope:local_center_of_rebellion
+				inheritable = no
+			}
+		}
+		remove_variable = ep3_governor_yearly_8150_ignored
+	}
 }
 
 peasant_faction_demands_enforced = {
@@ -1243,7 +1360,7 @@ setup_populist_leader_effect = {
 				# Must not already be a landed ruler, or set to inheirit a landed title.
 				AND = {
 					is_ruler = no
-					is_landed = no
+					is_playable_character = no
 					NOT = {
 						any_heir_title = {
 							exists = this
@@ -1254,6 +1371,7 @@ setup_populist_leader_effect = {
 
 			save_scope_as = peasant_leader
 			add_character_flag = peasant_faction_claimant_without_title
+			add_trait = populist_leader
 		}
 	}
 
@@ -1280,6 +1398,7 @@ setup_populist_leader_effect = {
 					add = 50
 				}
 			}
+			trait = populist_leader
 			save_scope_as = peasant_leader
 		}
 		scope:peasant_leader = {

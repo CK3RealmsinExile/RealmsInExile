@@ -15,7 +15,13 @@ call_ally_interaction = {
 
 	is_shown = {
 		scope:actor = {
-			is_at_war = yes			
+			is_at_war = yes	
+			trigger_if = { # Avoid calling Adventurers without armies or landed rulers who have been devastated
+				limit = {
+					is_ai = yes
+				}
+				scope:recipient.current_military_strength >= 100
+			}		
 			NOT = { has_culture = culture:wastelands }
 			is_in_valinor = no
 		}
@@ -26,6 +32,27 @@ call_ally_interaction = {
 					this ?= scope:actor.diarch
 					scope:actor = {
 						any_character_war = { diarch_callable_in_internal_war_trigger = yes }
+					}
+				}
+				trigger_if = { #LotR - Mispar can call Balan-Lai members into war if attacked
+					limit = { has_trait = balan_lai_member }
+					scope:actor = {
+						has_title = title:c_mispir
+						any_held_county = {
+							percent > 0.50
+							title_province = { geographical_region = middleearth_thani_hazad_struggle_region }
+						}
+						highest_held_title_tier < tier_kingdom
+						OR = {
+							any_character_struggle = { 
+								is_struggle_type = thani_hazad_struggle 
+								involvement = involved
+							}
+							any_character_struggle = { 
+								is_struggle_type = thani_hazad_struggle 
+								involvement = interloper
+							}
+						}
 					}
 				}
 			}
@@ -320,6 +347,27 @@ call_ally_interaction = {
 	}
 
 	auto_accept = {
+		trigger_if = { #LotR - Mispar can call Balan-Lai members into war if attacked
+			limit = { scope:recipient = { has_trait = balan_lai_member } }
+			scope:actor = {
+				has_title = title:c_mispir
+				any_held_county = {
+					percent > 0.50
+					title_province = { geographical_region = middleearth_thani_hazad_struggle_region }
+				}
+				highest_held_title_tier < tier_kingdom
+				OR = {
+					any_character_struggle = { 
+						is_struggle_type = thani_hazad_struggle 
+						involvement = involved
+					}
+					any_character_struggle = { 
+						is_struggle_type = thani_hazad_struggle 
+						involvement = interloper
+					}
+				}
+			}
+		}
 		OR = {
 			# Always accept a call from a Spouse
 			custom_description = {
@@ -364,6 +412,49 @@ call_ally_interaction = {
 	
 	ai_accept = {
 		base = 20
+		
+		modifier = { #LotR - Mispir calls for aid
+			scope:recipient = { has_trait = balan_lai_member }
+			scope:actor = {
+				has_title = title:c_mispir
+				any_held_county = {
+					percent > 0.50
+					title_province = { geographical_region = middleearth_thani_hazad_struggle_region }
+				}
+				highest_held_title_tier < tier_kingdom
+				OR = {
+					any_character_struggle = { 
+						is_struggle_type = thani_hazad_struggle 
+						involvement = involved
+					}
+					any_character_struggle = { 
+						is_struggle_type = thani_hazad_struggle 
+						involvement = interloper
+					}
+				}
+			}
+			add = 3000
+		}
+		
+		modifier = {  # Conquerors do not help anyone but themselves
+			add = -1000
+			desc = NO_FRIVOLOUS_ACTIVITIES_REASON
+			scope:recipient = { ai_has_conqueror_personality = yes }
+		}
+		
+		modifier = {  # AI's that need to save gold will not help their lesser AI allies, unless it's a player war
+			add = -1000
+			desc = NO_FRIVOLOUS_ACTIVITIES_REASON
+			scope:actor = {
+				is_ai = yes
+				primary_title.tier < scope:recipient.primary_title.tier
+			}
+			scope:target.casus_belli = {
+				primary_attacker = { is_ai = yes }
+				primary_defender = { is_ai = yes }
+			}
+			scope:recipient = { ai_should_focus_on_building_in_their_capital = yes }
+		}
 
 		# modifier = {  # Refuse call to conflicts of little benefit #LotR
 		# 	add = -1000
@@ -396,20 +487,11 @@ call_ally_interaction = {
 		}
 
 		modifier = {  #LotR - Struggle modifier
-			add = -500
-			scope:target = {			
-				any_character_struggle = { 
-					is_struggle_type = thani_hazad_struggle 
-					involvement = involved
-					is_struggle_phase = struggle_thani_hazad_phase_confederation
-				}
-			}
-			scope:recipient = {
-				any_character_struggle = { 
-					is_struggle_type = thani_hazad_struggle 
-					involvement = involved
-					is_struggle_phase = struggle_thani_hazad_phase_confederation
-				}
+			add = -100
+			custom_tooltip = {
+				text = balan_lai_hesitant_to_fight_other_balan_lai
+				scope:target.casus_belli.primary_attacker ?= { has_trait = balan_lai_member }
+				scope:target.casus_belli.primary_defender ?= { has_trait = balan_lai_member }
 			}
 		}
 
@@ -480,6 +562,7 @@ call_ally_interaction = {
 			trigger = {
 				scope:actor = {
 					has_royal_court = yes
+					has_dlc_feature = royal_court
 					NOT = { knows_court_language_of = this }
 				}
 				NOT = {
@@ -567,6 +650,7 @@ call_ally_interaction = {
 			trigger = {
 				scope:actor = {
 					has_royal_court = yes
+					has_dlc_feature = royal_court
 					knows_court_language_of = this
 				}
 				NOT = {
@@ -739,6 +823,7 @@ call_ally_interaction = {
 			trigger_else = {
 				has_relation_friend = scope:target.casus_belli.primary_defender
 			}
+			desc = WONT_FIGHT_FRIEND
 		}
 
 		modifier = { # Reluctant to join against Best Friends
@@ -752,6 +837,7 @@ call_ally_interaction = {
 			trigger_else = {
 				has_relation_best_friend = scope:target.casus_belli.primary_defender
 			}
+			desc = WONT_FIGHT_BEST_FRIEND
 		}
 		modifier = { # Reluctant to join against Lovers
 			add = -100
@@ -764,8 +850,9 @@ call_ally_interaction = {
 			trigger_else = {
 				has_relation_lover = scope:target.casus_belli.primary_defender
 			}
+			desc = WONT_FIGHT_LOVER
 		}
-		modifier = { # Reluctant to join against Soul mate
+		modifier = { # Reluctant to join against Soulmate
 			add = -200
 			trigger_if = {
 				limit = {
@@ -776,6 +863,7 @@ call_ally_interaction = {
 			trigger_else = {
 				has_relation_soulmate = scope:target.casus_belli.primary_defender
 			}
+			desc = WONT_FIGHT_SOULMATE
 		}
 		modifier = {  # Refuse call for hostages' safety
 			any_home_court_hostage = {
@@ -811,67 +899,98 @@ call_ally_interaction = {
 	ai_will_do = {
 		base = 100
 		
-		modifier = { # If the player is at war, do not bother them with offensive calls
-			scope:target.casus_belli.primary_attacker = scope:actor
-			scope:recipient = {
-				is_ai = no
-				any_character_war = {
-					primary_defender = scope:recipient
+		modifier = { #LotR - Mispir calls for aid
+			scope:recipient = { has_trait = balan_lai_member }
+			scope:actor = {
+				has_title = title:c_mispir
+				any_held_county = {
+					percent > 0.50
+					title_province = { geographical_region = middleearth_thani_hazad_struggle_region }
+				}
+				highest_held_title_tier < tier_kingdom
+				OR = {
+					any_character_struggle = { 
+						is_struggle_type = thani_hazad_struggle 
+						involvement = involved
+					}
+					any_character_struggle = { 
+						is_struggle_type = thani_hazad_struggle 
+						involvement = interloper
+					}
 				}
 			}
-			factor = 0
+			add = 3000
 		}
 		
-		modifier = { # Don't call players in against their heirs (they wouldn't accept the reverse situation... don't be a hypocrite)
-			exists = scope:recipient.player_heir
-			scope:recipient = {			
-				is_ai = no
-			}
-			trigger_if = {
-				limit = { scope:target.casus_belli.primary_defender = scope:actor }
-				scope:target.casus_belli.primary_attacker = scope:recipient.player_heir
-			}
-			trigger_else = {
-				scope:target.casus_belli.primary_defender = scope:recipient.player_heir
-			}
-			factor = 0
-		}
+		# modifier = { # If the player is at war, do not bother them with offensive calls
+		# 	scope:target.casus_belli.primary_attacker = scope:actor
+		# 	scope:recipient = {
+		# 		is_ai = no
+		# 		any_character_war = {
+		# 			primary_defender = scope:recipient
+		# 		}
+		# 	}
+		# 	factor = 0
+		# }
 		
-		modifier = { # Same with spouses
-			scope:recipient = {			
-				is_ai = no
-			}
-			trigger_if = {
-				limit = { scope:target.casus_belli.primary_defender = scope:actor }
-				any_spouse = {
-					this = scope:target.casus_belli.primary_attacker
-				}
-			}
-			trigger_else = {
-				any_spouse = {
-					this = scope:target.casus_belli.primary_defender
-				}
-			}
-			factor = 0
-		}
+		# modifier = { # Do not call the player if they are in debt
+		# 	scope:recipient = {
+		# 		is_ai = no
+		# 		gold <= -1
+		# 	}
+		# 	factor = 0
+		# }
 		
-		modifier = { # Don't call brand-new allies into old wars, at least until some time has elapsed.
-			has_variable = delay_calling_recent_ally
-			var:delay_calling_recent_ally = scope:recipient
-			scope:target = {
-				war_days >= 30
-			}
-			factor = 0
+		# modifier = { # Don't call players in against their heirs (they wouldn't accept the reverse situation... don't be a hypocrite)
+		# 	exists = scope:recipient.player_heir
+		# 	scope:recipient = {			
+		# 		is_ai = no
+		# 	}
+		# 	trigger_if = {
+		# 		limit = { scope:target.casus_belli.primary_defender = scope:actor }
+		# 		scope:target.casus_belli.primary_attacker = scope:recipient.player_heir
+		# 	}
+		# 	trigger_else = {
+		# 		scope:target.casus_belli.primary_defender = scope:recipient.player_heir
+		# 	}
+		# 	factor = 0
+		# }
+		
+		# modifier = { # Same with spouses
+		# 	scope:recipient = {			
+		# 		is_ai = no
+		# 	}
+		# 	trigger_if = {
+		# 		limit = { scope:target.casus_belli.primary_defender = scope:actor }
+		# 		any_spouse = {
+		# 			this = scope:target.casus_belli.primary_attacker
+		# 		}
+		# 	}
+		# 	trigger_else = {
+		# 		any_spouse = {
+		# 			this = scope:target.casus_belli.primary_defender
+		# 		}
+		# 	}
+		# 	factor = 0
+		# }
+		
+		# modifier = { # Don't call brand-new allies into old wars, at least until some time has elapsed.
+		# 	has_variable = delay_calling_recent_ally
+		# 	var:delay_calling_recent_ally = scope:recipient
+		# 	scope:target = {
+		# 		war_days >= 30
+		# 	}
+		# 	factor = 0
 
-		}
+		# }
 
-		modifier = { # If the recipient is allied to both the attacker and the defender, the attacker shouldn't call
-			scope:target.casus_belli.primary_attacker = scope:actor
-			scope:target.casus_belli.primary_defender = {
-				is_allied_to = scope:recipient
-			}
-			factor = 0
-		}
+		# modifier = { # If the recipient is allied to both the attacker and the defender, the attacker shouldn't call
+		# 	scope:target.casus_belli.primary_attacker = scope:actor
+		# 	scope:target.casus_belli.primary_defender = {
+		# 		is_allied_to = scope:recipient
+		# 	}
+		# 	factor = 0
+		# }
 	}
 }
 
@@ -913,11 +1032,11 @@ negotiate_alliance_interaction = {
 	
 	is_valid_showing_failures_only = {
 		scope:recipient = {
-			is_landed = yes
+			is_playable_character = yes
 			is_imprisoned = no
 		}
 		scope:actor = {
-			is_landed = yes
+			is_playable_character = yes
 			is_imprisoned = no
 			NOT = {
 				is_at_war_with = scope:recipient
@@ -1049,6 +1168,30 @@ negotiate_alliance_interaction = {
 	}
 	extra_icon = "gfx/interface/icons/character_interactions/hook_icon.dds"
 
+	# Admin Gov can spend Influence to increase AI acceptance towards other same-realm admin characters
+	send_option = {
+		is_shown = {
+			scope:actor = {
+				government_allows = administrative
+			}
+			scope:recipient = {
+				top_liege = scope:actor.top_liege
+				government_allows = administrative
+			}
+		}
+		is_valid = {
+			scope:actor = {
+				influence >= major_influence_value
+			}
+			custom_tooltip = {
+				text = ALREADY_USING_HOOK
+				NOT = { scope:hook = yes }
+			}
+		}
+		flag = influence	
+		localization = SPEND_INFLUENCE
+	}
+
 	send_options_exclusive = no
 		
 	on_accept = {
@@ -1065,6 +1208,12 @@ negotiate_alliance_interaction = {
 					has_hook = scope:recipient
 				}
 				use_hook = scope:recipient
+			}
+			if = {
+				limit = {
+					scope:influence = yes
+				}
+				change_influence = major_influence_loss
 			}
 		}
 
@@ -1279,6 +1428,7 @@ negotiate_alliance_interaction = {
 		}
 		if = {
 			limit = {
+				exists = scope:defensive_ally
 				scope:recipient = scope:defensive_ally
 			}
 			scope:actor = { clear_variable_list = defensive_allies }
@@ -1470,7 +1620,24 @@ negotiate_alliance_interaction = {
 			}
 			desc = RANK_DIFFERENCE_REASON
 		}
-
+		modifier = {
+			scope:recipient = {
+				has_relation_lover = scope:actor
+			}
+			add = {
+				value = 25
+			}
+			desc = WE_ARE_LOVERS
+		}		
+		modifier = {
+			scope:recipient = {
+				has_relation_friend = scope:actor
+			}
+			add = {
+				value = 25
+			}
+			desc = WE_ARE_FRIENDS
+		}
 		modifier = {
 			scope:recipient = {
 				is_heir_of = scope:actor
@@ -1495,7 +1662,15 @@ negotiate_alliance_interaction = {
 		opinion_modifier = { # More likely to accept if Recipient likes the Actor
 			who = scope:recipient
 			opinion_target = scope:actor
+			multiplier = 0.25
+			min = 0
+			desc = AI_OPINION_REASON
+		}
+		opinion_modifier = { # Less likely to accept if Recipient dislikes the Actor
+			who = scope:recipient
+			opinion_target = scope:actor
 			multiplier = 1
+			max = 0
 			desc = AI_OPINION_REASON
 		}
 
@@ -1656,7 +1831,7 @@ negotiate_alliance_interaction = {
 				scope:recipient.ai_zeal <= -50
 			}
 			add = {
-				value = -20
+				value = -10
 				if = {
 					limit = {
 						# Exempt certain struggle phases.
@@ -1682,7 +1857,7 @@ negotiate_alliance_interaction = {
 								}
 							}
 						}
-						subtract = 40
+						subtract = 20
 					}
 					if = {
 						limit = {
@@ -1698,6 +1873,18 @@ negotiate_alliance_interaction = {
 					if = {
 						limit = {
 							scope:recipient.ai_zeal <= -25
+						}
+						divide = 2
+					}
+					else_if = {
+						limit = {
+							scope:recipient.ai_zeal >= 50
+						}
+						multiply = 2
+					}										
+					if = {
+						limit = {
+							scope:recipient.faith = { has_doctrine = doctrine_pluralism_pluralistic }
 						}
 						divide = 2
 					}
@@ -1730,7 +1917,6 @@ negotiate_alliance_interaction = {
 		# Recipient is a Claimant to Actor's titles.
 		modifier = {
 			scope:recipient = {
-				NOT = { government_has_flag = government_is_clan }
 				any_claim = {
 					holder = scope:actor
 				}
@@ -1978,16 +2164,27 @@ negotiate_alliance_interaction = {
 				value = 0
 				if = {
 					limit = { scope:actor = { has_legitimacy_flag = increased_alliance_acceptance } }
-					add = 25
+					add = 10
 				}
 				if = {
 					limit = { scope:actor = { has_legitimacy_flag = very_increased_alliance_acceptance } }
-					add = 50
+					add = 25
 				}
 				if = {
 					limit = { scope:actor = { has_legitimacy_flag = extra_increased_alliance_acceptance } }
-					add = 100
+					add = 50
 				}
+			}
+		}
+		
+		# INFLUENCE
+		modifier = {
+			desc = INFLUENCE_REASON
+			scope:influence = yes
+			add = {
+				value = 10
+				multiply = scope:actor.influence_level
+				min = 5
 			}
 		}
 		
@@ -2123,6 +2320,7 @@ perk_alliance_interaction = {
 		scope:actor = {
 			is_in_valinor = no
 			has_perk = defensive_negotiations_perk
+			is_landless_adventurer = no
 			NOT = { # This interaction is harder to push through than Negotiate Alliance, and does the same thing, so don't show both
 				is_character_interaction_shown = {
 					recipient = scope:recipient
@@ -2167,7 +2365,7 @@ perk_alliance_interaction = {
 			}
 		}
 		scope:recipient = {
-			is_landed = yes
+			is_playable_character = yes
 			is_at_war = no
 			is_imprisoned = no
 			NOT = { has_culture = culture:wastelands }
@@ -2179,7 +2377,7 @@ perk_alliance_interaction = {
 		}
 		
 		scope:actor = {
-			is_landed = yes
+			is_playable_character = yes
 			is_at_war = no
 			is_imprisoned = no
 			NOT = { has_culture = culture:wastelands }
@@ -2251,6 +2449,30 @@ perk_alliance_interaction = {
 	}
 	extra_icon = "gfx/interface/icons/character_interactions/hook_icon.dds"
 
+	# Admin Gov can spend Influence to increase AI acceptance towards other same-realm admin characters
+	send_option = {
+		is_shown = {
+			scope:actor = {
+				government_allows = administrative
+			}
+			scope:recipient = {
+				top_liege = scope:actor.top_liege
+				government_allows = administrative
+			}
+		}
+		is_valid = {
+			scope:actor = {
+				influence >= major_influence_value
+			}
+			custom_tooltip = {
+				text = ALREADY_USING_HOOK
+				NOT = { scope:hook = yes }
+			}
+		}
+		flag = influence	
+		localization = SPEND_INFLUENCE
+	}
+
 	send_options_exclusive = no
 		
 	on_accept = {
@@ -2274,6 +2496,13 @@ perk_alliance_interaction = {
 			if = {
 				limit = { scope:hook = yes }
 				use_hook = scope:recipient
+			}
+			
+			if = {
+				limit = {
+					scope:influence = yes
+				}
+				change_influence = major_influence_loss
 			}
 		}
 		scope:recipient = { # This opinion modifier controls the interaction, and is removed when breaking the alliance in any way (though on_actions)
@@ -2409,6 +2638,24 @@ perk_alliance_interaction = {
 			desc = RANK_DIFFERENCE_REASON
 		}
 		modifier = {
+			scope:recipient = {
+				has_relation_lover = scope:actor
+			}
+			add = {
+				value = 25
+			}
+			desc = WE_ARE_LOVERS
+		}			
+		modifier = {
+			scope:recipient = {
+				has_relation_friend = scope:actor
+			}
+			add = {
+				value = 25
+			}
+			desc = WE_ARE_FRIENDS
+		}		
+		modifier = {
 			scope:actor = {
 				tier_difference = {
 					target = scope:recipient
@@ -2459,7 +2706,15 @@ perk_alliance_interaction = {
 		opinion_modifier = { # More likely to accept if Recipient likes the Actor
 			who = scope:recipient
 			opinion_target = scope:actor
+			multiplier = 0.25
+			min = 0
+			desc = AI_OPINION_REASON
+		}
+		opinion_modifier = { # Less likely to accept if Recipient dislikes the Actor
+			who = scope:recipient
+			opinion_target = scope:actor
 			multiplier = 1
+			max = 0
 			desc = AI_OPINION_REASON
 		}
 
@@ -2620,7 +2875,7 @@ perk_alliance_interaction = {
 				scope:recipient.ai_zeal <= -50
 			}
 			add = {
-				value = -20
+				value = -10
 				if = {
 					limit = {
 						# Exempt certain struggle phases.
@@ -2646,7 +2901,7 @@ perk_alliance_interaction = {
 								}
 							}
 						}
-						subtract = 40
+						subtract = 20
 					}
 					if = {
 						limit = {
@@ -2662,6 +2917,18 @@ perk_alliance_interaction = {
 					if = {
 						limit = {
 							scope:recipient.ai_zeal <= -25
+						}
+						divide = 2
+					}
+					else_if = {
+						limit = {
+							scope:recipient.ai_zeal >= 50
+						}
+						multiply = 2
+					}										
+					if = {
+						limit = {
+							scope:recipient.faith = { has_doctrine = doctrine_pluralism_pluralistic }
 						}
 						divide = 2
 					}
@@ -2694,7 +2961,6 @@ perk_alliance_interaction = {
 		# Recipient is a Claimant to Actor's titles.
 		modifier = {
 			scope:recipient = {
-				NOT = { government_has_flag = government_is_clan }
 				any_claim = {
 					holder = scope:actor
 				}
@@ -2887,6 +3153,17 @@ perk_alliance_interaction = {
 			VALUE = 10
 		}
 		
+		# INFLUENCE
+		modifier = {
+			desc = INFLUENCE_REASON
+			scope:influence = yes
+			add = {
+				value = 10
+				multiply = scope:actor.influence_level
+				min = 5
+			}
+		}
+		
 		#LotR - Elves won't ally other races in LotE difficulty setting
 		modifier = {
 			desc = DIFFERENT_RACE_REASON
@@ -2937,6 +3214,11 @@ perk_alliance_interaction = {
 				scope:actor.current_military_strength >= scope:recipient.current_military_strength
 				scope:actor.primary_title.tier >= scope:recipient.primary_title.tier
 			}
+		}
+		
+		modifier = {
+			add = -5000
+			scope:recipient.current_military_strength <= 100
 		}
 		
 		#LotR - Elves won't ally other races in LotE difficulty setting
@@ -3048,6 +3330,28 @@ join_war_interaction = {
 			}
 			trigger_if = {
 				limit = {
+					scope:actor = { is_landless_adventurer = yes }
+				}
+				# bypass the requirements, unless you were invloved in a war and decided to leave it
+				scope:recipient = {
+					trigger_if = {
+						limit = {
+							any_character_war = {
+								has_variable_list = left_voluntarily
+							}
+						}
+						custom_tooltip = {
+							text = laamp_war_change_sides_interaction.left_voluntarily
+							is_target_in_variable_list = {
+								name = left_voluntarily
+								target = scope:actor	
+							}
+						}
+					}
+				}
+			}
+			trigger_else_if = {
+				limit = {
 					scope:recipient = {
 						any_character_war = {
 							OR = {
@@ -3132,6 +3436,29 @@ join_war_interaction = {
 				}
 			}
 		}
+		
+		scope:actor = {
+			trigger_if = {
+				limit = {
+					is_landless_adventurer = yes
+				}
+				custom_tooltip = {
+					text = reinforce_soldiers_any_regiment_tt
+					maa_regiments_count >= 1
+				}
+			}
+		}
+
+		# Adventurers can't join wars in places they're exiled from.
+		custom_tooltip = {
+			text = the_wake_1
+			NOT = {
+				is_laamp_exiled_from_province_trigger = {
+					PROVINCE = scope:recipient.capital_province
+					LAAMP = scope:actor
+				}
+			}
+		}
 	}
 	
 	can_be_picked = {
@@ -3140,7 +3467,7 @@ join_war_interaction = {
 
 			# recipient is war leader
 			is_war_leader = scope:recipient
-
+			
 			# LotR Elves can join wars against the Shadow
 			trigger_if = {
 				limit = {
@@ -3172,6 +3499,15 @@ join_war_interaction = {
 							subject = this
 							faith_is_evil = yes
 						}
+					}
+				}
+			}
+			
+			#allow laamp_join_war_contract to bypass the requirements
+			trigger_if = {
+				limit = {
+					scope:actor = {
+						is_landless_adventurer = yes
 					}
 				}
 			}
@@ -3239,7 +3575,7 @@ join_war_interaction = {
 						any_character_struggle = { 
 							is_struggle_type = thani_hazad_struggle 
 							involvement = involved
-							is_struggle_phase = struggle_thani_hazad_phase_confederation
+							has_struggle_phase_parameter = involved_rulers_can_join_other_involved_rulers
 						} 
 					}
 					scope:recipient = { 
@@ -3247,7 +3583,7 @@ join_war_interaction = {
 						any_character_struggle = {
 							is_struggle_type = thani_hazad_struggle 
 							involvement = involved
-							is_struggle_phase = struggle_thani_hazad_phase_confederation
+							has_struggle_phase_parameter = involved_rulers_can_join_other_involved_rulers
 						} 
 					}
 				}
@@ -3301,6 +3637,14 @@ join_war_interaction = {
 			trigger_else_if = {
 				limit = { is_tributary_of = { SUZERAIN = scope:actor TRIBUTARY = scope:recipient } }
 				always = yes
+			}
+			trigger_else_if = {
+				limit = {
+					scope:actor = { has_variable_list = defensive_allies }
+					scope:recipient = { has_variable_list = defensive_allies }
+					primary_defender = { this = scope:recipient }
+				}
+				scope:actor = { is_defensive_allied_to = { RECIPIENT = scope:recipient } }
 			}
 			
 			# ...otherwise, recipient must be an ally...
@@ -3395,19 +3739,60 @@ join_war_interaction = {
 		can_join_war_liege_vassal_check_trigger = { WARRIOR = scope:recipient JOINER = scope:actor }
 	}
 
+	is_highlighted = {
+		scope:actor = {
+			any_character_task_contract = {		
+				has_task_contract_type = laamp_join_war_contract
+				task_contract_employer = scope:recipient
+			}
+		}
+	}
+
 	on_accept = {
-		scope:target = {
+		scope:target ?= {
 			hidden_effect = {
 				set_called_to = scope:actor
 			}
 			if = {
-				limit = {
-					is_attacker = scope:recipient
-				}
+				limit = { is_attacker = scope:recipient }
 				add_attacker = scope:actor
+				if = {
+					limit = {
+						OR = {
+							scope:actor = {
+								any_home_court_hostage = {
+									warden ?= { is_defender_in_war = scope:target }
+								}
+							}
+							scope:target = {
+								any_war_defender = {
+									any_warden_hostage = { home_court ?= scope:actor }
+								}
+							}
+						}
+					}
+					custom_tooltip = hostage_execution_warning_tt
+				}
 			}
 			else = {
 				add_defender = scope:actor
+				if = {
+					limit = {
+						OR = {
+							scope:actor = {
+								any_home_court_hostage = {
+									warden ?= { is_attacker_in_war = scope:target }
+								}
+							}
+							scope:target = {
+								any_war_attacker = {
+									any_warden_hostage = { home_court ?= scope:actor }
+								}
+							}
+						}
+					}
+					custom_tooltip = hostage_execution_warning_tt
+				}
 			}
 			if = {
 				limit = {
@@ -3441,28 +3826,34 @@ join_war_interaction = {
 				craven = medium_stress_impact_gain
 				shy = minor_stress_impact_gain
 			}
+			add_to_variable_list = {
+				name = joined_as_ally
+				target = scope:target
+			}
 		}
 		scope:recipient = {
-			if = {
-				limit = {
-					is_ai = yes
+			show_as_tooltip = {
+				if = {
+					limit = {
+						is_ai = yes
+					}
+					progress_towards_friend_effect = {
+						CHARACTER = scope:actor
+						OPINION = 0
+						REASON = friend_alliance
+					}
 				}
-				progress_towards_friend_effect = {
-					CHARACTER = scope:actor
-					OPINION = 0
-					REASON = friend_alliance
-				}
-			}
-			else = {
-				hidden_effect = { #To nudge friendship
-					if = {
-						limit = {
-							NOR = {
-								has_relation_friend = scope:actor
-								has_relation_potential_friend = scope:actor
+				else = {
+					hidden_effect = { #To nudge friendship
+						if = {
+							limit = {
+								NOR = {
+									has_relation_friend = scope:actor
+									has_relation_potential_friend = scope:actor
+								}
 							}
+							set_relation_potential_friend = scope:actor
 						}
-						set_relation_potential_friend = scope:actor
 					}
 				}
 			}

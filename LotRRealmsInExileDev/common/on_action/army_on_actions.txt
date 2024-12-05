@@ -14,9 +14,6 @@ on_army_monthly = {
 					exists = army_commander
 					NOT = { has_variable = commander_death_events_pulse_cooldown }
 				}
-				army_commander = {
-					trigger_event = { on_action = commander_death_events_pulse }
-				}
 				set_variable = {
 					name = commander_death_events_pulse_cooldown
 					value = yes
@@ -164,6 +161,51 @@ on_siege_completion = {
 	}
 	effect = {
 		save_scope_as = occupant
+		scope:barony.title_province = {
+			every_army_in_location = {
+				limit = {
+					OR = {
+						AND = {
+							root = { is_landless_adventurer = yes }
+							army_owner = root
+						}
+						army_owner = {
+							is_landless_adventurer = yes
+							is_at_war = yes
+							any_war_ally = { this = root }
+						}
+					}
+				}
+				every_army_maa_regiment = {
+					limit = {
+						maa_current_troops_count < maa_max_troops_count
+					}
+					change_maa_troops_count = adventurer_siege_replenish_amount
+				}
+			}
+			every_army_in_location = {
+				limit = {
+					OR = {
+						AND = {
+							root = {
+								is_landless_adventurer = yes
+								has_perk = strict_organization_perk
+							}
+							army_owner = root
+						}
+						army_owner = {
+							is_landless_adventurer = yes
+							has_perk = strict_organization_perk
+							is_at_war = yes
+							any_war_ally = { this = root }
+						}
+					}
+				}
+				army_owner = {
+					domicile ?= { change_provisions = adventurer_siege_provisions_amount }
+				}
+			}
+		}
 		scope:barony = {
 			if = {
 				limit = { title_province = holder.capital_province }
@@ -212,6 +254,25 @@ on_siege_completion = {
 # scope:county is the county title for the barony
 # scope:previous_controller is the previous controller
 on_siege_looting = {
+	effect = {
+		scope:barony.title_province = {
+			add_province_modifier = {
+				modifier = recently_looted_modifier
+				years = 5
+			}
+		}
+		#Gain some gold on top of the siege loot from the Master of Spoils Camp Officer
+		if = {
+			limit = {
+				employs_court_position = master_of_spoils_camp_officer
+			}
+			add_gold = {
+				value = court_position:master_of_spoils_camp_officer.aptitude:master_of_spoils_camp_officer
+				add = 1
+				multiply = 5
+			}
+		}
+	}
 }
 
 # called for armies whenever they enter a province
@@ -222,23 +283,13 @@ on_army_enter_province = {
 	events = {
 		# wastelands.0001 # Immediate truce if raiding a wastelands
 		# great_holy_war.0060 #Give Crusaders their trait upon reaching the holy land.
+		ep3_emperor_yearly.3010	# Byzantine emperor sends fireships to defend the strait of Marmara
+		# game_rule.1021			# Figure out whether we should fire a conclusion event during the Conquest. #LotR
 	}
 	random_events = {
 		chance_of_no_event = 97
 		100 = bp2_yearly.4030 # Winter province event
 		1 = epidemic_events.1120 # Corpse catapult event
-	}
-	effect = {
-		if = { # But my Lord, there is no such force | Achievement
-			limit = {
-				NOT = { exists = global_var:lotr_achievement_37 }
-				realms_achievements_enabled = yes
-				is_ai = no
-				script_current_military_strength >= 10000
-				root = character:lineofsaruman
-			}
-			set_global_variable = lotr_achievement_37
-		}
 	}
 }
 
@@ -254,13 +305,9 @@ on_raid_action_start = {
 		fp1_trade_events.0001	# A fearsome target causes scope:raider to reconsider their intent.
 	}
 	effect = { # The target isn't too keen on the raider...
-		
 		scope:barony.holder = {
 			if = {
 				limit = {
-					NOT = {
-						has_truce = scope:raider
-					}
 					has_opinion_modifier = {
 						target = scope:raider
 						modifier = raided_me_opinion
@@ -313,9 +360,15 @@ on_raid_action_completion = {
 		raiding.0013 # Chance to kidnap prisoners
 		raiding.0014 # Chance to steal an artifact
 		bp2_yearly.8031 # Steal a doll
+		raiding.0031 # Hereward adds XP
 	}
 	effect = {
 		scope:raider = {
+			send_interface_message = {
+				type = msg_raid_completed
+				left_icon = scope:county.holder
+				right_icon = scope:barony
+			}
 			if = {
 				limit = {
 					scope:county = {
@@ -323,6 +376,7 @@ on_raid_action_completion = {
 					}
 					NOT = { has_character_flag = raider_legend }
 					has_dlc_feature = legends
+					NOT = { has_game_rule = historical_legends_only }
 				}
 				random = {
 					chance = legend_seed_chance_low
@@ -368,6 +422,18 @@ on_raid_action_completion = {
 						}
 					}
 				}
+			}
+		}
+		scope:county.holder = { add_to_list = raid_targets }
+		scope:county.holder.liege ?= { add_to_list = raid_targets }
+		scope:county.holder.liege.liege ?= { add_to_list = raid_targets }
+		scope:county.holder.liege.liege.liege ?= { add_to_list = raid_targets }
+		every_in_list = {
+			list = raid_targets
+			send_interface_message = {
+				type = msg_raid_lost
+				left_icon = scope:raider
+				right_icon = scope:barony
 			}
 		}
 

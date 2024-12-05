@@ -472,6 +472,75 @@ trait_is_criminal_in_faith_trigger = {
 	}	
 }
 
+scoped_trait_is_criminal_in_faith_trigger = {
+	OR = {
+		#KINSLAYER
+		AND = {
+			OR = {
+				$TRAIT$ = trait:kinslayer_3
+				$TRAIT$ = trait:kinslayer_2
+				$TRAIT$ = trait:kinslayer_1
+			}
+			$FAITH$ = { has_doctrine_parameter = kinslaying_any_dynasty_member_crime }
+		}
+		AND = {
+			OR = {
+				$TRAIT$ = trait:kinslayer_3
+				$TRAIT$ = trait:kinslayer_2
+			}
+			$FAITH$ = { has_doctrine_parameter = kinslaying_extended_family_crime }
+		}
+		AND = {
+			$TRAIT$ = trait:kinslayer_3
+			$FAITH$ = { has_doctrine_parameter = kinslaying_close_kin_crime }
+		}
+		#WITCH
+		AND = {
+			$TRAIT$ = trait:witch
+			$FAITH$ = { has_doctrine_parameter = witchcraft_illegal }
+		}
+		#CANNIBAL
+		AND = {
+			$TRAIT$ = trait:cannibal
+			NOT = {
+				$FAITH$ = { has_doctrine_parameter = cannibalism_legal }
+			}
+		}
+		#SODOMITE
+		AND = {
+			$TRAIT$ = trait:sodomite
+			$FAITH$ = { has_doctrine_parameter = homosexuality_illegal }
+		}
+		#DEVIANT
+		AND = {
+			$TRAIT$ = trait:deviant
+			$FAITH$ = { has_doctrine_parameter = deviancy_illegal }
+		}
+		#INCEST
+		AND = {
+			$TRAIT$ = trait:incestuous
+			$FAITH$ = { NOT = { has_doctrine_parameter = consanguinity_unrestricted_incest } }
+		}
+		#ADULTERER/FORNICATOR
+		AND = {
+			OR = {
+				$TRAIT$ = trait:adulterer
+				$TRAIT$ = trait:fornicator
+			}
+			OR = {
+				AND = {
+					$FAITH$ = { has_doctrine_parameter = adultery_female_crime }
+					$GENDER_CHARACTER$ = { is_female = yes }
+				}
+				AND = {
+					$FAITH$ = { has_doctrine_parameter = adultery_male_crime }
+					$GENDER_CHARACTER$ = { is_male = yes }
+				}
+			}
+		}
+	}	
+}
+
 trait_is_shunned_or_criminal_in_faith_trigger = {
 	OR = {
 		trait_is_shunned_in_faith_trigger = { TRAIT = $TRAIT$ FAITH = $FAITH$ GENDER_CHARACTER = $GENDER_CHARACTER$ }
@@ -790,6 +859,7 @@ is_valid_heresy = {
 }
 
 is_valid_heresiarch = {
+	is_landed = yes
 	faith = root
 	OR = {
 		highest_held_title_tier = tier_duchy
@@ -797,7 +867,12 @@ is_valid_heresiarch = {
 	}
 	is_imprisoned = no
 	is_capable_adult_ai = yes
-	is_landed = yes
+	is_playable_character = yes
+	is_landless_adventurer = no
+	primary_title ?= {
+		is_landless_type_title = no
+		is_noble_family_title = no
+	}
 	exists = capital_county
 	NOT = { has_trait = heresiarch }
 	no_heretical_hof_faith_trigger = yes
@@ -904,7 +979,15 @@ faiths_are_in_muhakkima_islam_group = {
 
 refusing_conversion_is_crime_trigger = {
 	faith = {
-		always = no
+		trigger_if = { # Only apply imprisonment reason if actor's faith is not the state faith
+			limit = {
+				$CHARACTER$ = {
+					top_liege = { government_allows = state_faith }
+					faith = $CHARACTER$.top_liege.primary_title.state_faith
+				}
+			}
+			always = no
+		}
 		NOT = {
 			faith_hostility_level = {
 				target = $CHARACTER$.faith
@@ -1007,6 +1090,18 @@ valid_demand_conversion_conditions_trigger = {
 	scope:recipient = {
 		NOT = { is_at_war_with = scope:actor }
 	}
+	scope:actor = {
+		trigger_if = {
+			limit = {
+				government_has_flag = government_is_landless_adventurer
+				scope:recipient = { is_courtier_of = scope:actor }
+			}
+			custom_tooltip = {
+				text = valid_demand_conversion_conditions_trigger.tt.domicile_requires_shrine
+				domicile = { has_domicile_parameter = camp_enable_conversion }
+			}
+		}
+	}
 	scope:recipient = {
 		NOR = { 
 			has_trait = maiar
@@ -1088,7 +1183,7 @@ can_become_reincarnation_trigger = {
 		has_doctrine = tenet_reincarnation
 	}
 	any_parent = {
-		is_landed = yes
+		is_playable_character = yes
 		faith = scope:reincarnated_child.faith
 	}
 }
@@ -1389,7 +1484,7 @@ holy_order_1000_target_barony_trigger = {
 
 holy_order_1000_request_target_trigger = {
 	highest_held_title_tier >= tier_duchy
-	is_landed = yes
+	is_landed_or_landless_administrative = yes
 	faith = root
 	is_available = yes
 	NOR = {
@@ -1426,7 +1521,7 @@ is_theological_character_trigger = {
 		has_trait = devoted
 		has_trait = order_member
 		AND = {
-			is_landed = yes
+			is_playable_character = yes
 			government_has_flag = government_is_theocracy
 		}
 
@@ -1512,31 +1607,6 @@ is_unprotected_hostile_faith = { # Checks if the faith is at least hostile but n
 #	always = no #LotR
 #}
 
-is_unprotected_hostile_faith = { # Checks if the faith is at least hostile but not protected by a contract, used in a county scope
-	faith = {
-		faith_hostility_level = {
-			target = prev.holder.top_liege.faith
-			value >= 2
-		}
-	}
-	holder = {
-		NOT = { vassal_contract_has_flag = religiously_protected }
-	}
-	trigger_if = { # Does anyone in the hierarchy have religious protection?
-		limit = {
-			holder = {
-				any_liege_or_above = {
-					faith = prev.faith
-				}
-			}
-		}
-		holder = {
-			any_liege_or_above = {
-				NOT = { vassal_contract_has_flag = religiously_protected }
-			}
-		}
-	}
-}
 ### SYNCRETIC TRIGGERS ###
 
 ##Used on faiths
@@ -1575,13 +1645,27 @@ has_holy_building = {
 }
 
 invalid_for_heresy_events = {
-	always = no #LotR
-	#OR = {
+	OR = {
 	#	this = faith:conversos
 	#	this = faith:insular_celtic
 	#	this = faith:bosnian_church
 	#	this = faith:mozarabic_church
 	#	this = faith:adamites
 	#	this = faith:kabarism
-	#}
+		this = faith:faith_numenorean
+		this = faith:faith_dwarven_balrog_cult
+		this = faith:faith_hakimian
+		this = faith:dark_worship
+		this = faith:melkorite
+		this = faith:commands_of_szrel
+		this = faith:faith_dunlending_white_hand
+		this = faith:faith_ainur
+		this = faith:faith_angmar_evil
+		this = faith:white_hand_cult
+		this = faith:faith_wastelands_pagan
+		AND = {
+			this = faith:lidless_eye
+			sauron_is_alive = no
+		}
+	}
 }
