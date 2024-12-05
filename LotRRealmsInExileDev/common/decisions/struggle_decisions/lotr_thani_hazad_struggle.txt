@@ -57,6 +57,8 @@
 	}
 
 	is_valid_showing_failures_only = {
+		is_at_war = no
+		is_imprisoned = no
 		is_available_adult = yes
 	}
 
@@ -166,9 +168,12 @@ struggle_thani_hazad_confederation = {
 		prestige = 2500
 	}
 
+
 	is_valid_showing_failures_only = {
-		is_available_adult = yes
 		is_independent_ruler = yes
+		is_at_war = no
+		is_imprisoned = no
+		is_available_adult = yes
 	}
 
 	effect = {
@@ -208,19 +213,48 @@ struggle_thani_hazad_unification = {
 			text = struggle_thani_hazad_unification_valid_tooltip
 			struggle:thani_hazad_struggle = { is_struggle_phase = struggle_thani_hazad_phase_unification }
 		}
+		has_trait = balan_lai_member
+		legitimacy_level >= 4
+		OR = {
+			balan_lai_united_cunning_trigger = yes
+			balan_lai_united_might_trigger = yes
+		}
+	}
+
+	
+	widget = {
+		gui = "decision_view_widget_option_list_generic"
+		controller = decision_option_list_controller
+		decision_to_second_step_button = "struggle_thani_hazad_unification.second_step"
+		
 		###
 		#
 		#	Add 2 scripted effects/triggers. 
 		#
 		#	One set should represent the Balan-Lai uniting
 		#	another set should represent Balan-Lai being united conventional way (i.e., one big strong ruler)
-		#
+		#	Juke Note: WIP Proof of Concept
 		###
-		trigger_if = { #Involved
-			limit = {
+
+		# United through Cunning - Diplomacy, Politicking, Guile and Intrigue
+		item = {
+			value = balan_lai_united_cunning
+			current_description = {
+				desc = balan_lai_united_cunning_desc
 			}
-			prestige_level >= 5
-			completely_controls_region = custom_mannish_thani_hazad # TEMP | Rework/Finesse more
+			localization = balan_lai_united_cunning
+			icon = "gfx/interface/icons/message_feed/intrigue.dds"
+			is_valid = { balan_lai_united_cunning_trigger = yes }
+		}
+		# United through Might - Force, Intimidation, Power Projection and Threats
+		item = {
+			value = balan_lai_united_might
+			current_description = {
+				desc = balan_lai_united_might_desc
+			}
+			localization = balan_lai_united_might
+			icon = "gfx/interface/icons/message_feed/martial.dds"
+			is_valid = { balan_lai_united_might_trigger = yes }
 		}
 	}
 
@@ -229,17 +263,84 @@ struggle_thani_hazad_unification = {
 	}
 
 	is_valid_showing_failures_only = {
+		is_at_war = no
+		is_imprisoned = no
 		is_available_adult = yes
+		is_independent_ruler = yes
 	}
 
 	effect = {
-		get_title = title:e_thani_hazad
+		save_scope_as = unifier
+		create_title_and_vassal_change = {
+			type = swear_fealty
+			save_scope_as = change
+			add_claim_on_loss = no
+		}
+		title:e_thani_hazad = {
+			change_title_holder = {
+				holder = root
+				change = scope:change
+			}
+		}
+		every_balan_lai_member = {
+			limit = {
+				is_independent_ruler = yes
+				highest_held_title_tier <= tier_kingdom
+				NOT = { this = ROOT }
+			}
+			change_liege = {
+				liege = root
+				change = scope:change
+			}
+			add_to_list = new_vassals
+		}
+		resolve_title_and_vassal_change = scope:change
+		hidden_effect = { # Feudal Contracts
+			every_in_list = {
+				list = new_vassals
+				if = {
+					limit = {
+						liege = { government_has_flag = government_is_feudal }
+						government_has_flag = government_is_feudal
+						is_independent_ruler = no
+					}
+					vassal_contract_set_obligation_level =	 {
+        			    type = title_revocation_rights
+        			    level = 1
+        			}
+					vassal_contract_set_obligation_level = { 
+						type = feudal_government_taxes 
+						level = 1
+					}
+					vassal_contract_set_obligation_level = { 
+						type = feudal_government_levies 
+						level = 1
+					}
+				}
+				if = {
+					limit = {
+						liege = { government_has_flag = government_is_feudal }
+						government_has_flag = government_is_feudal
+						is_independent_ruler = no
+						NOT = { faith = ROOT.faith }
+					}
+        			vassal_contract_set_obligation_level = {
+        			    type = religious_rights
+        			    level = 1
+        			}
+				}
+			}
+		}
 		title:e_thani_hazad = { add_title_law = balan_lai_elective_succession_law }
 		custom_tooltip = {
 			text = struggle_thani_hazad_struggle_ends
 			struggle:thani_hazad_struggle = { end_struggle = yes }
 		}
-		save_scope_as = unifier
+		#if = {
+		#	limit = { scope:balan_lai_united_might = yes }
+		#	custom_tooltip = balan_lai_united_might.dread.tt
+		#	add_tyranny = 15
+		#}
 		if = {
 			limit = { # Major News
 				NOT = { has_game_rule = no_news }
@@ -279,7 +380,6 @@ struggle_thani_hazad_interloper_dissolution = {
 	}
 
 	is_valid = {
-		is_independent_ruler = yes
 		OR = {
 			AND = { # Disunity phase
 				custom_tooltip = {
@@ -336,12 +436,25 @@ struggle_thani_hazad_interloper_dissolution = {
 	}
 	
 	is_valid_showing_failures_only = {
+		is_independent_ruler = yes
+		is_at_war = no
 		is_imprisoned = no
 		is_available_adult = yes
 	}
 	
 	effect = {
-		get_title = title:e_thani_hazad
+		create_title_and_vassal_change = {
+			type = created
+			save_scope_as = change
+			add_claim_on_loss = no
+		}
+		title:e_thani_hazad = {
+			change_title_holder = {
+				holder = root
+				change = scope:change
+			}
+		}
+		resolve_title_and_vassal_change = scope:change
 		custom_tooltip = {
 			text = struggle_thani_hazad_struggle_ends
 			struggle:thani_hazad_struggle = { end_struggle = yes }
@@ -349,7 +462,12 @@ struggle_thani_hazad_interloper_dissolution = {
 
 		hidden_effect = {
 			every_balan_lai_member = { remove_trait = balan_lai_member }
-			destroy_title = title:d_balan_lai_leader
+			if = {
+				limit = {
+					exists = title:d_balan_lai_leader.holder
+				}
+				destroy_title = title:d_balan_lai_leader
+			}
 		}
 		save_scope_as = dissolver
 		if = {
