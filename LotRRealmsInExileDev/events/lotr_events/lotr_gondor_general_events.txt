@@ -825,6 +825,72 @@ gondor.6501 = { # The War for Gondor begins - Sauron perspective
 	}
 }
 
+scripted_effect set_gondor_ruler_to_chosen_candidate = {
+	$CANDIDATE$ = {
+		get_title = title:c_minas_tirith
+		get_title = title:c_minas_tirith.empire
+		get_title = title:k_anorien
+		get_title = title:k_ithilien
+		hidden_effect = {
+			get_title = title:c_osgiliath
+			get_title = title:c_malridh
+			get_title = title:d_minas_tirith
+		}
+	}
+	hidden_effect = { #Transfering of de jure gondorian vassals
+		create_title_and_vassal_change = {
+			type = granted
+			save_scope_as = change
+		}
+		title:c_minas_tirith.empire = {
+			every_dejure_vassal_title_holder = {
+				limit = {
+					NOT = { liege = $CANDIDATE$ }
+					OR = {
+						culture = culture:gondorian
+						culture = culture:belfalathrim
+						has_title = title:k_pinnath_gelin
+					}
+				}
+				change_liege = {
+					liege = $CANDIDATE$
+					change = scope:change
+				}
+			}
+		}
+		title:k_anorien = {
+			every_de_jure_county = {
+				limit = {
+					holder = { faith_is_evil = yes }
+				}
+				change_title_holder = {
+					holder = $CANDIDATE$
+					change = scope:change
+					take_baronies = yes
+				}
+				set_county_culture = culture:gondorian
+				set_county_faith = faith:faith_edain
+			}
+		}
+		title:k_ithilien = {
+			every_de_jure_county = {
+				limit = {
+						NOT = { duchy = title:d_minas_ithil }
+					holder = { faith_is_evil = yes }
+				}
+				change_title_holder = {
+					holder = $CANDIDATE$
+					change = scope:change
+					take_baronies = yes
+				}
+				set_county_culture = culture:gondorian
+				set_county_faith = faith:faith_edain
+			}
+		}
+		resolve_title_and_vassal_change = scope:change
+	}
+}
+
 gondor.6502 = { # After the War - choosing a new ruler for Gondor
 	content_source = realms_dlc
 	type = character_event
@@ -877,24 +943,58 @@ gondor.6502 = { # After the War - choosing a new ruler for Gondor
 				}
 				character:linehalbarad9 = { save_scope_as = candidate2 }
 			}
-			else = { # Create a fallback character
-				create_character = { 
-					location = root.location
-					age = { 20 35 }
-					culture = culture:dunedain_ranger
-					faith = faith:faith_edain
-					dynasty = generate
-					gender_female_chance = 25
-					diplomacy = 10
-					martial = 12
-					stewardship = 9
-					intrigue = 7
-					learning = 5
-					prowess = 8
-					trait = legitimized_bastard
-					trait = blood_of_numenor_5
-					save_scope_as = candidate2
+			else = { #Fetch a fallback character from Arnorian nobility
+				title:e_arnor = {
+					ordered_de_jure_county_holder = {
+						limit = {
+							OR = {
+								culture = culture:dunedain_ranger
+								culture = culture:arnorian
+							}
+							dynasty = { dynasty_prestige_level >= 5 } #Equal or more than Well-Known
+							is_independent_ruler = yes
+						}
+						alternative_limit = {
+							OR = {
+								culture = culture:dunedain_ranger
+								culture = culture:arnorian
+							}
+							dynasty = {
+								dynasty_prestige_level >= 5 #Equal or more than Well-Known
+								any_dynasty_member = {
+									is_independent_ruler = yes
+									save_temporary_scope_as = candidate2
+								}
+							} 
+						}
+						order_by = highest_held_title_tier
+						if = {
+							limit = { NOT = { exists = scope:candidate2 } }
+							save_scope_as = candidate2
+						}
+					}
 				}
+				if = { #Ultimate fallback
+					limit = { NOT = { exists = scope:candidate2 } }
+					create_character = { 
+						location = root.location
+						age = { 20 35 }
+						culture = culture:dunedain_ranger
+						faith = faith:faith_edain
+						dynasty = generate
+						gender_female_chance = 25
+						diplomacy = 10
+						martial = 12
+						stewardship = 9
+						intrigue = 7
+						learning = 5
+						prowess = 8
+						trait = legitimized_bastard
+						trait = blood_of_numenor_5
+						save_scope_as = candidate2
+					}
+				}
+
 			}	
 		}
 		hidden_effect = { # Gondorians
@@ -923,22 +1023,76 @@ gondor.6502 = { # After the War - choosing a new ruler for Gondor
 				character:linesteward40 = { save_scope_as = candidate3 }
 			}
 			else = { # Create a fallback character
-				create_character = { 
-					location = root.location
-					age = { 20 35 }
-					culture = culture:gondorian
-					faith = faith:faith_edain
-					dynasty = generate
-					gender_female_chance = 25
-					diplomacy = 10
-					martial = 12
-					stewardship = 9
-					intrigue = 7
-					learning = 5
-					prowess = 8
-					trait = legitimized_bastard
-					trait = blood_of_numenor_2
-					save_scope_as = candidate2
+				title:c_minas_tirith.empire = { #First check for any existing title holders which are gondorian
+					ordered_de_jure_county_holder = {
+						limit = {
+							culture = culture:gondorian
+							# dynasty = { dynasty_prestige_level >= 1 } #Equal or more than Well-Known
+						}
+						alternative_limit = {
+							culture = culture:gondorian
+							dynasty = {
+								dynasty_prestige_level >= 1 #Equal or more than Well-Known
+								any_dynasty_member = {
+									save_temporary_scope_as = candidate3
+								}
+							}
+						}
+						order_by = highest_held_title_tier
+						if = {
+							limit = { NOT = { exists = scope:candidate3 } }
+							save_scope_as = candidate3
+						}
+					}
+				}
+				if = { #If no title holders existed, check for any PREVIOUS title holders
+					limit = { NOT = { exists = scope:candidate3 } }
+					title:c_minas_tirith.empire = {
+						ordered_de_jure_county = {
+							limit = {
+								previous_holder ?= {
+									culture = culture:gondorian
+									dynasty = { dynasty_prestige_level >= 1 } #Equal or more than Well-Known
+								}
+							}
+							alternative_limit = {
+								previous_holder ?= {
+									culture = culture:gondorian
+									dynasty = {
+										dynasty_prestige_level >= 1 #Equal or more than Well-Known
+										any_dynasty_member = {
+											save_temporary_scope_as = candidate3
+										}
+									}
+								}
+							}
+							order_by = highest_held_title_tier
+							if = {
+								limit = { NOT = { exists = scope:candidate3 } }
+								save_scope_as = candidate3
+							}
+						}
+					}
+				}
+				if = {
+					limit = { NOT = { exists = scope:candidate3 } }
+					create_character = { 
+						location = root.location
+						age = { 20 35 }
+						culture = culture:gondorian
+						faith = faith:faith_edain
+						dynasty = generate
+						gender_female_chance = 25
+						diplomacy = 10
+						martial = 12
+						stewardship = 9
+						intrigue = 7
+						learning = 5
+						prowess = 8
+						trait = legitimized_bastard
+						trait = blood_of_numenor_2
+						save_scope_as = candidate3
+					}
 				}
 			}	
 		}
@@ -968,22 +1122,76 @@ gondor.6502 = { # After the War - choosing a new ruler for Gondor
 				character:dolamroth29 = { save_scope_as = candidate4 }
 			}
 			else = { # Create a fallback character
-				create_character = { 
-					location = root.location
-					age = { 20 35 }
-					culture = culture:belfalathrim
-					faith = faith:faith_edain
-					dynasty = generate
-					gender_female_chance = 25
-					diplomacy = 10
-					martial = 12
-					stewardship = 9
-					intrigue = 7
-					learning = 5
-					prowess = 8
-					trait = legitimized_bastard
-					trait = blood_of_numenor_2
-					save_scope_as = candidate2
+				title:c_dol_amroth.kingdom = { #First check for any existing title holders which are belfalathrim
+					ordered_de_jure_county_holder = {
+						limit = {
+							culture = culture:belfalathrim
+							dynasty = { dynasty_prestige_level >= 5 } #Equal or more than Well-Known
+						}
+						alternative_limit = {
+							culture = culture:belfalathrim
+							dynasty = {
+								dynasty_prestige_level >= 5 #Equal or more than Well-Known
+								any_dynasty_member = {
+									save_temporary_scope_as = candidate4
+								}
+							}
+						}
+						order_by = highest_held_title_tier
+						if = {
+							limit = { NOT = { exists = scope:candidate4 } }
+							save_scope_as = candidate4
+						}
+					}
+				}
+				if = { #If no title holders existed, check for any PREVIOUS title holders
+					limit = { NOT = { exists = scope:candidate4 } }
+					title:c_dol_amroth.kingdom = {
+						ordered_de_jure_county = {
+							limit = {
+								previous_holder ?= {
+									culture = culture:belfalathrim
+									dynasty = { dynasty_prestige_level >= 5 } #Equal or more than Well-Known
+								}
+							}
+							alternative_limit = {
+								previous_holder ?= {
+									culture = culture:belfalathrim
+									dynasty = {
+										dynasty_prestige_level >= 5 #Equal or more than Well-Known
+										any_dynasty_member = {
+											save_temporary_scope_as = candidate4
+										}
+									}
+								}
+							}
+							order_by = highest_held_title_tier
+							if = {
+								limit = { NOT = { exists = scope:candidate4 } }
+								save_scope_as = candidate4
+							}
+						}
+					}
+				}
+				if = {
+					limit = { NOT = { exists = scope:candidate4 } }
+					create_character = { 
+						location = root.location
+						age = { 20 35 }
+						culture = culture:belfalathrim
+						faith = faith:faith_edain
+						dynasty = generate
+						gender_female_chance = 25
+						diplomacy = 10
+						martial = 12
+						stewardship = 9
+						intrigue = 7
+						learning = 5
+						prowess = 8
+						trait = legitimized_bastard
+						trait = blood_of_numenor_2
+						save_scope_as = candidate4
+					}
 				}
 			}	
 		}
@@ -993,99 +1201,86 @@ gondor.6502 = { # After the War - choosing a new ruler for Gondor
 		custom_tooltip = gondor.6502.a.tt
 		
 		hidden_effect = {
-			title:e_gondor = {
+			title:c_minas_tirith.empire = {
 				every_in_de_jure_hierarchy = {
 					limit = { tier = tier_kingdom }
 					set_de_jure_liege_title = title:e_gondor_steward
 				}
 			}
 		}
-		
-		scope:candidate1 = {
-			get_title = title:c_minas_tirith
-			get_title = title:e_gondor_steward
-			get_title = title:k_anorien
-			get_title = title:k_ithilien
-			hidden_effect = {
-				get_title = title:c_osgiliath
-				get_title = title:c_malridh
-				get_title = title:d_minas_tirith
-			}
-		}
 
-		hidden_effect = { #Transfering of de jure gondorian vassals
-			create_title_and_vassal_change = {
-				type = granted
-				save_scope_as = change
-			}
-			
-			title:e_gondor_steward = {
-				every_dejure_vassal_title_holder = {
-					limit = {
-						NOT = { liege = scope:candidate1 }
-						OR = {
-							culture = culture:gondorian
-							culture = culture:belfalathrim
-							has_title = title:k_pinnath_gelin
-						}
-					}
-					change_liege = {
-						liege = scope:candidate1
-						change = scope:change
-					}
-				}
-			}
-			
-			title:k_anorien = {
-				every_de_jure_county = {
-					limit = {
-						holder = { faith_is_evil = yes }
-					}
-					change_title_holder = {
-						holder = scope:candidate1
-						change = scope:change
-						take_baronies = yes
-					}
-					set_county_culture = culture:gondorian
-					set_county_faith = faith:faith_edain
-				}
-			}
-					
-			title:k_ithilien = {
-				every_de_jure_county = {
-					limit = {
-							NOT = { duchy = title:d_minas_ithil }
-						holder = { faith_is_evil = yes }
-					}
-					change_title_holder = {
-						holder = scope:candidate1
-						change = scope:change
-						take_baronies = yes
-					}
-					set_county_culture = culture:gondorian
-					set_county_faith = faith:faith_edain
-				}
-			}
-			
-			resolve_title_and_vassal_change = scope:change
-		}
-
+		set_gondor_ruler_to_chosen_candidate = { CANDIDATE = scope:candidate1 }
 	}
 	option = { # Aragorn, or Halbarad, or a random ranger
 		name = gondor.6502.b
 		add_prestige = minor_prestige_gain
+		
+		hidden_effect = {
+			title:c_minas_tirith.empire = {
+				every_in_de_jure_hierarchy = {
+					limit = { tier = tier_kingdom }
+					set_de_jure_liege_title = title:e_gondor
+				}
+			}
+		}
+
+		set_gondor_ruler_to_chosen_candidate = { CANDIDATE = scope:candidate2 }
 	}
 	option = { # Denethor, Boromir, Faramir, or a random gondorian
 		name = gondor.6502.c
 		add_prestige = minor_prestige_gain
+		
+		hidden_effect = {
+			title:c_minas_tirith.empire = {
+				every_in_de_jure_hierarchy = {
+					limit = { tier = tier_kingdom }
+					set_de_jure_liege_title = title:e_gondor_steward
+				}
+			}
+		}
+
+		set_gondor_ruler_to_chosen_candidate = { CANDIDATE = scope:candidate3 }
 	}
 	option = { # Imrahil, his sons, or a random Belfalathrim
 		name = gondor.6502.d
 		add_prestige = minor_prestige_gain
+		
+		hidden_effect = {
+			title:c_minas_tirith.empire = {
+				every_in_de_jure_hierarchy = {
+					limit = { tier = tier_kingdom }
+					set_de_jure_liege_title = title:e_gondor
+				}
+			}
+		}
+
+		set_gondor_ruler_to_chosen_candidate = { CANDIDATE = scope:candidate4 }
 	}
 	option = { # I claim Gondor for myself.
 		trigger = { is_human = yes }
 		name = gondor.6502.e
 		add_prestige = minor_prestige_gain
+		
+		hidden_effect = {
+			title:c_minas_tirith.empire = {
+				every_in_de_jure_hierarchy = {
+					limit = { tier = tier_kingdom }
+					set_de_jure_liege_title = title:e_gondor_steward
+				}
+			}
+		}
+
+		set_gondor_ruler_to_chosen_candidate = { CANDIDATE = root }
+	}
+
+	after = {
+		if = {
+			limit = { # Major News
+				NOT = { has_game_rule = no_news }
+			}
+			every_player = { #Global News Announcement
+				trigger_event = news_event.0040
+			}
+		}
 	}
 }
