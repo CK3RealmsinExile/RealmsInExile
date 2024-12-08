@@ -155,7 +155,7 @@ tamska.0002 = { # A Tamskangi has been found - does the Tamska approve?
                     }
                 }
             }
-            3 = { #Tamskangi is a lowborn
+            5 = { #Tamskangi is a lowborn
                 if = {
                     limit = {
                         any_living_character = {
@@ -306,7 +306,7 @@ tamska.0002 = { # A Tamskangi has been found - does the Tamska approve?
 				opinion = -30
 			}
         }
-       add_legitimacy = -750
+        add_legitimacy = -750
         add_piety = -500
         add_piety_level = -1
         add_tyranny = 5
@@ -374,6 +374,275 @@ tamska.0004 = {
 	    }
 	    resolve_title_and_vassal_change = scope:change_two
     }
+}
+
+tamska.0005 = { # The Tamskangi is getting old... perhaps we were wrong?
+	content_source = realms_dlc
+	type = character_event
+	title = tamska.0005.t
+	desc = tamska.0005.desc
+	theme = crown
+	left_portrait = {
+		character = root
+		animation = personality_cynical
+	}
+    lower_left_portrait = scope:new_vassal_mother
+	lower_center_portrait = scope:tamska_heir
+    lower_right_portrait = scope:new_peasant_mother
+	right_portrait = {
+		character = scope:holy_person
+		animation = stress
+	}
+
+    immediate = {
+		## Find a holy man/woman to talk about the Tamskangi
+        if = {
+            limit = {
+                exists = root.cp:councillor_court_chaplain
+            }
+            root.cp:councillor_court_chaplain = { save_scope_as = holy_person }
+        }
+        else_if = {
+            limit = {
+                any_vassal_or_below = {
+                    capital_province = { has_holding_type = church_holding }
+                    faith = root.faith
+                }
+            }
+            random_vassal_or_below = {
+                limit = { 
+                    capital_province = { has_holding_type = church_holding }
+                    faith = root.faith
+                }
+                save_scope_as = holy_person
+            }
+        }
+        else = {
+            create_character = {
+                template = priest_character_template
+                gender_female_chance = 65
+                culture = root.culture
+                faith = root.faith
+                location = root.location
+                dynasty = none
+                save_scope_as = holy_person
+            }
+        }
+        random_child = {
+            limit = {
+                has_trait = tamska_heir
+                is_alive = yes
+            }
+            save_scope_as = tamska_heir
+        }
+        if = {
+            limit = {
+                any_vassal_or_below = {
+                    is_ai = yes
+                    is_female = yes
+                    age > 46
+                    highest_held_title_tier > tier_barony
+                    is_lowborn = no
+                }
+            }
+            random_vassal_or_below = {
+                limit = {
+                    is_ai = yes
+                    is_female = yes
+                    age > 46
+                    highest_held_title_tier > tier_barony
+                    is_lowborn = no
+                }
+                save_scope_as = new_vassal_mother
+            }
+        }
+        if = {
+            limit = {
+                scope:tamska_heir = { is_landed = no }
+            }
+            create_character = { # Generate potential new peasant mother without dynasty
+                template = peasant_character
+                gender_female_chance = 100
+                culture = scope:tamska_heir.culture
+                faith = scope:tamska_heir.faith
+                location = scope:tamska_heir.location
+                dynasty = none
+                age = { 46 65 }
+                save_scope_as = new_peasant_mother
+            }
+        }
+        else = {
+            create_character = { # Generate potential new peasant mother with dynasty
+                template = peasant_character
+                gender_female_chance = 100
+                culture = scope:tamska_heir.culture
+                faith = scope:tamska_heir.faith
+                location = scope:tamska_heir.location
+                dynasty = generate
+                age = { 46 65 }
+                save_scope_as = new_peasant_mother
+            }
+        }
+    }
+	
+	option = { # They may have been wrong, but I've grown fond of her - she'll stay my daughter.
+		name = tamska.0005.a
+        custom_tooltip = tamska_search_for_new_tamskangi_begins
+        scope:tamska_heir = {
+            hidden_effect = { remove_trait = tamska_heir }
+            add_trait_force_tooltip = former_tamska_heir
+            add_character_flag = rejected_tamskangi
+        }
+        save_scope_as = current_tamska
+        save_scope_as = tamskangi_still_daughter
+        every_vassal_or_below = { # Notify the player vassals
+            limit = {
+                is_ai = no
+            }
+            trigger_event = tamska.0006
+        }
+	}
+
+    option = { # They may have been wrong, but I don't have the heart to send her back to the common folk - have a vassal take her in.
+		name = tamska.0005.b
+        trigger = {
+            exists = scope:new_vassal_mother
+        }
+        custom_tooltip = tamska_search_for_new_tamskangi_begins
+        scope:tamska_heir = {
+            hidden_effect = { remove_trait = tamska_heir }
+            add_trait_force_tooltip = former_tamska_heir
+            add_character_flag = rejected_tamskangi
+        }
+        scope:new_vassal_mother = {
+            adopt = scope:tamska_heir
+            scope:tamska_heir = { set_house = prev.house } 
+            create_character_memory = {
+                type = adopted_a_child
+                participants = {
+                    child = scope:tamska_heir
+                }
+            }
+        }
+        save_scope_as = current_tamska
+        save_scope_as = tamskangi_with_noble
+        every_vassal_or_below = { # Notify the player vassals
+            limit = {
+                is_ai = no
+            }
+            trigger_event = tamska.0006
+        }
+	}
+
+    option = { # Disown her
+		name = tamska.0005.c
+        custom_tooltip = tamska_search_for_new_tamskangi_begins
+        scope:tamska_heir = {
+            hidden_effect = { remove_trait = tamska_heir }
+            add_trait_force_tooltip = former_tamska_heir
+            add_character_flag = rejected_tamskangi
+            scope:new_peasant_mother = {
+                adopt = scope:tamska_heir
+            }
+            if = {
+                limit = {
+                    is_landed = no
+                }
+                set_to_lowborn = yes
+                move_to_pool = yes
+            }
+            else = {
+                scope:tamska_heir = { set_house = scope:new_peasant_mother.house } 
+            }
+        }
+        save_scope_as = current_tamska
+        save_scope_as = tamskangi_with_commoners
+        every_vassal_or_below = { # Notify the player vassals
+            limit = {
+                is_ai = no
+            }
+            trigger_event = tamska.0006
+        }
+	}
+
+    option = { # You are wrong - I don't care how old she gets, she's the rightful Tamskangi!
+		name = tamska.0005.d
+        trigger = {
+            is_ai = no
+        }
+        custom_tooltip = tamska_search_for_new_tamskangi_forbidden
+        add_piety = -200
+        add_legitimacy = -250
+        add_tyranny = 10
+        save_scope_as = current_tamska
+        every_vassal_or_below = { # Notify the player vassals
+            limit = {
+                is_ai = no
+            }
+            trigger_event = tamska.0007
+        }
+        trigger_event = tamska.0007
+	}
+}
+
+tamska.0006 = { # Announcment of renouncement of old Tamskangi
+	content_source = realms_dlc
+	type = character_event
+	title = tamska.0006.t
+    desc = {
+		desc = tamska.0006.desc
+		triggered_desc = {
+			trigger = {
+				exists = scope:tamskangi_still_daughter
+			}
+			desc = tamska.0006.desc.tamskangi_still_daughter
+		}
+        triggered_desc = {
+			trigger = {
+				exists = scope:tamskangi_with_noble
+			}
+			desc = tamska.0006.desc.tamskangi_with_noble
+		}
+        triggered_desc = {
+			trigger = {
+				exists = scope:tamskangi_with_commoners
+			}
+			desc = tamska.0006.desc.tamskangi_with_commoners
+		}
+	}
+	theme = crown
+	left_portrait = {
+		character = scope:current_tamska
+		animation = personality_bold
+	}
+	right_portrait = {
+		character = scope:tamska_heir
+		animation = personality_content
+	}
+	
+	option = {
+		name = tamska.0006.a
+	}
+}
+
+tamska.0007 = { # Announcment of renouncement of old Tamskangi
+	content_source = realms_dlc
+	type = character_event
+	title = tamska.0007.t
+	desc = tamska.0007.desc
+	theme = crown
+	left_portrait = {
+		character = scope:current_tamska
+		animation = personality_bold
+	}
+	right_portrait = {
+		character = scope:tamska_heir
+		animation = happiness
+	}
+	
+	option = {
+		name = tamska.0007.a
+	}
 }
 
 tamska.0100 = { # Become the Tamska - Grand Ceremony (WIP Loc)
