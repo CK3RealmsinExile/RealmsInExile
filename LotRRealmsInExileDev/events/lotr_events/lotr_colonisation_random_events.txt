@@ -27,6 +27,8 @@
 # colonisation_random.2009 — Prospecting
 # colonisation_random.2010 — Lupine Threat
 # colonisation_random.2011 — Bandit Country
+# colonisation_random.2012 - A Plea from the Settlers
+# colonisation_random.2013 - Marauding Orcs
 
 namespace = colonisation_random
 
@@ -3612,6 +3614,7 @@ colonisation_random.2010 = { # Lupine Threat
 		any_directly_owned_province = {
 			has_holding_type = settlement_holding
 			NOT = { has_building = wolf_den }
+			NOT = { terrain = halls }
 			free_building_slots > 0
 		}
 	}
@@ -3626,6 +3629,7 @@ colonisation_random.2010 = { # Lupine Threat
 				has_holding_type = settlement_holding
 				NOT = { has_building = wolf_den }
 				free_building_slots > 0
+				NOT = { terrain = halls }
 			}
 			save_scope_as = colony_province
 			county = { save_scope_as = colony_county }
@@ -3738,4 +3742,425 @@ colonisation_random.2011 = { # Bandit Country
 		}
 	}
 
+}
+
+colonisation_random.2012 = { # A Plea from the Settlers
+	content_source = realms_dlc
+	type = character_event
+	title = colonisation_random.2012.t
+	desc = colonisation_random.2012.desc
+	theme = realm
+
+	left_portrait = {
+		character = root
+		animation = interested
+	}
+
+	right_portrait = {
+		character = scope:colonist
+		animation = page_flipping
+	}
+
+	override_background = {
+		reference = market_tribal
+	}
+
+	trigger = {
+		NOT = { has_character_flag = had_event_colonisation_random_2012 }
+		any_directly_owned_province = {
+			has_holding_type = settlement_holding
+		}
+	}
+
+	immediate = {
+		add_character_flag = {
+			flag = had_event_colonisation_random_2012
+			years = 25
+		}
+		add_prestige = minor_prestige_loss
+		random_directly_owned_province = {
+			limit = { 
+				has_holding_type = settlement_holding
+			}
+			save_scope_as = colony_province
+			county = { save_scope_as = colony_county }
+		}
+		create_character = {
+			template = new_warrior_character
+			dynasty = none
+			culture = scope:colony_province.culture
+			faith = scope:colony_province.faith
+			location = scope:colony_province
+			gender_female_chance = 50
+			save_scope_as = colonist
+		}
+		custom_tooltip = colonisation_random.2012.tt
+		
+		hidden_effect = {
+			if = { # Check if the county is underground
+				limit = {
+					scope:colony_province = {
+						OR = {
+							#terrain = mountains
+							terrain = halls
+							#terrain = desert_mountains
+						}
+					}
+				}
+				scope:colony_province = {
+					set_holding_type = dwarven_holding
+				}	
+			}	
+			else_if = {
+				limit = {
+					root = {
+						is_elf = yes
+					}
+				}
+				scope:colony_province = {
+					set_holding_type = elven_holding
+				}
+			}
+			else_if = {
+				limit = {
+					root = {
+						government_has_flag = government_is_feudal
+					}
+				}
+				scope:colony_province = {
+					set_holding_type = castle_holding
+				}
+			}
+			else = {
+				scope:colony_province = {
+					set_holding_type = tribal_holding
+				}
+			}
+		}
+			
+		create_title_and_vassal_change = {
+			type = returned
+			save_scope_as = change
+			add_claim_on_loss = no
+		}
+		scope:colony_county = {
+			change_title_holder = {
+				holder = scope:colonist
+				change = scope:change
+			}			
+		}
+		scope:colonist = { becomes_independent = { change = scope:change } }
+		resolve_title_and_vassal_change = scope:change
+		
+		hidden_effect = {
+			if = {
+				limit = {
+					root = { is_elf = yes }
+				}
+				scope:colonist = { change_government = elven_government }
+			}
+			else_if = {
+				limit = {
+					root = {
+						government_has_flag = government_is_tribal
+					}
+				}
+				scope:colonist = { change_government = tribal_government }
+			}
+			else = {
+				scope:colonist = { change_government = feudal_government }
+			}
+		}
+		scope:colonist = {
+			random_held_title = { save_scope_as = colony_title }
+		}
+	}
+	
+	option = { # Accept their offer 
+		name = colonisation_random.2012.a
+		custom_tooltip = colonisation_random.2012.a.tt	
+		# Set up tributary status
+		make_tributary = {
+			TYPE = tributary_permanent
+			SUZERAIN = root
+			TRIBUTARY = scope:colonist
+		}
+	}
+
+	option = { # Try and negotiate a deal
+		name = colonisation_random.2012.b
+		trigger = { highest_held_title_tier > tier_county }
+		custom_tooltip = colonisation_random.2012.b.tt
+		duel = {
+ 			skill = diplomacy
+ 			target = scope:colonist
+ 			50 = {
+				# You convince them
+ 				desc = colonisation_random.2012.b.success
+ 				compare_modifier = {
+ 					value = scope:duel_value
+ 					multiplier = 3.5
+ 					min = -49
+ 				}
+ 				send_interface_toast = {
+ 					title = colonisation_random.2012.b.success
+ 					left_icon = root
+ 					right_icon = scope:colonist
+					#scope:colonist = { free_tributary = yes }
+					create_title_and_vassal_change = {
+						type = swear_fealty
+						save_scope_as = change
+						add_claim_on_loss = no
+					}
+					scope:colonist = {
+						change_liege = {
+							liege = root
+							change = scope:change
+						}
+					}
+					resolve_title_and_vassal_change = scope:change
+ 				}
+ 			}
+ 			50 = {
+ 				# They reject you
+ 				desc = colonisation_random.2012.b.failure
+ 				compare_modifier = {
+ 					value = scope:duel_value
+ 					multiplier = -3.5
+ 					min = -49
+ 				}
+ 				send_interface_toast = {
+ 					title = colonisation_random.2012.b.failure
+ 					left_icon = root
+ 					right_icon = scope:colonist
+					#scope:colonist = { free_tributary = yes }
+ 				}
+				root = {
+					progress_towards_rival_effect = {
+						REASON = rival_humiliated
+						CHARACTER = scope:colonist
+						OPINION = default_rival_opinion
+					}
+				}
+				stress_impact = {
+					ambitious = medium_stress_impact_gain
+					just = minor_stress_impact_gain
+					forgiving = minor_stress_impact_loss
+				}
+				scope:colonist = {
+					add_trait = gallowsbait
+				}
+ 			}
+ 		}
+	}
+	
+	option = { # This means war
+		name = colonisation_random.2012.c
+		duel = {
+ 			skill = intrigue
+ 			target = scope:colonist
+ 			50 = {
+				# You arrest him
+ 				desc = colonisation_random.2012.c.success
+ 				compare_modifier = {
+ 					value = scope:duel_value
+ 					multiplier = 3.5
+ 					min = -49
+ 				}
+ 				send_interface_toast = {
+ 					title = colonisation_random.2012.c.success
+ 					left_icon = root
+ 					right_icon = scope:colonist
+ 					rightfully_imprison_character_effect = {
+ 						TARGET = scope:colonist
+ 						IMPRISONER = root
+ 					}
+ 				}
+				create_title_and_vassal_change = {
+					type = revoked
+					save_scope_as = change
+					add_claim_on_loss = no
+				}
+				scope:colony_county = {
+					change_title_holder = {
+						holder = root
+						change = scope:change
+					}			
+				}
+				resolve_title_and_vassal_change = scope:change
+				
+ 			}
+ 			50 = {
+ 				# The upstart escapes
+ 				desc = colonisation_random.2012.c.failure
+ 				compare_modifier = {
+ 					value = scope:duel_value
+ 					multiplier = -3.5
+ 					min = -49
+ 				}
+ 				send_interface_toast = {
+ 					title = colonisation_random.2012.c.failure
+ 					left_icon = root
+ 					right_icon = scope:colonist
+					add_pressed_claim = scope:colony_title
+ 				}
+				scope:colonist = {
+					add_trait = gallowsbait
+				}
+				set_relation_rival = {
+					target = scope:colonist
+					reason = rival_humiliated
+				}
+ 			}
+		}
+	}
+	
+	# after = {
+		# scope:colonist = {
+			# silent_disappearance_effect = yes
+		# }
+	# }
+
+}
+
+colonisation_random.2013 = { # Marauding Orcs
+	content_source = realms_dlc
+	type = character_event
+	title = colonisation_random.2013.t
+	desc = colonisation_random.2013.desc
+	theme = war
+
+	left_portrait = {
+		character = root
+		animation = anger
+	}
+
+	trigger = {
+		NOT = { has_character_flag = had_event_colonisation_random_2013 }
+		any_directly_owned_province = {
+			has_holding_type = settlement_holding
+			NOT = { has_building = wild_orcs }
+			free_building_slots > 0
+		}
+	}
+
+	immediate = {
+		add_character_flag = {
+			flag = had_event_colonisation_random_2013
+			years = 25
+		}
+		random_directly_owned_province = {
+			limit = { 
+				has_holding_type = settlement_holding
+				NOT = { has_building = wild_orcs }
+				free_building_slots > 0
+			}
+			save_scope_as = colony_province
+			county = { save_scope_as = colony_county }
+		}
+	}
+
+	option = { # Those saveges!
+		name = colonisation_random.2013.a
+		scope:colony_province = {
+			add_building = wild_orcs
+		}
+		ai_chance = {
+			base = 100
+		}
+	}
+}
+
+colonisation_random.2014 = { # Ahead of Schedule
+	content_source = realms_dlc
+	type = character_event
+	title = colonisation_random.2014.t
+	desc = colonisation_random.2014.desc
+	theme = realm
+
+	left_portrait = {
+		character = root
+		animation = happiness
+	}
+
+	override_background = {
+		reference = market_tribal
+	}
+
+	trigger = {
+		NOT = { has_character_flag = had_event_colonisation_random_2014 }
+		any_directly_owned_province = {
+			has_holding_type = settlement_holding
+		}
+	}
+
+	immediate = {
+		add_character_flag = {
+			flag = had_event_colonisation_random_2014
+			years = 25
+		}
+		random_directly_owned_province = {
+			limit = { 
+				has_holding_type = settlement_holding
+			}
+			save_scope_as = colony_province
+			county = { save_scope_as = colony_county }
+		}
+		
+		hidden_effect = {
+			if = { # Check if the county is underground
+				limit = {
+					scope:colony_province = {
+						OR = {
+							terrain = halls
+						}
+					}
+				}
+				scope:colony_province = {
+					set_holding_type = dwarven_holding
+				}	
+			}	
+			else_if = {
+				limit = {
+					root = {
+						is_elf = yes
+					}
+				}
+				scope:colony_province = {
+					set_holding_type = elven_holding
+				}
+			}
+			else_if = {
+				limit = {
+					root = {
+						government_has_flag = government_is_feudal
+					}
+				}
+				scope:colony_province = {
+					set_holding_type = castle_holding
+				}
+			}
+			else_if = {
+				limit = {
+					root = {
+						government_has_flag = government_is_clan
+					}
+				}
+				scope:colony_province = {
+					set_holding_type = castle_holding
+				}
+			}
+			else = {
+				scope:colony_province = {
+					set_holding_type = tribal_holding
+				}
+			}
+		}
+
+	}
+	
+	option = { # This is great!
+		name = colonisation_random.2014.a
+		custom_tooltip = colonisation_random.2014.a.tt	
+	}
 }

@@ -7,12 +7,160 @@
 	}
 
 	on_owner_death = {
+		story_owner = {
+			if = { # Ensure that the next Tamska is set as the designated heir if they're their child
+				limit = {
+					trigger_if = {
+						limit = { exists = title:d_tamska_main.holder }
+						has_title = title:d_tamska_main
+					}
+					trigger_else = { always = no }
+					exists = title:d_tamska_main.current_heir
+					any_child = {
+						this = title:d_tamska_main.current_heir
+						NOT = {
+							this = root.player_heir
+						}
+					}
+				}
+				random_child = {
+					limit = {
+						this = title:d_tamska_main.current_heir
+						NOT = {
+							this = root.player_heir
+						}
+					}
+					save_scope_as = designated_tamska_heir
+				}
+				set_designated_heir = scope:designated_tamska_heir
+			}
+			if = { # If, somehow, the heir is male - we generate a new Tamska
+				limit = {
+					trigger_if = {
+						limit = { exists = title:d_tamska_main.holder }
+						has_title = title:d_tamska_main
+					} trigger_else = { always = no }
+					exists = title:d_tamska_main.current_heir
+					title:d_tamska_main.current_heir = {
+						is_male = yes
+					}
+				}
+				create_character = {
+					template = pool_repopulate_learning
+					gender_female_chance = 100
+					age = { 4 9 }
+					culture = root.culture
+					faith = root.faith
+					location = root.location
+					dynasty = none
+					save_scope_as = tamska_heir
+				}
+				scope:tamska_heir = {
+					become_tamskangi_effect = yes
+				}
+			}
+			if = {
+				limit = { primary_title.current_heir != title:d_tamska_main.current_heir }
+				title:d_tamska_main.current_heir = { save_scope_as = title_tamska_heir }
+				every_vassal = {
+					limit = { NOT = { this = scope:title_tamska_heir } }
+					add_to_list = vassals_to_be_transferred	
+				}
+				
+				every_held_title = {
+					limit = {
+						OR = {
+							tier = tier_empire
+							this = title:d_tamska_main
+						}
+					}
+					add_to_list = titles_to_transfer
+				}
+				title:e_mag_tumag = {
+					every_in_de_jure_hierarchy = {
+						limit = {
+							tier = tier_kingdom
+							holder = root.story_owner
+						}
+						add_to_list = titles_to_transfer
+					}
+					add_to_list = titles_to_transfer
+				}
+				every_in_list = { #Swapping kingdom/empire titles to Tamska
+					list = titles_to_transfer 
+					create_title_and_vassal_change = {
+						type = appointment
+						save_scope_as = change
+						add_claim_on_loss = no
+					}
+					change_title_holder = {
+						holder = scope:title_tamska_heir
+						change = scope:change
+					}
+					resolve_title_and_vassal_change = scope:change
+				}
+				title:e_mag_tumag = { #Adding claims to non-held de jure kingdom titles for Tamska
+					every_in_de_jure_hierarchy = {
+						limit = {
+							tier = tier_kingdom
+							NOT = { holder = scope:title_tamska_heir }
+						}
+						scope:title_tamska_heir = { add_pressed_claim = prev }
+					}
+				}
+				scope:title_tamska_heir = {
+					if = { #Ensure any new Tamska gets assigned the Tamska dynasty
+						limit = { NOT = { dynasty = dynasty:dynasty_tamskal } }
+						set_children_as_tamksa_dynasty = yes
+						set_house = character:linetamska1.house
+					}
+				}
+			}
+			every_in_list = {
+				list = vassals_to_be_transferred
+				create_title_and_vassal_change = {
+					type = swear_fealty
+					save_scope_as = change_two
+					add_claim_on_loss = no
+				}
+				change_liege = {
+					liege = scope:title_tamska_heir
+					change = scope:change_two
+				}
+				resolve_title_and_vassal_change = scope:change_two
+			}
+		}
+		
+		set_variable = {
+			name = story_owner_heir
+			value = story_owner.player_heir
+		}
+		if = { # Set appropriate story owner
+			limit = { exists = scope:title_tamska_heir }
+			make_story_owner = scope:title_tamska_heir
+		} else = { make_story_owner = story_owner.player_heir }
+
+		#story_owner = {
+		#}
+
+		if = {
+			limit = {
+				NOT = {
+					any_in_list = {
+						list = vassals_to_be_transferred
+						this = root.story_owner
+					}
+				}
+			}
+			var:story_owner_heir = { trigger_event = { days = 1 id = tamska.0004 } }
+			remove_variable = story_owner_heir
+		}	
 	}
 
-	# A new Tamskangi has been identified
+	# Indentify a new Tamskangi where one does not yet exist
 	effect_group = {
 		days = { 270 450 }
-		chance = 13 # Expected average time of around 8 years to find one
+		chance = 10 # Expected average time of around 10 years to find one
 	
 		triggered_effect = {
 			trigger = {
@@ -26,10 +174,65 @@
 			}
 			effect = {
 				story_owner = {
-					trigger_event = tamska.0001
+					trigger_event = tamska.0002
 				}
 			}
 		}
 	}
 
+	# If Tamskangi is getting too old, perhaps we were wrong about her...?
+	effect_group = {
+		days = { 270 450 }
+		chance = 20 # Expected average of around 5 years
+	
+		triggered_effect = {
+			trigger = {
+				story_owner = {
+					any_child = {
+						count = 1
+						has_trait = tamska_heir
+						is_alive = yes
+						age > 30
+					}
+				}
+			}
+			effect = {
+				story_owner = {
+					trigger_event = tamska.0005
+				}
+			}
+		}
+	}
+
+	# Rolling check to ensure that the current heir to the Tamska HoF title is the designated heir of the Tamska (where possible)
+	effect_group = {
+		days = 7
+
+		triggered_effect = {
+			trigger = { story_owner = { has_title = title:d_tamska_main } }
+			effect = { story_owner = { trigger_event = tamska.0001 } }
+		}
+	}
+
+	# Rolling check to ensure that the Tamska is the story owner of this story
+	effect_group = {
+		days = 7
+
+		triggered_effect = {
+			trigger = { story_owner = { NOT = { has_title = title:d_tamska_main } } }
+			effect = {
+				make_story_owner = title:d_tamska_main.holder
+				story_owner = {
+					if = { #Ensure any new Tamska gets assigned the Tamska dynasty
+						limit = {
+							scope:title = { this = title:d_tamska_main }
+							NOT = { dynasty = dynasty:dynasty_tamskal }
+						}
+						set_children_as_tamksa_dynasty = yes
+						set_house = character:linetamska1.house
+					}
+				}
+			}
+		}
+	}
 }
