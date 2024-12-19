@@ -1,0 +1,155 @@
+﻿lotr_story = {
+	# for grouping together contract types, e.g. mercenary, potentially determines map icon
+	group = lotr_story_group
+
+	# Icon used in the UI
+	icon = "gfx/interface/icons/activities/activity_lore.dds"
+
+	# Description or 'back-story' of the task contract, defaults to "<key>_desc"
+	# root = task_contract_type
+	# desc = ""
+
+	# Description for request telling 'what to do' in order to complete the contract, defaults to "<key>_request"
+	# root = task_contract_type
+	# task_contract_request = ""
+
+	# Contract owner should travel to contract location to accept and stay there for the duration of the contract
+	travel = yes
+
+	# Contract is of a criminal nature
+	is_criminal = no
+
+	# Range setting
+	# yes - uses diplomatic range to contract employer
+	# no - uses ADVENTURER_DISTANCE_RESTRICTION define as radius
+	use_diplomatic_range = no
+
+	weight = {
+		# Standard weights.
+		value = task_contract_weight_default_value
+		add = laamp_contracts_weight_up_diplomacy_value
+		add = laamp_contracts_weight_up_diplomacy_slight_value
+	}
+
+	# Validity Triggers
+	valid_to_create = {
+		# Standard triggers.
+		valid_laamp_basic_trigger = {
+			EMPLOYER = scope:employer
+			LAAMP = root
+		}
+	}
+	valid_to_accept = {
+		# Standard triggers.
+		scope:employer = { is_landed = yes }
+		valid_laamp_basic_accept_only_trigger = yes
+		valid_laamp_basic_trigger = {
+			EMPLOYER = scope:employer
+			LAAMP = root
+		}
+	}
+	valid_to_continue = {
+		# Standard triggers.
+		task_contract_employer = { is_landed = yes }
+		exists = root.task_contract_employer.capital_county
+		valid_laamp_basic_trigger = {
+			EMPLOYER = root.task_contract_employer
+			LAAMP = root.task_contract_taker
+		}
+	}
+	valid_to_keep = {
+		# Standard triggers.
+		valid_laamp_basic_trigger = {
+			EMPLOYER = root.task_contract_employer
+			LAAMP = root.task_contract_taker
+		}
+		task_contract_employer = { is_landed = yes }
+	}
+
+	# On_actions
+	on_accepted = {
+		task_contract_taker = { play_sound_effect = "event:/DLC/EP3/SFX/UI/Contracts/ep3_ui_contracts_accept_contract" }
+		save_scope_as = task_contract
+		set_variable = {
+			name = contract_taker
+			value = task_contract_taker
+		}
+		task_contract_taker = {
+			set_variable = started_bountig_story
+			domicile ?= { move_domicile = root.var:task_contract_destination }
+			set_variable = bountig_story_raidforcaptives_cb
+			every_character_active_contract = {
+				limit = { has_task_contract_type = lotr_story }
+				complete_task_contract = success_standard
+			}
+			current_travel_plan ?= { cancel_travel_plan = yes }
+		}
+	}
+	on_create = {
+		scope:contract = {
+			set_variable = {
+				name = task_contract_destination
+				value = task_contract_employer.capital_province
+			}
+		}
+	}
+
+	# Rewards root - task_contract
+	task_contract_reward = { # task_contract_taker, task_contract_employer
+		success_standard = {
+			should_print_on_complete = yes
+			effect = {
+				task_contract_taker = {
+					play_sound_effect = "event:/DLC/EP3/SFX/UI/Contracts/ep3_ui_contracts_success_on_contract"
+					save_scope_as = bountig
+				}
+				task_contract_employer = { save_scope_as = contract_employer }	
+				if = {
+					limit = { task_contract_employer = { has_variable = bountig_start_story } }
+					custom_tooltip = {
+						text = bountig_medlokan_intro_to_story
+						task_contract_employer = {
+							start_war = {
+								cb = raid_for_captives_cb
+								target = title:k_rohan.holder
+							}
+						}
+						task_contract_employer = {
+							random_character_war = {
+								limit = { using_cb = raid_for_captives_cb }
+								add_attacker = root.var:contract_taker
+								save_scope_as = story_war
+							}
+							save_scope_as = employer
+						}
+
+						title:d_thewold = {
+							every_de_jure_county_holder = {
+								trigger_event = {
+									id = bountig_event_chain.0010
+									days = 3
+								}
+							}
+						}
+						title:d_eastemnet = {
+							every_de_jure_county_holder = {
+								trigger_event = {
+									id = bountig_event_chain.0010
+									days = 3
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+		failure_standard = {
+			positive = no
+			should_print_on_complete = yes
+			effect = {
+				task_contract_taker = { play_sound_effect = "event:/DLC/EP3/SFX/UI/Contracts/ep3_ui_contracts_failure_on_contract" }
+				
+			}
+		}
+	}
+}
