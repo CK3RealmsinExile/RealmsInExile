@@ -7761,3 +7761,389 @@ lotr_harrying_of_the_coasts_cb = { # Reduces dev and destroys buildings along th
 	attacker_wargoal_percentage = 0.8
 }
 
+
+lotr_lw_gamestart_rhun_revolt_cb = {
+	icon = independence_faction_war
+	group = civil_war
+	ai_only_against_liege = yes
+	target_titles = independence_domain
+	allow_hostages = no
+	allowed_for_character = {
+		always = no
+	}
+
+	target_de_jure_regions_above = yes
+
+	valid_to_start = {
+
+	}
+
+	on_declaration = {
+		#on_declared_war = yes
+		# Remove offending HumSac modifiers.
+		scope:attacker = {
+			hidden_effect = { fp1_remove_humsac_offended_counties_effect = yes }
+		}
+
+		war = {
+			every_war_attacker = {
+				if = {
+					limit = {
+						NOT = { has_character_flag = should_become_independent }
+						liege ?= scope:defender
+					}
+					add_character_flag = should_become_independent
+				}
+			}
+		}
+	}
+
+	on_victory_desc = lotr_lw_gamestart_rhun_revolt_cb_victory_desc
+
+	on_victory = {
+		scope:attacker = { show_pow_release_message_effect = yes }
+
+		#EP2 Accolade glory gain from winning against higher ranked enemy
+		scope:attacker = { accolade_attacker_war_end_glory_gain_med_effect = yes }
+
+		create_title_and_vassal_change = {
+			type = independency
+			save_scope_as = change
+		}
+		if = {
+			# Free character with the flag
+			limit = { exists = war }
+			war = {
+				every_war_attacker = {
+					if = {
+						limit = {
+							liege ?= scope:defender
+							has_character_flag = should_become_independent
+						}
+						if = {
+							limit = { is_ai = no }
+							send_interface_toast = {
+								type = msg_gained_independence
+   								title = liege_primary_title_dissolution
+   								desc = liege_primary_title_dissolution_desc
+   								left_icon = scope:defender
+							}
+						}
+						change_liege_or_become_independent = {
+							CHANGE = scope:change
+							VASSAL = this
+						}
+
+						hidden_effect = {
+							set_variable = {
+								name = independence_war_former_liege
+								value = scope:defender
+							}
+							add_truce_both_ways = {
+								character = scope:defender
+								days = 1825
+								war = root.war
+								result = victory
+							}
+							save_scope_as = current_member
+
+							# Struggle Catalyst
+							if = {
+								limit = {
+									catalyst_gave_independence_to_powerful_diff_faith_culture_vassal_preliminary_trigger = {
+										CHAR1 = scope:defender
+										CHAR2 = scope:current_member
+									}
+									any_character_struggle = {
+										involvement = involved
+										activate_struggle_catalyst_secondary_character_involvement_involved_trigger = {
+											CATALYST = catalyst_gave_independence_to_powerful_diff_faith_culture_vassal
+											CHAR = scope:current_member
+										}
+									}
+								}
+								every_character_struggle = {
+									involvement = involved
+									limit = {
+										activate_struggle_catalyst_secondary_character_involvement_either_trigger = {
+											CATALYST = catalyst_gave_independence_to_powerful_diff_faith_culture_vassal
+											CHAR = scope:current_member
+										}
+									}
+									activate_struggle_catalyst = {
+										catalyst = catalyst_gave_independence_to_powerful_diff_faith_culture_vassal
+										character = scope:defender
+									}
+								}
+							}
+
+							remove_character_flag = should_become_independent
+						}
+
+						if = { # Ôvathian get their duchy if they havent lost a county, else its destroyed
+							limit = {
+								exists = scope:current_member
+								title:d_vethrafell.holder ?= scope:defender
+								title:d_vethrafell = {
+									any_de_jure_county = {
+										count >= 3
+										holder = scope:current_member
+									}
+								}
+							}
+							title:d_vethrafell = {
+								change_title_holder = {
+									holder = scope:current_member
+									change = scope:change
+								}
+							}
+						}
+						if = { # Mollukian get their duchy if they havent lost a county, else its destroyed
+							limit = {
+								exists = scope:current_member
+								title:d_talath_harroch.holder ?= scope:defender
+								title:d_talath_harroch = {
+									any_de_jure_county = {
+										count >= 3
+										holder = scope:current_member
+									}
+								}
+							}
+							title:d_talath_harroch = {
+								change_title_holder = {
+									holder = scope:current_member
+									change = scope:change
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+
+		scope:attacker = {
+			add_prestige = medium_prestige_value
+		}
+
+		resolve_title_and_vassal_change = scope:change
+
+		scope:defender = {
+			every_held_title = {
+				limit = {
+					NOR = {
+						this = title:d_talath_harroch
+						this = title:d_vethrafell
+					}
+					tier >= tier_duchy
+				}
+				add_to_temporary_list = titles_to_destroy
+			}
+			add_prestige = {
+				value = medium_prestige_value
+				multiply = -1
+			}
+			
+			if = {
+				limit = { has_realm_law = crown_authority_1 }
+				add_realm_law = crown_authority_0
+			}
+			if = {
+				limit = { has_realm_law = crown_authority_2 }
+				add_realm_law = crown_authority_1
+			}
+			if = {
+				limit = { has_realm_law = crown_authority_3 }
+				add_realm_law = crown_authority_2
+			}
+			if = {
+				limit = { has_realm_law = tribal_authority_1 }
+				add_realm_law = tribal_authority_0
+			}
+			if = {
+				limit = { has_realm_law = tribal_authority_2 }
+				add_realm_law = tribal_authority_1
+			}
+			if = {
+				limit = { has_realm_law = tribal_authority_3 }
+				add_realm_law = tribal_authority_2
+			}
+		}
+		
+		every_in_list = {
+			list = titles_to_destroy
+			scope:attacker = {
+				destroy_title = prev
+			}
+		}
+
+		# LEGITIMACY FROM LOSING FACTION WAR
+		faction_war_end_defeat_legitimacy_effect = yes
+
+		# EP3: note gold gained from military assistance/join war contracts and their war contribution threshold
+		laamp_as_mercenary_payout_tooltip_effect = yes
+		scope:defender = {
+			if = {
+				limit = {
+					cannot_be_killed = no
+					is_elf = no
+				}
+				death = {
+					death_reason = death_strangled_with_own_intestines
+					killer = scope:attacker
+				}
+			}
+		}
+	}
+
+	on_white_peace_desc = {
+		first_valid = {
+			triggered_desc = {
+				trigger = { scope:defender = { is_local_player = yes } }
+				desc = independence_war_white_peace_defender_desc
+			}
+			triggered_desc = {
+				trigger = {
+					OR = {
+						AND = {
+							exists = scope:attacker.joined_faction
+							scope:attacker.joined_faction = {
+								any_faction_member = { is_local_player = yes }
+							}
+						}
+						AND = {
+							scope:attacker = {
+								is_local_player = yes
+								has_character_flag = should_become_independent
+							}
+						}
+					}
+				}
+				desc = independence_war_white_peace_attacker_desc
+			}
+			desc = independence_war_white_peace_desc
+		}
+		desc = independence_war_white_peace_end_desc
+
+	}
+
+	on_white_peace = {
+		scope:attacker = {
+			show_pow_release_message_effect = yes
+			stress_impact = {
+ 				ambitious = medium_stress_impact_gain
+ 				arrogant = medium_stress_impact_gain
+ 			}
+		}
+		hidden_effect = {
+			scope:attacker = {
+				add_truce_both_ways = {
+					character = scope:defender
+					days = 1825
+					war = root.war
+					result = white_peace
+				}
+			}
+		}
+
+		scope:defender = {
+			stress_impact = {
+ 				arrogant = medium_stress_impact_gain
+ 			}
+
+			add_character_flag = {
+				flag = recent_independence_faction_war
+				years = faction_war_white_peace_cooldown
+			}
+			add_prestige = minor_prestige_value
+		}
+
+		on_white_peace_faction_revolt_war = yes
+
+		# EP3: note gold gained from military assistance/join war contracts and their war contribution threshold
+		laamp_as_mercenary_payout_tooltip_effect = yes
+	}
+
+	on_defeat_desc = {
+		first_valid = {
+			triggered_desc = {
+				trigger = { scope:defender = { is_local_player = yes } }
+				desc = independence_defeat_defender_desc
+			}
+			triggered_desc = {
+				trigger = {
+					OR = {
+						AND = {
+							exists = scope:attacker.joined_faction
+							scope:attacker.joined_faction = {
+								any_faction_member = { is_local_player = yes }
+							}
+						}
+						AND = {
+							scope:attacker = {
+								is_local_player = yes
+								has_character_flag = should_become_independent
+							}
+						}
+					}
+				}
+				desc = independence_defeat_attacker_desc
+			}
+			desc = player_independence_war_defeat_desc #same loc as for player
+		}
+		desc = independence_defeat_end_desc
+
+	}
+
+	on_defeat = {
+		scope:attacker = { show_pow_release_message_effect = yes }
+		scope:defender = {
+			add_character_flag = {
+				flag = recent_independence_faction_war
+				years = faction_war_defeat_cooldown
+			}
+			add_dread = medium_dread_gain
+			# Prestige for Defender
+			add_prestige_war_defender_effect = {
+				PRESTIGE_VALUE = medium_prestige_value
+			}
+			add_achievement_flag_effect = { FLAG = achievement_know_your_place_flag }
+
+			# LEGITIMACY FROM WINNING FACTION WAR
+			faction_war_end_victory_legitimacy_effect = yes
+		}
+		on_lost_faction_revolt_war = yes
+
+		# EP3: note gold gained from military assistance/join war contracts and their war contribution threshold
+		laamp_as_mercenary_payout_tooltip_effect = yes
+	}
+
+	on_invalidated_desc = msg_invalidate_war_title
+
+	check_defender_inheritance_validity = no
+
+	on_primary_attacker_death = inherit_faction
+	on_primary_defender_death = inherit
+
+	transfer_behavior = transfer
+
+	attacker_allies_inherit = no
+	defender_allies_inherit = yes
+
+	war_name = "LW_GAMESTART_RHUN_REVOLT_WAR_NAME"
+
+	interface_priority = 80
+
+	use_de_jure_wargoal_only = yes
+
+	attacker_wargoal_percentage = 1.0
+	defender_wargoal_percentage = 0.0 # A single occupation will do
+	defender_ticking_warscore_delay = { days = 0 } # No need for a delay here since the defender actually needs to occupy something rather than starting in control
+
+	max_attacker_score_from_battles = 100
+	max_defender_score_from_battles = 50
+	
+	max_defender_score_from_occupation = 150
+	max_attacker_score_from_occupation = 150
+
+	max_ai_diplo_distance_to_title = 500
+}
