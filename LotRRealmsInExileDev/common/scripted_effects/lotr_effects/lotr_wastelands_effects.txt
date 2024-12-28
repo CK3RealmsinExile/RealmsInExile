@@ -1,0 +1,493 @@
+﻿####################
+# Wastelands: effects
+####################
+
+# Returns colony to a Wilderness / Wastelands
+make_settlement_county_wilderness = {
+	# Struggle Catalyst
+	if = {
+		limit = {
+			$COUNTY$.holder = {
+				any_character_struggle = {
+					involvement = involved
+					phase_has_catalyst = catalyst_destroyed_colony_in_moria
+				}
+			}
+			$COUNTY$ = {
+				kingdom = title:k_khazad_dum
+				NOT = {
+					var:abandoned_moria_colony ?= flag:abandoned
+				}
+			}
+		}
+		$COUNTY$ = {
+			set_variable = {
+				name = abandoned_moria_colony
+				value = flag:abandoned
+				years = 2
+			}
+		}
+		$COUNTY$.holder = {
+			every_character_struggle = {
+				involvement = involved
+				activate_struggle_catalyst = {
+					catalyst = catalyst_destroyed_colony_in_moria
+					character = prev
+				}
+			}
+		}
+	}
+	# Struggle catalyst
+	if = {
+		limit = {
+			exists = scope:wastelands_holder_title
+			scope:wastelands_holder_title = {
+				any_character_struggle = {
+					involvement = involved
+					phase_has_catalyst = catalyst_new_colony_in_moria
+				}
+			}
+			scope:wastelands_holder_title = {
+				any_county_struggle = {
+					this = struggle:balrog_struggle
+				}
+			}
+		}
+		every_character_struggle = {
+			involvement = involved
+			activate_struggle_catalyst = {
+				catalyst = catalyst_new_colony_in_moria
+				character = root
+			}
+		}
+	}
+	# Abandonment effect
+	$COUNTY$ = {
+		# Decrease settlement upkeep modifier
+		if = {
+			limit = { holder = { has_variable = num_settled_wilderness } }
+			if = {
+				limit = { holder = { var:num_settled_wilderness > 0 } }
+				holder = { trigger_event = wastelands.0007 }
+			}
+			else = { holder = { remove_wastelands_tracker_variable = yes } }
+		}
+
+		hidden_effect = {
+			create_title_and_vassal_change = {
+				type = revoked
+				save_scope_as = change
+			}
+			change_title_holder = {
+				holder = character:k_wastelands_holder
+				change = scope:change
+				take_baronies = yes
+			}
+			resolve_title_and_vassal_change = scope:change
+			set_county_faith = faith:faith_wastelands_pagan
+			set_county_culture = culture:wastelands
+			generate_coa = yes
+
+		}
+		every_county_province = {
+			limit = {
+				is_county_capital = no
+				has_holding = yes
+				NOT = { has_holding_type = ruined_holding }
+			}
+			set_holding_type = ruined_holding
+		}
+		every_county_province = {
+			limit = {
+				is_county_capital = yes
+				has_holding = yes
+			}
+			if = {
+				limit = { NOT = { has_holding_type = wastelands_holding } }
+				set_holding_type = wastelands_holding
+			}
+		}
+		change_development_level = -100
+	}
+}
+
+# Removes traits from wastelands
+# Makes wasteland rulers almost immortal
+# Makes sure it's an adult, since non-adult always have clothes by default that can't be hidden
+# Make sure wasteland holders don't have gold to create titles
+remove_traits_wastelands_effect = {
+    every_excess_wasteland_character = {
+        clear_traits = yes
+        add_trait = wastelands
+        if = {
+            limit = {
+                age < 25
+            }
+            change_age = 25
+        }
+        remove_short_term_gold = gold
+    }
+}
+
+# Destroy "Wilderness" characters that are created
+# They can't be sent to anywhere else, since they don't have portrait
+empty_wastelands_inhabitants_effect = {
+	every_excess_wasteland_character = {
+		limit = {
+			NOT = { this = character:k_wastelands_holder }
+		}
+		death = {
+			death_reason = death_vanished
+		}
+		every_traveling_family_member = {
+			limit = {
+				is_alive = yes
+			}
+			death = {
+				death_reason = death_vanished
+			}
+		}
+	}
+}
+
+# Sends visitors somewhere else (a neighbouring capital county)
+empty_foreign_visitors_to_wastelands_effect = {
+	if = {
+		limit = {
+			exists = scope:host
+			scope:host = { has_culture = culture:wastelands }
+		}
+		random_neighboring_and_across_water_top_liege_realm_owner = { #Select realm
+			limit = {
+				exists = capital_province
+				capital_province = { local_pool_is_full_trigger = no }
+				NOT = {
+					has_culture = culture:wastelands
+				}
+			}
+			capital_province = { save_scope_as = destination }
+		}
+		every_traveling_family_member = {
+			if = {
+				limit = {
+					exists = scope:destination
+					NOT = { is_in_pool_at = scope:destination }
+				}
+				move_to_pool_at = scope:destination
+			}
+			else = {
+				fallback_move_to_pool_effect = yes
+			}
+		}
+	}
+}
+
+# Colonise a wastelands county
+ai_colonisation_effect = {
+	$WASTELANDS$ = { save_scope_as = wastelands }
+	# debug_log = "lotr_wastelands_effects: -- COLONISATION STARTED!" # Only needed for testing
+
+	scope:wastelands.county = { save_scope_as = wastelands_holder_title }
+	scope:wastelands_holder_title.holder = { save_scope_as = wastelands_holder }
+
+	# Struggle catalyst
+	if = {
+		limit = {
+			scope:wastelands_holder_title.holder = {
+				any_character_struggle = {
+					involvement = involved
+					phase_has_catalyst = catalyst_new_colony_in_moria
+				}
+			}
+			scope:wastelands_holder_title = {
+				kingdom = title:k_khazad_dum
+				NOT = {
+					var:colonised_moria_colony ?= flag:colonised
+				}
+			}
+		}
+		scope:wastelands_holder_title = {
+			set_variable = {
+				name = colonised_moria_colony
+				value = flag:colonised
+				years = 2
+			}
+		}
+		every_character_struggle = {
+			involvement = involved
+			activate_struggle_catalyst = {
+				catalyst = catalyst_new_colony_in_moria
+				character = root
+			}
+		}
+	}
+
+	create_title_and_vassal_change = {
+		type = returned
+		save_scope_as = change
+	}
+
+	scope:wastelands_holder_title = {
+		change_title_holder = {
+			holder = root
+			change = scope:change
+			take_baronies = yes
+		}
+		set_county_faith = root.faith
+		if = { # If Dol Guldur settles
+			limit = {
+				root = {
+					AND = {
+						OR = {
+							is_maiar_fallen = yes
+							is_nazgul = yes
+						}
+						capital_county = title:c_amon_lanc
+					}
+				}
+			}
+			set_county_culture = culture:kazgumhoth
+		}
+		else_if = { # If nazgul settles
+			limit = {
+				root = { is_nazgul = yes }
+			}
+			set_county_culture = culture:ungurhai
+		}
+		else_if = { # If Good Saruman settles
+			limit = {
+				root = { is_good_istari = yes }
+			}
+			set_county_culture = culture:isengard_dunlending
+		}
+		else_if = { # If evil Saruman settles
+			limit = {
+				root = { is_evil_istari = yes }
+			}
+			set_county_culture = culture:isengard_urukhai
+		}
+		else_if = { # If Sauron settles
+			limit = {
+				root = { is_maiar_fallen = yes }
+			}
+			set_county_culture = culture:morlughai
+		}
+		else = { # Otherwise set to root culture
+			set_county_culture = root.culture
+		}
+	}
+
+	resolve_title_and_vassal_change = scope:change
+
+	scope:wastelands_holder_title = {
+		generate_coa = yes
+		#set_color_from_title = scope:wastelands_holder_title.de_jure_liege
+		scope:wastelands_holder_title = { # Swap holding type to settlement holding as soon as county is colonised
+			every_county_province = {
+				limit = {
+					has_holding = yes
+					has_holding_type = wastelands_holding
+				}
+				set_holding_type = settlement_holding
+			}
+			every_county_province = {
+				limit = {
+					has_holding = yes
+					is_county_capital = no
+					has_holding_type = wastelands_holding			
+				}
+				set_holding_type = ruined_holding
+			}
+			every_county_province = {
+				barony = { generate_coa = yes }
+			}
+		}
+	}
+
+	scope:wastelands_holder_title.holder = {
+		remove_short_term_gold = colonise_cost_val
+		if = {
+			limit = {
+				exists = dynasty
+				dynasty = { has_dynasty_modifier = easy_arnor_settle }
+			}
+			scope:wastelands_holder_title = {
+				add_county_modifier = {
+					modifier = arnor_settler_influx
+					years = 3
+				}
+			}
+		}
+		increase_variable = {
+			NAME = num_settled_wilderness
+			AMOUNT = 1
+		}
+		trigger_event = wastelands.0007
+	}
+
+	# scope:wastelands_holder_title.holder = { debug_log_scopes = no } # Only needed for testing
+	# debug_log = "lotr_wastelands_effects: -- COLONISATION FINISHED!" # Only needed for testing
+}
+
+halve_development = {
+	change_development_level = {
+		subtract = county.development_level
+		divide = 2
+	}
+}
+
+# If a character has settlement holdings at the start of the game, use this effect
+add_settlement_upkeep_in_history = {
+	every_ruler = {
+		limit = { NOT = { this = character:k_wastelands_holder }}
+		every_held_title = {
+			limit = {
+				tier = tier_county
+				title_province = { has_holding_type = settlement_holding }
+			}
+			if = {
+				limit = {
+					holder = { NOT = { has_variable = num_settled_wilderness } }
+				}
+				holder = { set_variable = { name = num_settled_wilderness value = 0 } }
+			}
+			holder = {
+				change_variable = {
+					name = num_settled_wilderness
+					add = 1
+				}
+			}
+			holder = { trigger_event = wastelands.0007 }
+		}
+	}
+}
+
+# Remove upkeep modifier
+remove_upkeep_modifier = {
+	remove_character_modifier ?= holding_one_settlements
+	remove_character_modifier ?= holding_two_settlements
+	remove_character_modifier ?= holding_three_settlements
+	remove_character_modifier ?= holding_four_settlements
+	remove_character_modifier ?= holding_five_settlements
+	remove_character_modifier ?= holding_more_than_five_settlements
+}
+
+remove_wastelands_tracker_variable = {
+	if = {
+		limit = { exists = var:num_settled_wilderness }
+		if = {
+			limit = { var:num_settled_wilderness < 0 }
+			remove_variable = num_settled_wilderness
+		}
+	}
+}
+
+correct_wastelands_tracker = {
+	if = {
+		limit = { any_held_county = { title_province ?= { has_holding_type = settlement_holding } } }
+		if = {
+			limit = { has_variable = correct_settlement_count }
+			remove_variable = correct_settlement_count
+		}
+		every_held_county = {
+			limit = { title_province ?= { has_holding_type = settlement_holding } }
+			holder = {
+				increase_variable = {
+					NAME = correct_settlement_count
+					AMOUNT = 1
+				}
+			}
+		}
+		if = {
+			limit = {
+				exists = var:num_settled_wilderness
+				exists = var:correct_settlement_count
+				NOT = { var:num_settled_wilderness = var:correct_settlement_count }
+			}
+			set_variable = {
+				name = num_settled_wilderness
+				value = var:correct_settlement_count
+			}
+		}
+		remove_variable = correct_settlement_count
+		remove_upkeep_modifier = yes
+		trigger_event = wastelands.0007
+	}
+	else_if = { # Remove the upkeep modifier in-case
+		limit = {
+			has_variable = num_settled_wilderness
+			NOT = {
+				any_held_county = { title_province ?= { has_holding_type = settlement_holding } }
+			}
+		}
+		remove_variable = num_settled_wilderness
+		remove_upkeep_modifier = yes
+	}
+}
+
+cleanup_cleared_blockers_effect = {
+	county.title_province = {
+		save_scope_as = obstacle_province
+	}
+	county.holder = {
+		trigger_event = {
+			id = wastelands.9000
+			days = 2
+		}
+	}
+}
+
+lotr_upgrade_settlement_to_full_holding_effect = {
+	$COUNTY$ = { save_scope_as = target_county }
+
+	scope:target_county = {
+		if = {
+			limit = { holder = { is_elf = yes } }
+			title_province = { set_holding_type = elven_holding }
+		} else_if = {
+			limit = { title_province = { terrain = halls } }
+			title_province = { set_holding_type = dwarven_holding }
+		} else_if = {
+			limit = { holder = { is_hobbit = yes } }
+			title_province = { set_holding_type = city_holding }
+		} else = {
+			if = {
+				limit = { holder = { has_government = tribal_government } }
+				title_province = { set_holding_type = tribal_holding }
+			} else = {
+				title_province = { set_holding_type = castle_holding }
+			}
+		}
+	}
+}
+
+
+lotr_increase_settler_maa = {
+	$CHARACTER$ = {
+		if = {
+			limit = { any_maa_regiment = { is_maa_type = laamp_settler_maa } }
+			random_maa_regiment = {
+				limit = { is_maa_type = laamp_settler_maa }
+				change_maa_regiment_size = {
+					size = $SIZE$
+					reinforce = no
+				}
+			}
+		}
+		else = {
+			create_maa_regiment = {
+				type = laamp_settler_maa
+				check_can_recruit = no
+				size = 1
+			}
+			random_maa_regiment = {
+				limit = { is_maa_type = laamp_settler_maa }
+				change_maa_regiment_size = {
+					size = 1
+					reinforce = no
+				}
+				change_maa_troops_count = -100
+			}
+		}
+	}
+}

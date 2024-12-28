@@ -54,11 +54,35 @@ raiding.0001 = {	#Hidden event: do I get a sacking?
 	}
 }
 
+scripted_trigger lotr_was_corsair_raid_trigger = {
+	scope:raider ?= {
+		OR = { # Anything identifying them as corsairs
+			faith = faith:faith_corsair
+			culture = { has_cultural_tradition = tradition_seafaring }
+			culture = { has_cultural_tradition = tradition_corsairs_of_umbar }
+			culture = { has_cultural_tradition = tradition_practiced_pirates }
+			culture = { has_cultural_tradition = tradition_fp1_coastal_warriors }
+			faith = { has_doctrine_parameter = lotr_extra_raid_loot }
+		}
+	}
+	scope:sacked_barony.county ?= {
+		any_county_province = {
+			is_coastal = yes
+		}
+	}
+}
+
 raiding.0002 = {	#Less hidden event: I do get a sacking!
 	type = character_event
 	title = raiding.0002.t
 	desc = raiding.0002.desc
 	theme = battle
+	override_background = {
+		trigger = {
+			lotr_was_corsair_raid_trigger = yes
+		}
+		reference = black_ship
+	}
 	override_background = { reference = burning_building }
 	left_portrait = {
 		character = root
@@ -313,6 +337,12 @@ raiding.0003 = {
 	}
 	theme = battle
 	override_background = {
+		trigger = {
+			lotr_was_corsair_raid_trigger = yes
+		}
+		reference = black_ship
+	}
+	override_background = {
 		reference = burning_building
 	}
 	left_portrait = {
@@ -404,7 +434,6 @@ raiding.0003 = {
 		}
 	}
 }
-
 # Your vassal's holding may have been sacked.
 raiding.0004 = {
 	type = character_event
@@ -427,10 +456,30 @@ raiding.0004 = {
 				trigger = {	scope:sack_status = flag:gold_plundered }
 				desc = raiding.0004.desc.gold_plundered
 			}
+			triggered_desc = {	#LOTR: Orcs raided
+				trigger = {
+					scope:sack_status = flag:gold_plundered
+					scope:raider = { is_orc = yes }
+				}
+				desc = raiding.0004.desc.lotr_orcs
+			}
+			triggered_desc = {	#LOTR: Orcs raided
+				trigger = {
+					scope:sack_status = flag:gold_plundered
+					lotr_was_corsair_raid_trigger = yes
+				}
+				desc = raiding.0004.desc.lotr_corsairs
+			}
 			desc = 	raiding.0004.desc.spared_plundered #If the holding was spared, we have a lukewarm one response.
 		}
 	}
 	theme = battle
+	override_background = {
+		trigger = {
+			lotr_was_corsair_raid_trigger = yes
+		}
+		reference = black_ship
+	}
 	override_background = {
 		reference = burning_building
 	}
@@ -452,6 +501,26 @@ raiding.0004 = {
 
 	#Oh no!
 	option = {	
+		name = {
+			text = raiding.0004.a.lotr_other_orcs
+			trigger = {
+				is_orc = yes
+				scope:raider = { is_orc = yes }
+			}
+		}
+		name = {
+			text = raiding.0004.a.lotr_orcs
+			trigger = {
+				is_orc = no
+				scope:raider = { is_orc = yes }
+			}
+		}
+		name = {
+			text = raiding.0004.a.lotr_corsairs
+			trigger = {
+				lotr_was_corsair_raid_trigger = yes
+			}
+		}
 		name = {
 			text = raiding.0004.a
 			trigger = {
@@ -548,7 +617,7 @@ raiding.0004 = {
 			custom_tooltip = raiding.0004.c.architect
 			scope:sacked_county.holder = {
 				send_interface_message = {
-					type = event_war_good
+					type = event_raid_good
 					title = raiding.0004.c.feed.t
 					desc = raiding.0004.c.feed.desc2
 					right_icon = liege
@@ -558,7 +627,7 @@ raiding.0004 = {
 		else = {
 			scope:sacked_county.holder = {
 				send_interface_message = {
-					type = event_war_good
+					type = event_raid_bad
 					title = raiding.0004.c.feed.t
 					desc = raiding.0004.c.feed.desc
 					right_icon = liege
@@ -713,14 +782,29 @@ raiding.0013 = {
 	hidden = yes
 	scope = army
 
-	trigger = { # Only take prisoners if this barony is the holder's capital (where their family/courtiers live).
+	trigger = { # Only take prisoners if this barony is the holder's capital (where their family/courtiers live), or there is an estate
+		OR = {
 		scope:barony.holder.capital_barony = scope:barony
+			location = {
+				any_province_domicile = {
+					is_domicile_type = estate
+				}
+			}
+		}
 	}
 
 	immediate = {
 		# For localization.
 		scope:raider = { save_scope_as = occupant }
-		scope:barony.holder = { save_scope_as = holder}
+		scope:barony.holder = { save_scope_as = holder }
+		location = {
+			random_province_domicile = {
+				limit = {
+					is_domicile_type = estate
+				}
+				owner ?= { save_scope_as = estate_holder }
+			}
+		}
 
 		#BUILD CAPTURE ATTEMPT LIST
 		scope:barony.holder = {
@@ -730,6 +814,22 @@ raiding.0013 = {
 			}
 			every_courtier_or_guest = {
 				limit = { raiding_0012_can_be_captured = yes }
+				add_to_list = capture_attempt_targets
+			}
+		}
+		scope:estate_holder ?= {
+			if = {
+				limit = {
+					raiding_0012_can_be_captured = yes
+					is_landed = no # they are at the estate
+				}
+				add_to_list = capture_attempt_targets
+			}
+			every_courtier_or_guest = {
+				limit = {
+					raiding_0012_can_be_captured = yes
+					location = scope:barony.title_province
+				}
 				add_to_list = capture_attempt_targets
 			}
 		}
@@ -768,6 +868,39 @@ raiding.0013 = {
 				modifier = {
 					is_landed = yes
 					add = -10
+				}
+				# Less likely to capture the estate owner themselves
+				modifier = {
+					scope:estate_holder ?= this
+					add = -10
+				}
+				# If there is an estate, Watchtowers and Guardhouses make captures less likely
+				modifier = {
+					location = {
+						any_province_domicile = {
+							is_domicile_type = estate
+							has_domicile_parameter = raids_less_likely_to_make_prisoners_1
+						}
+					}
+					add = -10
+				}
+				modifier = {
+					location = {
+						any_province_domicile = {
+							is_domicile_type = estate
+							has_domicile_parameter = raids_less_likely_to_make_prisoners_2
+						}
+					}
+					add = -15
+				}
+				modifier = {
+					location = {
+						any_province_domicile = {
+							is_domicile_type = estate
+							has_domicile_parameter = raids_less_likely_to_make_prisoners_3
+						}
+					}
+					add = -20
 				}
 
 				# Capture Effects
@@ -1090,5 +1223,40 @@ raiding.0023 = {
 	option = {
 		name = raiding.0023.a
 		add_trait = viking
+	}
+}
+
+#################################
+# Hereward special raiding event
+# by Nick Meredith
+#################################
+
+#	You have the chance to sack a holding.
+raiding.0031 = {
+	hidden = yes
+	scope = army
+
+	trigger = {
+		#You need to be Hereward, plus leading your own forces.
+		exists = army_commander
+		army_commander = {
+			has_trait = the_wake
+		}
+
+		#The province must be ruled by a Norman, or Norman culture itself
+		OR = {
+			scope:barony.culture = culture:norman
+			scope:barony.holder.culture = culture:norman
+		}
+	}
+
+	immediate = {
+		root.army_commander = { save_scope_as = raid_leader }
+		scope:raid_leader = {
+			add_trait_xp = {
+				trait = the_wake
+				value = { 1 3 }
+			}
+		}
 	}
 }

@@ -13,6 +13,7 @@ Includes = {
 	# END MOD
 	"jomini/jomini_water.fxh"
 	"jomini/jomini_mapobject.fxh"
+	"jomini/translucency.fxh"
 	"constants.fxh"
 	"standardfuncsgfx.fxh"
 	"lowspec.fxh"
@@ -408,12 +409,14 @@ PixelShader =
 		Output = "PDX_COLOR"
 		Code
 		[[
-			void DebugReturn( inout float3 Out, SMaterialProperties MaterialProps, SLightingProperties LightingProps, PdxTextureSamplerCube EnvironmentMap, float3 SssColor, float SssMask )
+			void DebugReturn( inout float3 Out, SMaterialProperties MaterialProps, SLightingProperties LightingProps, PdxTextureSamplerCube EnvironmentMap, float3 ScatteringColor, float ScatteringMask, float3 DiffuseTranslucency )
 			{
-				#if defined(PDX_DEBUG_SSS_MASK)
-				Out = SssMask;
-				#elif defined(PDX_DEBUG_SSS_COLOR)
-				Out = SssColor;
+				#if defined( PDX_DEBUG_SCATTERING_MASK )
+					Out = ScatteringMask;
+				#elif defined( PDX_DEBUG_SCATTERING_COLOR )
+					Out = ScatteringColor;
+				#elif defined( PDX_DEBUG_TRANSLUCENCY )
+					Out = DiffuseTranslucency;
 				#else
 				DebugReturn( Out, MaterialProps, LightingProps, EnvironmentMap );
 				#endif
@@ -536,21 +539,32 @@ PixelShader =
 				#endif
 				
 				SMaterialProperties MaterialProps = GetMaterialProperties( Diffuse.rgb, Normal, Properties.a, Properties.g, Properties.b );
+				float3 DiffuseTranslucency = vec3( 0.0f );
 				#if defined( LOW_SPEC_SHADERS )
 					SLightingProperties LightingProps = GetSunLightingProperties( Input.WorldSpacePos, 1.0 );
 					float3 Color = CalculateSunLightingLowSpec( MaterialProps, LightingProps );
 				#else
 					SLightingProperties LightingProps = GetSunLightingProperties( Input.WorldSpacePos, ShadowTexture );
 					float3 Color = CalculateSunLighting( MaterialProps, LightingProps, EnvironmentMap );
+					#ifdef TRANSLUCENCY
+						float ThicknessValue = 0.5f;
+						#ifdef THICKNESS_MAP 
+							ThicknessValue = Properties.r;
+						#endif
+						STranslucencyProperties TranslucencyProps = GetTranslucencyProperties( 0.3f, 1.5f, 1.0f, 1.0f, 0.2f, ThicknessValue, Diffuse.rgb );
+						float3 DiffuseIBL = vec3( 0.0f );
+						DiffuseTranslucency =  CalculateLightingTranslucent( MaterialProps , LightingProps, TranslucencyProps, DiffuseIBL );
+						Color += DiffuseTranslucency;
+					#endif
 				#endif
 				
-				float3 SssColor = vec3(0.0f);
-				float SssMask = Properties.r;
-				#ifdef FAKE_SSS_EMISSIVE
+				float3 ScatteringColor = vec3(0.0f);
+				float ScatteringMask = Properties.r;
+				#ifdef FAKE_SCATTERING_EMISSIVE
 					float3 HSVColor = RGBtoHSV( Diffuse.rgb );
 					HSVColor.z = 1.0f;
-					SssColor = HSVtoRGB(HSVColor) * SssMask * 0.5f * MaterialProps._DiffuseColor;
-					Color += SssColor;
+					ScatteringColor = HSVtoRGB(HSVColor) * ScatteringMask * 0.5f * MaterialProps._DiffuseColor;
+					Color += ScatteringColor;
 				#endif
 				
 				// MOD(godherja)
@@ -564,7 +578,6 @@ PixelShader =
 				// END MOD
 					Color = ApplyDistanceFog( Color, Input.WorldSpacePos );
 				#endif
-				
 
 				#if defined( BAKED_LIGHTING )
 					Color = ApplyBakedLighting( Color, Input.UV0 );
@@ -573,6 +586,7 @@ PixelShader =
 				#if defined( LIGHTING_DECAL )
 					Color = ApplyLightingDecal( Color, Input.UV0 );
 				#endif
+
 				float Alpha = Diffuse.a;
 				#ifdef UNDERWATER
 					clip( _WaterHeight - Input.WorldSpacePos.y + 0.1 ); // +0.1 to avoid gap between water and mesh
@@ -580,7 +594,7 @@ PixelShader =
 					Alpha = CompressWorldSpace( Input.WorldSpacePos );
 				#endif
 				
-				DebugReturn( Color, MaterialProps, LightingProps, EnvironmentMap, SssColor, SssMask );
+				DebugReturn( Color, MaterialProps, LightingProps, EnvironmentMap, ScatteringColor, ScatteringMask, DiffuseTranslucency );
 				
 				return float4( Color, Alpha );
 			}

@@ -104,6 +104,14 @@
 			}
 			add = 500
 		}
+		if = { # Conquerors want more money
+			limit = {
+				scope:councillor_liege = {
+					ai_has_conqueror_personality = yes
+				}
+			}
+			add = 500
+		}
 	}
 }
 
@@ -328,6 +336,34 @@ task_develop_county = {
 				desc = STEWARD_COUNTY_SPEED_MODIFIERS
 			}
 		}
+		
+        # Royal Architect
+        if = {
+            limit = {
+                scope:councillor_liege = { has_character_modifier = employer_booner_royal_architect_2_modifier }
+                OR = {
+                    target_is_vassal_or_below = scope:target_character
+                    this = scope:target_character
+                }
+            }
+            multiply = {
+                value = 1.1
+                desc = employer_booner_royal_architect_2_modifier
+            }
+        }
+        else_if = {
+            limit = {
+                scope:councillor_liege = { has_character_modifier = employer_booner_royal_architect_3_modifier }
+                OR = {
+                    target_is_vassal_or_below = scope:target_character
+                    this = scope:target_character
+                }
+            }
+            multiply = {
+                value = 1.1
+                desc = employer_booner_royal_architect_3_modifier
+            }
+        }
 	}
 	full_progress = steward_develop_county_full_progress
 	custom_other_loc = STEWARD_COUNTY_SPEED_OTHER
@@ -358,6 +394,10 @@ task_develop_county = {
 						}
 					}
 					OR = {
+						scope:councillor_liege = {
+							has_character_flag = vassal_directive_improve_development
+							vassal_is_valid_and_follows_directive_trigger = { VASSAL = this LIEGE = liege }
+						}
 						culture = scope:councillor_liege.culture
 						culture = {
 							cultural_acceptance = { target = scope:councillor_liege.culture value >= 50 }
@@ -630,6 +670,17 @@ task_develop_county = {
 			}
 			multiply = 0
 		}
+		
+		# AI directive
+		if = {
+			limit = {
+				scope:councillor_liege = {
+					has_character_flag = vassal_directive_improve_development
+					vassal_is_valid_and_follows_directive_trigger = { VASSAL = this LIEGE = liege }
+				}
+			}
+			add = 50000
+		}
 	}
 }
 
@@ -842,6 +893,44 @@ task_promote_culture = {
 				desc = bp2_devoted_to_tradition_modifier_conversion_task_desc
 			}
 		}
+		# if = { #LotR
+		# 	limit = {
+		# 		scope:councillor_liege = {
+		# 			has_title = title:c_byzantion
+		# 			title:c_byzantion = { has_county_modifier = pandidakterion_university_modifier }
+		# 		}
+		# 	}
+		# 	multiply = {
+		# 		value = 1.25
+		# 		desc = pandidakterion_university_modifier
+		# 	}
+		# }
+		if = {
+			limit = {
+				scope:county = { has_county_modifier = improve_promote_culture_modifier }
+				scope:councillor_liege = scope:county.holder.top_liege
+			}
+			multiply = {
+				value = 1.20
+				desc = improve_promote_culture_modifier
+			}
+		}
+		
+		### LotR: Struggles ###
+		if = {
+			limit = {
+				scope:councillor_liege = {
+					any_character_struggle = {
+						involvement = involved
+						has_struggle_phase_parameter = harder_to_convert_culture_as_kharadunai
+					}
+				}
+			}
+			multiply = {
+				value = lotr_conversion_culture_resistant_to_culture_change_due_to_struggle_phase_value
+				desc = STRUGGLE_HARDER_TO_CULTURE_CONVERT_DUE_TO_STRUGGLE_PHASE_MODIFIER
+			}
+		}
 	}
 
 	potential_county = {
@@ -871,7 +960,13 @@ task_promote_culture = {
 		}
 		trigger_if = {
 			limit = {
-				scope:councillor_liege = { is_ai = yes }
+				scope:councillor_liege = {
+					is_ai = yes
+					NAND = { # AI Directives override this
+						has_character_flag = vassal_directive_convert_culture
+						vassal_is_valid_and_follows_directive_trigger = { VASSAL = this LIEGE = liege }
+					}
+				}
 			}
 			NOT = { scope:councillor_liege = { restricted_culture = yes } }
 			# NAND = { # Princes in the HRE tend to not convert each other's cultures
@@ -1050,6 +1145,34 @@ task_promote_culture = {
 				}
 			}
 		}
+		trigger_else_if = { # But AI Directives should still try to look pretty
+			limit = {
+				scope:councillor_liege = {
+					is_ai = yes
+					has_character_flag = vassal_directive_convert_culture
+					vassal_is_valid_and_follows_directive_trigger = { VASSAL = this LIEGE = liege }
+				}
+			}
+			trigger_if = {
+				limit = {
+					scope:county = {
+						any_neighboring_county = {
+							culture = scope:councillor_liege.culture
+						}
+					}
+				}
+				scope:county = {
+					any_neighboring_county = {
+						culture = scope:councillor_liege.culture # The AI only wants to convert counties bordering their own culture
+					}
+				}
+			}
+			trigger_else = {
+				always = yes
+			}
+		}
+		trigger_else = {
+		}
 	}
 
 	on_finish_task_county = {
@@ -1182,6 +1305,14 @@ task_promote_culture = {
 		}
 		if = {
 			limit = {
+				scope:councillor_liege.culture = {
+					has_cultural_parameter = less_likely_to_promote_culture
+				}
+			}
+			add = -250
+		}
+		if = {
+			limit = {
 				scope:councillor_liege = {
 					culture = {
 						OR = {
@@ -1223,11 +1354,11 @@ task_promote_culture = {
 					has_character_flag = no_ai_culture_convert
 					NAND = { # ignore it if in Hostility with escalation
 						has_character_flag = agenda_towards_escalation
-						any_character_struggle = {
-							involvement = involved
-							is_struggle_type = iberian_struggle
-							is_struggle_phase = struggle_iberia_phase_hostility
-						}
+						# any_character_struggle = { #LotR
+						# 	involvement = involved
+						# 	is_struggle_type = iberian_struggle
+						# 	is_struggle_phase = struggle_iberia_phase_hostility
+						# }
 					}
 				}
 			}
@@ -1241,6 +1372,17 @@ task_promote_culture = {
 				}
 			}
 			multiply = 0
+		}
+		
+		# AI directive
+		if = {
+			limit = {
+				scope:councillor_liege = {
+					has_character_flag = vassal_directive_convert_culture
+					vassal_is_valid_and_follows_directive_trigger = { VASSAL = this LIEGE = liege }
+				}
+			}
+			add = 50000
 		}
 	}
 }
@@ -1284,6 +1426,7 @@ task_accept_culture = {
 			trigger = {
 				scope:councillor_liege = {
 					has_royal_court = yes
+					has_dlc_feature = royal_court
 					has_court_type = court_administrative
 					court_grandeur_current_level >= 4
 				}
@@ -1514,6 +1657,7 @@ task_accept_culture = {
 			limit = {
 				scope:councillor_liege = {
 					has_royal_court = yes
+					has_dlc_feature = royal_court
 					has_court_type = court_administrative
 					court_grandeur_current_level >= 4
 				}
@@ -1522,6 +1666,13 @@ task_accept_culture = {
 				value = steward_accept_culture_court_type_bonus
 				desc = COUNCILLOR_LIEGE_HAS_COURT_TYPE_BONUS
 			}
+		}
+
+		if = { # Wayfarer Bonus 
+			limit = {
+				liege = { has_perk = of_the_people_perk }
+			}
+			multiply = 1.3
 		}
 	}
 	
@@ -1538,6 +1689,10 @@ task_accept_culture = {
 					scope:councillor_liege = { is_ai = yes }
 				}
 				OR = {
+					scope:councillor_liege = {
+						has_character_flag = vassal_directive_improve_cultural_acceptance
+						vassal_is_valid_and_follows_directive_trigger = { VASSAL = this LIEGE = liege }
+					}
 					this = scope:councillor_liege.capital_county
 					scope:councillor_liege.capital_county = {
 						OR = {
@@ -1659,6 +1814,17 @@ task_accept_culture = {
 				}
 			}
 			multiply = 0
+		}
+		
+		# AI directive
+		if = {
+			limit = {
+				scope:councillor_liege = {
+					has_character_flag = vassal_directive_improve_cultural_acceptance
+					vassal_is_valid_and_follows_directive_trigger = { VASSAL = this LIEGE = liege }
+				}
+			}
+			add = 50000
 		}
 	}
 }

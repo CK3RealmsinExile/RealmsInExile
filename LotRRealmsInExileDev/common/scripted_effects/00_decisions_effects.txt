@@ -7,6 +7,64 @@ restore_the_danelaw_effect = {
 }
 
 create_holy_order_effect = {
+	hidden_effect = {
+		if = { # set up currencies for the HO leader, has to be saved as scope:leader
+			limit = {
+				exists = scope:leader
+			}
+			scope:leader = {
+				add_gold = 100 #So that they have some money to lend out
+				add_piety_level = 2
+				add_gold = holy_order_starting_gold
+				every_courtier = {
+					add_trait = order_member
+				}
+			}
+			
+			# send messages
+			send_interface_toast = {
+				type = holy_order_founded_message
+				desc = i_created_holy_order_message
+				left_icon = scope:leader
+				right_icon = scope:new_holy_order.title
+			}
+		}
+		# send messages to relevant characters that HO got created
+		save_scope_as = holy_order_creator
+		every_player = {
+			limit = {
+				faith = scope:holy_order_creator.faith
+				NOT = { this = scope:holy_order_creator }
+			}
+			send_interface_message = {
+				type = holy_order_founded_message
+				desc = someone_created_holy_order_message
+				left_icon = scope:holy_order_creator
+				right_icon = scope:new_holy_order.title
+			}
+		}
+		every_neighboring_top_liege_realm_owner = {
+			limit = {
+				NOT = { faith = scope:holy_order_creator.faith }
+			}
+			send_interface_message = {
+				type = enemy_holy_order_founded_message
+				desc = other_faith_neighbor_created_holy_order_message
+				left_icon = scope:holy_order_creator
+				right_icon = scope:new_holy_order.title
+			}
+		}
+		# get the achievements for creating a HO
+		add_achievement_flag_effect = { FLAG = achievement_non_nobis_domine_flag }
+		if = {
+			limit = { exists = global_var:started_give_a_dog_a_bone_achievement }
+			add_achievement_global_variable_effect = {
+				VARIABLE = holy_order_give_a_dog_a_bone_achievement
+				VALUE = yes
+			}
+		}
+	}
+	# gain opinion with your HoF, if you have one and it's not you
 	if = {
 		limit = {
 			exists = faith.religious_head
@@ -19,6 +77,7 @@ create_holy_order_effect = {
 			}
 		}
 	}
+	# get a nice modifier
 	if = {
 		limit = {
 			NOT = { has_character_modifier = founded_holy_order_modifier }
@@ -28,6 +87,7 @@ create_holy_order_effect = {
 			years = 5
 		}
 	}
+	# and boost the fervor
 	faith = {
 		change_fervor = {
 			value = 10
@@ -112,14 +172,14 @@ accept_cannibalism_decision_effect = {
 			limit = {
 				any_close_family_member = {
 					is_cannibal_trigger = no
-					is_landed = no
+					is_playable_character = no
 					is_ai = yes
 				}
 			}
 			every_close_family_member = {
 				limit = {
 					is_cannibal_trigger = no
-					is_landed = no
+					is_playable_character = no
 					is_ai = yes
 				}
 				custom = all_my_family_members
@@ -205,14 +265,27 @@ convert_whole_realm_to_feudalism_effect = {
 	if = {
 		limit = {
 			is_independent_ruler = no
-			liege = { government_has_flag = government_is_clan }
-#			OR = {
-#				liege = { government_has_flag = government_is_clan }
-#				AND = {
-#					liege = { government_has_flag = government_is_tribal }
-#					religion = religion:islam_religion
-#				}
-#			}
+			OR = {
+				liege = { government_has_flag = government_is_clan }
+				AND = {
+					liege = { government_has_flag = government_is_tribal }
+					culture = {
+						OR = {
+							# All Apysaic groups should be clan if independently feudalizing
+							has_cultural_pillar = heritage_northern_apysaic
+							has_cultural_pillar = heritage_middle_apysaic
+							has_cultural_pillar = heritage_southern_apysaic
+							has_cultural_pillar = heritage_tulwangi
+							has_cultural_pillar = heritage_thani_native
+							has_cultural_pillar = heritage_nafarati
+							# All Talataerim groups should be clan if independently feudalizing
+							has_cultural_pillar = heritage_ioriag
+							has_cultural_pillar = heritage_igath
+							has_cultural_pillar = heritage_tedjin
+						}
+					}
+				}
+			}
 		}
 		change_government = clan_government
 	}
@@ -220,18 +293,29 @@ convert_whole_realm_to_feudalism_effect = {
 	else_if = {
 		limit = {
 			is_independent_ruler = no
-			liege = { 
-				OR = {
-					government_has_flag = government_is_feudal
+			OR = {
+				liege = { government_has_flag = government_is_feudal }
+				AND = {
+					liege = { government_has_flag = government_is_tribal }
+					NOT = {
+						culture = {
+							OR = {
+								# All Apysaic groups should be clan if independently feudalizing
+								has_cultural_pillar = heritage_northern_apysaic
+								has_cultural_pillar = heritage_middle_apysaic
+								has_cultural_pillar = heritage_southern_apysaic
+								has_cultural_pillar = heritage_tulwangi
+								has_cultural_pillar = heritage_thani_native
+								has_cultural_pillar = heritage_nafarati
+								# All Talataerim groups should be clan if independently feudalizing
+								has_cultural_pillar = heritage_ioriag
+								has_cultural_pillar = heritage_igath
+								has_cultural_pillar = heritage_tedjin
+							}
+						}
+					}
 				}
 			}
-#			OR = {
-#				liege = { government_has_flag = government_is_feudal }
-#				AND = {
-#					liege = { government_has_flag = government_is_tribal }
-#					NOT = { religion = religion:islam_religion }
-#				}
-#			}
 		}
 		change_government = feudal_government
 	}
@@ -251,47 +335,79 @@ convert_whole_realm_to_feudalism_effect = {
 			level = feudal_levies_exempt
 		}
 	}
-	##You're an independent Muslim? Convert to clan!
-#	else_if = {
-#		limit = {
-#			is_independent_ruler = yes
-#			faith = { religion_tag = islam_religion }
-#		}
-#		change_government = clan_government
-#	}
+	##You're an independent Apysaic or Talataerim? Convert to clan!
+	else_if = {
+		limit = {
+			is_independent_ruler = yes
+			culture = {
+				OR = {
+					# All Apysaic groups should be clan if independently feudalizing
+					has_cultural_pillar = heritage_northern_apysaic
+					has_cultural_pillar = heritage_middle_apysaic
+					has_cultural_pillar = heritage_southern_apysaic
+					has_cultural_pillar = heritage_tulwangi
+					has_cultural_pillar = heritage_thani_native
+					has_cultural_pillar = heritage_nafarati
+					# All Talataerim groups should be clan if independently feudalizing
+					has_cultural_pillar = heritage_ioriag
+					has_cultural_pillar = heritage_igath
+					has_cultural_pillar = heritage_tedjin
+				}
+			}
+		}
+		change_government = clan_government
+	}
 	##You're an independent anything else? Convert to feudal!
 	else = { change_government = feudal_government }
-	##General
-	custom_tooltip = all_holding_will_change
-	##Liege has clan? Convert to clan!
 	if = {
 		limit = {
-			is_independent_ruler = no
-			liege = { government_has_flag = government_is_clan }
+			government_has_flag = government_is_tribal
 		}
-		custom_tooltip = clan_liege_vassals_will_convert
-	}
-	#Liege has feudal? Convert to feudal!
-	if = {
-		limit = {
-			is_independent_ruler = no
-			liege = { government_has_flag = government_is_feudal }
+		##General
+		custom_tooltip = all_holding_will_change
+		##Liege has clan? Convert to clan!
+		if = {
+			limit = {
+				is_independent_ruler = no
+				liege = { government_has_flag = government_is_clan }
+			}
+			custom_tooltip = clan_liege_vassals_will_convert
 		}
-		custom_tooltip = feudal_liege_vassals_will_convert
-	}
-	##If I am Islamic, we will become clan.
-	if = {
-		limit = {
-			always = no
-#			is_independent_ruler = yes
-#			faith = { religion_tag = islam_religion }
+		#Liege has feudal? Convert to feudal!
+		if = {
+			limit = {
+				is_independent_ruler = no
+				liege = { government_has_flag = government_is_feudal }
+			}
+			custom_tooltip = feudal_liege_vassals_will_convert
 		}
-		custom_tooltip = islamic_vassals_will_convert
-	}
-	##If I am not Islamic, we will become feudal.
-	else_if = {
-		limit = { is_independent_ruler = yes }
-		custom_tooltip = other_vassals_will_convert
+		##If I am Apysaic or Talataerim, we will become clan.
+		if = { #LotR
+			limit = {
+				is_independent_ruler = yes
+				culture = {
+					OR = {
+						# All Apysaic groups should be clan if independently feudalizing
+						has_cultural_pillar = heritage_northern_apysaic
+						has_cultural_pillar = heritage_middle_apysaic
+						has_cultural_pillar = heritage_southern_apysaic
+						has_cultural_pillar = heritage_tulwangi
+						has_cultural_pillar = heritage_thani_native
+						has_cultural_pillar = heritage_nafarati
+						# All Talataerim groups should be clan if independently feudalizing
+						has_cultural_pillar = heritage_ioriag
+						has_cultural_pillar = heritage_igath
+						has_cultural_pillar = heritage_tedjin
+				}
+			}
+			}
+			custom_tooltip = clan_vassals_will_convert
+		}
+		##If I am not Islamic, we will become feudal.
+		else_if = {
+			limit = { is_independent_ruler = yes }
+			custom_tooltip = other_vassals_will_convert
+		}
 	}
 
 	hidden_effect = {
@@ -407,6 +523,7 @@ convert_whole_realm_to_feudalism_effect = {
 			random_county_province = {
 				limit = {
 					has_holding = no
+					barony_cannot_construct_holding = no
 					barony = {
 						is_holy_site_of = root.faith
 					}
@@ -439,6 +556,7 @@ convert_whole_realm_to_feudalism_effect = {
 					}
 					is_coastal = yes
 					has_special_building_slot = no
+					barony_cannot_construct_holding = no
 				}
 				alternative_limit = {
 					has_holding = no
@@ -448,6 +566,7 @@ convert_whole_realm_to_feudalism_effect = {
 						terrain = farmlands
 					}
 					has_special_building_slot = no
+					barony_cannot_construct_holding = no
 				}
 				alternative_limit = {
 					has_holding = no
@@ -456,9 +575,11 @@ convert_whole_realm_to_feudalism_effect = {
 						terrain = oasis
 						terrain = farmlands
 					}
+					barony_cannot_construct_holding = no
 				}
 				alternative_limit = {
 					has_holding = no
+					barony_cannot_construct_holding = no
 				}
 				random = {
 					chance = 60
@@ -506,6 +627,7 @@ convert_whole_realm_to_feudalism_effect = {
 					}
 					is_coastal = yes
 					has_special_building_slot = no
+					barony_cannot_construct_holding = no
 				}
 				alternative_limit = {
 					has_holding = no
@@ -515,6 +637,7 @@ convert_whole_realm_to_feudalism_effect = {
 						terrain = farmlands
 					}
 					has_special_building_slot = no
+					barony_cannot_construct_holding = no
 				}
 				alternative_limit = {
 					has_holding = no
@@ -523,9 +646,11 @@ convert_whole_realm_to_feudalism_effect = {
 						terrain = oasis
 						terrain = farmlands
 					}
+					barony_cannot_construct_holding = no
 				}
 				alternative_limit = {
 					has_holding = no
+					barony_cannot_construct_holding = no
 				}
 				random = {
 					chance = 50
@@ -990,31 +1115,10 @@ learn_language_linguist_effect = {
 		title = learn_court_language_toast_title
 		left_icon = root
 		right_icon = $LINGUIST$
-		if = {
-			limit = {
-				can_employ_court_position_type = court_tutor_court_position
-			}
-			appoint_court_position = {
-				recipient = $LINGUIST$
-				court_position = court_tutor_court_position
-			}
-		}
-		else_if = {
-			limit = {
-				exists = court_position:court_tutor_court_position
-			}
-			court_position:court_tutor_court_position = {
-				add_opinion = {
-					target = root
-					modifier = disappointed_opinion
-					opinion = -5
-				}
-			}
-			replace_court_position = {
-				recipient = $LINGUIST$
-				holder = court_position:court_tutor_court_position
-				court_position = court_tutor_court_position
-			}
+		court_position_grant_effect = {
+			EMPLOYER = root
+			POS = court_tutor
+			CANDIDATE = $LINGUIST$
 		}
 		if = {
 			limit = {
@@ -1022,7 +1126,7 @@ learn_language_linguist_effect = {
 			}
 	    	start_scheme = {
 				type = learn_language
-				target = $LINGUIST$
+				target_character = $LINGUIST$
 			}
 	    }
 	}
