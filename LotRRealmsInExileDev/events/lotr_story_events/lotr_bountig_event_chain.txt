@@ -75,7 +75,7 @@ bountig_event_chain.0002 = {
 	}
 }
 
-bountig_event_chain.0003 = {
+bountig_event_chain.0003 = { #Bountig accepts the contract in the East
 	type = character_event
 	title = bountig_event_chain.0003.t
 	desc = bountig_event_chain.0003.desc
@@ -86,16 +86,175 @@ bountig_event_chain.0003 = {
 		animation = personality_rational
 	}
 
-	immediate = { set_contract_scopes_effect = yes }
+	immediate = {
+		# scope:task_contract = { save_scope_as = task_contract }
+		set_contract_scopes_effect = yes 
+	}
 
 	option = { # Travel with full domicile
 		name = bountig_event_chain.0003.a
+		set_variable = cannot_cancel_travel
 		start_travel_plan = {
 			destination = scope:task_contract_destination
 			travel_with_domicile = yes
 			return_trip = no
+			players_use_planner = no
+			on_arrival_event = bountig_event_chain.0004
 			on_arrival_destinations = all
 		}
+	}
+}
+
+bountig_event_chain.0004 = {
+	hidden = yes
+	# Saved scopes:
+	## employer
+	## task_contract_taker
+	## task_contract_destination
+	## task_contract
+	immediate = {
+		remove_variable = cannot_cancel_travel
+		save_scope_as = bountig
+		title:k_rohan.holder ?= { save_scope_as = war_target }
+
+		if = {
+			limit = { exists = scope:war_target }
+			scope:employer = {
+				start_war = {
+					casus_belli = bountig_special_raid_for_captives_cb
+					target = scope:war_target
+					target_title = scope:war_target.primary_title
+				}
+			}
+		} else = {
+			title:k_south_rhovanion = { # Start a war between a Ioriag duke and Rohan
+				random_de_jure_county = {
+					limit = {
+						is_wastelands = no
+						culture = { has_cultural_pillar = heritage_ioriag }
+						holder = { highest_held_title_tier > tier_county }
+						holder = { is_at_war = no }
+						NOT = { holder = scope:employer }
+					}
+					alternative_limit = {
+						is_wastelands = no
+						culture = { has_cultural_pillar = heritage_ioriag }
+						holder = { highest_held_title_tier > tier_barony }
+						holder = { is_at_war = no }
+						NOT = { holder = scope:employer }
+					}
+					alternative_limit = {
+						is_wastelands = no
+						culture = { has_cultural_pillar = heritage_ioriag }
+						holder = { highest_held_title_tier > tier_county }
+						NOT = { holder = scope:employer }
+					}
+					holder = { save_scope_as = war_target }
+				}
+			}
+			scope:employer = {
+				start_war = {
+					casus_belli = bountig_special_raid_for_captives_cb
+					target = scope:war_target
+					target_title = scope:war_target.primary_title
+				}
+			}
+		}
+
+		scope:employer = {
+			random_character_war = {
+				limit = { primary_defender = scope:war_target }
+				set_called_to = scope:bountig
+				add_attacker = scope:bountig
+				save_scope_as = story_war
+			}
+			set_variable = {
+				name = bountig
+				value = scope:bountig 
+			}
+		}
+		scope:war_target = {
+			every_vassal = { trigger_event = bountig_event_chain.0010 }
+		}
+	}
+}
+
+bountig_event_chain.0005 = { # Bountig gets offered land or gold, either ending or boosting his story line
+	type = character_event
+	title = bountig_event_chain.0005.t
+	desc = bountig_event_chain.0005.desc
+	theme = martial
+	
+	right_portrait = {
+		character = root
+		animation = personality_rational
+	}
+
+	left_portrait = {
+		character = scope:attacker
+		animation = personality_rational
+	}
+
+	immediate = { save_scope_as = bountigmedlokan }
+
+	option = { # Travel with full domicile
+		name = bountig_event_chain.0005.a
+		set_variable = cannot_cancel_travel
+		title:c_minas_tirith.empire.holder ?= { save_scope_as = gondor_ruler }
+		add_gold = 500
+		add_prestige = 500
+		start_travel_plan = {
+			destination = scope:gondor_ruler.capital_province
+			travel_with_domicile = yes
+			return_trip = no
+			players_use_planner = no
+			on_arrival_event = bountig_event_chain.0012
+			on_arrival_destinations = all
+		}
+	}
+
+	option = { #Decide to end story line, stay in Rhun
+		name = bountig_event_chain.0005.b
+		custom_tooltip = bountig_event_chain.0005.b.tt
+
+		trigger = {
+			scope:attacker = {
+				any_held_county = { count > 1 }
+			}
+		}
+		random_owned_story = {
+			limit = { story_type = story_cycle_bountig_medlokan }
+			end_story = yes
+		}
+		scope:attacker = {
+			random_held_county = {
+				limit = { NOT = { this = scope:attacker.capital_county } }
+				save_scope_as = handed_out_county
+			}
+		}
+		create_title_and_vassal_change = {
+			type = granted
+			save_scope_as = change
+			add_claim_on_loss = no
+		}
+		scope:handed_out_county = {
+			change_title_holder = {
+				holder = root
+				change = scope:change
+			}
+		}
+		resolve_title_and_vassal_change = scope:change
+
+		create_title_and_vassal_change = {
+			type = swear_fealty
+			save_scope_as = change
+			add_claim_on_loss = no
+		}
+		change_liege = {
+			liege = scope:attacker
+			change = scope:change
+		}
+		resolve_title_and_vassal_change = scope:change
 	}
 }
 
@@ -110,15 +269,33 @@ bountig_event_chain.0010 = { # Eastern Rohan vassals get opportunity to join war
 		character = root
 		animation = personality_rational
 	}
+
+	trigger = {
+		any_neighboring_county = {
+			exists = holder
+			OR = {
+				holder = { is_wastelands = yes }
+				holder = { faith_is_good = no }
+			}
+		}
+	}
 	
 	option = {
 		name = bountig_event_chain.0010.a
+		trigger = {
+			NOT = {
+				any_character_war = {
+					is_defender = scope:war_target
+					is_attacker = root
+				}
+			}
+		}
+
 		if = {
 			limit = {
 				NOT = { any_character_war = { this = scope:story_war } }
 			}
 			scope:story_war = { add_defender = root }
-			set_variable = joined_war
 		}
 		ai_chance = {
  			base = 90
@@ -132,6 +309,12 @@ bountig_event_chain.0010 = { # Eastern Rohan vassals get opportunity to join war
 					has_trait = honest
  				}
  			}
+			modifier = {
+				factor = 0.5
+				OR = {
+					has_any_bad_relationship_with_character_trigger = { CHARACTER = scope:war_target }
+				}
+			}
 		}
 	}
 
@@ -146,43 +329,12 @@ bountig_event_chain.0010 = { # Eastern Rohan vassals get opportunity to join war
  			}
 		}
 	}
-
-	after = {
-		if = {
-			limit = { has_variable = joined_war }
-			trigger_event = {
-				id = bountig_event_chain.0011
-				days = 30
-			}
-			remove_variable = joined_war
-		}
-		
-	}
 }
 
-bountig_event_chain.0011 = {
-	hidden = yes
-
-	immediate = {
-		ordered_army = {
-			order_by = army_size
-			assign_commander = root
-			set_army_location = scope:employer.location
-		}
-
-		scope:bountig = {
-			trigger_event = {
-				id = bountig_event_chain.0015
-				days = 15
-			}
-		}
-	}
-}
-
-bountig_event_chain.0015 = {
+bountig_event_chain.0011 = { #Bountig is forced to travel southwards
 	type = character_event
-	title = bountig_event_chain.0015.t
-	desc = bountig_event_chain.0015.desc
+	title = bountig_event_chain.0011.t
+	desc = bountig_event_chain.0011.desc
 	theme = martial
 	
 	right_portrait = {
@@ -190,25 +342,43 @@ bountig_event_chain.0015 = {
 		animation = personality_rational
 	}
 
-	trigger = { NOT = { has_character_flag = abandon_easterling_war } }
+	immediate = { title:c_minas_tirith.empire.holder ?= { save_scope_as = gondor_ruler } }
 
-	immediate = { add_character_flag = { flag = abandon_easterling_war } }
-
-	option = {
-		name = bountig_event_chain.0015.a
-		custom_tooltip = {
-			text = bountig_event_chain.0015.a.tt
-			random_character_war = {
-				limit = { primary_defender = title:k_rohan.holder }
-				remove_participant = root
-			}
+	option = { # Travel with full domicile
+		name = bountig_event_chain.0011.a
+		set_variable = cannot_cancel_travel
+		custom_tooltip = bountig_event_chain.0011.a.tt
+		start_travel_plan = {
+			destination = scope:gondor_ruler.capital_province
+			travel_with_domicile = yes
+			return_trip = no
+			players_use_planner = no
+			on_arrival_event = bountig_event_chain.0012
+			on_arrival_destinations = all
 		}
-		add_trait = bountig_story_trait
-		# set_variable = bountig_story_visit_minas_tirith
 	}
 }
 
+bountig_event_chain.0012 = { #Bountig arrives in Minas Tirith
+	type = character_event
+	title = bountig_event_chain.0012.t
+	desc = bountig_event_chain.0012.desc
+	theme = martial
+	
+	right_portrait = {
+		character = root
+		animation = personality_rational
+	}
+
+	option = { # Travel with full domicile
+		name = bountig_event_chain.0012.a
+		remove_variable = cannot_cancel_travel
+	}
+}
+
+#############################
 ### KHAND & OVATHA EVENTS ###
+#############################
 
 # Check if Bountig is alive and has returned to Mistrand
 bountig_event_chain.5000 = {  
