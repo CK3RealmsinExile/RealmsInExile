@@ -40,6 +40,17 @@ scripted_effect set_contract_scopes_effect = {
 	}
 }
 
+scripted_effect set_laamp_variables_for_contracts_to_spawn_effect = {
+	set_variable = {
+		name = contract_passive_spawn_location
+		value = location.empire
+	}
+	set_variable = {
+		name = contract_passive_spawn_tally
+		value = 0
+	}
+}
+
 ### BOUNTIG EVENTS ###
 
 bountig_event_chain.0001 = {
@@ -94,6 +105,7 @@ bountig_event_chain.0003 = { #Bountig accepts the contract in the East
 	option = { # Travel with full domicile
 		name = bountig_event_chain.0003.a
 		set_variable = cannot_cancel_travel
+		custom_tooltip = bountig_event_chain.0003.a.tt
 		start_travel_plan = {
 			destination = scope:task_contract_destination
 			travel_with_domicile = yes
@@ -199,10 +211,12 @@ bountig_event_chain.0005 = { # Bountig gets offered land or gold, either ending 
 
 	option = { # Travel with full domicile
 		name = bountig_event_chain.0005.a
+		custom_tooltip = bountig_event_chain.0005.a.tt
 		set_variable = cannot_cancel_travel
 		title:c_minas_tirith.empire.holder ?= { save_scope_as = gondor_ruler }
 		add_gold = 500
 		add_prestige = 500
+		set_laamp_variables_for_contracts_to_spawn_effect = yes
 		start_travel_plan = {
 			destination = scope:gondor_ruler.capital_province
 			travel_with_domicile = yes
@@ -349,6 +363,7 @@ bountig_event_chain.0011 = { #Bountig is forced to travel southwards
 		name = bountig_event_chain.0011.a
 		set_variable = cannot_cancel_travel
 		custom_tooltip = bountig_event_chain.0011.a.tt
+		set_laamp_variables_for_contracts_to_spawn_effect = yes
 		start_travel_plan = {
 			destination = scope:gondor_ruler.capital_province
 			travel_with_domicile = yes
@@ -371,12 +386,68 @@ bountig_event_chain.0012 = { #Bountig arrives in Minas Tirith
 		animation = personality_rational
 	}
 
-	option = { # Travel with full domicile
+	option = {
 		name = bountig_event_chain.0012.a
 		remove_variable = cannot_cancel_travel
+		add_trait = bountig_story_trait
+		set_variable = {
+			name = bountig_does_contract_work
+			value = flag:gondor
+		}
 	}
 }
 
+bountig_event_chain.4000 = {
+	hidden = yes
+
+	trigger = {
+		var:contract_passive_spawn_location ?= location.empire
+		trigger_if = {
+			limit = { has_variable = contract_passive_spawn_tally }
+			var:contract_passive_spawn_tally < 3
+		}
+		# Make sure we don't do this if we've got lots of contracts already spawned here.
+		any_character_task_contract = {
+			count <= 4
+			task_contract_location = {
+				"squared_distance(root.location)" <= squared_distance_medium
+			}
+		}
+	}
+
+	on_trigger_fail = {
+		if = {
+			limit = { var:contract_passive_spawn_location ?= location.empire }
+			trigger_event = {
+				id = bountig_event_chain.4000
+				months = { 8 12 }
+			}
+		}
+	}
+
+	immediate = {
+		# spawn a contract
+		contract_passive_spawn_effect = {
+			SPAWN_CONTRACTS = 1
+		}
+		# And fire us again in a bit.
+		if = {
+			limit = { 
+				var:contract_passive_spawn_tally < 2
+			}
+			trigger_event = {
+				id = bountig_event_chain.4000
+				months = 1
+			}
+		}
+		else = {
+			trigger_event = {
+				id = bountig_event_chain.4000
+				months = 2
+			}
+		}
+	}
+}
 #############################
 ### KHAND & OVATHA EVENTS ###
 #############################
