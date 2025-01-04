@@ -4349,7 +4349,7 @@ orcs.7000 = { # Azog initial dilemma
 	#window = visit_settlement_window
 	right_portrait = {
 		character = root
-		animation = personality_vengeful
+		animation = menacing
 	}
 	option = { # I'll call my banners to war
 		name = orcs.7000.a 
@@ -4403,7 +4403,7 @@ orcs.7001 = { # Azog - talented Orc shows up
 	override_background = { reference = throne_room }
 	right_portrait = {
 		character = root
-		animation = war_attacker
+		animation = personality_vengeful
 	}
 	left_portrait = {
 		character = scope:hand_of_azog
@@ -4490,7 +4490,7 @@ orcs.7003 = { # Azog - Lord of Moria
 	option = { # None shall question my rule
 		name = orcs.7003.a
 		add_dread = medium_dread_gain
-		#add_character_flag = azog_sidequests_unlocked
+		add_character_flag = azog_sidequests_unlocked
 		trigger_event = {
 			id = orcs.7004
 			days = 30 
@@ -4644,6 +4644,388 @@ orcs.7004 = { # Azog - the next step
 	# }
 }	
 
+### Azog: Sidequests ###
+
+orcs.7050 = { # Raid Eriador - choosing a target
+	content_source = realms_dlc
+	type = character_event
+	title = orcs.7050.t
+	desc = orcs.7050.desc
+	theme = dread
+	override_background = { reference = throne_room_dwarf }
+	left_portrait = {
+		character = root
+		animation = menacing
+	}
+	option = { # Easy: Raid the crappy hillmen
+		name = orcs.7050.a 
+		custom_tooltip = orcs.7050.a.tt
+		title:c_moin_duldachd = { save_scope_as = raid_target_azog }
+	}
+	option = { # Medium: Raid the dunlendings
+		name = orcs.7050.b 
+		custom_tooltip = orcs.7050.b.tt
+		title:c_earcnoc = { save_scope_as = raid_target_azog }
+	}
+	option = { # Hard: Raid the Dúnedain
+		name = orcs.7050.c 
+		custom_tooltip = orcs.7050.c.tt
+		title:c_lim_dinenen = { save_scope_as = raid_target_azog }
+	}
+	after = {
+		trigger_event = orcs.7051
+	}
+}
+
+orcs.7051 = { # Raid Eriador - Selecting a raid leader
+	content_source = realms_dlc
+	type = character_event
+	title = orcs.7051.t
+	desc = orcs.7051.desc
+	theme = skull
+	override_background = { reference = throne_room_dwarf }
+	left_portrait = {
+		character = root
+		animation = marshal
+	}
+	right_portrait = {
+		character = scope:initial_raid_leader
+		animation = personality_content
+	}
+	immediate = {
+		random_knight = { save_scope_as = initial_raid_leader }
+		root = { save_scope_as = raid_initiator }
+	}
+	option = { # Send a big party (martial check)
+		name = orcs.7051.a 
+		custom_tooltip = orcs.7051.a.tt
+		scope:initial_raid_leader = {
+			start_travel_plan = {
+				destination = scope:raid_target_azog.title_province
+				on_arrival_event = orcs.7052
+				return_trip = no
+				players_use_planner = no
+				on_arrival_destinations = all
+			}
+		}
+	}
+	option = { # Send a stealthy party (intrigue check)
+		name = orcs.7051.b 
+		custom_tooltip = orcs.7051.b.tt
+		scope:initial_raid_leader = {
+			start_travel_plan = {
+				destination = scope:raid_target_azog.title_province
+				on_arrival_event = orcs.7053
+				return_trip = no
+				players_use_planner = no
+				on_arrival_destinations = all
+			}
+		}
+	}
+	option = { # Go yourself (martial check)
+		name = orcs.7051.c 
+		custom_tooltip = orcs.7051.c.tt
+		root = {
+			start_travel_plan = {
+				destination = scope:raid_target_azog.title_province
+				on_arrival_event = orcs.7054
+				return_trip = no
+				players_use_planner = no
+				on_arrival_destinations = all
+			}
+		}
+	}
+	option = { # On second thought, let's delay this
+		name = orcs.7051.d 
+		custom_tooltip = orcs.7051.d.tt
+		remove_list_global_variable = {
+			name = unavailable_unique_decisions
+   			target = flag:decision_azog_raid_eriador
+		}
+	}
+}
+
+orcs.7052 = { # Raid Eriador - Large warband
+	hidden = yes
+	immediate = {
+		scope:raid_target_azog.holder = { save_scope_as = raid_target_holder }
+		duel = {
+			skill = martial
+			target = scope:raid_target_holder
+			# The raid succeeds
+			60 = {
+				compare_modifier = {
+					value = scope:duel_value
+					multiplier = 3.5
+					min = -49
+				}
+				min = 5
+				random_list = {
+					50 = { # Critical success
+						scope:raid_initiator = {
+							send_interface_toast = {
+								title = orcs.7054.critical_success
+								left_icon = root
+								right_icon = scope:initial_raid_leader
+								add_gold = 350
+								add_dread = medium_dread_gain
+							}
+
+						}
+					}
+					50 = { # Regular success
+						scope:raid_initiator = {
+							send_interface_toast = {
+								title = orcs.7054.regular_success
+								left_icon = root
+								right_icon = scope:initial_raid_leader
+								add_gold = 250
+								add_dread = minor_dread_gain
+							}
+						}
+					}
+				}
+				scope:raid_target_azog = { 
+					change_development_level = -3
+					change_county_control = -50
+				}
+			}
+			# The raid fails
+			40 = {
+				compare_modifier = {
+					value = scope:duel_value
+					multiplier = -3.5
+					min = -49
+				}
+				min = 10
+				random_list = {
+					50 = { # Critical failure
+						scope:raid_initiator = {
+							send_interface_toast = {
+								title = orcs.7054.critical_failure
+								left_icon = root
+								right_icon = scope:initial_raid_leader
+								add_dread = medium_dread_loss
+								scope:initial_raid_leader = { death = { death_reason = death_piteously_cut_down } }
+							}
+
+						}
+					}
+					50 = { # Regular failure
+						scope:raid_initiator = {
+							send_interface_toast = {
+								title = orcs.7054.critical_success
+								left_icon = root
+								right_icon = scope:initial_raid_leader
+								scope:initial_raid_leader = { increase_wounds_effect = { REASON = fight } }
+								add_dread = minor_dread_loss
+							}
+						}
+					}
+				}
+			}
+		} 
+	}
+}
+
+orcs.7053 = { # Raid Eriador - Stealthy raiding party
+	hidden = yes
+	immediate = {
+		scope:raid_target_azog.holder = { save_scope_as = raid_target_holder }
+		duel = {
+			skill = intrigue
+			target = scope:raid_target_holder
+			# The raid succeeds
+			60 = {
+				compare_modifier = {
+					value = scope:duel_value
+					multiplier = 3.5
+					min = -49
+				}
+				min = 5
+				random_list = {
+					50 = { # Critical success
+						scope:raid_initiator = {
+							send_interface_toast = {
+								title = orcs.7054.critical_success
+								left_icon = root
+								right_icon = scope:initial_raid_leader
+								add_gold = 350
+								add_dread = medium_dread_gain
+							}
+
+						}
+					}
+					50 = { # Regular success
+						scope:raid_initiator = {
+							send_interface_toast = {
+								title = orcs.7054.regular_success
+								left_icon = root
+								right_icon = scope:initial_raid_leader
+								add_gold = 250
+								add_dread = minor_dread_gain
+							}
+						}
+					}
+				}
+				scope:raid_target_azog = { 
+					change_development_level = -3
+					change_county_control = -50
+				}
+			}
+			# The raid fails
+			40 = {
+				compare_modifier = {
+					value = scope:duel_value
+					multiplier = -3.5
+					min = -49
+				}
+				min = 10
+				random_list = {
+					50 = { # Critical failure
+						scope:raid_initiator = {
+							send_interface_toast = {
+								title = orcs.7054.critical_failure
+								left_icon = root
+								right_icon = scope:initial_raid_leader
+								add_dread = medium_dread_loss
+								scope:initial_raid_leader = { death = { death_reason = death_piteously_cut_down } }
+							}
+
+						}
+					}
+					50 = { # Regular failure
+						scope:raid_initiator = {
+							send_interface_toast = {
+								title = orcs.7054.critical_success
+								left_icon = root
+								right_icon = scope:initial_raid_leader
+								scope:initial_raid_leader = { increase_wounds_effect = { REASON = fight } }
+								add_dread = minor_dread_loss
+							}
+						}
+					}
+				}
+			}
+		} 
+	}
+}
+
+orcs.7054 = { # Raid Eriador - Lead the raid in person
+	content_source = realms_dlc
+	type = character_event
+	title = orcs.7054.t
+	desc = orcs.7054.desc
+	theme = unfriendly
+	override_background = { reference = throne_room_dwarf }
+	left_portrait = {
+		character = root
+		animation = marshal
+	}
+	right_portrait = {
+		character = scope:raid_target_holder
+		animation = anger
+	}
+	immediate = {
+		scope:raid_target_azog.holder = { save_scope_as = raid_target_holder }
+	}
+	option = { # Let's do it!
+		name = orcs.7054.a
+		duel = {
+			target = scope:raid_target_holder
+			skill = prowess
+			#value = high_skill_rating
+			# The raid succeeds
+			60 = {
+				compare_modifier = {
+					value = scope:duel_value
+					multiplier = 3.5
+					min = -49
+				}
+				min = 5
+				random_list = {
+					50 = { # Critical success
+						scope:raid_initiator = {
+							send_interface_toast = {
+								title = orcs.7054.critical_success
+								left_icon = root
+								right_icon = scope:initial_raid_leader
+								add_gold = 350
+								add_dread = medium_dread_gain
+							}
+
+						}
+					}
+					50 = { # Regular success
+						scope:raid_initiator = {
+							send_interface_toast = {
+								title = orcs.7054.regular_success
+								left_icon = root
+								right_icon = scope:initial_raid_leader
+								add_gold = 250
+								add_dread = minor_dread_gain
+							}
+						}
+					}
+				}
+				scope:raid_target_azog = { 
+					change_development_level = -3
+					change_county_control = -50
+				}
+			}
+			# The raid fails
+			40 = {
+				compare_modifier = {
+					value = scope:duel_value
+					multiplier = -3.5
+					min = -49
+				}
+				min = 10
+				random_list = {
+					50 = { # Critical failure
+						scope:raid_initiator = {
+							send_interface_toast = {
+								title = orcs.7054.critical_failure
+								left_icon = root
+								right_icon = scope:initial_raid_leader
+								add_dread = medium_dread_loss
+								death = { death_reason = death_piteously_cut_down }
+							}
+
+						}
+					}
+					50 = { # Regular failure
+						scope:raid_initiator = {
+							send_interface_toast = {
+								title = orcs.7054.critical_success
+								left_icon = root
+								right_icon = scope:initial_raid_leader
+								increase_wounds_effect = { REASON = fight }
+								add_dread = minor_dread_loss
+							}
+						}
+					}
+				}
+			}
+		} 
+	}
+	option = { # Abandon ship!
+		name = orcs.7054.b
+		add_prestige = major_prestige_loss
+		add_dread = major_dread_loss
+	}
+	after = {
+		start_travel_plan = { #Travel home
+			destination = root.capital_county.title_province
+			return_trip = no
+			players_use_planner = no
+			on_arrival_destinations = all
+		}
+	}
+}
+
+### Azog: A sudden rival ###
+
 orcs.7100 = { # Check if the scope is alive
 	hidden = yes 
 	immediate = {
@@ -4651,7 +5033,7 @@ orcs.7100 = { # Check if the scope is alive
 			limit = {
 				exists = scope:hand_of_azog
 				scope:hand_of_azog = { is_alive = yes }
-				}
+			}
 			scope:hand_of_azog = {
 				get_title = title:c_west_hall
 				spawn_army = {
@@ -4685,6 +5067,7 @@ orcs.7100 = { # Check if the scope is alive
 			}
 			trigger_event = orcs.7101
 		}
+		# else = { # To do: make a blood-brother who comes to avenge his friend
 	}
 }
 
