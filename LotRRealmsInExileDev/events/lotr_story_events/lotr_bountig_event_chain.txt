@@ -51,23 +51,142 @@ scripted_effect set_laamp_variables_for_contracts_to_spawn_effect = {
 	}
 }
 
-### BOUNTIG EVENTS ###
+scripted_effect build_or_upgrade_domicile_building_effect = {
+	if = {
+		limit = { has_domicile_building_or_higher = $BUILDING$_01 }
+		switch = {
+			trigger = has_domicile_building
+			$BUILDING$_01 = { add_domicile_building = $BUILDING$_02 }
+			$BUILDING$_02 = { add_domicile_building = $BUILDING$_03 }
+			$BUILDING$_03 = { add_domicile_building = $BUILDING$_04 }
+			$BUILDING$_04 = { add_domicile_building = $BUILDING$_05 }
+			$BUILDING$_05 = { add_domicile_building = $BUILDING$_06 }
+		}
+	} else = { add_domicile_building = $BUILDING$_01 }
+}
 
-bountig_event_chain.0001 = {
-	hidden = yes 
-
-	on_trigger_fail = { #Trigger invitation again if it was blocked because the character was handling another invitation
-		trigger_event = { id = bountig_event_chain.0001 days = 1 }
-	}
-
-	immediate = {
-		# pan_camera_to_province = scope:rhun_attacker.location
-		trigger_event = {
-			id = bountig_event_chain.9999
-			days = 1
+scripted_effect visiting_lore_city_reward_effect = {
+	random_list = {
+		25 = { #Gain/Upgrade domicile building
+			trigger = { domicile = { free_external_domicile_building_slots >= 1 } }
+			custom_tooltip = {
+				text = "bountig_gain_random_domicile_building_effect"
+				domicile = {
+					random_list = {
+						1 = {
+							trigger = { NOT = { has_domicile_building = supply_tent_06 } }
+							build_or_upgrade_domicile_building_effect = { BUILDING = supply_tent }
+						}
+						1 = {
+							trigger = { NOT = { has_domicile_building = barber_tent_06 } }
+							build_or_upgrade_domicile_building_effect = { BUILDING = barber_tent }
+						}
+						1 = {
+							trigger = { NOT = { has_domicile_building = baggage_train_06 } }
+							build_or_upgrade_domicile_building_effect = { BUILDING = baggage_train }
+						}
+						1 = {
+							trigger = { NOT = { has_domicile_building = mess_tent_06 } }
+							build_or_upgrade_domicile_building_effect = { BUILDING = mess_tent }
+						}
+						1 = {
+							trigger = { NOT = { has_domicile_building = camp_fire_06 } }
+							build_or_upgrade_domicile_building_effect = { BUILDING = camp_fire }
+						}
+						1 = {
+							trigger = { NOT = { has_domicile_building = proving_grounds_06 } }
+							build_or_upgrade_domicile_building_effect = { BUILDING = proving_grounds }
+						}
+						1 = {
+							trigger = { NOT = { has_domicile_building = camp_perimeter_06 } }
+							build_or_upgrade_domicile_building_effect = { BUILDING = camp_perimeter }
+						}
+					}
+				}
+			}
+		}
+		25 = { #Gain additional XP in trait tracks
+			if = { #Gondor
+				limit = {
+					var:bountig_does_contract_work = flag:gondor
+					title:c_minas_tirith.empire = { is_de_jure_liege_or_above_target = root.domicile.domicile_location.county }
+				}
+				show_as_tooltip = {
+					add_trait_xp = {
+						trait = bountig_story_trait
+						track = gondor_cities
+						value = 15
+					}
+				}
+			} 
+			else_if = { #Harwan
+				limit = {
+					var:bountig_does_contract_work = flag:harwan
+					title:c_amrun.empire = { is_de_jure_liege_or_above_target = root.domicile.domicile_location.county }
+				}
+				show_as_tooltip = {
+					add_trait_xp = {
+						trait = bountig_story_trait
+						track = haruzan_cities
+						value = 15
+					}
+				}
+			} 
+			else_if = { #umbar
+				limit = {
+					var:bountig_does_contract_work = flag:umbar
+					title:c_umbar.empire = { is_de_jure_liege_or_above_target = root.domicile.domicile_location.county }
+				}
+				show_as_tooltip = {
+					add_trait_xp = {
+						trait = bountig_story_trait
+						track = umbar_cities
+						value = 15
+					}
+				}
+			}
+		}
+		25 = { #Gain a random knight courtier
+			custom_tooltip = {
+				text = bountig_gain_random_follower_effect
+				create_character = {
+					template = old_knight_teacher
+					culture = root.location.culture
+					faith = root.location.faith
+					gender_female_chance = root_soldier_female_chance
+					location = root.location
+					save_scope_as = soldier_character
+					after_creation = {
+						add_trait_xp = {
+							trait = lifestyle_blademaster
+							value = 100
+						}
+						set_employer = scope:soldier_character
+					}
+				}
+			}
+		}
+		25 = {
+			trigger = {
+				any_character_artifact = {
+					count < 4
+					artifact_slot_type = miscellaneous
+				}
+			}
+			custom_tooltip = {
+				text = bountig_gain_random_trinket_artifact_effect
+				generate_trinket_effect = {
+					TRINKET_RECEIVER = root
+					TRINKET_GIVER = root
+					GRAB_ALL_TRINKETS = no
+					HISTORY_TYPE = discovered
+				}
+			}
 		}
 	}
 }
+
+### BOUNTIG EVENTS ###
 
 bountig_event_chain.0002 = {
 	hidden = yes 
@@ -187,7 +306,10 @@ bountig_event_chain.0004 = {
 			}
 		}
 		scope:war_target = {
-			every_vassal = { trigger_event = bountig_event_chain.0010 }
+			every_vassal = {
+				limit = { culture = top_liege.culture } # Avoid dunlendings joining in
+				trigger_event = bountig_event_chain.0010
+			}
 		}
 	}
 }
@@ -449,6 +571,95 @@ bountig_event_chain.0014 = { #Arrives in a Gondor city
 		name = bountig_event_chain.0013.a
 		custom_tooltip = bountig_event_chain.0013.a.tt
 		remove_variable = cannot_cancel_travel
+		visiting_lore_city_reward_effect = yes
+		random_character_active_contract = {
+			limit = { has_task_contract_type = lotr_bountig_story_gondor_cities }
+			complete_task_contract = success_standard
+		}
+	}
+}
+
+
+bountig_event_chain.0020 = { #Bountig heads for Amrun
+	content_source = realms_dlc
+	type = character_event
+	title = bountig_event_chain.0020.t
+	desc = bountig_event_chain.0020.desc
+	theme = martial
+	
+	right_portrait = {
+		character = root
+		animation = personality_rational
+	}
+
+	immediate = { title:c_amrun.holder = { save_scope_as = amrun_ruler } }
+
+	option = { #Head for Amrun
+		name = bountig_event_chain.0020.a
+		set_variable = cannot_cancel_travel
+		custom_tooltip = bountig_event_chain.0020.a.tt
+		start_travel_plan = {
+			destination = scope:amrun_ruler.capital_province
+			travel_with_domicile = yes
+			return_trip = no
+			players_use_planner = no
+			on_arrival_event = bountig_event_chain.0021
+			on_arrival_destinations = all
+		}
+		if = {
+			limit = { has_variable = bountig_does_contract_work }
+			set_variable = {
+				name = bountig_does_contract_work
+				value = flag:harwan
+			}
+		}
+		every_task_contract = {
+			limit = { has_task_contract_type = lotr_bountig_story_gondor_cities }
+			complete_task_contract = failure_standard
+		}
+	}
+
+	option = { #Stay in Gondor a while longer
+		name = bountig_event_chain.0020.b
+		custom_tooltip = bountig_event_chain.0020.b.tt
+		if = { #Allow contract to be re-generated on Amrun
+			limit = {
+				is_target_in_variable_list = {
+					name = harwan_cities_visited
+					target = title:c_amrun.title_province
+				}
+			}
+			remove_list_variable = {
+				name = harwan_cities_visited
+				target = title:c_amrun.title_province
+			}
+		}
+		every_character_active_contract = {
+			limit = { has_task_contract_type = lotr_bountig_story_harwan_cities }
+			invalidate_contract = yes
+		}
+	}
+}
+
+bountig_event_chain.0021 = { #Bountig arrives in Amrun
+	content_source = realms_dlc
+	type = character_event
+	title = bountig_event_chain.0021.t
+	desc = bountig_event_chain.0021.desc
+	theme = martial
+	
+	right_portrait = {
+		character = root
+		animation = personality_rational
+	}
+
+	option = {
+		name = bountig_event_chain.0021.a
+		remove_variable = cannot_cancel_travel
+		random_character_active_contract = {
+			limit = { has_task_contract_type = lotr_bountig_story_harwan_cities }
+			complete_task_contract = success_standard
+		}
 	}
 }
 
@@ -1085,13 +1296,13 @@ bountig_event_chain.5012 = { # We must strike now while they're still consolidat
 
 ### MANAGEMENT EVENTS ###
 
-bountig_event_chain.9999 = { #Open the contract 
+bountig_event_chain.9999 = {
 	hidden = yes
+	orphan = yes
 	immediate = {
-		random_task_contract = {
-			limit = { has_task_contract_type = lotr_bountig_story_eastern_rhovanion_war }
-			save_scope_as = task_contract
+		random_character_active_contract = {
+			limit = { has_task_contract_type = lotr_bountig_story_gondor_cities }
+			complete_task_contract = success_standard
 		}
-		scope:task_contract = { open_view_data = task_contract }
 	}
 }
