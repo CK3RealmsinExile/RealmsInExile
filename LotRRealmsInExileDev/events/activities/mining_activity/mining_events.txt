@@ -847,6 +847,232 @@ mining.0101 = {
 	}
 }
 
+# Adventurer Purchases Mining Rights
+mining.0120 = {
+	type = activity_event
+	title = mining.0120.t
+	desc = mining.0120.desc
+	theme = stewardship
+	override_background = {
+		reference = mining_activity
+	}
+	left_portrait = {
+		character = scope:host
+		animation = betting
+	}
+	center_portrait = {
+		character = scope:center_portrait
+		animation = survey
+		camera = camera_event_right
+	}
+	right_portrait = {
+		character = scope:barony_holder
+		animation = chancellor
+	}
+
+	trigger = {
+		NOT = { location.culture = culture:wastelands }
+	}
+
+	immediate = {
+		if = {
+			limit = {
+				has_variable_list = allowed_mining_baronies
+				any_in_list = {
+					variable = allowed_mining_baronies
+					this = root.location
+				}
+			}
+			save_scope_as = allowed_to_mine
+		}
+		if = {
+			limit = { 
+				exists = scope:activity.activity_location.barony.holder
+			}
+			scope:activity.activity_location.barony.holder = {
+				save_scope_as = barony_holder
+			}
+		}
+		else = {
+			scope:activity.activity_location.county.holder = {
+				save_scope_as = barony_holder
+			}
+		}
+		if = {
+			limit = {
+				scope:activity.activity_location.county.empire = {
+					any_in_de_jure_hierarchy = {
+						holder ?= {
+							top_liege = scope:activity.activity_location.county.holder.top_liege
+							any_sub_realm_county = {
+								this = scope:activity.activity_location.county
+							}
+							OR = {
+								has_relation_friend = root
+								has_relation_lover = root
+								root = { has_hook = prev }
+								opinion = {
+									target = root
+									value >= 50
+								}
+							}
+						}
+					}
+				}
+			}
+			scope:activity.activity_location.county.empire = {
+				random_in_de_jure_hierarchy = {
+					limit = {
+						holder ?= {
+							top_liege = scope:activity.activity_location.county.holder.top_liege
+							any_sub_realm_county = {
+								this = scope:activity.activity_location.county
+							}
+							OR = {
+								has_relation_friend = root
+								has_relation_lover = root
+								root = { has_hook = prev }
+								opinion = {
+									target = root
+									value >= 50
+								}
+							}
+						}
+					}
+					holder = {
+						save_scope_as = favor_to_call_in
+					}
+				}
+			}
+			if = {
+				limit = {
+					exists = scope:favor_to_call_in
+					NOT = { scope:favor_to_call_in = scope:barony_holder }
+				}
+				scope:favor_to_call_in = { save_scope_as = center_portrait }
+			}
+		}
+	}
+
+	option = { # Call in favor
+		name = mining.0120.a
+		trigger = {
+			exists = scope:favor_to_call_in
+			NOT = { exists = scope:allowed_to_mine }
+		}
+		if = {
+			limit = {
+				has_usable_hook = scope:favor_to_call_in
+				NOR = {
+					has_relation_friend = scope:favor_to_call_in
+					has_relation_lover = scope:favor_to_call_in
+					reverse_opinion = {
+						target = scope:favor_to_call_in
+						value >= 50
+					}
+				}
+			}
+			use_hook = scope:favor_to_call_in
+		}
+		add_prestige = minor_prestige_gain
+		mining_activity_success_change_effect = { CHANGE = increase_medium }
+		add_to_variable_list = {
+			name = allowed_mining_baronies
+			target = root.location
+		}
+		ai_chance = {
+			base = 10
+		}
+	}
+
+	option = { # Steal
+		name = mining.0120.b
+		trigger = {
+			NOT = { exists = scope:allowed_to_mine }
+		}
+		mining_activity_success_change_effect = { CHANGE = increase_major }
+		reverse_add_opinion = {
+			target = scope:barony_holder
+			modifier = poacher_opinion
+		}
+		if = {
+			limit = {
+				NOT = { has_trait = gallowsbait }
+			}
+			add_trait = gallowsbait
+		}
+		add_trait_xp = {
+			trait = gallowsbait
+			track = thief
+			value = 15
+		}
+		stress_impact = {
+			greedy = minor_stress_impact_loss
+			arrogant = minor_stress_impact_loss
+			sadistic = minor_stress_impact_loss
+			compassionate = minor_stress_impact_gain
+			generous = minor_stress_impact_gain
+			just = minor_stress_impact_gain
+		}
+		ai_chance = {
+			base = 10
+		}
+	}
+
+	option = { # Pay fee
+		name = mining.0120.c
+		trigger = {
+			NOT = { exists = scope:allowed_to_mine }
+		}
+		mining_activity_success_change_effect = { CHANGE = increase_medium }
+		pay_short_term_gold = {
+			target = scope:barony_holder
+			gold = scope:barony_holder.minor_gold_value
+		}
+		add_to_variable_list = {
+			name = allowed_mining_baronies
+			target = root.location
+		}
+		stress_impact = {
+			compassionate = minor_stress_impact_loss
+			generous = minor_stress_impact_loss
+			just = minor_stress_impact_loss
+			greedy = minor_stress_impact_gain
+			arrogant = minor_stress_impact_gain
+			sadistic = minor_stress_impact_gain
+		}
+		ai_chance = {
+			base = 10
+		}
+	}
+
+	option = { # Already payed!
+		name = mining.0120.e
+		trigger = {
+			exists = scope:allowed_to_mine
+		}
+		mining_activity_success_change_effect = { CHANGE = increase_medium }
+		ai_chance = {
+			base = 10
+		}
+	}
+
+	option = { # Back out
+		name = mining.0120.d
+		
+		scope:activity = {
+			set_variable = {
+				name = mining_invalidated_flavor
+				value = root
+			}
+		}
+		custom_tooltip = mining_ends_tt
+		ai_chance = {
+			base = 10
+		}
+	}
+}
+
 #####################################
 #	INVITATION EVENTS	            #
 #	0100 - 0199						#
@@ -8756,6 +8982,14 @@ mining.8001 = {
 					}
 				}
 			}
+			if = {
+				limit = { is_landed = no }
+				create_metal_gem_artifact = {
+					METAL = mithril
+					MODIFIER = artifact_monthly_minor_prestige_3_modifier
+				}
+				set_metal_gem_variable = { METAL = mithril }
+			}
 		}
 		else_if = {
 			limit = {
@@ -8767,6 +9001,14 @@ mining.8001 = {
 						modifier = mining_gold_province_modifier
 					}
 				}
+			}
+			if = {
+				limit = { is_landed = no }
+				create_metal_gem_artifact = {
+					METAL = gold
+					MODIFIER = artifact_monthly_minor_prestige_2_modifier
+				}
+				set_metal_gem_variable = { METAL = gold }
 			}
 		}
 		else_if = {
@@ -8780,6 +9022,14 @@ mining.8001 = {
 					}
 				}
 			}
+			if = {
+				limit = { is_landed = no }
+				create_metal_gem_artifact = {
+					METAL = silver
+					MODIFIER = artifact_monthly_minor_prestige_2_modifier
+				}
+				set_metal_gem_variable = { METAL = silver }
+			}
 		}
 		else_if = {
 			limit = {
@@ -8791,6 +9041,14 @@ mining.8001 = {
 						modifier = mining_copper_province_modifier
 					}
 				}
+			}
+			if = {
+				limit = { is_landed = no }
+				create_metal_gem_artifact = {
+					METAL = copper
+					MODIFIER = artifact_monthly_minor_prestige_1_modifier
+				}
+				set_metal_gem_variable = { METAL = copper }
 			}
 		}
 		else_if = {
@@ -8804,6 +9062,14 @@ mining.8001 = {
 					}
 				}
 			}
+			if = {
+				limit = { is_landed = no }
+				create_metal_gem_artifact = {
+					METAL = tin
+					MODIFIER = artifact_monthly_minor_prestige_1_modifier
+				}
+				set_metal_gem_variable = { METAL = tin }
+			}
 		}
 		else_if = {
 			limit = {
@@ -8815,6 +9081,14 @@ mining.8001 = {
 						modifier = mining_lead_province_modifier
 					}
 				}
+			}
+			if = {
+				limit = { is_landed = no }
+				create_metal_gem_artifact = {
+					METAL = lead
+					MODIFIER = artifact_monthly_minor_prestige_1_modifier
+				}
+				set_metal_gem_variable = { METAL = lead }
 			}
 		}
 		else_if = {
@@ -8828,6 +9102,14 @@ mining.8001 = {
 					}
 				}
 			}
+			if = {
+				limit = { is_landed = no }
+				create_metal_gem_artifact = {
+					METAL = iron
+					MODIFIER = artifact_monthly_minor_prestige_1_modifier
+				}
+				set_metal_gem_variable = { METAL = iron }
+			}
 		}
 		else_if = {
 			limit = {
@@ -8839,6 +9121,14 @@ mining.8001 = {
 						modifier = mining_diamond_province_modifier
 					}
 				}
+			}
+			if = {
+				limit = { is_landed = no }
+				create_metal_gem_artifact = {
+					METAL = diamond
+					MODIFIER = artifact_monthly_minor_prestige_3_modifier
+				}
+				set_metal_gem_variable = { METAL = diamond }
 			}
 		}
 		else_if = {
@@ -8852,6 +9142,14 @@ mining.8001 = {
 					}
 				}
 			}
+			if = {
+				limit = { is_landed = no }
+				create_metal_gem_artifact = {
+					METAL = ruby
+					MODIFIER = artifact_monthly_minor_prestige_2_modifier
+				}
+				set_metal_gem_variable = { METAL = ruby }
+			}
 		}
 		else_if = {
 			limit = {
@@ -8863,6 +9161,14 @@ mining.8001 = {
 						modifier = mining_sapphire_province_modifier
 					}
 				}
+			}
+			if = {
+				limit = { is_landed = no }
+				create_metal_gem_artifact = {
+					METAL = sapphire
+					MODIFIER = artifact_monthly_minor_prestige_2_modifier
+				}
+				set_metal_gem_variable = { METAL = sapphire }
 			}
 		}
 		else_if = {
@@ -8876,6 +9182,14 @@ mining.8001 = {
 					}
 				}
 			}
+			if = {
+				limit = { is_landed = no }
+				create_metal_gem_artifact = {
+					METAL = emerald
+					MODIFIER = artifact_monthly_minor_prestige_2_modifier
+				}
+				set_metal_gem_variable = { METAL = emerald }
+			}
 		}
 		else_if = {
 			limit = {
@@ -8887,6 +9201,14 @@ mining.8001 = {
 						modifier = mining_amethyst_province_modifier
 					}
 				}
+			}
+			if = {
+				limit = { is_landed = no }
+				create_metal_gem_artifact = {
+					METAL = amethyst
+					MODIFIER = artifact_monthly_minor_prestige_2_modifier
+				}
+				set_metal_gem_variable = { METAL = amethyst }
 			}
 		}
 		else_if = {
@@ -8900,6 +9222,14 @@ mining.8001 = {
 					}
 				}
 			}
+			if = {
+				limit = { is_landed = no }
+				create_metal_gem_artifact = {
+					METAL = onyx
+					MODIFIER = artifact_monthly_minor_prestige_1_modifier
+				}
+				set_metal_gem_variable = { METAL = onyx }
+			}
 		}
 		else_if = {
 			limit = {
@@ -8912,6 +9242,14 @@ mining.8001 = {
 					}
 				}
 			}
+			if = {
+				limit = { is_landed = no }
+				create_metal_gem_artifact = {
+					METAL = peridot
+					MODIFIER = artifact_monthly_minor_prestige_1_modifier
+				}
+				set_metal_gem_variable = { METAL = peridot }
+			}
 		}
 		else = {
 			show_as_tooltip = { 
@@ -8921,6 +9259,14 @@ mining.8001 = {
 					}
 				}
 			}
+			if = {
+				limit = { is_landed = no }
+				create_metal_gem_artifact = {
+					METAL = quartz
+					MODIFIER = artifact_monthly_minor_prestige_1_modifier
+				}
+				set_metal_gem_variable = { METAL = quartz }
+			}
 		}
 		# People happy when their nobles discover resources that will enrich their area
 		scope:activity = {
@@ -8928,6 +9274,9 @@ mining.8001 = {
 				limit = {
 					var:mining_success ?= flag:yes
 					exists = var:mining_resource_found
+					NOT = {
+						location.culture = culture:wastelands
+					}
 				}
 				activity_location.county = {
 					add_county_modifier = {
@@ -9200,6 +9549,184 @@ mining.8003 = {
 						value = mining_success_gold_reward_value
 					}
 					disburse_mining_activity_rewards = yes
+					if = {
+						limit = { is_landed = no }
+						if = {
+							limit = {
+								scope:activity.activity_location = {
+									has_province_modifier = mining_mithril_province_modifier
+								}
+							}
+							create_metal_gem_artifact = {
+								METAL = mithril
+								MODIFIER = artifact_monthly_minor_prestige_3_modifier
+							}
+							set_metal_gem_variable = { METAL = mithril }
+						}
+						else_if = {
+							limit = {
+								scope:activity.activity_location = {
+									has_province_modifier = mining_gold_province_modifier
+								}
+							}
+							create_metal_gem_artifact = {
+								METAL = gold
+								MODIFIER = artifact_monthly_minor_prestige_3_modifier
+							}
+							set_metal_gem_variable = { METAL = gold }
+						}
+						else_if = {
+							limit = {
+								scope:activity.activity_location = {
+									has_province_modifier = mining_silver_province_modifier
+								}
+							}
+							create_metal_gem_artifact = {
+								METAL = silver
+								MODIFIER = artifact_monthly_minor_prestige_2_modifier
+							}
+							set_metal_gem_variable = { METAL = silver }
+						}
+						else_if = {
+							limit = {
+								scope:activity.activity_location = {
+									has_province_modifier = mining_copper_province_modifier
+								}
+							}
+							create_metal_gem_artifact = {
+								METAL = copper
+								MODIFIER = artifact_monthly_minor_prestige_1_modifier
+							}
+							set_metal_gem_variable = { METAL = copper }
+						}
+						else_if = {
+							limit = {
+								scope:activity.activity_location = {
+									has_province_modifier = mining_tin_province_modifier
+								}
+							}
+							create_metal_gem_artifact = {
+								METAL = tin
+								MODIFIER = artifact_monthly_minor_prestige_1_modifier
+							}
+							set_metal_gem_variable = { METAL = tin }
+						}
+						else_if = {
+							limit = {
+								scope:activity.activity_location = {
+									has_province_modifier = mining_lead_province_modifier
+								}
+							}
+							create_metal_gem_artifact = {
+								METAL = lead
+								MODIFIER = artifact_monthly_minor_prestige_1_modifier
+							}
+							set_metal_gem_variable = { METAL = lead }
+						}
+						else_if = {
+							limit = {
+								scope:activity.activity_location = {
+									has_province_modifier = mining_iron_province_modifier
+								}
+							}
+							create_metal_gem_artifact = {
+								METAL = iron
+								MODIFIER = artifact_monthly_minor_prestige_1_modifier
+							}
+							set_metal_gem_variable = { METAL = iron }
+						}
+						else_if = {
+							limit = {
+								scope:activity.activity_location = {
+									has_province_modifier = mining_diamond_province_modifier
+								}
+							}
+							create_metal_gem_artifact = {
+								METAL = diamond
+								MODIFIER = artifact_monthly_minor_prestige_3_modifier
+							}
+							set_metal_gem_variable = { METAL = diamond }
+						}
+						else_if = {
+							limit = {
+								scope:activity.activity_location = {
+									has_province_modifier = mining_ruby_province_modifier
+								}
+							}
+							create_metal_gem_artifact = {
+								METAL = ruby
+								MODIFIER = artifact_monthly_minor_prestige_2_modifier
+							}
+							set_metal_gem_variable = { METAL = ruby }
+						}
+						else_if = {
+							limit = {
+								scope:activity.activity_location = {
+									has_province_modifier = mining_sapphire_province_modifier
+								}
+							}
+							create_metal_gem_artifact = {
+								METAL = sapphire
+								MODIFIER = artifact_monthly_minor_prestige_2_modifier
+							}
+							set_metal_gem_variable = { METAL = sapphire }
+						}
+						else_if = {
+							limit = {
+								scope:activity.activity_location = {
+									has_province_modifier = mining_emerald_province_modifier
+								}
+							}
+							create_metal_gem_artifact = {
+								METAL = emerald
+								MODIFIER = artifact_monthly_minor_prestige_2_modifier
+							}
+							set_metal_gem_variable = { METAL = emerald }
+						}
+						else_if = {
+							limit = {
+								scope:activity.activity_location = {
+									has_province_modifier = mining_amethyst_province_modifier
+								}
+							}
+							create_metal_gem_artifact = {
+								METAL = amethyst
+								MODIFIER = artifact_monthly_minor_prestige_2_modifier
+							}
+							set_metal_gem_variable = { METAL = amethyst }
+						}
+						else_if = {
+							limit = {
+								scope:activity.activity_location = {
+									has_province_modifier = mining_onyx_province_modifier
+								}
+							}
+							create_metal_gem_artifact = {
+								METAL = onyx
+								MODIFIER = artifact_monthly_minor_prestige_1_modifier
+							}
+							set_metal_gem_variable = { METAL = onyx }
+						}
+						else_if = {
+							limit = {
+								scope:activity.activity_location = {
+									has_province_modifier = mining_peridot_province_modifier
+								}
+							}
+							create_metal_gem_artifact = {
+								METAL = peridot
+								MODIFIER = artifact_monthly_minor_prestige_1_modifier
+							}
+							set_metal_gem_variable = { METAL = peridot }
+						}
+						else = {
+							create_metal_gem_artifact = {
+								METAL = quartz
+								MODIFIER = artifact_monthly_minor_prestige_1_modifier
+							}
+							set_metal_gem_variable = { METAL = quartz }
+						}
+					}
 				}
 			}
 		}
