@@ -65,6 +65,15 @@ scripted_effect build_or_upgrade_domicile_building_effect = {
 	} else = { add_domicile_building = $BUILDING$_01 }
 }
 
+scripted_effect fill_provisions_effect = {
+	domicile = {
+		if = {
+			limit = { provisions < max_provisions }
+			change_provisions = max_provisions
+		}
+	}
+}
+
 scripted_effect visiting_lore_city_reward_effect = {
 	random_list = {
 		25 = { #Gain/Upgrade domicile building
@@ -108,7 +117,6 @@ scripted_effect visiting_lore_city_reward_effect = {
 		25 = { #Gain additional XP in trait tracks
 			if = { #Gondor
 				limit = {
-					var:bountig_does_contract_work = flag:gondor
 					title:c_minas_tirith.empire = { is_de_jure_liege_or_above_target = root.domicile.domicile_location.county }
 				}
 				root = { save_scope_as = bountig }
@@ -125,7 +133,6 @@ scripted_effect visiting_lore_city_reward_effect = {
 			} 
 			else_if = { #Harwan
 				limit = {
-					var:bountig_does_contract_work = flag:harwan
 					title:c_amrun.empire = { is_de_jure_liege_or_above_target = root.domicile.domicile_location.county }
 				}
 				root = { save_scope_as = bountig }
@@ -142,7 +149,6 @@ scripted_effect visiting_lore_city_reward_effect = {
 			} 
 			else_if = { #umbar
 				limit = {
-					var:bountig_does_contract_work = flag:umbar
 					title:c_umbar.empire = { is_de_jure_liege_or_above_target = root.domicile.domicile_location.county }
 				}
 				root = { save_scope_as = bountig }
@@ -211,6 +217,36 @@ scripted_effect visiting_lore_city_reward_effect = {
 	}
 }
 
+scripted_effect bountig_convince_easterling_lord_effect = {
+	duel = {
+		skill = $SKILL$
+		value = high_skill_rating
+		10 = {
+			compare_modifier = {
+				value = scope:duel_value
+				multiplier = 3.5
+				min = 2
+			}
+			desc = bountig_event_chain.0050.a.duel_win
+			send_interface_toast = {
+				type = event_toast_effect_good
+				title = bountig_event_chain.0050.a.duel_win_effect
+			}
+		}
+		10 = {
+			compare_modifier = {
+				value = scope:duel_value
+				multiplier = -3.5
+				min = 2
+			}
+			desc = bountig_event_chain.0050.a.duel_fail
+			send_interface_toast = {
+				type = event_toast_effect_bad
+				title = bountig_event_chain.0050.a.duel_fail_effect
+			}
+		}
+	}
+}
 ### BOUNTIG EVENTS ###
 
 bountig_event_chain.0002 = {
@@ -243,7 +279,6 @@ bountig_event_chain.0003 = { #Bountig accepts the contract in the East
 	}
 
 	immediate = {
-		# scope:task_contract = { save_scope_as = task_contract }
 		set_contract_scopes_effect = yes 
 	}
 
@@ -251,6 +286,9 @@ bountig_event_chain.0003 = { #Bountig accepts the contract in the East
 		name = bountig_event_chain.0003.a
 		set_variable = cannot_cancel_travel
 		custom_tooltip = bountig_event_chain.0003.a.tt
+		hidden_effect = { #Provisions so Bountig doesn't insta-die
+			domicile = { add_domicile_building = supply_tent_01 }
+		}
 		start_travel_plan = {
 			destination = scope:task_contract_destination
 			travel_with_domicile = yes
@@ -260,6 +298,7 @@ bountig_event_chain.0003 = { #Bountig accepts the contract in the East
 			on_arrival_destinations = all
 		}
 	}
+	after = { hidden_effect = { fill_provisions_effect = yes } }
 }
 
 bountig_event_chain.0004 = {
@@ -374,6 +413,7 @@ bountig_event_chain.0005 = { # Bountig gets offered land or gold, either ending 
 			on_arrival_event = bountig_event_chain.0012
 			on_arrival_destinations = all
 		}
+		hidden_effect = { fill_provisions_effect = yes }
 	}
 
 	option = { #Decide to end story line, stay in Rhun
@@ -523,6 +563,7 @@ bountig_event_chain.0011 = { #Bountig is forced to travel southwards
 			on_arrival_event = bountig_event_chain.0012
 			on_arrival_destinations = all
 		}
+		hidden_effect = { fill_provisions_effect = yes }
 	}
 }
 
@@ -543,11 +584,8 @@ bountig_event_chain.0012 = { #Bountig arrives in Minas Tirith
 		add_trait = bountig_story_trait
 		custom_tooltip = bountig_event_chain.0012.a.tt.1
 		custom_tooltip = bountig_event_chain.0012.a.tt.2
+		custom_tooltip = bountig_event_chain.0012.a.tt.3
 		remove_variable = cannot_cancel_travel
-		set_variable = {
-			name = bountig_does_contract_work
-			value = flag:gondor
-		}
 	}
 }
 
@@ -755,31 +793,23 @@ bountig_event_chain.0020 = { #Bountig heads for Amrun
 		animation = personality_rational
 	}
 
-	immediate = { title:c_amrun.holder = { save_scope_as = amrun_ruler } }
-
 	option = { #Head for Amrun
 		name = bountig_event_chain.0020.a
 		set_variable = cannot_cancel_travel
 		custom_tooltip = bountig_event_chain.0020.a.tt
 		start_travel_plan = {
-			destination = scope:amrun_ruler.capital_province
+			destination = title:c_harnen.title_province
 			travel_with_domicile = yes
 			return_trip = no
 			players_use_planner = no
 			on_arrival_event = bountig_event_chain.0021
 			on_arrival_destinations = all
 		}
-		if = {
-			limit = { has_variable = bountig_does_contract_work }
-			set_variable = {
-				name = bountig_does_contract_work
-				value = flag:harwan
-			}
-		}
 		every_task_contract = {
 			limit = { has_task_contract_type = lotr_bountig_story_gondor_cities }
 			complete_task_contract = failure_standard
 		}
+		hidden_effect = { fill_provisions_effect = yes }
 	}
 
 	option = { #Stay in Gondor a while longer
@@ -892,31 +922,24 @@ bountig_event_chain.0030 = { #Bountig heads for Umbar
 		animation = personality_rational
 	}
 
-	immediate = { title:c_umbar.holder = { save_scope_as = umbar_ruler } }
-
 	option = { #Head for Umbar
 		name = bountig_event_chain.0030.a
 		set_variable = cannot_cancel_travel
 		custom_tooltip = bountig_event_chain.0030.a.tt
 		start_travel_plan = {
-			destination = scope:umbar_ruler.capital_province
+			destination = title:b_minasthalion.title_province
 			travel_with_domicile = yes
 			return_trip = no
 			players_use_planner = no
 			on_arrival_event = bountig_event_chain.0031
 			on_arrival_destinations = all
 		}
-		if = {
-			limit = { has_variable = bountig_does_contract_work }
-			set_variable = {
-				name = bountig_does_contract_work
-				value = flag:umbar
-			}
-		}
+
 		every_task_contract = {
 			limit = { has_task_contract_type = lotr_bountig_story_harwan_cities }
 			complete_task_contract = failure_standard
 		}
+		hidden_effect = { fill_provisions_effect = yes }
 	}
 
 	option = { #Stay in Harwan a while longer
@@ -1030,10 +1053,6 @@ bountig_event_chain.0040 = { #Bountig arrives in Mistrand
 		name = bountig_event_chain.0040.a
 		remove_variable = cannot_cancel_travel
 		custom_tooltip = bountig_event_chain.0040.a.tt
-		if = {
-			limit = { has_variable = bountig_does_contract_work }
-			remove_variable = bountig_does_contract_work
-		}
 		every_task_contract = {
 			limit = {
 				OR = {
@@ -1047,6 +1066,77 @@ bountig_event_chain.0040 = { #Bountig arrives in Mistrand
 	}
 }
 
+bountig_event_chain.0050 = {
+	content_source = realms_dlc
+	type = character_event
+	title = bountig_event_chain.0050.t
+	desc = bountig_event_chain.0050.desc
+	theme = martial
+	
+	right_portrait = {
+		character = root
+		animation = personality_rational
+	}
+	
+	left_portrait = {
+		character = var:selected_character
+		animation = personality_rational
+	}
+	 
+	trigger = {
+		has_variable = selected_character
+		location.county.holder = var:selected_character
+	}
+
+	immediate = {
+		title:c_ubesesh.holder.top_liege = { trigger_event = bountig_event_chain.5000 } #Triggers Khand uniting
+	}
+
+	option = {
+		name = {
+			text = {
+				first_valid = {
+					triggered_desc = { #Diplomacy
+						trigger = { var:selected_character = { has_trait = education_diplomacy } }
+						desc =  bountig_event_chain.0050.a
+					}
+					triggered_desc = { #Martial
+						trigger = { var:selected_character = { has_trait = education_martial } }
+						desc =  bountig_event_chain.0050.b
+					}
+					triggered_desc = { #Learning
+						trigger = { var:selected_character = { has_trait = education_learning } }
+						desc =  bountig_event_chain.0050.c
+					}
+					triggered_desc = { #Intrigue
+						trigger = { var:selected_character = { has_trait = education_intrigue } }
+						desc =  bountig_event_chain.0050.d
+					}
+					triggered_desc = { #Stewardship
+						trigger = { var:selected_character = { has_trait = education_stewardship } }
+						desc =  bountig_event_chain.0050.e
+					}
+				}
+			}
+		}
+		if = {
+			limit = { var:selected_character = { has_trait = education_diplomacy } }
+			bountig_convince_easterling_lord_effect = { SKILL = diplomacy }
+		} else_if = {
+			limit = { var:selected_character = { has_trait = education_martial } }
+			bountig_convince_easterling_lord_effect = { SKILL = martial }
+		} else_if = {
+			limit = { var:selected_character = { has_trait = education_learning } }
+			bountig_convince_easterling_lord_effect = { SKILL = learning }
+		} else_if = {
+			limit = { var:selected_character = { has_trait = education_intrigue } }
+			bountig_convince_easterling_lord_effect = { SKILL = intrigue }
+		} else_if = {
+			limit = { var:selected_character = { has_trait = education_stewardship } }
+			bountig_convince_easterling_lord_effect = { SKILL = stewardship }
+		}
+	}
+}
 
 bountig_event_chain.4000 = {
 	hidden = yes
@@ -1100,14 +1190,19 @@ bountig_event_chain.4000 = {
 	}
 }
 
+bountig_event_chain.4010 = {
+	hidden = yes
+
+	immediate = { fill_provisions_effect = yes }
+}
+
 #############################
 ### KHAND & OVATHA EVENTS ###
 #############################
 
 # Check if Bountig is alive and has returned to Mistrand
 bountig_event_chain.5000 = {  
-	hidden = yes
-	orphan = yes # Placeholder, this will need to be triggered by Bountig's return to Rhûn
+	hidden = yes #Triggered by Bountig's return to Rhûn
 	immediate = {
 		if = {
 			limit = {
