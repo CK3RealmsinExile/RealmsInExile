@@ -1,0 +1,2297 @@
+﻿# All on-actions in this file provide scope:transfer_type unless otherwise noted
+# scope:transfer_type has the following permutations:
+# flag:conquest
+# flag:conquest_holy_war
+# flag:conquest_claim
+# flag:conquest_populist
+# flag:inheritance
+# flag:abdication
+# flag:destroyed
+# flag:created
+# flag:usurped
+# flag:granted
+# flag:revoked
+# flag:election
+# flag:independency
+# flag:returned
+# flag:leased_out
+# flag:lease_revoked
+# flag:faction_demand
+# flag:swear_fealty
+# flag:stepped_down
+
+# A title is destroyed
+# root = the holder before destruction
+# scope:landed_title = the title that is being destroyed
+# Does *not* provide scope:transfer_type
+lotr_on_title_destroyed = {
+	effect = {
+		#Tracking Imperial Khand Time Held
+		if = {
+			limit = {
+				scope:landed_title ?= {
+					this = title:e_khand
+					has_variable = year_khand_founded
+				}
+			}
+			title:e_khand = {
+				remove_variable = year_khand_founded
+				remove_variable = ruling_dynasty
+				remove_variable = successive_rulers
+			}
+		}
+		#Tamska system upkeep
+		if = {
+			limit = {
+				scope:landed_title ?= {
+					is_head_of_faith = yes
+				}
+				root.faith = {
+					has_doctrine = doctrine_temporal_head
+					has_doctrine_parameter = lotr_tamska_hof
+				}
+				has_trait = tamska
+			}
+			ROOT = { make_former_tamska_effect = yes }
+		}
+		#Setting appropriate modifier on Isengard county
+		if = {
+			limit = {
+				scope:landed_title ?= {
+					OR = {
+						this = title:e_isengard_unleashed
+						this = title:k_isengard
+					}
+				}
+			}
+			title:c_isengard = {
+				remove_county_modifier ?= industrialised_isengard_3_county_modifier
+			}
+			title:c_isengard = {
+				remove_county_modifier ?= industrialised_isengard_2_county_modifier
+			}
+			title:c_isengard = {
+				remove_county_modifier ?= industrialised_isengard_1_county_modifier
+			}
+		}
+
+		# Wasteland stuff
+		correct_wastelands_tracker = yes
+		remove_upkeep_modifier = yes
+		trigger_event = {
+			id = wastelands.0007
+			days = 1
+		}
+	}
+}
+
+# A title is transferred to a new character
+# root = the new holder
+# scope:title = the title that changes hands
+# scope:previous_holder = previous holder. Might be dead
+lotr_on_title_gain = {
+	effect = {
+		if = {
+			limit = { 
+				any_maa_regiment = { is_maa_type = laamp_settler_maa }
+			}
+			random_maa_regiment = {
+				limit = { is_maa_type = laamp_settler_maa }
+				destroy_maa_regiment = yes
+			}
+		}
+		#Artifact title inheritance stuff
+		if = {
+			limit = {
+				exists = scope:previous_holder
+				scope:previous_holder = {
+					any_character_artifact = {
+						has_variable = artifact_succession_title #Is this an artifact that should follow a title?
+						var:artifact_succession_title = { is_title_created = yes } #Does the title the artifact should follow exist?
+						var:artifact_succession_title = scope:title #Scope title is the artifact title
+					}
+				}
+			}
+			scope:previous_holder = {
+				every_character_artifact = {
+					limit = {
+						has_variable = artifact_succession_title #Is this an artifact that should follow a title?
+						var:artifact_succession_title = { is_title_created = yes } #Does the title the artifact should follow exist?
+						var:artifact_succession_title = scope:title #Scope title is the artifact title
+					}
+					if = {
+						limit = {
+							OR = {
+								scope:transfer_type = flag:conquest
+								scope:transfer_type = flag:conquest_holy_war
+								scope:transfer_type = flag:conquest_claim
+								scope:transfer_type = flag:conquest_populist
+								scope:transfer_type = flag:abdication
+								scope:transfer_type = flag:usurped
+								scope:transfer_type = flag:revoked
+								scope:transfer_type = flag:faction_demand
+							}
+						}
+						set_owner = {
+							target = root
+							history = {
+								type = conquest
+								actor = scope:previous_holder
+								recipient = root
+								location = scope:previous_holder.location
+							}
+						}
+					}
+					else = {
+						set_owner = {
+							target = root
+							history = {
+								type = inherited
+								recipient = root
+							}
+						}
+					}
+				}
+			}
+		}
+		# Heirloom artifacts handling
+		if = {
+			limit = {
+				primary_heir ?= {
+					dynasty = root.dynasty
+					is_lotr_adult = yes
+				}
+				any_character_artifact = {
+					has_variable = heirloom_of_title
+					root = var:heirloom_of_title.holder
+				}
+			}
+			trigger_event = {
+				id = lotr_artifact.0010
+				days = 5
+			}
+		}
+
+		# Achievements
+		if = {
+			limit = { 
+				is_ai = no
+				realms_achievements_enabled = yes
+			}
+			if = { # Foremost Servant of Khôrahil | Achievement
+				limit = { 
+					NOT = { exists = global_var:lotr_achievement_40 }
+					has_primary_title = title:e_thon_an_kharlokh
+					scope:title ?= title:e_bellakar
+				}
+				set_global_variable = lotr_achievement_40
+			}
+			if = { # Corsairs of Grey Havens | Achievement
+				limit = { 
+					NOT = { exists = global_var:lotr_achievement_70 }
+					scope:title = title:d_mithlond
+					OR = {
+						culture = culture:black_numenorean
+						culture = { any_parent_culture_or_above = { this = culture:black_numenorean } }
+						culture = culture:umbarean
+						culture = { any_parent_culture_or_above = { this = culture:umbarean } }
+						culture = culture:corsair
+						culture = { any_parent_culture_or_above = { this = culture:corsair } }
+					}
+				}
+				set_global_variable = lotr_achievement_70
+			}
+			if = { # As Gondor, conquer the Westfold | Achievement
+				limit = { 
+					NOT = { exists = global_var:lotr_achievement_10 }
+					scope:title = title:d_westfold
+					root = {
+						any_held_title = { 
+							OR = {
+								this = title:e_gondor
+								this = title:e_gondor_steward
+								this = title:e_reunitedkingdom
+								this = title:e_castamir
+							}
+						}
+					}
+				}
+				set_global_variable = lotr_achievement_10
+			}
+			if = { # As the Devs intended | Achievement
+				limit = { 
+					NOT = { exists = global_var:lotr_achievement_29 }
+					scope:title = title:e_rhovanion
+					dynasty = dynasty:dynasty_avon
+				}
+				set_global_variable = lotr_achievement_29
+			}
+			if = { # The Two Towers | Achievement
+				limit = { 
+					NOT = { exists = global_var:lotr_achievement_42 }
+					root = character:lineofsaruman
+					OR = {
+						scope:title = title:c_barad_dur
+						scope:title = title:c_isengard
+					}
+					trigger_if = {
+						limit = { scope:title = title:c_barad_dur }
+						any_held_county = { this = title:c_isengard }
+					}
+					trigger_else_if = {
+						limit = { scope:title = title:c_isengard }
+						any_held_county = { this = title:c_barad_dur }
+					}
+					trigger_else = { always = no }
+				}
+				set_global_variable = lotr_achievement_42
+			}
+			if = { # As it was written | Achievement
+				limit = { 
+					NOT = { exists = global_var:lotr_achievement_28 }
+					root = character:lineofezarkia18
+					scope:title = title:e_dune_sea
+				}
+				set_global_variable = lotr_achievement_28
+			}
+			if = { # I am Ghân buri Ghân | Achievement
+				limit = { 
+					NOT = { exists = global_var:lotr_achievement_23 }
+					OR = {
+						culture = culture:druedain
+						culture = { any_parent_culture_or_above = { this = culture:druedain } }
+					}
+					OR = {
+						scope:title = title:e_gondor
+						scope:title = title:e_gondor_steward
+						scope:title = title:e_castamir
+						scope:title = title:e_reunitedkingdom
+					}
+				}
+				set_global_variable = lotr_achievement_23
+			} 
+			if = { # A King on Carven Throne | Achievement
+				limit = { 
+					NOT = { exists = global_var:lotr_achievement_20 }
+					dynasty = dynasty:dynasty_durin
+					scope:title = title:k_khazad_dum
+				}
+				set_global_variable = lotr_achievement_20
+			}
+			if = { # The Southlands | Achievement
+				limit = { 
+					NOT = { exists = global_var:lotr_achievement_17 }
+					is_elf = yes
+					scope:title = title:e_mordor
+				}
+				set_global_variable = lotr_achievement_17
+			}
+			if = { # Return of the Elvenking | Achievement
+				limit = { 
+					NOT = { exists = global_var:lotr_achievement_47 }
+					is_elf = yes
+					scope:title = title:e_greenwood
+					OR = {
+						root = character:lineoforopher6 # Legolas
+						root = character:lineoforopher3 # Thranduil
+					}
+				}
+				set_global_variable = lotr_achievement_47
+			}
+			if = { # Rise of the Serpent-King | Achievement
+				limit = { 
+					NOT = { exists = global_var:lotr_achievement_15 }
+					root = character:lineofafalku15
+					scope:title = title:e_harad
+				}
+				set_global_variable = lotr_achievement_15
+			}
+			if = { # Nordin-glad | Achievement
+				limit = { 
+					NOT = { exists = global_var:lotr_achievement_25 }
+					title:c_nordinbad = { has_variable = started_as_nordinbad }
+					scope:title = title:e_iron_mountains
+				}
+				set_global_variable = lotr_achievement_25
+			}
+			if = { # The King in the North | Achievement
+				limit = { 
+					NOT = { exists = global_var:lotr_achievement_24 }
+					scope:title = title:e_arnor
+					NOT = { dynasty = dynasty:dynasty_elendil }
+				}
+				set_global_variable = lotr_achievement_24
+			}
+			if = { # These boots were made for walking | Achievement
+				limit = { 
+					NOT = { exists = global_var:lotr_achievement_27 }
+					scope:title = title:e_blue_mountains
+					dynasty = dynasty:dynasty_argan
+				}
+				set_global_variable = lotr_achievement_27
+			}
+			if = { # Forth Eorlingas! | Achievement
+				limit = { 
+					NOT = { exists = global_var:lotr_achievement_75 }
+					has_primary_title = title:k_rohan
+					trigger_if = {
+						limit = { scope:title = title:c_barad_dur }
+						any_held_title = { this = title:c_isengard }
+					}
+					trigger_else = { scope:title = title:c_isengard }
+				}
+				set_global_variable = lotr_achievement_75
+			}
+			if = { # Brother's Keeper | Achievement
+				limit = { 
+					NOT = { exists = global_var:lotr_achievement_79 }
+					scope:title = title:k_mardruak
+					root = character:lineofbelphegor3
+					NOT = { any_killed_character = { is_sibling_of = root } }
+				}
+				set_global_variable = lotr_achievement_79
+			}
+			if = { # Wulf's Revenge | Achievement
+				limit = { 
+					NOT = { exists = global_var:lotr_achievement_60 }
+					scope:title = title:k_rohan
+					OR = {
+						culture = culture:dunlending
+						culture = { any_parent_culture_or_above = { this = culture:dunlending } }
+					}
+				}
+				set_global_variable = lotr_achievement_60
+			}
+			if = { # Old Capitals of Arnor | Achievement
+				limit = { 
+					NOT = { exists = global_var:lotr_achievement_61 }
+					OR = {
+						scope:title = title:c_cameth_brin
+						scope:title = title:c_fornost
+						scope:title = title:c_tharbad
+					}
+					trigger_if = {
+						limit = { scope:title = title:c_cameth_brin }
+						has_title = title:c_fornost
+						has_title = title:c_tharbad
+					}
+					trigger_else_if = {
+						limit = { scope:title = title:c_fornost }
+						has_title = title:c_tharbad
+						has_title = title:c_cameth_brin
+					}
+					trigger_else = {
+						has_title = title:c_fornost
+						has_title = title:c_cameth_brin
+					}
+				}
+				set_global_variable = lotr_achievement_61
+			}
+			if = { # The Finest Fish and Chips | Achievement
+				limit = { 
+					NOT = { exists = global_var:lotr_achievement_64 }
+					scope:title = title:k_nogrod
+					OR = {
+						root = character:lineofuri122
+						is_child_of = character:lineofuri122
+					}
+					OR = {
+						any_relation = { type = friend is_hobbit = yes }
+						any_relation = { type = best_friend is_hobbit = yes }
+					}
+				}
+				set_global_variable = lotr_achievement_64
+			}
+			if = { # The Old, the True | Achievement
+				limit = { 
+					NOT = { exists = global_var:lotr_achievement_71 }
+					scope:title = title:e_harad
+					dynasty = dynasty:dynasty_khadnom
+					is_tributary = no
+				}
+				set_global_variable = lotr_achievement_71
+			}
+		}
+		#Maglor stuff
+		if = {
+			limit = {
+				OR = {
+					scope:title ?= title:d_amon_lanc
+					scope:title ?= title:k_amon_lanc
+				}
+				root = character:linefinwe11
+				NOT = {
+					is_target_in_global_variable_list = {
+						name = unavailable_unique_decisions
+						target = flag:decision_annihilate_dol_guldur
+					}
+				}
+			}
+			add_to_global_variable_list = {
+				name = unavailable_unique_decisions
+				target = flag:decision_annihilate_dol_guldur
+			}
+			trigger_event = maglor_event_chain.0061
+		}
+		#Balin Expedition stuff
+		if = {
+			limit = { 
+				scope:title = title:d_balins_expedition
+				trigger_if = {
+					limit = { title:k_khazad_dum = { any_county_struggle = { this = struggle:balrog_struggle } } }
+					NOT = { any_held_county = { title_province = { geographical_region = middleearth_misty_mountains_balrog_struggle_region } } }
+				}
+			}
+			destroy_title = title:d_balins_expedition
+		}
+		
+		
+		### Wilderness fallback: turn illegal wilderness to Tribal if non-Tom characters somehow get ahold of it
+		
+		if = {
+			limit = {
+				scope:previous_holder ?= { is_alive = yes }
+				scope:previous_holder ?= character:k_wastelands_holder
+				OR = {
+					scope:transfer_type = flag:conquest
+					scope:transfer_type = flag:conquest_holy_war
+					scope:transfer_type = flag:conquest_claim
+					scope:transfer_type = flag:conquest_populist
+					scope:transfer_type = flag:abdication
+					scope:transfer_type = flag:usurped
+					scope:transfer_type = flag:revoked
+					scope:transfer_type = flag:faction_demand
+				}
+			}
+			root = { change_government = tribal_government }
+			scope:title ?= {
+				set_county_culture = root.culture
+				set_county_faith = root.faith
+				every_county_province = {
+					limit = { 
+						has_holding_type = wastelands_holding
+					}
+					set_holding_type = tribal_holding
+				}
+			}
+		}
+
+		
+		### Give title back to Tom if Tom tried to give a wastelands title away
+		if = {
+			limit = { 
+				NOT = { has_variable = grant_wilderness_titles }
+				scope:previous_holder ?= { is_alive = yes }
+				scope:previous_holder ?= character:k_wastelands_holder
+				scope:transfer_type ?= flag:granted
+				is_vassal_or_below_of = character:k_wastelands_holder
+			} 
+			make_settlement_county_wilderness = { COUNTY = scope:title }
+		}
+		if = {
+			limit = {
+				has_character_modifier = lotr_vanquished_modifier
+				scope:previous_holder ?= character:k_wastelands_holder
+			}
+			make_settlement_county_wilderness = { COUNTY = scope:title }
+		}
+		### Clean up culture, faith, and holding type of Tom's counties
+		character:k_wastelands_holder = {
+			every_sub_realm_county = {
+				limit = {
+					NAND = {
+						culture = culture:wastelands
+						faith = faith:faith_wastelands_pagan
+						title_province = { has_holding_type = wastelands_holding }
+					}
+				}
+				save_scope_as = wilderness_county
+				make_settlement_county_wilderness = { COUNTY = scope:wilderness_county }
+			}
+		}
+		### Underground | Both AI & Player ###
+		# If surface dwellers **somehow** manage to get underground terrain, make it wilderness ( and give them a bit of gold in return )
+		if = {
+			limit = {
+				scope:title ?= { title_province ?= { terrain = halls } }
+				NOR = {
+					is_dwarf = yes
+					is_orc = yes
+					is_istari = yes
+					is_nazgul = yes
+					is_sauron = yes
+				}
+			}
+			make_settlement_county_wilderness = { COUNTY = scope:title }
+			add_gold = 125
+		}
+
+		### WILDERNESS | Player Side ###
+		if = { ## New Holder --> Gained settlement county
+			limit = { 
+				scope:title ?= { title_province ?= { has_holding_type = settlement_holding } } 
+				is_ai = no
+			}
+			increase_variable = {
+				NAME = num_settled_wilderness
+				AMOUNT = 1
+			}
+			trigger_event = wastelands.0007
+
+			if = { ## PREVIOUS HOLDER
+				limit = { scope:previous_holder ?= { is_alive = yes } }
+				scope:previous_holder ?= {
+					decrease_variable = {
+						NAME = num_settled_wilderness
+						AMOUNT = 1
+					}
+					trigger_event = wastelands.0007
+				}
+			}
+		}
+
+		### WILDERNESS | AI Side ###
+		if = {
+			limit = { 
+				scope:title ?= { title_province ?= { has_holding_type = settlement_holding } } 
+				is_ai = yes
+			}
+			### Make county wilderness if it exceeds the AIs limit (since they're too stupid to deal with it themselves)
+			if = {
+				limit = {
+					highest_held_title_tier = tier_county
+					any_held_county = {
+						title_province = { has_holding_type = settlement_holding }
+						count > 1
+					}
+				}
+				scope:title ?= { make_settlement_county_wilderness = { COUNTY = this } }
+			}
+			else_if = {
+				limit = {
+					highest_held_title_tier = tier_duchy
+					any_held_county = {
+						title_province = { has_holding_type = settlement_holding }
+						count > 2
+					}
+				}
+				scope:title ?= { make_settlement_county_wilderness = { COUNTY = this } }
+			}
+			else_if = {
+				limit = {
+					highest_held_title_tier = tier_kingdom
+					any_held_county = {
+						title_province = { has_holding_type = settlement_holding }
+						count > 3
+					}
+				}
+				scope:title ?= { make_settlement_county_wilderness = { COUNTY = this } }
+			}
+			else_if = {
+				limit = {
+					highest_held_title_tier = tier_empire
+					any_held_county = {
+						title_province = { has_holding_type = settlement_holding }
+						count > 4
+					}
+				}
+				scope:title ?= { make_settlement_county_wilderness = { COUNTY = this } }
+			}
+			else = {
+				increase_variable = {
+					NAME = num_settled_wilderness
+					AMOUNT = 1
+				}
+				trigger_event = wastelands.0007
+			}	
+			if = { ## PREVIOUS HOLDER
+				limit = { scope:previous_holder ?= { is_alive = yes } }
+				scope:previous_holder ?= {
+					decrease_variable = {
+						NAME = num_settled_wilderness
+						AMOUNT = 1
+					}
+					remove_wastelands_tracker_variable = yes
+					trigger_event = wastelands.0007
+				}
+			}
+		}
+
+		if = { 
+			limit = { scope:title ?= title:d_eryn_vorn }
+			trigger_event = druedain.0100
+		}
+		if = {
+			limit = {
+				AND = {
+					scope:title ?= title:e_isengard_unleashed
+					NOT = { root = character:lineofsaruman }
+				}	
+			}
+			destroy_title = title:e_isengard_unleashed
+		}
+		
+		#LotR - Convert Elven barons to the correct government
+		if = {
+			limit = {
+				scope:title ?= {
+					tier = tier_barony
+					title_province = { has_holding_type = elven_holding }
+				}
+				root = {
+					is_elf = yes
+				}
+				scope:title.county.holder = { is_elf = yes }
+				NOT = { government_has_flag = government_is_elven }
+			}
+			root = { change_government = elven_government }
+		}
+
+		# LotR - If orc gains county with non-orc buildings, destroy invalid buildings
+		if = {
+			limit = {
+				scope:title ?= {
+					tier = tier_county
+				}
+				root = {
+					is_orc = yes
+					is_ai = yes
+				}
+			}
+
+			scope:title ?= {
+				every_county_province = {
+					remove_building_any_level = { BUILDING = caravanserai }
+					remove_building_any_level = { BUILDING = watermills }
+					remove_building_any_level = { BUILDING = windmills }
+					remove_building_any_level = { BUILDING = common_tradeport }
+					remove_building_any_level = { BUILDING = pastures }
+					remove_building_any_level = { BUILDING = hunting_grounds }
+					remove_building_any_level = { BUILDING = orchards }
+					remove_building_any_level = { BUILDING = farm_estates }
+					remove_building_any_level = { BUILDING = cereal_fields }
+					remove_building_any_level = { BUILDING = logging_camps }
+					remove_building_any_level = { BUILDING = peat_quarries }
+					remove_building_any_level = { BUILDING = hill_farms }
+					remove_building_any_level = { BUILDING = elephant_pens }
+					remove_building_any_level = { BUILDING = plantations }
+					remove_building_any_level = { BUILDING = quarries }
+					remove_building_any_level = { BUILDING = guild_halls }
+					remove_building_any_level = { BUILDING = ramparts }
+					remove_building_any_level = { BUILDING = curtain_walls }
+					remove_building_any_level = { BUILDING = watchtowers }
+					remove_building_any_level = { BUILDING = hill_forts }
+					remove_building_any_level = { BUILDING = wind_furnace }
+					remove_building_any_level = { BUILDING = workshops }
+					remove_building_any_level = { BUILDING = horse_pastures }
+					remove_building_any_level = { BUILDING = hillside_grazing }
+					remove_building_any_level = { BUILDING = warrior_lodges }
+					remove_building_any_level = { BUILDING = military_camps }
+					remove_building_any_level = { BUILDING = regimental_grounds }
+					remove_building_any_level = { BUILDING = outposts }
+					remove_building_any_level = { BUILDING = barracks }
+					remove_building_any_level = { BUILDING = camel_farms }
+					remove_building_any_level = { BUILDING = stables }
+					remove_building_any_level = { BUILDING = smiths }
+					remove_building_any_level = { BUILDING = hillside_grazing }
+					remove_building_any_level = { BUILDING = murex_farm }
+					remove_building_any_level = { BUILDING = dwarven_ale_house }
+					remove_building_any_level = { BUILDING = dwarven_fungal_farm }
+					remove_building_any_level = { BUILDING = dwarven_terrace_farm }
+					remove_building_any_level = { BUILDING = dwarven_quarry }
+					remove_building_any_level = { BUILDING = dwarven_crafts }
+					remove_building_any_level = { BUILDING = dwarven_toolmaker_guild }
+					remove_building_any_level = { BUILDING = dwarven_vaults }
+					remove_building_any_level = { BUILDING = dwarven_roads }
+					remove_building_any_level = { BUILDING = dwarven_armory }
+					remove_building_any_level = { BUILDING = dwarven_hi_barracks }
+					remove_building_any_level = { BUILDING = dwarven_pike_barracks }
+					remove_building_any_level = { BUILDING = dwarven_archer_barracks }
+					remove_building_any_level = { BUILDING = dwarven_skirmisher_barracks }
+					remove_building_any_level = { BUILDING = dwarven_pit_mine }
+					remove_building_any_level = { BUILDING = goat_pastures }
+					
+					remove_building_any_level_max_4 = { BUILDING = dwarven_surface_workshop }
+					
+					remove_building_any_level_max_5 = { BUILDING = dwarven_hoard }
+					remove_building_any_level_max_5 = { BUILDING = dwarven_siege_workshop }
+					
+					
+					remove_building_any_level_max_6 = { BUILDING = dwarven_outpost }
+					remove_building_any_level_max_6 = { BUILDING = dwarven_surface_farm }
+					remove_building_any_level_max_6 = { BUILDING = dwarven_market }
+					remove_building_any_level_max_6 = { BUILDING = dwarven_mustering_grounds }
+					remove_building_any_level_max_6 = { BUILDING = dwarven_tavern }
+					remove_building_any_level_max_6 = { BUILDING = dwarven_forestry }
+					
+					remove_duchy_building_any_level = { BUILDING = military_specialization }
+					remove_duchy_building_any_level = { BUILDING = economic_specialization }
+					remove_duchy_building_any_level = { BUILDING = glory_specialization }
+					remove_duchy_building_any_level = { BUILDING = dwarven_bank_economic }
+					remove_duchy_building_any_level = { BUILDING = dwarven_kings_armory_military }
+					remove_duchy_building_any_level = { BUILDING = dwarven_grand_library }
+					
+					#remove_building_any_level = { BUILDING = dwarven_forge }	
+				}
+			}
+		}
+
+		# LotR - If non-orc gains county with orc buildings, destroy invalid buildings
+		if = {
+			limit = {
+				scope:title ?= {
+					tier = tier_county
+				}
+				root = {
+					lotr_orc_or_nurniag_buildings = no
+					is_ai = yes
+				}
+			}
+
+			scope:title ?= {
+				every_county_province = {
+					remove_building_any_level = { BUILDING = slave_farms }
+					remove_building_any_level = { BUILDING = logging_outposts }
+					remove_building_any_level = { BUILDING = raiding_camps }
+					remove_building_any_level = { BUILDING = slave_mines }
+					remove_building_any_level = { BUILDING = hunting_outposts }
+					remove_building_any_level = { BUILDING = uruk_pits }
+					remove_building_any_level = { BUILDING = furnaces }
+					remove_building_any_level = { BUILDING = warg_pits }
+					remove_building_any_level = { BUILDING = scouting_posts }
+					remove_building_any_level = { BUILDING = orc_siege_works }
+					remove_duchy_building_any_level = { BUILDING = liquor_stills }
+					remove_duchy_building_any_level = { BUILDING = orc_barracks }
+					remove_duchy_building_any_level = { BUILDING = loot_houses }
+					remove_duchy_building_any_level = { BUILDING = proving_ground }
+					remove_duchy_building_any_level = { BUILDING = tunnel_network }
+					remove_duchy_building_any_level = { BUILDING = slaughterhouses }
+					remove_duchy_building_any_level = { BUILDING = experimental_workshop }
+					remove_duchy_building_any_level = { BUILDING = heavy_armoury }
+					remove_duchy_building_any_level = { BUILDING = snaga_warrens }
+				}
+			}
+		}
+
+		#LotR Abrakhan - Retain decision reward modifiers
+		if = {
+			limit = {
+				scope:title ?= {
+					this = title:k_abrakhan
+				}
+				# Check if character is considered "Saurons Abrakhan Guy"
+				character_is_valid_for_abrakhan_subjugation_mission_trigger = yes
+			}
+			abrakhan_transfer_rewards_effect = yes
+		}
+		
+		#Event to give Stewards Ithilien
+		if = {
+			limit = {
+				game_start_date >= 6083 # After line of Kings fails in Gondor
+				OR = {
+					has_title = title:e_gondor
+					has_title = title:e_reunitedkingdom
+					has_title = title:e_numenor_in_exile
+				}
+				dynasty = dynasty:dynasty_elendil
+				dynasty:dynasty_ostomir = {
+					any_dynasty_member = {
+						is_alive = yes
+					}
+					NOT = {
+						has_dynasty_modifier = princely_house_of_ithilien
+					}
+				}
+				exists = title:k_gondor_steward.holder
+				title:k_gondor_steward.holder = { dynasty = dynasty:dynasty_ostomir }
+				completely_controls = title:d_minas_ithil
+				completely_controls = title:d_emyn_arnen
+				completely_controls = title:d_harithilien
+				completely_controls = title:d_forithilien
+				NOT = {
+					is_target_in_global_variable_list = {
+						name = unavailable_unique_decisions
+						target = flag:princedom_of_ithilien_event
+					}
+				}
+			}
+			add_to_global_variable_list = {
+				name = unavailable_unique_decisions
+				target = flag:princedom_of_ithilien_event
+			}
+			trigger_event = {
+				id = gondor.0305
+				days = 3
+			}
+		}
+
+		if = { # Message to Gondor | Bellakar ruler died
+			limit = {
+				title:e_bellakar.holder ?= { faith_is_good = yes }
+				title:e_gondor.holder ?= { faith_is_good = yes }
+				title:e_bellakar.holder.dynasty = dynasty:dynasty_tumakveh
+				OR = {
+					title:e_gondor.holder.dynasty = dynasty:dynasty_elros
+					title:e_gondor.holder.dynasty = dynasty:dynasty_elendil
+					title:e_gondor.holder.dynasty = dynasty:dynasty_anarion
+				}
+
+				scope:title ?= title:e_bellakar
+
+				scope:title ?= {
+					tier = tier_empire
+					# # scope:previous_holder = { is_alive = no }
+				}
+
+				NOT = { title:e_bellakar.holder ?= { is_allied_to = title:e_gondor.holder } }
+				
+				OR = { # Either Gondor or Bellakar had to take a decision to form the alliance
+					is_target_in_global_variable_list = {
+						name = unavailable_unique_decisions
+						target = flag:gondor_x_bellakar
+					}
+					is_target_in_global_variable_list = {
+						name = unavailable_unique_decisions
+						target = flag:bellakar_x_gondor
+					}
+				}
+				is_target_in_global_variable_list = {
+					name = unavailable_unique_decisions
+					target = flag:recurring_bellakar_gondor_alliance
+				}
+				
+			}
+			title:e_gondor.holder = {
+				trigger_event = {
+					id = gondor.2953
+					days = { 15 30 }
+				}
+			}
+		}
+
+		if = { # Message to Bellakar | Gondor ruler died
+			limit = {
+				title:e_bellakar.holder ?= { faith_is_good = yes }
+				title:e_gondor.holder ?= { faith_is_good = yes }
+				title:e_bellakar.holder.dynasty = dynasty:dynasty_tumakveh
+				OR = {
+					title:e_gondor.holder.dynasty = dynasty:dynasty_elros
+					title:e_gondor.holder.dynasty = dynasty:dynasty_elendil
+					title:e_gondor.holder.dynasty = dynasty:dynasty_anarion
+				}
+				NOT = { title:e_gondor.holder ?= { is_allied_to = title:e_gondor.holder } }
+
+				scope:title ?= title:e_gondor
+				scope:title ?= {
+					tier = tier_empire
+					# # scope:previous_holder = { is_alive = no } # Throwing an error
+				}
+				
+				OR = { # Either Gondor or Bellakar had to take a decision to form the alliance
+					is_target_in_global_variable_list = { # Did Gondor initiate the alliance
+						name = unavailable_unique_decisions
+						target = flag:gondor_x_bellakar
+					}
+					is_target_in_global_variable_list = { # Did Bellakar initiate the alliance
+						name = unavailable_unique_decisions
+						target = flag:bellakar_x_gondor
+					}
+				}
+				is_target_in_global_variable_list = {
+					name = unavailable_unique_decisions
+					target = flag:recurring_bellakar_gondor_alliance
+				}
+			}
+			title:e_bellakar.holder = {
+				trigger_event = {
+					id = bellakar.0253
+					days = { 15 30 }
+				}
+			}
+		}
+
+		if = {
+			limit = {
+				scope:title ?= {
+					tier = tier_county
+					title_province = { has_holding_type = settlement_holding }
+					root = { restricted_culture = no }
+				}
+			}
+			send_interface_toast = {
+				left_icon = root
+				title = settlement_gain_culture_faith_change.toast
+				scope:title ?= {
+					set_county_culture = root.culture
+					set_county_faith = root.faith
+				}
+			}
+		}
+		
+		if = {
+			limit = {
+				is_from_ruler_designer = no
+				OR = {
+					not_valar = yes
+					not_nazgul = yes
+					not_istari = yes
+					not_istari_evil = yes
+					not_maiar = yes
+					not_maiar_fallen = yes
+				}
+			}
+			trigger_event = race.0001
+		}
+
+		# Elves are removed when conquered by Orcs or evil-aligned humans
+		if = {
+			limit = {
+				OR = {
+					is_orc = yes
+					is_undead = yes
+					is_maiar_fallen = yes
+					is_evil_istari = yes
+					faith_is_evil = yes
+				}
+
+				scope:title ?= {
+					tier = tier_county
+					is_elf = yes
+				}
+			}
+			send_interface_toast = {
+				left_icon = root
+				title = settlement_conquered_by_orcs.toast
+
+				if = {
+					limit = {
+						scope:title ?= {
+							has_county_modifier = marauding_orc_drags_modifier
+						}
+					}
+					scope:title ?= {
+						remove_county_modifier = marauding_orc_drags_modifier
+					}
+				}
+
+				if = {
+					limit = { 
+						OR = {
+							is_undead = yes
+							is_maiar_fallen = yes
+						}
+					}
+					scope:title ?= {
+						set_county_culture = culture:kazgumhoth
+						set_county_faith = root.faith
+						if = {
+							limit = { county.development_level >= medium_development_level }
+							halve_development = yes
+						}
+						add_county_modifier = {
+							modifier = hidden_elven_refugees_modifier
+							years = 50
+						}
+						every_county_province = {
+							limit = { 
+								NOT = {
+									OR = { # If the barony has a settlement or no holding... don't change them
+										OR = {
+											has_holding_type = settlement_holding 
+											has_holding_type = ruined_holding 
+										}
+										province_has_no_holding_trigger = yes
+									}
+								}
+							}
+							if = {
+								limit = {
+									root = { government_has_flag = government_is_tribal }
+								}
+								set_holding_type = tribal_holding
+							}
+							else_if = { 
+								limit = {
+									barony = { is_capital_barony = yes }
+								}
+								set_holding_type = castle_holding
+							}
+							else_if = { 
+								limit = {
+									county = { NOT = { any_county_province = { has_holding_type = city_holding } } }
+								}
+								set_holding_type = city_holding
+							}
+							else_if = { 
+								limit = {
+									county = { NOT = { any_county_province = { has_holding_type = church_holding } } }
+								}
+								set_holding_type = church_holding
+							}
+							else = { set_holding_type = castle_holding }
+						}
+					}
+				}
+				else_if = {
+					limit = { 
+						is_evil_istari = yes
+					}
+					scope:title ?= {
+						set_county_culture = culture:isengard_urukhai
+						set_county_faith = root.faith
+						if = {
+							limit = { county.development_level >= medium_development_level }
+							halve_development = yes
+						}
+						add_county_modifier = {
+							modifier = hidden_elven_refugees_modifier
+							years = 50
+						}
+						every_county_province = {
+							limit = { 
+								NOT = {
+									OR = { # If the barony has a settlement or no holding... don't change them
+										has_holding_type = settlement_holding 
+										province_has_no_holding_trigger = yes
+									}
+								}
+							}
+							if = {
+								limit = {
+									root = { government_has_flag = government_is_tribal }
+								}
+								set_holding_type = tribal_holding
+							}
+							else_if = { 
+								limit = {
+									barony = { is_capital_barony = yes }
+								}
+								set_holding_type = castle_holding
+							}
+							else_if = { 
+								limit = {
+									county = { NOT = { any_county_province = { has_holding_type = city_holding } } }
+								}
+								set_holding_type = city_holding
+							}
+							else_if = { 
+								limit = {
+									county = { NOT = { any_county_province = { has_holding_type = church_holding } } }
+								}
+								set_holding_type = church_holding
+							}
+							else = { set_holding_type = castle_holding }
+						}
+					}
+				}
+				else = {
+					scope:title ?= {
+						set_county_culture = root.culture
+						set_county_faith = root.faith
+						if = {
+							limit = { county.development_level >= medium_development_level }
+							halve_development = yes
+						}
+						add_county_modifier = {
+							modifier = hidden_elven_refugees_modifier
+							years = 50
+						} 
+						every_county_province = {
+							limit = { 
+								NOT = {
+									OR = { # If the barony has a settlement or no holding... don't change them
+										has_holding_type = settlement_holding 
+										province_has_no_holding_trigger = yes
+									}
+								}
+							}
+							if = {
+								limit = {
+									root = { government_has_flag = government_is_tribal }
+								}
+								set_holding_type = tribal_holding
+							}
+							else_if = { 
+								limit = {
+									barony = { is_capital_barony = yes }
+								}
+								set_holding_type = castle_holding
+							}
+							else_if = { 
+								limit = {
+									county = { NOT = { any_county_province = { has_holding_type = city_holding } } }
+								}
+								set_holding_type = city_holding
+							}
+							else_if = { 
+								limit = {
+									county = { NOT = { any_county_province = { has_holding_type = church_holding } } }
+								}
+								set_holding_type = church_holding
+							}
+							else = { set_holding_type = castle_holding }
+						}
+					}
+				}
+			}
+		}
+
+		# Orcs are removed when conquered by Elves or when reconquering county with hidden elven refugees
+		if = {
+			limit = {
+				is_elf = yes
+				
+				scope:title ?= {
+					tier = tier_county
+					OR = {
+						is_orc = yes
+						is_undead = yes
+						has_county_modifier = hidden_elven_refugees_modifier
+					}
+				}
+			}
+			send_interface_toast = {
+				left_icon = root
+				title = settlement_conquered_by_elves.toast
+
+				if = {
+					limit = {
+						scope:title ?= {
+							has_county_modifier = hidden_elven_refugees_modifier
+						}
+					}
+					scope:title ?= {
+						remove_county_modifier = hidden_elven_refugees_modifier
+					}
+				}
+
+				scope:title ?= {
+					set_county_culture = root.culture
+					set_county_faith = root.faith
+					add_county_modifier = { 
+						modifier = marauding_orc_drags_modifier
+						years = 25
+					}
+					every_county_province = {
+						limit = { has_holding = yes }
+						set_holding_type = elven_holding
+					}
+				}
+			}
+		}
+
+		# Orcs culture and faith converted when conquered by good aligned-characters
+		if = {
+			limit = {
+				faith_is_good = yes
+				
+				scope:title ?= {
+					tier = tier_county
+					OR = {
+						is_orc = yes
+						is_undead = yes
+						is_maiar_fallen = yes
+					}
+				}
+			}
+			send_interface_toast = {
+				left_icon = root
+				title = settlement_conquered_by_elves.toast
+
+				if = {
+					limit = { 
+						OR = {
+							is_maiar = yes
+							is_istari = yes
+						}
+					}
+					scope:title ?= {
+						set_county_culture = culture:gondorian
+						set_county_faith = root.faith
+						add_county_modifier = { 
+							modifier = marauding_orc_drags_modifier
+							years = 25
+						}
+					}
+				}
+				else = {
+					scope:title ?= {
+						set_county_culture = root.culture
+						set_county_faith = root.faith
+						add_county_modifier = { 
+							modifier = marauding_orc_drags_modifier
+							years = 25
+						}
+					}
+				}
+			}
+		}
+
+		if = {
+			limit = {
+				is_ai = yes
+				is_elf = yes
+				highest_held_title_tier > tier_county
+				scope:title ?= {
+					tier <= tier_county
+					title_province = { 
+						NOR = { 
+							has_holding_type = elven_holding
+							has_holding_type = settlement_holding
+							has_holding_type = wastelands_holding
+							has_holding_type = ruined_holding
+						}
+					}
+				}
+			}
+			create_character = {
+				gender = male
+				culture = scope:title.culture
+				faith = scope:title.faith
+				save_scope_as = new_holder
+				location = root.location
+			}
+			create_title_and_vassal_change = { # Define type of title change as a granting of the title
+				type = granted
+				save_scope_as = title_change
+				add_claim_on_loss = no
+			}
+			scope:title ?= {
+				change_title_holder = {
+					holder = scope:new_holder
+					change = scope:title_change
+				}
+			}
+			resolve_title_and_vassal_change = scope:title_change
+		}
+		else_if = {
+			limit = {
+				is_ai = yes
+				is_elf = no
+				highest_held_title_tier > tier_county
+				scope:title ?= {
+					tier <= tier_county
+					title_province = { has_holding_type = elven_holding }
+				}
+			}
+			create_character = {
+				gender = male
+				culture = scope:title.culture
+				faith = scope:title.faith
+				save_scope_as = new_holder
+				location = root.location
+			}
+			create_title_and_vassal_change = { # Define type of title change as a granting of the title
+				type = granted
+				save_scope_as = title_change
+				add_claim_on_loss = no
+			}
+			scope:title ?= {
+				change_title_holder = {
+					holder = scope:new_holder
+					change = scope:title_change
+				}
+			}
+			resolve_title_and_vassal_change = scope:title_change
+		}
+		#Tamska Inheritance
+		if = {
+			limit = {
+				scope:title ?= {
+					this = title:d_tamska_main
+				}
+			}
+			trigger_event = {
+				id = tamska.0100
+				days = 1
+			}
+		}
+		#LotR - Tracking Imperial Khand Time Held
+		if = {
+			limit = {
+				scope:title ?= {
+					this = title:e_khand
+					NOT = { has_variable = year_khand_founded }
+				}
+			}
+			title:e_khand = {
+				set_variable = {
+					name = year_khand_founded
+					value = current_year
+				}
+				change_variable = {
+					name = year_khand_founded
+					add = 100
+				}
+				set_variable = {
+					name = ruling_dynasty
+					value = root.dynasty
+				}
+				set_variable = {
+					name = successive_rulers
+					value = 1
+				}
+			}
+		}
+		if = {
+			limit = {
+				scope:title ?= {
+					this = title:e_khand
+				}
+    			OR = {
+					culture = culture:variag
+					culture = { any_parent_culture_or_above = { this = culture:variag } }
+    			}
+			}
+			trigger_event = {
+				id = khand.0001
+				days = 7
+			}
+		}
+
+		if = {
+			limit = {
+				scope:title.tier = tier_empire
+				is_dwarven_dynast = yes
+				any_held_title = {
+					count < 1
+					NOT = { this = scope:title }
+					tier = scope:title.tier
+				}
+			}
+			trigger_event = dwarven.9810
+		}
+
+		correct_wastelands_tracker = yes
+		scope:previous_holder ?= { correct_wastelands_tracker = yes }
+	}
+	events = {
+		orcs.0010
+		dwarven.6001
+		nordinbad.0200
+		nordinbad.0300
+		nordinbad.0301
+		nordinbad.0400
+		enedwaith.0302
+		wraith.001 # Corruption of Minas Ithil
+		lotr_artifact.0005 # Arnor regalia
+	}
+}
+
+# A title is inherited by a character
+# root = the new holder
+# scope:title = the title that changes hands
+# scope:previous_holder = previous holder. Should be dead
+lotr_on_title_gain_inheritance = {
+	effect = {
+		### WILDERNESS ###
+		if = {
+			limit = {
+				scope:title ?= { title_province ?= { has_holding_type = settlement_holding } }
+				any_held_county = {
+					title_province = { has_holding_type = settlement_holding }
+					count > var:num_settled_wilderness # If the amount of wilderness counties you have exceeds the variable tracker, correct the tracker
+				}
+			}
+			increase_variable = {
+				NAME = num_settled_wilderness
+				AMOUNT = 1
+			}
+			trigger_event = wastelands.0007
+		}
+		
+		# LotR - If orc gains county with non-orc buildings, destroy invalid buildings
+		if = {
+			limit = {
+				scope:title ?= {
+					tier = tier_county
+				}
+				root = {
+					is_orc = yes
+					is_ai = yes
+				}
+			}
+
+			scope:title ?= {
+				every_county_province = {
+					remove_building_any_level = { BUILDING = caravanserai }
+					remove_building_any_level = { BUILDING = watermills }
+					remove_building_any_level = { BUILDING = windmills }
+					remove_building_any_level = { BUILDING = common_tradeport }
+					remove_building_any_level = { BUILDING = pastures }
+					remove_building_any_level = { BUILDING = hunting_grounds }
+					remove_building_any_level = { BUILDING = orchards }
+					remove_building_any_level = { BUILDING = farm_estates }
+					remove_building_any_level = { BUILDING = cereal_fields }
+					remove_building_any_level = { BUILDING = logging_camps }
+					remove_building_any_level = { BUILDING = peat_quarries }
+					remove_building_any_level = { BUILDING = hill_farms }
+					remove_building_any_level = { BUILDING = elephant_pens }
+					remove_building_any_level = { BUILDING = plantations }
+					remove_building_any_level = { BUILDING = quarries }
+					remove_building_any_level = { BUILDING = guild_halls }
+					remove_building_any_level = { BUILDING = ramparts }
+					remove_building_any_level = { BUILDING = curtain_walls }
+					remove_building_any_level = { BUILDING = watchtowers }
+					remove_building_any_level = { BUILDING = hill_forts }
+					remove_building_any_level = { BUILDING = wind_furnace }
+					remove_building_any_level = { BUILDING = workshops }
+					remove_building_any_level = { BUILDING = horse_pastures }
+					remove_building_any_level = { BUILDING = hillside_grazing }
+					remove_building_any_level = { BUILDING = warrior_lodges }
+					remove_building_any_level = { BUILDING = military_camps }
+					remove_building_any_level = { BUILDING = regimental_grounds }
+					remove_building_any_level = { BUILDING = outposts }
+					remove_building_any_level = { BUILDING = barracks }
+					remove_building_any_level = { BUILDING = camel_farms }
+					remove_building_any_level = { BUILDING = stables }
+					remove_building_any_level = { BUILDING = smiths }
+					remove_building_any_level = { BUILDING = hillside_grazing }
+					remove_building_any_level = { BUILDING = murex_farm }
+					remove_building_any_level = { BUILDING = dwarven_ale_house }
+					remove_building_any_level = { BUILDING = dwarven_fungal_farm }
+					remove_building_any_level = { BUILDING = dwarven_terrace_farm }
+					remove_building_any_level = { BUILDING = dwarven_quarry }
+					remove_building_any_level = { BUILDING = dwarven_crafts }
+					remove_building_any_level = { BUILDING = dwarven_toolmaker_guild }
+					remove_building_any_level = { BUILDING = dwarven_vaults }
+					remove_building_any_level = { BUILDING = dwarven_roads }
+					remove_building_any_level = { BUILDING = dwarven_armory }
+					remove_building_any_level = { BUILDING = dwarven_hi_barracks }
+					remove_building_any_level = { BUILDING = dwarven_pike_barracks }
+					remove_building_any_level = { BUILDING = dwarven_archer_barracks }
+					remove_building_any_level = { BUILDING = dwarven_skirmisher_barracks }
+					remove_building_any_level = { BUILDING = dwarven_pit_mine }
+					remove_building_any_level = { BUILDING = goat_pastures }
+					remove_building_any_level_max_4 = { BUILDING = dwarven_surface_workshop }
+					remove_building_any_level_max_5 = { BUILDING = dwarven_hoard }
+					remove_building_any_level_max_5 = { BUILDING = dwarven_siege_workshop }
+					remove_building_any_level_max_6 = { BUILDING = dwarven_outpost }
+					remove_building_any_level_max_6 = { BUILDING = dwarven_surface_farm }
+					remove_building_any_level_max_6 = { BUILDING = dwarven_market }
+					remove_building_any_level_max_6 = { BUILDING = dwarven_mustering_grounds }
+					remove_building_any_level_max_6 = { BUILDING = dwarven_tavern }
+					remove_building_any_level_max_6 = { BUILDING = dwarven_forestry }
+					remove_duchy_building_any_level = { BUILDING = military_specialization }
+					remove_duchy_building_any_level = { BUILDING = economic_specialization }
+					remove_duchy_building_any_level = { BUILDING = glory_specialization }
+					remove_duchy_building_any_level = { BUILDING = dwarven_bank_economic }
+					remove_duchy_building_any_level = { BUILDING = dwarven_kings_armory_military }
+					remove_duchy_building_any_level = { BUILDING = dwarven_grand_library }
+					
+					#remove_building_any_level = { BUILDING = dwarven_forge }
+				}
+			}
+		}
+
+		#LotR - make sure elves remain with the elven government type
+		if = {
+			limit = {
+				is_elf = yes
+			}
+			trigger_event = {
+				id = elven_racial.0011
+				days = 1
+			}
+		}
+
+		#LotR - make sure hobbits remain with the hobbit government type
+		if = {
+			limit = {
+				is_hobbit = yes
+			}
+			trigger_event = {
+				id = hobbit.0001
+				days = 1
+			}
+		}
+
+		#If settlement inherited, give back to top liege, unless human.
+		if = {
+			limit = {
+				scope:title ?= {
+					tier = tier_county
+					title_province = { has_holding_type = settlement_holding }
+				}
+				is_independent_ruler = no
+				is_ai = yes
+			}
+			#top_liege = { add_gold = 10000 }
+			create_title_and_vassal_change = {
+				type = usurped
+				save_scope_as = change
+				add_claim_on_loss = no
+			}
+			scope:title ?= {
+				change_title_holder = {
+					holder = root.top_liege
+					change = scope:change
+				}
+			}
+			resolve_title_and_vassal_change = scope:change
+		}
+		if = {
+			limit = {
+				is_ai = yes
+				is_elf = yes
+				highest_held_title_tier > tier_county
+				scope:title ?= {
+					tier <= tier_county
+					title_province = { 
+						NOR = { 
+							has_holding_type = elven_holding
+							has_holding_type = settlement_holding
+							has_holding_type = wastelands_holding
+							has_holding_type = ruined_holding
+						}
+					}
+				}
+			}
+			create_character = {
+				gender = male
+				culture = scope:title.culture
+				faith = scope:title.faith
+				save_scope_as = new_holder
+				location = root.location
+			}
+			create_title_and_vassal_change = { # Define type of title change as a granting of the title
+				type = granted
+				save_scope_as = title_change
+				add_claim_on_loss = no
+			}
+			scope:title ?= {
+				change_title_holder = {
+					holder = scope:new_holder
+					change = scope:title_change
+				}
+			}
+			resolve_title_and_vassal_change = scope:title_change
+		}
+		else_if = {
+			limit = {
+				is_ai = yes
+				is_elf = no
+				highest_held_title_tier > tier_county
+				scope:title ?= {
+					tier <= tier_county
+					title_province = { has_holding_type = elven_holding }
+				}
+			}
+			create_character = {
+				gender = male
+				culture = scope:title.culture
+				faith = scope:title.faith
+				save_scope_as = new_holder
+				location = root.location
+			}
+			create_title_and_vassal_change = { # Define type of title change as a granting of the title
+				type = granted
+				save_scope_as = title_change
+				add_claim_on_loss = no
+			}
+			scope:title ?= {
+				change_title_holder = {
+					holder = scope:new_holder
+					change = scope:title_change
+				}
+			}
+			resolve_title_and_vassal_change = scope:title_change
+		}
+		#LotR - Tracking Imperial Khand Time Held
+		if = {
+			limit = {
+				scope:title ?= {
+					this = title:e_khand
+					has_variable = year_khand_founded
+					root.dynasty = var:ruling_dynasty
+				}
+			}
+			title:e_khand = {
+				change_variable = {
+					name = successive_rulers
+					add = 1
+				}
+			}
+		}
+		else_if = {
+			limit = {
+				scope:title ?= {
+					this = title:e_khand
+					has_variable = year_khand_founded
+					NOT = { root.dynasty = var:ruling_dynasty }
+				}
+			}
+			title:e_khand = {
+				set_variable = {
+					name = ruling_dynasty
+					value = root.dynasty
+				}
+				set_variable = {
+					name = successive_rulers
+					value = 1
+				}
+			}
+		}
+		if = {
+			limit = {
+				root.highest_held_title_tier = tier_empire
+				scope:previous_holder.culture = { has_cultural_parameter = realms_shatter_on_succession }
+				scope:title ?= { tier > tier_kingdom }
+				is_independent_ruler = yes
+			}
+			every_vassal = {
+				limit = {
+					opinion = {
+						target = root
+						value < 0
+					}
+				}
+				create_title_and_vassal_change = {
+					type = independency
+					save_scope_as = change
+					add_claim_on_loss = yes
+				}
+				becomes_independent = { change = scope:change }
+				resolve_title_and_vassal_change = scope:change
+			}
+		}
+		if = {
+			limit = {
+			    root.highest_held_title_tier != tier_empire
+				culture = { has_cultural_parameter = realms_shatter_on_succession }
+				scope:title ?= { tier > tier_duchy }
+				is_independent_ruler = yes
+			}
+			every_vassal = {
+				limit = {
+					opinion = {
+						target = root
+						value < 0
+					}
+				}
+				create_title_and_vassal_change = {
+					type = independency
+					save_scope_as = change
+					add_claim_on_loss = yes
+				}
+				becomes_independent = { change = scope:change }
+				resolve_title_and_vassal_change = scope:change
+			}
+		}
+		scope:title ?= {
+			if = {
+				limit = { 
+					root.culture = { has_cultural_parameter = realms_destroyed_on_succession }
+					tier >= tier_kingdom
+					root = { is_independent_ruler = yes }
+					any_de_jure_top_liege = {
+						percent < 0.5
+						this = root
+					}
+				}
+				root = { destroy_title = scope:title }
+			}
+		}		
+		
+		if = {
+			limit = {
+				OR = {
+					scope:title = title:e_durins_folk
+					scope:title = title:k_longbeards
+					scope:title = title:e_firebeards
+					scope:title = title:k_firebeards
+					scope:title = title:e_broadbeams
+					scope:title = title:k_broadbeams
+					scope:title = title:e_blacklocks
+					scope:title = title:k_blacklocks
+				}
+			}
+			clear_dwarven_kingdom_claims_post_game_start = yes
+		}
+		
+		correct_wastelands_tracker = yes
+		scope:previous_holder ?= { correct_wastelands_tracker = yes }
+	}
+}
+
+# A title is usurped by a character
+# root = the new holder
+# scope:title = the title that changes hands
+# scope:previous_holder = previous holder. Shouldn't be dead
+lotr_on_title_gain_usurpation = {
+	effect = {
+		# LotR - If orc gains county with non-orc buildings, destroy invalid buildings
+		if = {
+			limit = {
+				scope:title ?= {
+					tier = tier_county
+				}
+				root = {
+					is_orc = yes
+					is_ai = yes
+				}
+			}
+
+			scope:title ?= {
+				every_county_province = {
+					remove_building_any_level = { BUILDING = caravanserai }
+					remove_building_any_level = { BUILDING = watermills }
+					remove_building_any_level = { BUILDING = windmills }
+					remove_building_any_level = { BUILDING = common_tradeport }
+					remove_building_any_level = { BUILDING = pastures }
+					remove_building_any_level = { BUILDING = hunting_grounds }
+					remove_building_any_level = { BUILDING = orchards }
+					remove_building_any_level = { BUILDING = farm_estates }
+					remove_building_any_level = { BUILDING = cereal_fields }
+					remove_building_any_level = { BUILDING = logging_camps }
+					remove_building_any_level = { BUILDING = peat_quarries }
+					remove_building_any_level = { BUILDING = hill_farms }
+					remove_building_any_level = { BUILDING = elephant_pens }
+					remove_building_any_level = { BUILDING = plantations }
+					remove_building_any_level = { BUILDING = quarries }
+					remove_building_any_level = { BUILDING = guild_halls }
+					remove_building_any_level = { BUILDING = ramparts }
+					remove_building_any_level = { BUILDING = curtain_walls }
+					remove_building_any_level = { BUILDING = watchtowers }
+					remove_building_any_level = { BUILDING = hill_forts }
+					remove_building_any_level = { BUILDING = wind_furnace }
+					remove_building_any_level = { BUILDING = workshops }
+					remove_building_any_level = { BUILDING = horse_pastures }
+					remove_building_any_level = { BUILDING = hillside_grazing }
+					remove_building_any_level = { BUILDING = warrior_lodges }
+					remove_building_any_level = { BUILDING = military_camps }
+					remove_building_any_level = { BUILDING = regimental_grounds }
+					remove_building_any_level = { BUILDING = outposts }
+					remove_building_any_level = { BUILDING = barracks }
+					remove_building_any_level = { BUILDING = camel_farms }
+					remove_building_any_level = { BUILDING = stables }
+					remove_building_any_level = { BUILDING = smiths }
+					remove_building_any_level = { BUILDING = hillside_grazing }
+					remove_building_any_level = { BUILDING = murex_farm }
+					remove_building_any_level = { BUILDING = dwarven_ale_house }
+					remove_building_any_level = { BUILDING = dwarven_fungal_farm }
+					remove_building_any_level = { BUILDING = dwarven_terrace_farm }
+					remove_building_any_level = { BUILDING = dwarven_quarry }
+					remove_building_any_level = { BUILDING = dwarven_crafts }
+					remove_building_any_level = { BUILDING = dwarven_toolmaker_guild }
+					remove_building_any_level = { BUILDING = dwarven_vaults }
+					remove_building_any_level = { BUILDING = dwarven_roads }
+					remove_building_any_level = { BUILDING = dwarven_armory }
+					remove_building_any_level = { BUILDING = dwarven_hi_barracks }
+					remove_building_any_level = { BUILDING = dwarven_pike_barracks }
+					remove_building_any_level = { BUILDING = dwarven_archer_barracks }
+					remove_building_any_level = { BUILDING = dwarven_skirmisher_barracks }
+					remove_building_any_level = { BUILDING = dwarven_pit_mine }
+					remove_building_any_level = { BUILDING = goat_pastures }
+					
+					remove_building_any_level_max_4 = { BUILDING = dwarven_surface_workshop }
+					
+					remove_building_any_level_max_5 = { BUILDING = dwarven_hoard }
+					remove_building_any_level_max_5 = { BUILDING = dwarven_siege_workshop }
+					
+					
+					remove_building_any_level_max_6 = { BUILDING = dwarven_outpost }
+					remove_building_any_level_max_6 = { BUILDING = dwarven_surface_farm }
+					remove_building_any_level_max_6 = { BUILDING = dwarven_market }
+					remove_building_any_level_max_6 = { BUILDING = dwarven_mustering_grounds }
+					remove_building_any_level_max_6 = { BUILDING = dwarven_tavern }
+					remove_building_any_level_max_6 = { BUILDING = dwarven_forestry }
+					
+					remove_duchy_building_any_level = { BUILDING = military_specialization }
+					remove_duchy_building_any_level = { BUILDING = economic_specialization }
+					remove_duchy_building_any_level = { BUILDING = glory_specialization }
+					remove_duchy_building_any_level = { BUILDING = dwarven_bank_economic }
+					remove_duchy_building_any_level = { BUILDING = dwarven_kings_armory_military }
+					remove_duchy_building_any_level = { BUILDING = dwarven_grand_library }
+					
+					#remove_building_any_level = { BUILDING = dwarven_forge }
+				}
+			}
+		}
+
+		if = {
+			limit = {
+				is_ai = yes
+				is_elf = yes
+				highest_held_title_tier > tier_county
+				scope:title ?= {
+					tier <= tier_county
+					title_province = { 
+						NOR = { 
+							has_holding_type = elven_holding
+							has_holding_type = settlement_holding
+							has_holding_type = wastelands_holding
+							has_holding_type = ruined_holding
+						}
+					}
+				}
+			}
+			create_character = {
+				gender = male
+				culture = scope:title.culture
+				faith = scope:title.faith
+				save_scope_as = new_holder
+				location = root.location
+			}
+			create_title_and_vassal_change = { # Define type of title change as a granting of the title
+				type = granted
+				save_scope_as = title_change
+				add_claim_on_loss = no
+			}
+			scope:title ?= {
+				change_title_holder = {
+					holder = scope:new_holder
+					change = scope:title_change
+				}
+			}
+			resolve_title_and_vassal_change = scope:title_change
+		}
+		else_if = {
+			limit = {
+				is_ai = yes
+				is_elf = no
+				highest_held_title_tier > tier_county
+				scope:title ?= {
+					tier <= tier_county
+					title_province = { has_holding_type = elven_holding }
+				}
+			}
+			create_character = {
+				gender = male
+				culture = scope:title.culture
+				faith = scope:title.faith
+				save_scope_as = new_holder
+				location = root.location
+			}
+			create_title_and_vassal_change = { # Define type of title change as a granting of the title
+				type = granted
+				save_scope_as = title_change
+				add_claim_on_loss = no
+			}
+			scope:title ?= {
+				change_title_holder = {
+					holder = scope:new_holder
+					change = scope:title_change
+				}
+			}
+			resolve_title_and_vassal_change = scope:title_change
+		}
+		
+		correct_wastelands_tracker = yes
+		scope:previous_holder ?= { correct_wastelands_tracker = yes }
+	}
+}
+
+# A title is lost by a character
+# root = the old holder
+# scope:title = the title that changes hands
+# scope:new_holder = new holder.
+lotr_on_title_lost = {
+	effect = {
+		if = {
+			limit = {
+				is_landed = no
+				has_variable_list = defensive_allies
+			}
+			every_in_list = {
+				variable = defensive_allies
+				save_scope_as = defensive_ally
+			}
+			clear_variable_list = defensive_allies
+			scope:defensive_ally = { clear_variable_list = defensive_allies }
+		}
+		# LotR - If only have settlement counties remaining, game over and revert to Wilderness
+		if = {
+			limit = {
+				any_held_title = {
+					tier = tier_county
+					NOT = { title_province = { has_holding_type = settlement_holding } }
+					count = 0
+				}
+			}
+
+			every_held_title = {
+				limit = {
+					tier > tier_county
+				}
+				root = { destroy_title = prev }
+			}
+
+			every_held_title = {
+				limit = { tier = tier_county }
+				make_settlement_county_wilderness = { COUNTY = this }
+			}
+		}
+		# Khamul bug fix, maybe? This modifier removes any title he gains and adds it to its previous owner
+		if = {
+			limit = {
+				any_held_title = {
+					tier = tier_county
+					count = 0
+				}
+				root = character:nazgul2
+			}
+			add_character_modifier = {
+				modifier = lotr_vanquished_modifier
+				years = 10
+			}
+		}
+		if = {
+            limit = {
+                any_held_title = { count = 0 }
+                has_trait = balan_lai_member
+            }
+            remove_trait = balan_lai_member
+            dynasty ?= { # Give it to a valid dynasty member if possible
+                random_dynasty_member = {
+                    limit = {
+                        is_independent_ruler = yes
+                        highest_held_title_tier > tier_county
+                    }
+                    add_trait = balan_lai_member
+                }
+            }
+        }
+		correct_wastelands_tracker = yes
+		scope:new_holder = { correct_wastelands_tracker = yes }
+
+		if = {
+			limit = {
+				any_held_title = { count = 0 }
+				has_trait = balan_lai_member
+			}
+			remove_trait = balan_lai_member
+			dynasty ?= { # Give it to a valid dynasty member if possible
+				random_dynasty_member = {
+					limit = {
+						is_independent_ruler = yes
+						highest_held_title_tier > tier_county
+					}
+					add_trait = balan_lai_member
+				}
+			}
+		}
+
+		if = {
+			limit = {
+				scope:title.tier = tier_empire
+				any_held_title = {
+					count = 1
+					tier = tier_empire
+					NOT = { this = scope:title }
+				}
+				OR = {
+					has_title = title:e_durins_folk
+					has_title = title:e_firebeards
+					has_title = title:e_broadbeams
+					has_title = title:e_blacklocks
+				}
+			}
+			trigger_event = dwarven.9820
+		}
+	}
+}
+
+# A claim is gained by a character
+# root = the claimant
+# scope:title = the title that is claimed
+# scope:transfer_type = flag:inheritance or none
+lotr_on_explicit_claim_gain = {
+	effect = {
+		if = { 
+            limit = {
+				OR = {
+					root = {
+						has_culture = culture:wastelands
+					}
+					AND = {
+						scope:title ?= { tier = tier_county }
+						scope:title.culture = culture:wastelands
+					}
+				}                
+            }
+            debug_log = "Preventing claims from/to Wastelands..."
+			every_claim = {
+				root = { remove_claim = prev }
+			}
+		}
+	}
+}
+
+# A claim is lost by a character
+# root = the claimant
+# scope:title = the title that was claimed
+# lotr_on_explicit_claim_lost = {} #Not Used
+
+# A title change makes the character rank up in the landed tiers (eg Duke -> King)
+# root = character ranking up
+# scope:title = old primary title
+lotr_on_rank_up = {# Will not fire during history execution or for dying characters
+	effect = {
+		if = { # The Producer Strikes Back | Achievement
+			limit = {
+				NOT = { exists = global_var:lotr_achievement_72 }
+				realms_achievements_enabled = yes
+				is_ai = no
+				NOT = { scope:title = title:e_umbar }
+				root = character:lineeruholion4
+			}
+			set_global_variable = lotr_achievement_72
+		}
+		# LotR - if protectorate and same title tier as protector, break protectorate
+		if = {
+			limit = {
+				has_variable = overlord_protector
+				tier_difference = {
+					target = var:my_suzerain
+					value >= 0
+				}
+			}
+			send_interface_toast = {
+					left_icon = root
+					right_icon = var:my_suzerain
+					title = rank_up_protectorate.toast
+					custom_tooltip = rank_up_protectorate.tt
+			}
+			var:my_suzerain = {
+				send_interface_toast = {
+						left_icon = prev
+						right_icon = root
+						title = rank_up_protector.toast
+						custom_tooltip = rank_up_protector.tt
+				}
+			}
+			free_tributary = yes
+		}
+		### Wastelands Management ###
+		if = {
+			limit = {
+				any_held_title = {
+					title_province ?= { 
+						has_holding_type = settlement_holding
+					}
+				}	
+			}
+			remove_upkeep_modifier = yes
+			trigger_event = wastelands.0007
+		}
+		
+		correct_wastelands_tracker = yes
+	}
+}
+
+# A title change makes the character rank down in the landed tiers (eg King -> Duke)
+# root = character ranking down
+# scope:title = old primary title
+lotr_on_rank_down = {# Will not fire during history execution or for dying characters
+	effect = {
+		# LotR - if protectorate and same title tier as protector, break protectorate
+		every_relation = {
+			type = tributary_protectorate
+			limit = {
+				tier_difference = {
+					target = root
+					value >= 0
+				}
+			}
+			send_interface_toast = {
+				left_icon = root
+				right_icon = prev
+				title = rank_down_protectorate.toast
+				custom_tooltip = rank_down_protectorate.tt
+			}
+			prev = {
+				send_interface_toast = {
+						left_icon = root
+						title = rank_down_protector.toast
+						custom_tooltip = rank_down_protector.tt
+				}
+			}
+			free_tributary_rank_down = yes
+		}
+
+		### Wastelands Management ###
+		if = {
+			limit = {
+				any_held_title = {
+					title_province ?= {
+						has_holding_type = settlement_holding
+					}
+				}	
+			}
+			remove_upkeep_modifier = yes
+			trigger_event = wastelands.0007
+		}
+		
+		correct_wastelands_tracker = yes
+	}
+}
+
+# A character gains a vassal
+# root = character gaining vassal
+# scope:vassal = vassal being gained
+# scope:old_liege = the previous liege of the vassal. Might be the null character (vassal used to be a non-ruler or independent), so make sure to use "exists" checks where relevant
+lotr_on_vassal_gained = {
+	effect = {
+		scope:vassal ?= {
+			# LotR - if vassalised character is a protector, break protectorates
+			every_relation = {
+				type = tributary_protectorate
+				send_interface_toast = {
+					left_icon = scope:vassal
+					title = protector_vassalised_protectorate.toast
+					custom_tooltip = protector_vassalised_protectorate.tt
+				}
+				scope:vassal ?= {
+					send_interface_toast = {
+						left_icon = scope:vassal
+						title = protector_vassalised_protector.toast
+						custom_tooltip = protector_vassalised_protector.tt
+					}
+				}
+				free_tributary = yes
+			}
+			every_in_list = {
+				variable = all_tributaries
+				free_tributary = yes
+				if = {
+					limit = {
+						has_variable = overlord_protector
+					}
+					send_interface_toast = {
+						left_icon = scope:vassal
+						title = protector_vassalised_protectorate.toast
+						custom_tooltip = protector_vassalised_protectorate.tt
+					}
+					scope:vassal ?= {
+						send_interface_toast = {
+							left_icon = scope:vassal
+							title = protector_vassalised_protector.toast
+							custom_tooltip = protector_vassalised_protector.tt
+						}
+					}
+				}
+				else_if = {
+					limit = {
+						has_variable = overlord_suzerain
+					}
+					send_interface_toast = {
+						left_icon = scope:vassal
+						title = suzerain_vassalised_tributary.toast
+						custom_tooltip = suzerain_vassalised_tributary.tt
+					}
+					scope:vassal ?= {
+						send_interface_toast = {
+							left_icon = scope:vassal
+							title = suzerain_vassalised_suzerain.toast
+							custom_tooltip = suzerain_vassalised_suzerain.tt
+						}
+					}
+				}
+			}
+			# LotR - if vassalised character is a protectorate, break protectorate
+			if = {
+				limit = {
+					has_variable = overlord_protector
+				}
+				send_interface_toast = {
+					left_icon = root
+					right_icon = var:my_suzerain
+					title = protectorate_vassalised_protectorate.toast
+					custom_tooltip = protectorate_vassalised_protectorate.tt
+				}
+				var:my_suzerain = {
+					send_interface_toast = {
+						left_icon = prev
+						right_icon = root
+						title = protectorate_vassalised_protector.toast
+						custom_tooltip = protectorate_vassalised_protector.tt
+					}
+				}
+				free_tributary = yes
+			}
+			else_if = {
+				limit = {
+					has_variable = overlord_suzerain
+				}
+				send_interface_toast = {
+					left_icon = root
+					right_icon = var:my_suzerain
+					title = tributary_vassalised_tributary.toast
+					custom_tooltip = tributary_vassalised_tributary.tt
+				}
+				var:my_suzerain = {
+					send_interface_toast = {
+						left_icon = prev
+						right_icon = root
+						title = tributary_vassalised_suzerain.toast
+						custom_tooltip = tributary_vassalised_suzerain.tt
+					}
+				}
+				free_tributary = yes
+			}
+		}
+		# LotR Struggle Catalyst
+		if = {
+			limit = {
+				# Verify if vassal used to be independent
+				NOT = { exists = scope:old_liege }
+				scope:transfer_type ?= flag:swear_fealty
+				any_character_struggle = {
+					involvement = involved
+					activate_struggle_catalyst_secondary_character_involvement_involved_trigger = {
+						CATALYST = catalyst_vassalize_independent_ruler
+						CHAR = scope:vassal
+					}
+				}
+			}
+			root = {
+				set_variable = dont_trigger_again_please
+			}
+			if = {
+				limit = { NOT = { root = { has_variable = dont_trigger_again_please } } }
+				scope:vassal = {
+					every_character_struggle = {
+						involvement = involved
+						limit = {
+							activate_struggle_catalyst_secondary_character_involvement_involved_trigger = {
+								CATALYST = catalyst_vassalize_independent_ruler
+								CHAR = scope:vassal
+							}
+						}
+						activate_struggle_catalyst = {
+							catalyst = catalyst_vassalize_independent_ruler
+							character = root
+						}
+					}
+				}
+			} else = {
+				root = { remove_variable = dont_trigger_again_please }
+			}
+		}
+	}
+}
+
+# A vassal changes their liege
+# root = vassal changing their status
+# scope:old_liege = the previous liege of the vassal
+# It is also fired for rulers gaining independence, those can be identified by checking current liege
+# lotr_on_vassal_change = {} #Not Used
+
+# A baron is found or created for a title, E.G., due to the player using the "Give to Low Noble" action
+# No transfer type here; it's always a grant
+# root = the baron
+# scope:liege = the person who wanted them created
+# scope:title = the barony
+lotr_on_baron_found_or_created_for_title = { 
+	events = {
+		race.0001 #set up races
+	}
+}
+
+# Called when realm capital changes. It can be manual move, loss in conquest, move after inheritance,
+# move when granted a better title, becoming landed for the first time
+# root: New realm capital barony
+# scope:old_capital - previous capital barony. Can be empty, can be owned by someone else
+# lotr_on_realm_capital_change = {} #Not Used
