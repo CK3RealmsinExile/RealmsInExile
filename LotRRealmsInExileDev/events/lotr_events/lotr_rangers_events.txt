@@ -3,12 +3,42 @@
 # Events about Aragorn
 #		rangers.0101	Dunedain Encampments of Eriador
 #       rangers.0200	Death of Gilraen
+
 # Long Winter Start Date Events
 #		rangers.0300	Growing Orc Activity
 #		rangers.0301	Visiting Elrond
 #		rangers.0302	Elrond hears rumours of Orcs
 #		rangers.0303	Elrond receives Arassuil
 #		rangers.0304	Elrond gives his counsel
+#		rangers.0305	Return to the Angle of Mitheithel
+
+# Arassuil: Lay a Trap
+#		rangers.0306	Setting the Ambush
+#		rangers.0316	Springing the trap
+#		rangers.0326	The Ambush succeeds
+#		rangers.0336	The Ambush fails
+
+# Arassuil: Fight a Duel
+#		rangers.0307	Decide to fight
+#		rangers.0317	Travelling to Moria
+#		rangers.0327	The Challenge
+#		rangers.0337	The Duel
+#		rangers.0347	(Hidden) Re-enable the initial decision
+#		rangers.0357	(Hidden) Process single combat result
+#		rangers.0367	Win the Duel
+#		rangers.0377 	Duel invalidated
+#		rangers.0387	Lose the Duel
+
+# Arassuil: Start a War
+#		rangers.0308	To Plan a War
+#		rangers.0318	Another Meeting with Elrond
+#		rangers.0328	The Men of Bree
+#		rangers.0338	Arriving in Mithlond
+#		rangers.0348	The Mansions of Stone
+#		rangers.0358	Awaiting an Opportune Moment
+#		rangers.0368	Declade the War
+#		rangers.0378	Lose the War
+#		rangers.0388	Win the War
 
 rangers.0101 = { # Dunedain Encampments - chance to swear fealty
 	content_source = realms_dlc
@@ -140,6 +170,12 @@ rangers.0300 = { # Growing Orc Activity
 		name = rangers.0300.a
 		custom_tooltip = rangers.0300.a.tt
 		add_character_flag = arassuil_seek_elronds_counsel
+	}
+	option = { # AI only, bypass the decision and go to war directly
+		name = rangers.0300.b
+		trigger = { is_ai = yes }
+		trigger_event = rangers.0318 
+		ai_chance = { base = 100 }
 	}
 }
 
@@ -298,11 +334,181 @@ rangers.0306 = { # Lay a Trap
 		character = root
 		scripted_animation = bow_drawn
 	}
-	immediate = { title:c_durins_hall.holder.top_liege = { save_scope_as = azog } }
-	option = { # I will end this here and now
+	immediate = { 
+		title:c_durins_hall.holder.top_liege = { save_scope_as = azog }
+	}
+	option = { # I will lay a trap for him
 		name = rangers.0306.a
 		custom_tooltip = rangers.0306.a.tt
-		add_prestige = 50
+		add_prestige = minor_prestige_gain
+		start_travel_plan = { #Travel to the caravan
+			destination = title:c_talath_formir.title_province
+			on_arrival_event = rangers.0316
+			#return_trip = no
+			players_use_planner = no
+			#on_arrival_destinations = all
+		}
+	}
+}
+
+rangers.0316 = { # The Ambush
+	content_source = realms_dlc
+	type = character_event
+	title = rangers.0316.t
+	desc = rangers.0316.desc
+	theme = dread
+	window = visit_settlement_window
+	override_background = { reference = eregion_ruins }
+	left_portrait = {
+		character = root
+		animation = sword_coup_degrace
+	}
+	right_portrait = {
+		character = scope:azog
+		animation = rage
+	}
+	option = { # I'll end this here and now
+		name = rangers.0316.a
+		duel = {
+ 			skill = intrigue
+ 			target = scope:azog
+ 			50 = {
+				# You're successful
+ 				desc = rangers.0316.a.success
+ 				compare_modifier = {
+ 					value = scope:duel_value
+ 					multiplier = 3.5
+ 					min = -49
+ 				}
+ 				send_interface_toast = {
+ 					title = rangers.0316.a.success
+ 					left_icon = root
+ 					right_icon = scope:azog
+					custom_tooltip = rangers.0316.a.success.tt
+ 				}
+				add_intrigue_lifestyle_xp = medium_lifestyle_xp
+				scope:azog = { death = { death_reason = death_assassination killer = root } }
+				trigger_event = rangers.0326
+ 			}
+ 			50 = {
+ 				# You failed
+ 				desc = rangers.0316.a.failure
+ 				compare_modifier = {
+ 					value = scope:duel_value
+ 					multiplier = -3.5
+ 					min = -49
+ 				}
+ 				send_interface_toast = {
+ 					title = rangers.0316.a.failure
+ 					left_icon = root
+ 					right_icon = scope:breemayor
+					custom_tooltip = rangers.0316.a.failure.tt
+ 				}
+				increase_wounds_effect = { REASON = fight }
+				trigger_event = rangers.0336
+ 			}
+		}
+	}
+}
+
+rangers.0326 = { # Success
+	content_source = realms_dlc
+	type = character_event
+	title = rangers.0326.t
+	desc = rangers.0326.desc
+	theme = crown
+	window = visit_settlement_window
+	override_background = { reference = wilderness_forest_pine }
+	left_portrait = {
+		character = root
+		animation = celebrate_spear
+	}
+	right_portrait = {
+		character = scope:azog
+		animation = dead
+	}
+	immediate = { # Azog's realm splinters
+		if = {
+			limit = {
+				scope:azog = { is_alive = yes }
+			}
+			scope:azog = {
+				death = {
+					death_reason = death_assassination
+					killer = root 
+				}
+			}
+		}
+		else = {
+			show_as_tooltip = {
+				scope:azog = {
+					death = {
+						death_reason = death_assassination
+						killer = root 
+					}
+				}
+			}
+		}
+		title:c_durins_hall.holder.top_liege = { save_scope_as = heir_of_azog }
+		create_title_and_vassal_change = {
+			type = conquest
+			save_scope_as = change
+			add_claim_on_loss = yes
+		}
+		scope:heir_of_azog = {
+			every_held_title = {
+				limit = { tier >= tier_kingdom }
+				save_temporary_scope_as = azog_title
+				scope:heir_of_azog = { destroy_title = scope:azog_title }
+			}
+			every_vassal_or_below = {
+				limit = { highest_held_title_tier >= tier_county }
+				becomes_independent = { change = scope:change }
+				trigger_event = orcs.7204
+			}
+		}
+		resolve_title_and_vassal_change = scope:change
+	}
+	option = { # Good riddance!
+		name = rangers.0326.a 
+		custom_tooltip = rangers.0326.a.tt 
+		add_prestige = massive_prestige_gain
+		give_nickname = nick_the_ambusher
+		add_character_flag = had_nickname_event
+	}
+	option = { # Let's go home.
+		name = rangers.0326.b 
+		custom_tooltip = rangers.0326.b.tt 
+		add_prestige = massive_prestige_gain
+	}
+}
+
+rangers.0336 = { # Ambush fails
+	content_source = realms_dlc
+	type = character_event
+	title = rangers.0336.t
+	desc = rangers.0336.desc
+	theme = dread
+	window = visit_settlement_window
+	override_background = { reference = eregion_ruins }
+	left_portrait = {
+		character = root
+		animation = anger
+	}
+	right_portrait = {
+		character = scope:azog
+		animation = schadenfreude
+	}
+	option = { # We have to get out of here.
+		name = rangers.0336.a 
+		custom_tooltip = rangers.0336.a.tt 
+		start_travel_plan = { #Travel home
+			destination = root.capital_county.title_province
+			#return_trip = no
+			players_use_planner = no
+			#on_arrival_destinations = all
+			on_arrival_event = rangers.0347
+		}
 	}
 }
 
@@ -351,7 +557,7 @@ rangers.0307 = { # Fight a duel
 			destination = title:c_west_hall.title_province
 			on_arrival_event = rangers.0317
 			# return_trip = no
-			# players_use_planner = no
+			players_use_planner = no
 			# on_arrival_destinations = all
 		}
 	}
@@ -703,6 +909,31 @@ rangers.0377 = { # Duel invalidated (Azog flees)
 	}
 }
 
+rangers.0387 = { # Lose the Duel
+	content_source = realms_dlc
+	type = character_event
+	title = rangers.0387.t
+	desc = rangers.0387.desc
+	theme = dread
+	window = visit_settlement_window
+	override_background = { reference = throne_room_dwarf }
+	left_portrait = {
+		character = root
+		animation = rage
+	}
+	right_portrait = {
+		character = scope:azog
+		animation = schadenfreude
+	}
+	immediate = { title:c_durins_hall.holder.top_liege = { save_scope_as = azog } }
+	option = { # I will avenge my father
+		name = rangers.0387.a 
+		custom_tooltip = rangers.0387.a.tt 
+		set_relation_rival = { target = scope:azog }
+		trigger_event = rangers.0347
+	}
+}
+
 rangers.0347 = { # Re-enable Orc decision
 	hidden = yes
 	immediate = {
@@ -710,6 +941,8 @@ rangers.0347 = { # Re-enable Orc decision
 			name = unavailable_unique_decisions
    			target = flag:arassuil_dealing_with_azog
 		}
+		add_character_flag = arassuil_dealing_with_azog
+		current_travel_plan ?= { abort_travel_plan = yes }
 	}
 }
 
@@ -733,7 +966,7 @@ rangers.0308 = { # To Plan a War
 		start_travel_plan = { #Travel to Rivendell
 			destination = title:c_imladris.title_province
 			#return_trip = no
-			#players_use_planner = no
+			players_use_planner = no
 			#on_arrival_destinations = all
 			on_arrival_event = rangers.0318
 		}
@@ -798,7 +1031,7 @@ rangers.0318 = { # Meet Elrond again, get dwarven allies
 		start_travel_plan = { #Travel to Bree
 			destination = title:c_bree.title_province
 			#return_trip = no
-			players_use_planner = yes
+			players_use_planner = no
 			#on_arrival_destinations = all
 			on_arrival_event = rangers.0328
 		}
@@ -899,6 +1132,7 @@ rangers.0338 = { # Go to Mithlond
 	option = { # Return home
 		name = rangers.0338.a 
 		custom_tooltip = rangers.0338.a.tt 
+		ai_chance = { base = 100 } # AI doesn't make the detour
 		start_travel_plan = { #Travel home
 			destination = root.capital_county.title_province
 			#return_trip = no
@@ -1015,10 +1249,13 @@ rangers.0358 = { # Arrive back home
 				type = longbeard_skirmishers
 				stacks = 3
 			}
+			men_at_arms = {
+				type = longbeard_pikemen
+				stacks = 3
+			}
 			location = root.location
 		}
 		add_character_flag = arassuil_purge_moria
-		#trigger_event = rangers.0368
 	}	
 }
 
@@ -1029,6 +1266,12 @@ rangers.0368 = { # Declare the War
 	desc = rangers.0368.desc
 	theme = war
 	window = visit_settlement_window
+	trigger = { 
+		OR = {
+			scope:azog = { is_ai = no }
+			root = { is_ai = no }
+		}
+	}
 	override_background = { reference = eregion }
 	left_portrait = {
 		character = root
@@ -1061,6 +1304,7 @@ rangers.0388 = { # Win the war
 		animation = shock
 	}
 	immediate = {
+		title:c_durins_hall.holder.top_liege = { save_scope_as = azog }
 		hidden_effect = {
 			title:d_zirakzigil = { 
 				every_in_de_jure_hierarchy = {
@@ -1072,10 +1316,12 @@ rangers.0388 = { # Win the war
 				}
 			}
 		}
+		remove_character_flag = arassuil_purge_moria
 	}
 	option = { # We did it!
 		name = rangers.0388.a 
 		add_prestige = massive_prestige_gain
+		scope:azog = { death = { death_reason = death_execution killer = root } }
 	}
 }
 
@@ -1100,6 +1346,7 @@ rangers.0378 = { # Lose the war
 			name = unavailable_unique_decisions
    			target = flag:arassuil_dealing_with_azog
 		}
+		remove_character_flag = arassuil_purge_moria
 	}
 	option = { # How could this happen?
 		name = rangers.0378.a 
