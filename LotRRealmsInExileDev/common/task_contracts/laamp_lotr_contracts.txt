@@ -25,13 +25,15 @@
 #
 # #Martial Contracts lotr_laamp_1xxx
 # lotr_laamp_1001 	Hunt down stragglers
+# lotr_laamp_1011	Assault Enemy Column
 #
 # #Stewardship Contracts lotr_laamp_2xxx
 #
 # #Intrigue Contracts lotr_laamp_3xxx
+# lotr_laamp_3011 	Eliminate Enemy	
 #
 # #Learning Contracts lotr_laamp_4xxx
-# lotr_laamp_4001		Heal courtier or ruler
+# lotr_laamp_4001	Heal courtier or ruler
 #
 # #Prowess Contracts lotr_laamp_5xxx
 #
@@ -126,7 +128,7 @@ lotr_laamp_1001 = {
 
 	weight = {
 		# Standard weights.
-		value = task_contract_weight_interesting_almost_rare_value
+		value = 1000
 		add = laamp_contracts_weight_up_martial_value
 		add = task_contract_weight_employer_contact_list_value
 		scope:employer = { multiply = task_contract_weight_by_tier_value }
@@ -423,6 +425,261 @@ lotr_laamp_1001 = {
 					scope:task_contract.task_contract_taker = {
 						current_travel_plan = { reroute_to_home = yes }
 					}
+				}
+			}
+		}
+	}
+}
+
+# Attack Enemy Column
+lotr_laamp_1011 = {
+	group = laamp_contracts_ranger_group
+	icon = "gfx/interface/icons/scheme_types/war.dds"
+
+	travel = yes
+	use_diplomatic_range = no
+
+	weight = {
+		# Standard weights.
+		value = 1000
+		add = laamp_contracts_weight_up_martial_value
+		add = laamp_contracts_weight_up_martial_slight_value
+		# Employer weights.
+		scope:employer = {
+			add = {
+				# Weight up.
+				## Traits that want to be effective but subtle.
+				if = {
+					limit = { has_trait = deceitful }
+					add = task_contract_weight_bonus_employer_has_associated_traits_value
+				}
+				if = {
+					limit = { has_trait = patient }
+					add = task_contract_weight_bonus_employer_has_associated_traits_value
+				}
+				if = {
+					limit = { has_trait = arbitrary }
+					add = task_contract_weight_bonus_employer_has_associated_traits_value
+				}
+				# Weight down.
+				## Traits that feel this type of manipulation is beneath them
+				if = {
+					limit = { has_trait = impatient }
+					add = task_contract_weight_malus_employer_has_associated_traits_value
+				}
+				if = {
+					limit = { has_trait = just }
+					add = task_contract_weight_malus_employer_has_associated_traits_value
+				}
+				## Plus just some where the narrative would feel weird.
+				if = {
+					limit = { has_trait = callous }
+					add = task_contract_weight_malus_employer_has_associated_traits_value
+				}
+				if = {
+					limit = { has_trait = sadistic }
+					add = task_contract_weight_malus_employer_has_associated_traits_value
+				}
+				# Restrictions.
+				min = task_contract_weight_employer_associated_traits_min_value
+				max = task_contract_weight_employer_associated_traits_max_value
+			}
+			multiply = task_contract_weight_by_tier_value
+			# This weight is an override, so make sure it's placed at the bottom.
+			add = task_contract_weight_employer_contact_list_value
+		}
+	}
+
+	# Validity Triggers
+	valid_to_create = {
+		# Standard triggers.
+		valid_laamp_basic_trigger = {
+			EMPLOYER = scope:employer
+			LAAMP = root
+		}
+		scope:employer = { same_alignment = { TARGET = root } }
+		employer_has_treasury_to_offer_job_trigger = yes
+		valid_laamp_sensible_start_trigger = yes
+		rule_out_dramatic_laamp_employers_trigger = yes
+		# Specific flavour triggers.
+		## Won't resort to this.
+		laamp_task_contract_employer_would_resort_to_violence_trigger = yes
+		laamp_task_contract_employer_would_resort_to_deceit_trigger = yes
+		# Eligible targets
+		scope:employer = { # Opposite alignment neighbouring rulers at war with same alignment as employer
+			any_neighboring_and_across_water_top_liege_realm_owner = {
+				opposite_alignment = { TARGET = prev }
+				is_ai = yes
+				is_at_war = yes
+			}
+		}
+	}
+	valid_to_accept = {
+		# Standard triggers.
+		valid_laamp_basic_accept_only_trigger = yes
+		valid_laamp_basic_trigger = {
+			EMPLOYER = scope:employer
+			LAAMP = root
+		}
+		scope:employer = { is_landed = yes }
+	}
+	valid_to_continue = {
+		# Standard triggers.
+		valid_laamp_basic_trigger = {
+			EMPLOYER = root.task_contract_employer
+			LAAMP = root.task_contract_taker
+		}
+		task_contract_employer = { is_landed = yes }
+		task_contract_target ?= { is_landed = yes }
+	}
+	valid_to_keep = {
+		# Standard triggers.
+		valid_laamp_basic_trigger = {
+			EMPLOYER = root.task_contract_employer
+			LAAMP = root.task_contract_taker
+		}
+		task_contract_employer = { is_landed = yes }
+	}
+
+	# On_actions
+	on_accepted = {
+		task_contract_taker = { play_sound_effect = "event:/DLC/EP3/SFX/UI/Contracts/ep3_ui_contracts_accept_contract" }
+		# For the intro event.
+		save_scope_as = task_contract
+		# Find us a target
+		task_contract_employer = {
+			random_neighboring_top_liege_realm_owner = {
+				limit = {
+					is_ai = yes
+					opposite_alignment = { TARGET = prev }
+					is_at_war = yes
+				}
+				save_scope_as = task_contract_target
+			}
+		}
+		set_variable = {
+			name = task_contract_employer
+			value = scope:task_contract.task_contract_employer
+		}
+		if = {
+			limit = {
+				exists = scope:task_contract.task_contract_target
+			}
+			set_variable = {
+				name = task_contract_target
+				value = scope:task_contract.task_contract_target
+			}
+		}
+		else = {
+			set_variable = {
+				name = task_contract_target
+				value = scope:task_contract_target
+			}
+			set_task_contract_target = scope:task_contract_target
+		}
+		# Then we start the scheme.
+		task_contract_taker ?= {
+			start_scheme = {
+				type = lotr_laamp_1011_contract_scheme
+				contract = root
+				target_character = root.task_contract_employer
+			}
+			# Make a note of what the scheme even is; we'll need this for the event too.
+			scope:task_contract.scheme = { save_scope_as = scheme }
+			trigger_event = lotr_laamp_contract_schemes.1011
+		}
+	}
+	on_create = {
+		scope:contract = {
+			# Make our gold rewards static.
+			grab_gold_fuzz_number_effect = yes
+			save_scope_as = task_contract
+			set_variable = {
+				name = gold_success_standard
+				value = task_contract_taker.task_contract_success_gold_gain_full_value
+			}
+			# Make sure critical values are a bit higher.
+			save_scope_value_as = { name = gold_safety_margin value = flag:yes }
+			set_variable = {
+				name = gold_success_critical
+				value = var:gold_success_standard
+			}
+		}
+	}
+
+	# Rewards
+	task_contract_reward = {
+		success_standard = {
+			should_print_on_complete = yes
+			effect = {
+				task_contract_taker = { play_sound_effect = "event:/DLC/EP3/SFX/UI/Contracts/ep3_ui_contracts_success_on_contract" }
+				save_scope_value_as = { name = extra_reward value = flag:no }
+				# Standard Rewards.
+				laamp_rewards_disburse_ordinary_currency_effect = {
+					GOLD = scope:task_contract.var:gold_success_standard
+					PRESTIGE = 0
+					PIETY = 0
+					PROVISIONS = task_contract_success_provisions_gain_minor_value
+					OPINION = task_contract_opinion_standard_reward_value
+					OPINION_TYPE = succeeded_task_contract_opinion
+					CONTACT = yes
+					CONTACT_HOOK = no
+					EXTRA_REWARD = scope:extra_reward
+				}
+				# Update Knight-Errant score.
+				task_contract_taker = {
+					laamp_rewards_apply_knight_errant_xp_effect = {
+						XP_MAX = knight_errant_xp_medium_gain
+						XP_MIN = knight_errant_xp_medium_gain
+					}
+					task_contract_justicar_contract_tracker_effect = yes
+				}
+			}
+		}
+		success_critical = {
+			should_print_on_complete = yes
+			effect = {
+				task_contract_taker = { play_sound_effect = "event:/DLC/EP3/SFX/UI/Contracts/ep3_ui_contracts_success_on_contract" }
+				save_scope_value_as = { name = extra_reward value = flag:no }
+				# Critical Rewards.
+				laamp_rewards_disburse_ordinary_currency_effect = {
+					GOLD = scope:task_contract.var:gold_success_critical
+					PRESTIGE = task_contract_success_prestige_gain_half_value
+					PIETY = 0
+					PROVISIONS = task_contract_success_provisions_gain_medium_value
+					OPINION = task_contract_opinion_excelled_reward_value
+					OPINION_TYPE = critically_succeeded_task_contract_opinion
+					CONTACT = yes
+					CONTACT_HOOK = yes
+					EXTRA_REWARD = scope:extra_reward
+				}
+				# Update Knight-Errant score.
+				task_contract_taker = {
+					laamp_rewards_apply_knight_errant_xp_effect = {
+						XP_MAX = knight_errant_xp_major_gain
+						XP_MIN = knight_errant_xp_major_gain
+					}
+					task_contract_justicar_contract_tracker_effect = yes
+				}
+			}
+		}
+		failure_standard = {
+			positive = no
+			should_print_on_complete = yes
+			effect = {
+				task_contract_taker = { play_sound_effect = "event:/DLC/EP3/SFX/UI/Contracts/ep3_ui_contracts_failure_on_contract" }
+				save_scope_value_as = { name = extra_reward value = flag:no }
+				# Standard Penalties.
+				laamp_rewards_disburse_ordinary_currency_effect = {
+					GOLD = 0
+					PRESTIGE = task_contract_failure_prestige_loss_full_value
+					PIETY = 0
+					PROVISIONS = task_contract_failure_provisions_gain_minor_value
+					OPINION = task_contract_opinion_standard_failure_value
+					OPINION_TYPE = failed_task_contract_opinion
+					CONTACT = no
+					CONTACT_HOOK = no
+					EXTRA_REWARD = scope:extra_reward
 				}
 			}
 		}
@@ -904,8 +1161,9 @@ lotr_laamp_4001 = {
 		task_contract_taker = { play_sound_effect = "event:/DLC/EP3/SFX/UI/Contracts/ep3_ui_contracts_accept_contract" }
 		# For the intro event.
 		save_scope_as = task_contract
+		task_contract_employer ?= { save_scope_as = employer }
 		# Find a suitable patient
-		task_contract_employer = { 
+		task_contract_employer ?= { 
 			if = {
 				limit = { has_serious_disease_trigger = yes }
 				save_scope_as = task_contract_target
