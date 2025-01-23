@@ -810,6 +810,9 @@ ep3_become_landed_transfer_no_ennobled_modifier_effect = {
 				government_is_tribal = {
 					save_scope_value_as = { name = old_government value = flag:tribal }
 				}
+				government_is_elven = {
+					save_scope_value_as = { name = old_government value = flag:elven }
+				}
 			}
 		}
 	}
@@ -881,6 +884,13 @@ ep3_become_landed_transfer_no_ennobled_modifier_effect = {
 			}
 			change_government = tribal_government
 		}
+		## Elven
+		else_if = {
+			limit = {
+				is_elf = yes
+			}
+				convert_elven_holdings_effect = yes
+		}
 		## Else feudal.
 		else = { change_government = feudal_government }
 	}
@@ -920,6 +930,9 @@ ep3_become_landed_transfer_effect = {
 			}
 			government_is_tribal = {
 				save_scope_value_as = { name = old_government value = flag:tribal }
+			}
+			government_is_elven = {
+				save_scope_value_as = { name = old_government value = flag:elven }
 			}
 		}
 	}
@@ -990,6 +1003,7 @@ ep3_become_landed_transfer_effect = {
 		## Administrative.
 		if = {
 			limit = {
+				scope:new_primary_title = { tier > tier_duchy }
 				OR = {
 					scope:new_liege ?= { government_has_flag = government_is_administrative }
 					scope:old_government ?= flag:admin
@@ -1000,10 +1014,13 @@ ep3_become_landed_transfer_effect = {
 		## Clan.
 		else_if = {
 			limit = {
-				ep3_is_clan_inclined_trigger = yes
 				OR = {
 					scope:new_liege ?= { government_has_flag = government_is_clan }
 					scope:old_government ?= flag:clan
+					AND = {
+						ep3_is_clan_inclined_trigger = yes
+						is_independent_ruler = yes
+					}
 				}
 			}
 			change_government = clan_government
@@ -1017,6 +1034,13 @@ ep3_become_landed_transfer_effect = {
 				}
 			}
 			change_government = tribal_government
+		}
+		## Elven
+		else_if = {
+			limit = {
+				is_elf = yes
+			}
+				convert_elven_holdings_effect = yes
 		}
 		## Else feudal.
 		else = { change_government = feudal_government }
@@ -2081,178 +2105,197 @@ adventurer_realm_destabilisation_list_effect = {
 								}
 							}
 						}
-						OR = {
-							primary_title.duchy ?= scope:title
-							primary_title.kingdom ?= scope:title
-							primary_title.empire ?= scope:title
+						any_held_title = {
+							target_is_de_jure_liege_or_above = scope:title
+						}
+					}
+					trigger_if = {
+						limit = {
+							government_allows = administrative
+						}
+						scope:title = {
+							OR = {
+								AND = {
+									scope:ruler.primary_title.tier = tier_kingdom
+									tier < tier_kingdom
+								}
+								tier < tier_empire
+							}
 						}
 					}
 				}
-				# Non-de jure automatically become independent
-				if = {
-					limit = {
-						NOR = {
-							primary_title.duchy ?= scope:title
-							primary_title.kingdom ?= scope:title
-							primary_title.empire ?= scope:title
+				# Calculate how likely are they to not become your vassal
+				random = {
+					chance = 0
+					### FAITH/CULTURE
+					modifier = { # Cultural acceptance differences
+						add = {
+							value = "culture.cultural_acceptance(scope:adventurer.culture)"
+							subtract = 100
+							abs = yes
+							divide = 5
+						}
+						culture = {
+							this != scope:adventurer.culture
+							cultural_acceptance = {
+								target = scope:adventurer.culture
+								value < 50
+							}
+							OR = {
+								this = scope:ruler.culture
+								"cultural_acceptance(scope:ruler.culture)" > "cultural_acceptance(scope:adventurer.culture)"
+							}
 						}
 					}
-					add_to_list = independent_vassals
-				}
-				# De jure have a chance to become independent
-				else = {
-					random = {
-						chance = 0
-						### FAITH/CULTURE
-						modifier = { # Cultural acceptance differences
-							add = {
-								value = "culture.cultural_acceptance(scope:adventurer.culture)"
-								subtract = 100
-								abs = yes
-								divide = 5
-							}
-							culture = {
-								this != scope:adventurer.culture
-								cultural_acceptance = {
-									target = scope:adventurer.culture
-									value < 50
-								}
-								OR = {
-									this = scope:ruler.culture
-									"cultural_acceptance(scope:ruler.culture)" > "cultural_acceptance(scope:adventurer.culture)"
-								}
-							}
+					modifier = { # Zealous of other faiths more likely
+						add = {
+							value = ai_zeal
+							multiply = 0.15
+							multiply = "scope:vassal_temp.faith.faith_hostility_level(scope:adventurer.faith)"
+							max = 25
 						}
-						modifier = { # Zealous of other faiths more likely
-							add = {
-								value = ai_zeal
-								multiply = 0.15
-								multiply = "scope:vassal_temp.faith.faith_hostility_level(scope:adventurer.faith)"
-								max = 25
-							}
-							ai_zeal > low_positive_zeal
-							faith = {
-								this != scope:adventurer.faith
-								"faith_hostility_level(scope:adventurer.faith)" > 0
-							}
+						ai_zeal > low_positive_zeal
+						faith = {
+							this != scope:adventurer.faith
+							"faith_hostility_level(scope:adventurer.faith)" > 0
 						}
-						### DISTANCE
-						modifier = { # Distant vassals more likely
-							add = {
-								value = 0
+					}
+					modifier = { # Theocatic Vassals of different faith more likely
+						factor = 2
+						has_government = theocracy_government
+						faith != scope:adventurer.faith
+					}
+					### DISTANCE
+					modifier = { # Distant vassals more likely
+						add = {
+							value = 0
+							add = scope:distance
+							if = {
+								limit = { scope:distance >= squared_distance_medium }
 								add = scope:distance
-								if = {
-									limit = { scope:distance >= squared_distance_medium }
-									add = scope:distance
-									multiply = 0.0001
-								}
-								max = 25
+								multiply = 0.0001
 							}
-							"capital_county.squared_distance(scope:ruler.capital_county)" >= squared_distance_medium
-							capital_county = {
-								save_temporary_scope_value_as = {
-									name = distance
-									value = "squared_distance(scope:ruler.capital_county)"
-								}
+							max = 25
+						}
+						"capital_county.squared_distance(scope:ruler.capital_county)" >= squared_distance_medium
+						capital_county = {
+							save_temporary_scope_value_as = {
+								name = distance
+								value = "squared_distance(scope:ruler.capital_county)"
 							}
 						}
-						### PERSONALITY
-						ai_value_modifier = { 
-							ai_boldness = 0.15
-							ai_energy = 0.15
-							ai_greed = 0.15
-							ai_honor = -0.15
-						}
-						### OPINION
-						opinion_modifier = { # More likely if dislikes adventurer
-							opinion_target = scope:adventurer
-							multiplier = -0.25
-						}
-						opinion_modifier = { # More likely if liked old ruler
-							opinion_target = scope:ruler
-							multiplier = 0.1
-						}
-						### STRENGTH
-						modifier = { # Small vassals less likely
-							add = -15
-							tier_difference = {
-								target = scope:ruler
-								value <= -2
-							}
-						}
-						modifier = {
-							add = -25
-							realm_size < tiny_realm_size
-						}
-						modifier = { # Powerful vassals more likely
-							factor = 1.25
-							is_powerful_vassal = yes
-						}
-						modifier = { # Powerful vassals more likely
-							add = {
-								value = highest_held_title_tier
-								multiply = 5
-							}
-						}
-						### RELEVANCE
-						modifier = { # Fringe vassals more likely
-							factor = 1.25
-							any_sub_realm_county = {
-								any_neighboring_county = { holder.top_liege != scope:ruler }
-							}
-						}
-						modifier = { # Core vassals less likely
-							factor = 0.75
-							scope:ruler.capital_county.kingdom = {
-								any_de_jure_county = { this = scope:vassal_temp.capital_county }
-							}
-						}
-						### FAMILY
-						modifier = { # Relatives of deposed more likely
-							factor = 1.1
-							is_close_family_of = scope:ruler
-							NOT = { is_close_family_of = scope:adventurer }
-						}
-						modifier = { # Dynasts of deposed more likely
-							factor = 1.1
-							dynasty ?= {
-								this = scope:ruler.dynasty
-								NOT = { this = scope:adventurer.dynasty }
-							}
-						}
-						modifier = { # Relatives of adventurer less likely
-							factor = 0.75
-							is_close_family_of = scope:adventurer
-							NOT = { is_close_family_of = scope:ruler }
-						}
-						modifier = { # Dynasts of adventurer less likely
-							factor = 0.75
-							dynasty ?= {
-								this = scope:adventurer.dynasty
-								NOT = { this = scope:ruler.dynasty }
-							}
-						}
-						### HOOKS
-						modifier = {
-							factor = 0
-							scope:adventurer = { has_hook = scope:vassal_temp }
-						}
-						modifier = {
-							factor = 2
-							scope:ruler = { has_hook = scope:vassal_temp }
-						}
-						### TIER
-						modifier = {
-							factor = 1.5
-							scope:ruler.primary_title.tier = tier_empire
-						}
-						modifier = {
-							factor = 1.25
-							scope:ruler.primary_title.tier = tier_kingdom
-						}
-						max = 95
-						add_to_list = independent_vassals
 					}
+					modifier = { # Vassals with capitals outside the de jure more likely
+						factor = 1.25
+						capital_county = {
+							NOT = {
+								target_is_de_jure_liege_or_above = scope:title
+							}
+						}
+					}
+					### PERSONALITY
+					ai_value_modifier = { 
+						ai_boldness = 0.15
+						ai_energy = 0.15
+						ai_greed = 0.15
+						ai_honor = -0.15
+					}
+					### OPINION
+					opinion_modifier = { # More likely if dislikes adventurer
+						opinion_target = scope:adventurer
+						multiplier = -0.25
+					}
+					opinion_modifier = { # More likely if liked old ruler
+						opinion_target = scope:ruler
+						multiplier = 0.1
+					}
+					### STRENGTH
+					modifier = { # Small vassals less likely
+						add = -15
+						tier_difference = {
+							target = scope:ruler
+							value <= -2
+						}
+					}
+					modifier = {
+						add = -25
+						realm_size < tiny_realm_size
+					}
+					modifier = { # Powerful vassals more likely
+						factor = 1.25
+						is_powerful_vassal = yes
+					}
+					modifier = { # Powerful vassals more likely
+						add = {
+							value = highest_held_title_tier
+							multiply = 5
+						}
+					}
+					### RELEVANCE
+					modifier = { # Fringe vassals more likely
+						factor = 1.25
+						any_sub_realm_county = {
+							any_neighboring_county = { holder.top_liege != scope:ruler }
+						}
+					}
+					modifier = { # Core vassals less likely
+						factor = 0.75
+						scope:ruler.capital_county.kingdom = {
+							any_de_jure_county = { this = scope:vassal_temp.capital_county }
+						}
+					}
+					### FAMILY
+					modifier = { # Relatives of deposed more likely
+						factor = 1.1
+						is_close_family_of = scope:ruler
+						NOT = { is_close_family_of = scope:adventurer }
+					}
+					modifier = { # Dynasts of deposed more likely
+						factor = 1.1
+						dynasty ?= {
+							this = scope:ruler.dynasty
+							NOT = { this = scope:adventurer.dynasty }
+						}
+					}
+					modifier = { # Relatives of adventurer less likely
+						factor = 0.75
+						is_close_family_of = scope:adventurer
+						NOT = { is_close_family_of = scope:ruler }
+					}
+					modifier = { # Dynasts of adventurer less likely
+						factor = 0.75
+						dynasty ?= {
+							this = scope:adventurer.dynasty
+							NOT = { this = scope:ruler.dynasty }
+						}
+					}
+					### HOOKS
+					modifier = {
+						factor = 0
+						scope:adventurer = { has_hook = scope:vassal_temp }
+					}
+					modifier = {
+						factor = 2
+						scope:ruler = { has_hook = scope:vassal_temp }
+					}
+					### TIER
+					modifier = {
+						factor = 1.5
+						scope:ruler.primary_title.tier = tier_empire
+					}
+					modifier = {
+						factor = 1.25
+						scope:ruler.primary_title.tier = tier_kingdom
+					}
+					### ADMIN
+					modifier = { # Noble Families should never leave admin realms
+						factor = 0
+						any_held_title = {
+							is_noble_family_title = yes
+						}
+					}
+					max = 95
+					add_to_list = independent_vassals
 				}
 			}
 			# Save heirs for claimant wars
@@ -8586,11 +8629,387 @@ ep3_pick_random_maa_regiment_effect = {
 			}
 			1 = { 
 				trigger = {
-					culture = { has_innovation = innovation_longbeard_warfare }
+					culture = { has_innovation = innovation_calaquendi_warfare }
 				}
 				save_scope_value_as = {
 					name = maa_to_create
 					value = flag:longbeard_horse_archers
+				}
+			}
+			#### Elves ####
+			1 = { 
+				trigger = {
+					culture = { has_innovation = innovation_calaquendi_warfare }
+					scope:actor = { is_elf = yes }
+				}
+				save_scope_value_as = {
+					name = maa_to_create
+					value = flag:high_elven_heavy_infantry
+				}
+			}
+			1 = { 
+				trigger = {
+					culture = { has_innovation = innovation_calaquendi_warfare }
+					scope:actor = { is_elf = yes }
+				}
+				save_scope_value_as = {
+					name = maa_to_create
+					value = flag:high_elven_archers
+				}
+			}
+			1 = { 
+				trigger = {
+					culture = { has_innovation = innovation_calaquendi_warfare }
+					scope:actor = { is_elf = yes }
+				}
+				save_scope_value_as = {
+					name = maa_to_create
+					value = flag:high_elven_heavy_cavalry
+				}
+			}
+			1 = { 
+				trigger = {
+					culture = { has_innovation = innovation_calaquendi_warfare }
+					scope:actor = { is_elf = yes }
+				}
+				save_scope_value_as = {
+					name = maa_to_create
+					value = flag:high_elven_pikemen
+				}
+			}
+			1 = { 
+				trigger = {
+					culture = { has_innovation = innovation_calaquendi_warfare }
+					scope:actor = { is_elf = yes }
+				}
+				save_scope_value_as = {
+					name = maa_to_create
+					value = flag:high_elven_skirmishers
+				}
+			}
+			1 = { 
+				trigger = {
+					culture = { has_innovation = innovation_calaquendi_warfare }
+					scope:actor = { is_elf = yes }
+				}
+				save_scope_value_as = {
+					name = maa_to_create
+					value = flag:high_elven_light_cavalry
+				}
+			}
+			1 = { 
+				trigger = {
+					culture = { has_innovation = innovation_lomiquendi_warfare }
+					scope:actor = { is_elf = yes }
+				}
+				save_scope_value_as = {
+					name = maa_to_create
+					value = flag:grey_elven_archers
+				}
+			}
+			1 = { 
+				trigger = {
+					culture = { has_innovation = innovation_lomiquendi_warfare }
+					scope:actor = { is_elf = yes }
+				}
+				save_scope_value_as = {
+					name = maa_to_create
+					value = flag:grey_elven_heavy_cavalry
+				}
+			}
+			1 = { 
+				trigger = {
+					culture = { has_innovation = innovation_lomiquendi_warfare }
+					scope:actor = { is_elf = yes }
+				}
+				save_scope_value_as = {
+					name = maa_to_create
+					value = flag:grey_elven_heavy_infantry
+				}
+			}
+			1 = { 
+				trigger = {
+					culture = { has_innovation = innovation_lomiquendi_warfare }
+					scope:actor = { is_elf = yes }
+				}
+				save_scope_value_as = {
+					name = maa_to_create
+					value = flag:grey_elven_skirmishers
+				}
+			}
+			1 = { 
+				trigger = {
+					culture = { has_innovation = innovation_lomiquendi_warfare }
+					scope:actor = { is_elf = yes }
+				}
+				save_scope_value_as = {
+					name = maa_to_create
+					value = flag:grey_elven_light_cavalry
+				}
+			}
+			1 = { 
+				trigger = {
+					culture = { has_innovation = innovation_avarin_warfare }
+					scope:actor = { is_elf = yes }
+				}
+				save_scope_value_as = {
+					name = maa_to_create
+					value = flag:avarin_skirmishers
+				}
+			}
+			1 = { 
+				trigger = {
+					culture = { has_innovation = innovation_avarin_warfare }
+					scope:actor = { is_elf = yes }
+				}
+				save_scope_value_as = {
+					name = maa_to_create
+					value = flag:avarin_light_cavalry
+				}
+			}
+			1 = { 
+				trigger = {
+					culture = { has_innovation = innovation_avarin_warfare }
+					scope:actor = { is_elf = yes }
+				}
+				save_scope_value_as = {
+					name = maa_to_create
+					value = flag:avarin_archers
+				}
+			}
+			1 = { 
+				trigger = {
+					culture = { has_innovation = innovation_avarin_warfare }
+					scope:actor = { is_elf = yes }
+				}
+				save_scope_value_as = {
+					name = maa_to_create
+					value = flag:avarin_pikemen
+				}
+			}
+			1 = { 
+				trigger = {
+					culture = { has_innovation = innovation_avarin_warfare }
+					scope:actor = { is_elf = yes }
+				}
+				save_scope_value_as = {
+					name = maa_to_create
+					value = flag:avarin_heavy_infantry
+				}
+			}
+			1 = { 
+				trigger = {
+					culture = { has_innovation = innovation_avarin_warfare }
+					scope:actor = { is_elf = yes }
+				}
+				save_scope_value_as = {
+					name = maa_to_create
+					value = flag:avarin_heavy_cavalry
+				}
+			}
+			1 = { 
+				trigger = {
+					culture = { has_innovation = innovation_noldor_warfare }
+					scope:actor = { is_elf = yes }
+				}
+				save_scope_value_as = {
+					name = maa_to_create
+					value = flag:noldor_swordsmen
+				}
+			}
+			1 = { 
+				trigger = {
+					culture = { has_innovation = innovation_noldor_warfare }
+					scope:actor = { is_elf = yes }
+				}
+				save_scope_value_as = {
+					name = maa_to_create
+					value = flag:noldor_cavalry
+				}
+			}
+			1 = { 
+				trigger = {
+					culture = { has_innovation = innovation_calaquendi_warfare }
+					scope:actor = { is_elf = yes }
+				}
+				save_scope_value_as = {
+					name = maa_to_create
+					value = flag:song_smiths
+				}
+			}
+			1 = { 
+				trigger = {
+					culture = { has_innovation = innovation_sindar_warfare }
+					scope:actor = { is_elf = yes }
+				}
+				save_scope_value_as = {
+					name = maa_to_create
+					value = flag:hir_hathol
+				}
+			}
+			1 = { 
+				trigger = {
+					culture = { has_innovation = innovation_falathrim_warfare }
+					scope:actor = { is_elf = yes }
+				}
+				save_scope_value_as = {
+					name = maa_to_create
+					value = flag:falathrim_haven_guard
+				}
+			}
+			1 = { 
+				trigger = {
+					culture = { has_innovation = innovation_marchwardens_warfare }
+					scope:actor = { is_elf = yes }
+				}
+				save_scope_value_as = {
+					name = maa_to_create
+					value = flag:marchwardens
+				}
+			}
+			1 = { 
+				trigger = {
+					culture = { has_innovation = innovation_galadhrim_warfare }
+					scope:actor = { is_elf = yes }
+				}
+				save_scope_value_as = {
+					name = maa_to_create
+					value = flag:galadhrim_warriors
+				}
+			}
+			1 = { 
+				trigger = {
+					culture = { has_innovation = innovation_galadhrim_warfare }
+					scope:actor = { is_elf = yes }
+				}
+				save_scope_value_as = {
+					name = maa_to_create
+					value = flag:galadhrim_archers
+				}
+			}
+			
+			1 = { 
+				trigger = {
+					culture = { has_innovation = innovation_lasgalendrim_warfare }
+					scope:actor = { is_elf = yes }
+				}
+				save_scope_value_as = {
+					name = maa_to_create
+					value = flag:royal_elk_riders
+				}
+			}
+			
+			1 = { 
+				trigger = {
+					culture = { has_innovation = innovation_lasgalendrim_warfare }
+					scope:actor = { is_elf = yes }
+				}
+				save_scope_value_as = {
+					name = maa_to_create
+					value = flag:theladagnyr
+				}
+			}
+			
+			1 = { 
+				trigger = {
+					culture = { has_innovation = innovation_spirits_pact }
+					scope:actor = { is_elf = yes }
+				}
+				save_scope_value_as = {
+					name = maa_to_create
+					value = flag:neldoreth_borderwardens
+				}
+			}
+			
+			1 = { 
+				trigger = {
+					culture = { has_innovation = innovation_spirits_pact }
+					scope:actor = { is_elf = yes }
+				}
+				save_scope_value_as = {
+					name = maa_to_create
+					value = flag:nuinevari
+				}
+			}
+			
+			1 = { 
+				trigger = {
+					culture = { has_innovation = innovation_cuind_warfare }
+					scope:actor = { is_elf = yes }
+				}
+				save_scope_value_as = {
+					name = maa_to_create
+					value = flag:cuind_wanderers
+				}
+			}
+			1 = { 
+				trigger = {
+					culture = { has_innovation = innovation_cuind_warfare }
+					scope:actor = { is_elf = yes }
+				}
+				save_scope_value_as = {
+					name = maa_to_create
+					value = flag:cuind_skirmishers
+				}
+			}
+			1 = { 
+				trigger = {
+					culture = { has_innovation = innovation_kinnlai_warfare }
+					scope:actor = { is_elf = yes }
+				}
+				save_scope_value_as = {
+					name = maa_to_create
+					value = flag:annammon_kin
+				}
+			}
+			1 = { 
+				trigger = {
+					culture = { has_innovation = innovation_kinnlai_warfare }
+					scope:actor = { is_elf = yes }
+				}
+				save_scope_value_as = {
+					name = maa_to_create
+					value = flag:kinnlai_skirmishers
+				}
+			}
+			1 = { 
+				trigger = {
+					culture = { has_innovation = innovation_sirrandrai_warfare }
+					scope:actor = { is_elf = yes }
+				}
+				save_scope_value_as = {
+					name = maa_to_create
+					value = flag:sirrandrai_riders
+				}
+			}
+			1 = { 
+				trigger = {
+					culture = { has_innovation = innovation_sirrandrai_warfare }
+					scope:actor = { is_elf = yes }
+				}
+				save_scope_value_as = {
+					name = maa_to_create
+					value = flag:wardens_of_sirgala
+				}
+			}
+			1 = { 
+				trigger = {
+					culture = { has_innovation = innovation_laiquendi_warfare }
+					scope:actor = { is_elf = yes }
+				}
+				save_scope_value_as = {
+					name = maa_to_create
+					value = flag:laiquendi_scouts
+				}
+			}
+			1 = { 
+				trigger = {
+					culture = { has_innovation = innovation_laiquendi_warfare }
+					scope:actor = { is_elf = yes }
+				}
+				save_scope_value_as = {
+					name = maa_to_create
+					value = flag:ossiriand_rangers
 				}
 			}
 			###############
@@ -9827,6 +10246,230 @@ ep3_create_random_maa_regiment_effect = {
 					SIZE = $SIZE$
 				}
 			}
+			#### Dwarves ####
+			### Firebeards ###
+			flag:high_elven_heavy_infantry = {	
+				create_maa_or_upgrade_regiment_effect = {
+					TYPE = high_elven_heavy_infantry
+					SIZE = $SIZE$
+				}
+			}
+			flag:high_elven_archers = {	
+				create_maa_or_upgrade_regiment_effect = {
+					TYPE = high_elven_archers
+					SIZE = $SIZE$
+				}
+			}
+			flag:high_elven_heavy_cavalry = {	
+				create_maa_or_upgrade_regiment_effect = {
+					TYPE = high_elven_heavy_cavalry
+					SIZE = $SIZE$
+				}
+			}
+			flag:high_elven_pikemen = {	
+				create_maa_or_upgrade_regiment_effect = {
+					TYPE = high_elven_pikemen
+					SIZE = $SIZE$
+				}
+			}
+			flag:high_elven_skirmishers = {	
+				create_maa_or_upgrade_regiment_effect = {
+					TYPE = high_elven_skirmishers
+					SIZE = $SIZE$
+				}
+			}
+			flag:high_elven_light_cavalry = {	
+				create_maa_or_upgrade_regiment_effect = {
+					TYPE = high_elven_light_cavalry
+					SIZE = $SIZE$
+				}
+			}
+			flag:grey_elven_archers = {	
+				create_maa_or_upgrade_regiment_effect = {
+					TYPE = grey_elven_archers
+					SIZE = $SIZE$
+				}
+			}
+			flag:grey_elven_heavy_cavalry = {	
+				create_maa_or_upgrade_regiment_effect = {
+					TYPE = grey_elven_heavy_cavalry
+					SIZE = $SIZE$
+				}
+			}
+			flag:grey_elven_heavy_infantry = {	
+				create_maa_or_upgrade_regiment_effect = {
+					TYPE = grey_elven_heavy_infantry
+					SIZE = $SIZE$
+				}
+			}
+			flag:grey_elven_skirmishers = {	
+				create_maa_or_upgrade_regiment_effect = {
+					TYPE = grey_elven_skirmishers
+					SIZE = $SIZE$
+				}
+			}
+			flag:grey_elven_light_cavalry = {	
+				create_maa_or_upgrade_regiment_effect = {
+					TYPE = grey_elven_light_cavalry
+					SIZE = $SIZE$
+				}
+			}
+			flag:avarin_skirmishers = {	
+				create_maa_or_upgrade_regiment_effect = {
+					TYPE = avarin_skirmishers
+					SIZE = $SIZE$
+				}
+			}
+			flag:avarin_light_cavalry = {	
+				create_maa_or_upgrade_regiment_effect = {
+					TYPE = avarin_light_cavalry
+					SIZE = $SIZE$
+				}
+			}
+			flag:avarin_archers = {	
+				create_maa_or_upgrade_regiment_effect = {
+					TYPE = avarin_archers
+					SIZE = $SIZE$
+				}
+			}
+			flag:avarin_pikemen = {	
+				create_maa_or_upgrade_regiment_effect = {
+					TYPE = avarin_pikemen
+					SIZE = $SIZE$
+				}
+			}
+			flag:avarin_heavy_infantry = {	
+				create_maa_or_upgrade_regiment_effect = {
+					TYPE = avarin_heavy_infantry
+					SIZE = $SIZE$
+				}
+			}
+			flag:avarin_heavy_cavalry = {	
+				create_maa_or_upgrade_regiment_effect = {
+					TYPE = avarin_heavy_cavalry
+					SIZE = $SIZE$
+				}
+			}
+			flag:noldor_swordsmen = {	
+				create_maa_or_upgrade_regiment_effect = {
+					TYPE = noldor_swordsmen
+					SIZE = $SIZE$
+				}
+			}
+			flag:noldor_cavalry = {	
+				create_maa_or_upgrade_regiment_effect = {
+					TYPE = noldor_cavalry
+					SIZE = $SIZE$
+				}
+			}
+			flag:song_smiths = {	
+				create_maa_or_upgrade_regiment_effect = {
+					TYPE = song_smiths
+					SIZE = $SIZE$
+				}
+			}
+			flag:hir_hathol = {	
+				create_maa_or_upgrade_regiment_effect = {
+					TYPE = hir_hathol
+					SIZE = $SIZE$
+				}
+			}
+			flag:falathrim_haven_guard = {	
+				create_maa_or_upgrade_regiment_effect = {
+					TYPE = falathrim_haven_guard
+					SIZE = $SIZE$
+				}
+			}
+			flag:marchwardens = {	
+				create_maa_or_upgrade_regiment_effect = {
+					TYPE = marchwardens
+					SIZE = $SIZE$
+				}
+			}
+			flag:galadhrim_warriors = {	
+				create_maa_or_upgrade_regiment_effect = {
+					TYPE = galadhrim_warriors
+					SIZE = $SIZE$
+				}
+			}
+			flag:galadhrim_archers = {	
+				create_maa_or_upgrade_regiment_effect = {
+					TYPE = galadhrim_archers
+					SIZE = $SIZE$
+				}
+			}
+			flag:royal_elk_riders = {	
+				create_maa_or_upgrade_regiment_effect = {
+					TYPE = royal_elk_riders
+					SIZE = $SIZE$
+				}
+			}
+			flag:theladagnyr = {	
+				create_maa_or_upgrade_regiment_effect = {
+					TYPE = theladagnyr
+					SIZE = $SIZE$
+				}
+			}
+			flag:neldoreth_borderwardens = {	
+				create_maa_or_upgrade_regiment_effect = {
+					TYPE = neldoreth_borderwardens
+					SIZE = $SIZE$
+				}
+			}
+			flag:nuinevari = {	
+				create_maa_or_upgrade_regiment_effect = {
+					TYPE = nuinevari
+					SIZE = $SIZE$
+				}
+			}
+			flag:cuind_wanderers = {	
+				create_maa_or_upgrade_regiment_effect = {
+					TYPE = cuind_wanderers
+					SIZE = $SIZE$
+				}
+			}
+			flag:cuind_skirmishers = {	
+				create_maa_or_upgrade_regiment_effect = {
+					TYPE = cuind_skirmishers
+					SIZE = $SIZE$
+				}
+			}
+			flag:annammon_kin = {	
+				create_maa_or_upgrade_regiment_effect = {
+					TYPE = annammon_kin
+					SIZE = $SIZE$
+				}
+			}
+			flag:kinnlai_skirmishers = {	
+				create_maa_or_upgrade_regiment_effect = {
+					TYPE = kinnlai_skirmishers
+					SIZE = $SIZE$
+				}
+			}
+			flag:sirrandrai_riders = {	
+				create_maa_or_upgrade_regiment_effect = {
+					TYPE = sirrandrai_riders
+					SIZE = $SIZE$
+				}
+			}
+			flag:wardens_of_sirgala = {	
+				create_maa_or_upgrade_regiment_effect = {
+					TYPE = wardens_of_sirgala
+					SIZE = $SIZE$
+				}
+			}
+			flag:laiquendi_scouts = {	
+				create_maa_or_upgrade_regiment_effect = {
+					TYPE = laiquendi_scouts
+					SIZE = $SIZE$
+				}
+			}
+			flag:ossiriand_rangers = {	
+				create_maa_or_upgrade_regiment_effect = {
+					TYPE = ossiriand_rangers
+					SIZE = $SIZE$
+				}
+			}
 
 
 			###############
@@ -11000,6 +11643,13 @@ admin_government_reset_effect = {
 		# 	}
 		# 	change_government = clan_government
 		# }
+		### Elven
+		else_if = {
+			limit = {
+				is_elf = yes
+			}
+			convert_elven_holdings_effect = yes
+		}
 		### FEUDAL - fallback playable case
 		else = { change_government = feudal_government }
 	}
@@ -12529,7 +13179,7 @@ laamp_as_mercenary_payout_effect = {
 		}
 	}
 }
-	
+
 laamp_as_mercenary_payout_tooltip_effect = {
 	show_as_tooltip = {
 		scope:defender = {
@@ -12553,6 +13203,7 @@ laamp_as_mercenary_payout_tooltip_effect = {
 				every_war_ally = {
 					if = {
 						limit = {
+							exists = scope:war
 							is_landless_adventurer = yes
 						}
 						save_scope_as = laamp_temp
