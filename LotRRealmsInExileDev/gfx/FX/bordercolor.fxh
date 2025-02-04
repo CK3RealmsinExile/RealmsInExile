@@ -46,7 +46,7 @@ PixelShader = {
 
 		void ApplyHighlightColor( inout float3 Diffuse, in float2 WorldSpacePosXZ )
 		{
-			ApplyHighlightColor( Diffuse, WorldSpacePosXZ, 1.0 );
+			ApplyHighlightColor( Diffuse, WorldSpacePosXZ, 0.0 );
 		}
 
 		void CompensateWhiteHighlightColor( inout float3 Diffuse, in float2 WorldSpacePosXZ, in float Opacity )
