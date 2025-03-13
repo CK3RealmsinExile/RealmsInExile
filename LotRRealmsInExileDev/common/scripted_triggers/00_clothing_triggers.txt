@@ -2,26 +2,23 @@
 	# Character must be an adult.
 	exists = this
 	is_adult = yes
-
 	# Character must have a valid reasion to be naked.
 	OR = {
-		faith = {
-			has_doctrine_parameter = naked_adherents_active
-		}
-		AND = {
-			faith = {
-				has_doctrine_parameter = naked_priests_active
-			}
-			OR = {
-				ai_zeal >= 50
-				has_trait = devoted
-				has_trait = zealous
-				government_has_flag = government_is_theocracy
-				has_council_position = councillor_court_chaplain
-			}
-		}
 		has_character_modifier = diplomacy_majesty_4090_no_raiment_modifier # Lunatic event where character goes naked instead of buying new clothes.
 		has_character_flag = is_naked # Special flag used in certain events.
+		faith = { has_doctrine_parameter = naked_adherents_active }
+		trigger_if = {
+			limit = {
+				faith = { has_doctrine_parameter = naked_priests_active }
+			}
+			OR = {
+				government_has_flag = government_is_theocracy
+				has_council_position = councillor_court_chaplain
+				has_trait = devoted
+				has_trait = zealous
+				ai_zeal >= 50
+			}
+		}
 	}
 
 	#LOTR - no naked Maiar
@@ -31,26 +28,33 @@
 
 # Can only be checked in the interface since the setting isn't synced
 should_be_fully_naked_portrait_trigger = {
-	should_be_naked_trigger = yes
 	should_show_nudity = yes
+	should_be_naked_trigger = yes
 }
 
 should_be_topless_portrait_trigger = {
+	should_show_nudity = yes
 	exists = this
 	OR = {
 		has_character_flag = should_be_topless
 		has_character_flag = single_combat_stripped_to_waist
 		activity_tournament_shirtless_trigger = yes
 	}
-	should_show_nudity = yes
 }
 
 portrait_wear_no_headgear_trigger = {
 	OR = {
-		scope:age < 16 # No headgear for children under 16 #
-
+		AND = {
+			scope:age < 16 # No headgear for children under 16 #
+			NOR = {
+				portrait_sami_clothing_trigger = yes
+				portrait_ugro_permian_clothing_trigger = yes
+			}
+		}
+		has_character_flag = no_hat
+		portrait_prisoner_trigger = yes
 		has_character_modifier = hajj_halq_modifier # To show shaved hair
-		
+
 		has_character_flag = roaming_character
 
 		AND = { # No headgear for characters who sold their crown
@@ -64,13 +68,12 @@ portrait_wear_no_headgear_trigger = {
 			exists = this
 			has_character_modifier = vow_of_poverty_modifier
 			# Should still wear armor when going to war
-			NOT = { portrait_wear_armor_trigger = yes }		
+			NOT = { portrait_wear_armor_trigger = yes }
 		}
 
-		AND = { 
+		AND = {
 			OR = {
-				has_character_flag = no_hat
-				
+
 				should_be_naked_trigger = yes # Deliberately not the "fully naked" one since dropping your crown's intended even if nudity is disabled
 
 				AND = {
@@ -83,7 +86,7 @@ portrait_wear_no_headgear_trigger = {
 
 				AND = {
 					exists = this
-					has_character_modifier = fp1_abased_before_highgod_modifier	# Refuses to wear a crown due to HighGod	
+					has_character_modifier = fp1_abased_before_highgod_modifier	# Refuses to wear a crown due to HighGod
 				}
 
 				activity_tournament_shirtless_trigger = yes
@@ -98,15 +101,18 @@ portrait_wear_no_headgear_trigger = {
 			# }		
 		}
 
-		
-
 		AND = { # No headgear for vanity characters with the no_headgear flag, unless they are dukes or higher
 			exists = this
 			has_character_flag = no_headgear
-			highest_held_title_tier < tier_duchy		
+			highest_held_title_tier < tier_duchy
 		}
 
 		portrait_ep2_ihram_clothes_trigger = yes # Remove headgear if you are undertaking the Hajj and meet the requirements for the Ihram clothes (Halq modifier and male)
+
+		AND = { # No headgear for charioteers
+			exists = this
+			has_any_charioteer_trait = yes
+		}
 	}
 }
 
@@ -130,33 +136,22 @@ portrait_wear_armor_trigger = {
 			}
 		}
 	}
-	is_incapable = no
 	NOT = { has_any_charioteer_trait = yes }
-	is_pregnant = no
-	is_imprisoned = no
 	portrait_ep2_wedding_clothes_trigger = no
 	trigger_if = {
 		limit = { portrait_sickness_trigger = yes }
 		is_in_army = yes
-	}	
+	}
 	OR = {
-		# Mercenaries
+		# Mercenaries, Holy Orders, Adventurers
 		AND = {
 			is_ruler = yes
-			government_has_flag = government_is_mercenary
-		}
-		# Adventurers
-		AND = {
-			is_ruler = yes
-			government_has_flag = government_is_landless_adventurer
 			OR = {
+				government_has_flag = government_is_mercenary
+				government_has_flag = government_is_holy_order
 				has_realm_law = camp_purpose_mercenaries
+				has_realm_law = camp_purpose_brigands
 			}
-		}
-		# Holy Orders
-		AND = {
-			is_ruler = yes
-			government_has_flag = government_is_holy_order
 		}
 		has_trait = order_member
 		# Commanding an army
@@ -164,6 +159,11 @@ portrait_wear_armor_trigger = {
 		# Knight in an army
 		exists = knight_army
 		AND = {
+			OR = {
+				is_landed_or_landless_administrative = no
+				liege = { is_at_war = yes }
+			}
+			is_councillor = no
 			OR = {
 				AND = {
 					is_knight = yes
@@ -173,6 +173,7 @@ portrait_wear_armor_trigger = {
 						liege ?= {
 							NOR = {
 								has_realm_law = camp_purpose_mercenaries
+								has_realm_law = camp_purpose_brigands
 							}
 							is_at_war = no
 						}
@@ -193,17 +194,12 @@ portrait_wear_armor_trigger = {
 				has_court_position = light_infantry_captain_camp_officer
 				has_court_position = pike_captain_camp_officer
 			}
-			is_councillor = no
-			OR = {
-				is_playable_character = no
-				liege = { is_at_war = yes }
-			}
 		}
 		# Marshal lower than Duke
 		AND = {
 			has_council_position = councillor_marshal
 			OR = {
-				is_playable_character = no
+				is_landed_or_landless_administrative = no
 				primary_title.tier < tier_kingdom
 			}
 		}
@@ -235,7 +231,7 @@ portrait_wear_armor_currently_in_army_trigger = {
 }
 
 portrait_wear_no_armor_trigger = {
-	NOR = { 
+	NOR = {
 		portrait_wear_armor_trigger = yes
 		portrait_wear_armor_currently_in_army_trigger = yes
 	}
@@ -275,14 +271,113 @@ portrait_accoladed_knight_trigger = {
 	}
 }
 
-portrait_wear_helmet_trigger = { # Different from Armor, as Counts+ should show their crowns!
+portrait_wear_helmet_trigger = { # Different from Armor, as Kings and Emperors should show their crowns!
 	exists = this
 	is_pregnant = no
 	is_istari = no #LotR
 	is_maiar = no #LotR
+	trigger_if = {
+		limit = { exists = involved_activity }
+		involved_activity = {
+			NOR = {
+				has_activity_type = activity_hunt
+				has_activity_type = activity_pilgrimage
+				has_activity_type = activity_roaming
+			}
+		}
+	}
+	is_incapable = no
+	is_imprisoned = no
+	trigger_if = {
+		limit = { portrait_sickness_trigger = yes }
+		is_in_army = yes
+	}
 	OR = {
-		is_commanding_army = yes
+		# Adventurers
+		AND = {
+			is_ruler = yes
+			government_has_flag = government_is_landless_adventurer
+			has_realm_law = camp_purpose_mercenaries
+		}
+		# Holy Orders
+		AND = {
+			is_ruler = yes
+			government_has_flag = government_is_holy_order
+		}
+		has_trait = order_member
+		# Commanding and lower than a King
+		AND = {
+			is_commanding_army = yes
+			OR = {
+				is_landed_or_landless_administrative = no
+				AND = {
+					exists = primary_title
+					primary_title.tier < tier_kingdom
+				}
+			}
+		}
+		# Knight in an army
 		exists = knight_army
+		# Non-Council Knight lower than King and liege is at war
+		AND = {
+			is_knight = yes
+			is_councillor = no
+			OR = {
+				is_landed_or_landless_administrative = no
+				AND = {
+					exists = primary_title
+					primary_title.tier < tier_kingdom
+					liege = { is_at_war = yes }
+				}
+			}
+			NAND = {
+				is_ruler = no
+				government_has_flag = government_is_landless_adventurer
+				liege ?= {
+					is_at_war = no
+					NOT = { has_realm_law = camp_purpose_mercenaries }
+				}
+			}
+		}
+		# Marshal lower than Duke
+		AND = {
+			has_council_position = councillor_marshal
+			OR = {
+				is_landed_or_landless_administrative = no
+				primary_title.tier < tier_duchy
+			}
+		}
+		has_character_flag = wear_armor
+		# Serving Varangian
+		has_character_flag = is_currently_varangian
+		# In a Duel
+		has_character_flag = single_combat_duel_armor
+		# In a Tournament
+		activity_tournament_armor_trigger = yes
+		AND = { # In case these characters become landed they should stop wearing armor
+			has_character_flag = military_outfit
+			is_ruler = no
+		}
+	}
+	NOR = {
+		activity_tournament_shirtless_trigger = yes
+		has_character_flag = no_hat
+	}
+	# Not peasants leading revolts
+	NAND = {
+		has_trait = peasant_leader
+		OR = {
+			is_ruler = no
+			is_leading_faction_type = peasant_faction
+			AND = {
+				is_ruler = yes
+				is_landed_or_landless_administrative = no
+				OR = {
+					government_has_flag = government_is_feudal
+					government_has_flag = government_is_clan
+				}
+			}
+		}
 	}
 }
 
@@ -325,12 +420,10 @@ portrait_shared_clothing_contents_trigger = {
 	}
 	trigger_else_if = {
 		limit = {
-			exists = this
-			exists = var:adopted_cultural_style
+			exists = this.var:adopted_cultural_style
 		}
-
 		var:adopted_cultural_style = flag:$CULTURE_FLAG$
-		# has_variable = years_as_varangian
+		#has_variable = years_as_varangian
 		is_landed = no
 	}
 	trigger_else = {
@@ -338,119 +431,156 @@ portrait_shared_clothing_contents_trigger = {
 	}
 }
 
-portrait_byzantine_clothing_trigger = {
-	OR = {
-		# style_changing_reformer_byzantine = yes
-		scope:culture = {
-			portrait_byzantine_clothing_contents_trigger = yes
+## CCP4 Sami Travel trigger ##
+
+portrait_ccp4_sami_travel_coat_trigger = {
+	trigger_if = {
+		limit = {
+			NOR = {
+				has_realm_law = camp_purpose_explorers
+				liege ?= { has_realm_law = camp_purpose_explorers }
+			}
+		}
+		exists = current_travel_plan
+		# Must be traveling
+		is_travelling = yes
+	}
+	age > 4
+	# thou shalt shed thy cloak whilst at an activity
+	trigger_if = {
+		limit = {
+			exists = involved_activity
+			involved_activity = { 
+				NOR = {
+					has_activity_type = activity_hunt 
+					has_activity_type = activity_roaming
+				}
+			}
+		}
+		NOT = {
+			involved_activity = { activity_location = root.location }
 		}
 	}
+	# Used for the following cultures
+	OR = {
+		portrait_sami_clothing_trigger = yes
+	}
+}
+
+portrait_byzantine_clothing_trigger = {
+	#portrait_shared_clothing_contents_trigger = {
+	#	CULTURE_SCOPE = scope:culture
+	#	CULTURE_FLAG = byzantine
+	#}
+
+	culture = { portrait_byzantine_proxy_clothing_contents_trigger = yes } #LotR
 }
 
 portrait_byzantine_clothing_spouse_trigger = {
-	OR = {
-		# style_changing_reformer_byzantine = yes
-		culture = {
-			portrait_byzantine_clothing_contents_trigger = yes
-		}
-	}
-}
+	#portrait_shared_clothing_contents_trigger = {
+	#	CULTURE_SCOPE = culture
+	#	CULTURE_FLAG = byzantine
+	#}
 
-portrait_byzantine_clothing_contents_trigger = {
-	# has_clothing_gfx = byzantine_clothing_gfx #LotR
-	portrait_byzantine_proxy_clothing_contents_trigger = yes #LotR
+	culture = { portrait_byzantine_proxy_clothing_contents_trigger = yes } #LotR
 }
 
 portrait_indian_clothing_trigger = {
-	OR = {
-		# style_changing_reformer_indian = yes
-		scope:culture = {
-			portrait_indian_clothing_contents_trigger = yes
-		}
-	}
+	#portrait_shared_clothing_contents_trigger = {
+	#	CULTURE_SCOPE = scope:culture
+	#	CULTURE_FLAG = indian
+	#}
+
+	culture = { portrait_indian_proxy_clothing_contents_trigger = yes } #LotR
 }
 
 portrait_indian_clothing_spouse_trigger = {
-	OR = {
-		# style_changing_reformer_indian = yes
-		culture = {
-			portrait_indian_clothing_contents_trigger = yes
-		}
-	}
-}
+	#portrait_shared_clothing_contents_trigger = {
+	#	CULTURE_SCOPE = culture
+	#	CULTURE_FLAG = indian
+	#}
 
-portrait_indian_clothing_contents_trigger = {
-	# has_clothing_gfx = indian_clothing_gfx #LotR
-	portrait_indian_proxy_clothing_contents_trigger = yes #LotR
+	culture = { portrait_indian_proxy_clothing_contents_trigger = yes } #LotR
 }
 
 portrait_mena_clothing_trigger = {
-	OR = {
-		# style_changing_reformer_mena = yes
-		scope:culture = {
-			portrait_mena_clothing_contents_trigger = yes
-		}
-	}
+	#portrait_shared_clothing_contents_trigger = {
+	#	CULTURE_SCOPE = scope:culture
+	#	CULTURE_FLAG = mena
+	#}
+
+	culture = { portrait_mena_proxy_clothing_contents_trigger = yes } #LotR
 }
 
 portrait_mena_clothing_spouse_trigger = {
-	OR = {
-		# style_changing_reformer_mena = yes
-		culture = {
-			portrait_mena_clothing_contents_trigger = yes
-		}
-	}
-}
+	#portrait_shared_clothing_contents_trigger = {
+	#	CULTURE_SCOPE = culture
+	#	CULTURE_FLAG = mena
+	#}
 
-portrait_mena_clothing_contents_trigger = {
-	# has_clothing_gfx = mena_clothing_gfx #LotR
-	portrait_mena_proxy_clothing_contents_trigger = yes #LotR
+	culture = { portrait_mena_proxy_clothing_contents_trigger = yes } #LotR
 }
 
 portrait_african_clothing_trigger = {
-	OR = {
-		# style_changing_reformer_african = yes
-		scope:culture = {
-			portrait_african_clothing_contents_trigger = yes
-		}
-	}
+	#portrait_shared_clothing_contents_trigger = {
+	#	CULTURE_SCOPE = scope:culture
+	#	CULTURE_FLAG = african
+	#}
+
+	scope:culture = { portrait_african_proxy_clothing_contents_trigger = yes } #LotR
 }
 
 portrait_african_clothing_spouse_trigger = {
-	OR = {
-		# style_changing_reformer_african = yes
-		culture = {
-			portrait_african_clothing_contents_trigger = yes
-		}
-	}
-}
+	#portrait_shared_clothing_contents_trigger = {
+	#	CULTURE_SCOPE = scope:culture
+	#	CULTURE_FLAG = african
+	#}
 
-portrait_african_clothing_contents_trigger = {
-	# has_clothing_gfx = african_clothing_gfx #LotR
-	portrait_african_proxy_clothing_contents_trigger = yes #LotR
+	scope:culture = { portrait_african_proxy_clothing_contents_trigger = yes } #LotR
 }
 
 portrait_northern_clothing_trigger = {
-	OR = {
-		# style_changing_reformer_northern = yes
-		scope:culture = {
-			portrait_northern_clothing_contents_trigger = yes
-		}
+	scope:culture = { portrait_northern_proxy_clothing_contents_trigger = yes } #LotR
+
+	#portrait_shared_clothing_contents_trigger = {
+	#	CULTURE_SCOPE = scope:culture
+	#	CULTURE_FLAG = northern
+	#}
+	
+	NAND = {
+		has_cp4_dlc_trigger = yes
+		#OR = {
+		#	portrait_shared_clothing_contents_trigger = {
+		#		CULTURE_SCOPE = scope:culture
+		#		CULTURE_FLAG = sami
+		#	}
+		#	portrait_shared_clothing_contents_trigger = {
+		#		CULTURE_SCOPE = scope:culture
+		#		CULTURE_FLAG = ugro_permian
+		#	}
+		#}
 	}
 }
 
 portrait_northern_clothing_spouse_trigger = {
-	OR = {
-		# style_changing_reformer_northern = yes
-		culture = {
-			portrait_northern_clothing_contents_trigger = yes
-		}
+	portrait_shared_clothing_contents_trigger = {
+		CULTURE_SCOPE = culture
+		CULTURE_FLAG = northern
 	}
-}
-
-portrait_northern_clothing_contents_trigger = {
-	# has_clothing_gfx = northern_clothing_gfx #LotR
-	portrait_northern_proxy_clothing_contents_trigger = yes #LotR
+	NAND = {
+		has_cp4_dlc_trigger = yes
+		#OR = {
+		#	portrait_shared_clothing_contents_trigger = {
+		#		CULTURE_SCOPE = culture
+		#		CULTURE_FLAG = sami
+		#	}
+		#	portrait_shared_clothing_contents_trigger = {
+		#		CULTURE_SCOPE = culture
+		#		CULTURE_FLAG = ugro_permian
+		#	}
+		#}
+		scope:culture = { portrait_northern_proxy_clothing_contents_trigger = yes } #LotR
+	}
 }
 
 
@@ -458,142 +588,107 @@ portrait_northern_clothing_contents_trigger = {
 
 portrait_fp2_iberian_muslim_clothing_trigger = {
 	has_fp2_dlc_trigger = yes
-	OR = {
-		# style_changing_reformer_iberian_muslim = yes
-		scope:culture = { portrait_fp2_iberian_muslim_clothing_contents_trigger = yes }
-		# trigger_if = {
-		# 	limit = { exists = this	}
-		# 	AND = {
-		# 		is_landed = yes
-		# 		religion = religion:islam_religion
-		# 		capital_province = {
-		# 			geographical_region = world_europe_west_iberia
-		# 		}
-		# 	}
-		# }
-	}
+	#OR = {
+		portrait_shared_clothing_contents_trigger = {
+			CULTURE_SCOPE = scope:culture
+			CULTURE_FLAG = pel #LotR
+		}
+	#	trigger_if = {
+	#		limit = { exists = this	}
+	#		AND = {
+	#			religion = religion:islam_religion
+	#			capital_province ?= {
+	#				geographical_region = world_europe_west_iberia
+	#			}
+	#		}
+	#	}
+	#}
 }
 
 portrait_fp2_iberian_muslim_clothing_spouse_trigger = {
 	has_fp2_dlc_trigger = yes
-	OR = {
-		# style_changing_reformer_iberian_muslim = yes
-		culture = {
-			portrait_fp2_iberian_muslim_clothing_contents_trigger = yes
+	
+	#OR = {
+		portrait_shared_clothing_contents_trigger = {
+			CULTURE_SCOPE = culture
+			CULTURE_FLAG = pel #LotR
 		}
-		# AND = {
-		# 	is_landed = yes
-		# 	religion = religion:islam_religion
-		# 	capital_province = {
-		# 		geographical_region = world_europe_west_iberia
-		# 	}
-		# }
-	}
-}
-
-portrait_fp2_iberian_muslim_clothing_contents_trigger = {
-	portrait_shared_clothing_contents_trigger = {
-		CULTURE_SCOPE = scope:culture
-		CULTURE_FLAG = pel
-	}
+	#	AND = {
+	#		religion = religion:islam_religion
+	#		capital_province ?= {
+	#			geographical_region = world_europe_west_iberia
+	#		}
+	#	}
+	#}
 }
 
 portrait_fp2_iberian_christian_clothing_trigger = {
 	has_fp2_dlc_trigger = yes
 	OR = {
-		# style_changing_reformer_iberian_christian = yes
-		scope:culture = { portrait_fp2_iberian_christian_clothing_contents_trigger = yes }
-		# trigger_if = {
-		# 	limit = { exists = this }
-		# 	AND = {
-		# 		is_landed = yes
-		# 		religion = religion:christianity_religion
-		# 		capital_province = {
-		# 			geographical_region = world_europe_west_iberia
-		# 		}
-		# 	}
-		# }
+		portrait_shared_clothing_contents_trigger = {
+			CULTURE_SCOPE = scope:culture
+			CULTURE_FLAG =  thani_hazad #LotR
+		}
+		#trigger_if = {
+		#	limit = { exists = this }
+		#	AND = {
+		#		religion = religion:christianity_religion
+		#		capital_province ?= {
+		#			geographical_region = world_europe_west_iberia
+		#		}
+		#	}
+		#}
 	}
 }
 
 portrait_fp2_iberian_christian_clothing_spouse_trigger = {
 	has_fp2_dlc_trigger = yes
 	OR = {
-		# style_changing_reformer_iberian_christian = yes
-		culture = {
-			portrait_fp2_iberian_christian_clothing_contents_trigger = yes
+		portrait_shared_clothing_contents_trigger = {
+			CULTURE_SCOPE = culture
+			CULTURE_FLAG = thani_hazad #LotR
 		}
-		# AND = {
-		# 	is_landed = yes
-		# 	religion = religion:christianity_religion
-		# 	capital_province = {
-		# 		geographical_region = world_europe_west_iberia
-		# 	}
-		# }
+		#AND = {
+		#	religion = religion:christianity_religion
+		#	capital_province ?= {
+		#		geographical_region = world_europe_west_iberia
+		#	}
+		#}
 	}
 }
 
-portrait_fp2_iberian_christian_clothing_contents_trigger = {
-	portrait_shared_clothing_contents_trigger = {
-		CULTURE_SCOPE = scope:culture
-		CULTURE_FLAG = thani_hazad
-	}
-}
-
-### FP3 - Sands of Time  ###
+### FP3 - Legacy of Persia  ###
 #iranian
 portrait_fp3_iranian_clothing_trigger = {
 	has_fp3_dlc_trigger = yes
-	OR = {
-		# style_changing_reformer_iranian = yes
-		scope:culture = {
-			portrait_fp3_iranian_clothing_contents_trigger = yes
-		}
+	portrait_shared_clothing_contents_trigger = {
+		CULTURE_SCOPE = scope:culture
+		CULTURE_FLAG = variag #LotR
 	}
 }
 
 portrait_fp3_iranian_clothing_spouse_trigger = {
 	has_fp3_dlc_trigger = yes
-	# OR = { #LotR
-		# style_changing_reformer_iranian = yes
-		culture = {
-			portrait_fp3_iranian_clothing_contents_trigger = yes
-		}
-	# }
-}
-
-portrait_fp3_iranian_clothing_contents_trigger = {
 	portrait_shared_clothing_contents_trigger = {
-		CULTURE_SCOPE = scope:culture
-		CULTURE_FLAG = variag
+		CULTURE_SCOPE = culture
+		CULTURE_FLAG = variag #LotR
 	}
 }
 
 #turkic
 portrait_fp3_turkic_clothing_trigger = {
 	has_fp3_dlc_trigger = yes
-	OR = {
-		# style_changing_reformer_turkic = yes
-		scope:culture = {
-			portrait_fp3_turkic_clothing_contents_trigger = yes
-		}
+	portrait_shared_clothing_contents_trigger = {
+		CULTURE_SCOPE = scope:culture
+		CULTURE_FLAG = rhunnic #LotR
 	}
 }
 
 portrait_fp3_turkic_clothing_spouse_trigger = {
 	has_fp3_dlc_trigger = yes
-	OR = {
-		# style_changing_reformer_turkic = yes
-		culture = {
-			portrait_fp3_turkic_clothing_contents_trigger = yes
-		}
-	}
-}
-
-portrait_fp3_turkic_clothing_contents_trigger = {
 	portrait_shared_clothing_contents_trigger = {
-		CULTURE_SCOPE = scope:culture
-		CULTURE_FLAG = rhunnic
+		CULTURE_SCOPE = culture
+		CULTURE_FLAG = rhunnic #LotR
 	}
 }
 
@@ -601,30 +696,29 @@ portrait_fp3_turkic_clothing_contents_trigger = {
 
 portrait_afr_berber_clothing_trigger = {
 	has_afr_dlc_trigger = yes
-	scope:culture = { portrait_afr_berber_clothing_contents_trigger = yes }
-	# trigger_if = {
-	# 	limit = { exists = this	}
-	# 	NAND = {
-	# 		is_landed = yes
-	# 		# capital_province = { geographical_region = world_europe_west_iberia	}
-	# 	}
-	# }
+	portrait_shared_clothing_contents_trigger = {
+		CULTURE_SCOPE = scope:culture
+		CULTURE_FLAG = mag #LotR
+	}
+	#trigger_if = {
+	#	limit = { exists = this	}
+	#	NAND = {
+	#		is_landed = yes
+	#		capital_province ?= { geographical_region = world_europe_west_iberia	}
+	#	}
+	#}
 }
 
 portrait_afr_berber_clothing_spouse_trigger = {
 	has_afr_dlc_trigger = yes
-	culture = {	portrait_afr_berber_clothing_contents_trigger = yes }
-	# NAND = {
-	# 	is_landed = yes
-	# 	# capital_province = { geographical_region = world_europe_west_iberia }
-	# }
-}
-
-portrait_afr_berber_clothing_contents_trigger = {
 	portrait_shared_clothing_contents_trigger = {
-		CULTURE_SCOPE = scope:culture
-		CULTURE_FLAG = mag
+		CULTURE_SCOPE = culture
+		CULTURE_FLAG = mag #LotR
 	}
+	#NAND = {
+	#	is_landed = yes
+	#	capital_province ?= { geographical_region = world_europe_west_iberia }
+	#}
 }
 
 ### POL ###
@@ -645,167 +739,214 @@ portrait_west_slavic_clothing_spouse_trigger = {
 	}
 }
 
+### CCP4 KHANTY / SAMI ###
+
+portrait_sami_clothing_trigger = {
+	has_cp4_dlc_trigger = yes
+	portrait_shared_clothing_contents_trigger = {
+		CULTURE_SCOPE = scope:culture
+		CULTURE_FLAG = circumpolar #LotR
+	}
+}
+
+portrait_sami_clothing_spouse_trigger = {
+	has_cp4_dlc_trigger = yes
+	portrait_shared_clothing_contents_trigger = {
+		CULTURE_SCOPE = culture
+		CULTURE_FLAG = circumpolar #LotR
+	}
+}
+
+portrait_ugro_permian_clothing_trigger = { #AKA Khanty
+	has_cp4_dlc_trigger = yes
+	portrait_shared_clothing_contents_trigger = {
+		CULTURE_SCOPE = scope:culture
+		CULTURE_FLAG = circumpolar #LotR
+	}
+}
+
+portrait_ugro_permian_clothing_spouse_trigger = { #AKA Khanty
+	has_cp4_dlc_trigger = yes
+	portrait_shared_clothing_contents_trigger = {
+		CULTURE_SCOPE = culture
+		CULTURE_FLAG = circumpolar #LotR
+	}
+}
+
 ### FP1 ###
 
 portrait_fp1_norse_clothing_trigger = {
 	has_fp1_dlc_trigger = yes
-	OR = {
-		# style_changing_reformer_fp1_norse = yes
-		scope:culture = { portrait_fp1_norse_clothing_contents_trigger = yes }
+	portrait_shared_clothing_contents_trigger = {
+		CULTURE_SCOPE = scope:culture
+		CULTURE_FLAG = gwathiurim #LotR
 	}
-	
 }
 
 portrait_fp1_norse_clothing_spouse_trigger = {
 	has_fp1_dlc_trigger = yes
-	OR = {
-		# style_changing_reformer_fp1_norse = yes
-		culture = {
-			portrait_fp1_norse_clothing_contents_trigger = yes
-		}
+	portrait_shared_clothing_contents_trigger = {
+		CULTURE_SCOPE = culture
+		CULTURE_FLAG = gwathiurim #LotR
 	}
 }
-
-portrait_fp1_norse_clothing_contents_trigger = {
-	portrait_shared_clothing_contents_trigger = { #LotR
-		CULTURE_SCOPE = scope:culture
-		CULTURE_FLAG = gwathiurim
-	}
-}
-
 
 portrait_steppe_clothing_trigger = {
-	OR = {
-		# style_changing_reformer_mongol = yes
-		scope:culture = {
-			portrait_steppe_clothing_contents_trigger = yes
-		}
+	portrait_shared_clothing_contents_trigger = {
+		CULTURE_SCOPE = scope:culture
+		CULTURE_FLAG = mongol
 	}
+	
+	scope:culture = { portrait_steppe_proxy_clothing_contents_trigger = yes } #LotR
 }
 
 portrait_steppe_clothing_spouse_trigger = {
-	OR = {
-		# style_changing_reformer_mongol = yes
-		culture = {
-			portrait_steppe_clothing_contents_trigger = yes
-		}
-	}
-}
+	#portrait_shared_clothing_contents_trigger = { #LotR
+	#	CULTURE_SCOPE = culture
+	#	CULTURE_FLAG = mongol
+	#}
 
-portrait_steppe_clothing_contents_trigger = {
-	# has_clothing_gfx = mongol_clothing_gfx #LotR
-	portrait_steppe_proxy_clothing_contents_trigger = yes #LotR
+	culture = { portrait_steppe_proxy_clothing_contents_trigger = yes } #LotR
 }
 
 portrait_western_clothing_trigger = {
-	scope:culture = {
-		portrait_western_clothing_contents_trigger = yes
-	}
+	#portrait_shared_clothing_contents_trigger = { #LotR
+	#	CULTURE_SCOPE = scope:culture
+	#	CULTURE_FLAG = western
+	#}
+
+	scope:culture = { portrait_western_proxy_clothing_contents_trigger = yes } #LotR
 }
 
 portrait_western_clothing_spouse_trigger = {
-	culture = {
-		portrait_western_clothing_contents_trigger = yes
-	}
-}
+	#portrait_shared_clothing_contents_trigger = { #LotR
+	#	CULTURE_SCOPE = culture
+	#	CULTURE_FLAG = western
+	#}
 
-portrait_western_clothing_contents_trigger = {
-	# has_clothing_gfx = western_clothing_gfx #LotR
-	# NOR = {
-	# 	has_clothing_gfx = byzantine_clothing_gfx
-	# 	has_clothing_gfx = northern_clothing_gfx
-	# }
-	OR = {
-		# style_changing_reformer_western = yes
-		portrait_western_proxy_clothing_contents_trigger = yes #LotR
-	}
+	culture = { portrait_western_proxy_clothing_contents_trigger = yes } #LotR
 }
 
 portrait_french_clothing_trigger = {
-	scope:culture = {
-		portrait_french_clothing_contents_trigger = yes
-	}
+	always = no #LotR
+
+	#portrait_shared_clothing_contents_trigger = {
+	#	CULTURE_SCOPE = scope:culture
+	#	CULTURE_FLAG = french
+	#}
 }
 
 portrait_french_clothing_spouse_trigger = {
-	culture = {
-		portrait_french_clothing_contents_trigger = yes
-	}
+	always = no #LotR
+
+	#portrait_shared_clothing_contents_trigger = { #LotR
+	#	CULTURE_SCOPE = culture
+	#	CULTURE_FLAG = french
+	#}
 }
 
-portrait_french_clothing_contents_trigger = {
-	always = no #LotR - TODO - nothing for now
-	portrait_french_proxy_clothing_contents_trigger = yes
-	NOR = {
-		portrait_northern_proxy_clothing_contents_trigger = yes #LotR
-	}
+portrait_dde_hre_clothing_trigger = {
+	always = no
+	#portrait_shared_clothing_contents_trigger = {
+	#	CULTURE_SCOPE = scope:culture
+	#	CULTURE_FLAG = dde_hre
+	#}
+	has_dlc = "Garments of the Holy Roman Empire"
 }
 
-#portrait_dde_hre_clothing_trigger = {
-#	OR = {
-#		style_changing_reformer_dde_hre = yes
-#		scope:culture = {
-#			portrait_dde_hre_clothing_contents_trigger = yes
-#		}
-#	}
-#	has_dlc = "Garments of the Holy Roman Empire"
-#}
-#
-#portrait_dde_hre_clothing_spouse_trigger = {
-#	OR = {
-#		style_changing_reformer_dde_hre = yes
-#		culture = {
-#			portrait_dde_hre_clothing_contents_trigger = yes
-#		}
-#	}
-#	has_dlc = "Garments of the Holy Roman Empire"
-#}
-#
-#portrait_dde_hre_clothing_contents_trigger = {
-#	has_clothing_gfx = dde_hre_clothing_gfx #LotR
-#}
+portrait_dde_hre_clothing_spouse_trigger = {
+	always = no
+	
+	#portrait_shared_clothing_contents_trigger = {
+	#	CULTURE_SCOPE = culture
+	#	CULTURE_FLAG = dde_hre
+	#}
+	has_dlc = "Garments of the Holy Roman Empire"
+}
 
 portrait_dde_abbasid_clothing_trigger = {
-	OR = {
-		# style_changing_reformer_dde_abbasid = yes
-		scope:culture = {
-			portrait_dde_abbasid_clothing_contents_trigger = yes
-		}
-	}
-	has_dlc = "Fashion of the Abbasid Court"
-}
-
-portrait_dde_abbasid_clothing_spouse_trigger = {
-	OR = {
-		# style_changing_reformer_dde_abbasid = yes
-		culture = {
-			portrait_dde_abbasid_clothing_contents_trigger = yes
-		}
-	}
-	has_dlc = "Fashion of the Abbasid Court"
-}
-
-portrait_dde_abbasid_clothing_contents_trigger = {
-	# has_clothing_gfx = dde_abbasid_clothing_gfx #LotR
 	portrait_shared_clothing_contents_trigger = { #LotR
 		CULTURE_SCOPE = scope:culture
 		CULTURE_FLAG = east_haradrim
 	}
+	
+	#portrait_shared_clothing_contents_trigger = {
+	#	CULTURE_SCOPE = scope:culture
+	#	CULTURE_FLAG = dde_abbasid
+	#}
+	
+	has_dlc = "Fashion of the Abbasid Court"
+}
+
+portrait_dde_abbasid_clothing_spouse_trigger = {
+	portrait_shared_clothing_contents_trigger = { #LotR
+		CULTURE_SCOPE = scope:culture
+		CULTURE_FLAG = east_haradrim
+	}
+
+	#portrait_shared_clothing_contents_trigger = {
+	#	CULTURE_SCOPE = culture
+	#	CULTURE_FLAG = dde_abbasid
+	#}
+	has_dlc = "Fashion of the Abbasid Court"
 }
 
 ### SP2 - Elegance of the Empire ###
 
 portrait_sp2_western_clothing_trigger = {
 	has_dlc_feature = elegance_of_the_empire
-	scope:culture = {
-		portrait_western_clothing_contents_trigger = yes
+	portrait_shared_clothing_contents_trigger = {
+		CULTURE_SCOPE = scope:culture
+		CULTURE_FLAG = western
 	}
+	scope:culture = { portrait_western_clothing_contents_trigger = yes } #LotR
 }
 
 portrait_sp2_western_clothing_spouse_trigger = {
 	has_dlc_feature = elegance_of_the_empire
-	culture = {
-		portrait_western_clothing_contents_trigger = yes
+	portrait_shared_clothing_contents_trigger = {
+		CULTURE_SCOPE = culture
+		CULTURE_FLAG = western
+	}
+}
+
+portrait_rus_clothing_trigger = {
+	OR = {
+		#portrait_shared_clothing_contents_trigger = {
+		#	CULTURE_SCOPE = scope:culture
+		#	CULTURE_FLAG = east_slavic
+		#}	
+		portrait_shared_clothing_contents_trigger = {
+			CULTURE_SCOPE = scope:culture
+			CULTURE_FLAG = northron #LotR
+		}
+	}
+}
+
+portrait_rus_clothing_spouse_trigger = {
+	OR = {
+		#portrait_shared_clothing_contents_trigger = {
+		#	CULTURE_SCOPE = culture
+		#	CULTURE_FLAG = east_slavic
+		#}	
+		portrait_shared_clothing_contents_trigger = {
+			CULTURE_SCOPE = culture
+			CULTURE_FLAG = northron #LotR
+		}
+	}
+}
+
+portrait_turkic_clothing_trigger = {
+	portrait_shared_clothing_contents_trigger = {
+		CULTURE_SCOPE = scope:culture
+		CULTURE_FLAG = rhunnic #LotR
+	}
+}
+
+portrait_turkic_clothing_spouse_trigger = {
+	portrait_shared_clothing_contents_trigger = {
+		CULTURE_SCOPE = culture
+		CULTURE_FLAG = rhunnic #LotR
 	}
 }
 
@@ -816,7 +957,7 @@ portrait_can_use_noble_headgear_trigger = {
 			is_ruler = no
 			is_leading_faction_type = peasant_faction
 			AND = {
-				is_landed = no
+				is_playable_character = no
 				OR = {
 					government_has_flag = government_is_feudal
 					government_has_flag = government_is_clan
@@ -827,7 +968,7 @@ portrait_can_use_noble_headgear_trigger = {
 }
 
 
-### General clothing triggers ### 
+### General clothing triggers ###
 
 portrait_era1_trigger = { # Intended to primarily cover the years 850 to 1000
 	# scope:year_of_birth < 1000
@@ -917,62 +1058,53 @@ portrait_era4_armor_trigger = {
 court_fashion_level_4_trigger = {
 	scope:highest_held_title_tier < tier_duchy
 	NOT = {
-		AND = {
-			exists = primary_spouse
-			primary_spouse = {
-				highest_held_title_tier >= tier_county
-			}
-        }
+		primary_spouse ?= {
+			highest_held_title_tier >= tier_county
+		}
 	}
-    exists = court_owner
-    court_owner = {
-        has_royal_court = yes
-        amenity_level = { type = court_fashion value = 4 }
-    }
-    portrait_$CULTURE_INPUT$_clothing_trigger = yes
+	court_owner ?= {
+		has_royal_court = yes
+		has_dlc_feature = royal_court
+		amenity_level = { type = court_fashion value = 4 }
+	}
+	portrait_$CULTURE_INPUT$_clothing_trigger = yes
 }
 
 court_fashion_level_4_headgear_trigger = {
 	scope:highest_held_title_tier < tier_duchy
 	NOT = {
-		AND = {
-			exists = primary_spouse
-			primary_spouse = {
-				highest_held_title_tier >= tier_duchy
-			}
-        }
+		primary_spouse ?= {
+			highest_held_title_tier >= tier_duchy
+		}
 	}
-    exists = court_owner
-    court_owner = {
-        has_royal_court = yes
-        amenity_level = { type = court_fashion value >= 4 }
-    }
-    portrait_$CULTURE_INPUT$_clothing_trigger = yes
+	court_owner ?= {
+		has_royal_court = yes
+		has_dlc_feature = royal_court
+		amenity_level = { type = court_fashion value >= 4 }
+	}
+	portrait_$CULTURE_INPUT$_clothing_trigger = yes
 }
 
 court_fashion_level_5_trigger = {
 	scope:highest_held_title_tier < tier_duchy
 	NOT = {
-		AND = {
-			exists = primary_spouse
-			primary_spouse = {
-				highest_held_title_tier >= tier_duchy
-			}
-        }
+		primary_spouse ?= {
+			highest_held_title_tier >= tier_duchy
+		}
 	}
-	exists = court_owner
-    court_owner = {
-        has_royal_court = yes
-        amenity_level = { type = court_fashion value = 5 }
-    }	
-    portrait_$CULTURE_INPUT$_clothing_trigger = yes
+	court_owner ?= {
+		has_royal_court = yes
+		has_dlc_feature = royal_court
+		amenity_level = { type = court_fashion value = 5 }
+	}
+	portrait_$CULTURE_INPUT$_clothing_trigger = yes
 }
 
 portrait_poverty_robes_trigger = {
-    exists = this
-    has_character_modifier = vow_of_poverty_modifier
-    # Should still wear armor when going to war
-    NOT = { portrait_wear_armor_trigger = yes }	
+	exists = this
+	has_character_modifier = vow_of_poverty_modifier
+	# Should still wear armor when going to war
+	NOT = { portrait_wear_armor_trigger = yes }
 	portrait_ep2_wedding_clothes_trigger = no
 }
 
@@ -981,24 +1113,22 @@ portrait_ruler_designer_trigger = {
 }
 
 portrait_commoner_trigger = {
+	portrait_$CULTURE_INPUT$_clothing_trigger = yes
 	OR = {
-		AND = {
+		AND = { # You are not a ruler and not the courtier of a republic
 			scope:highest_held_title_tier < tier_barony
 			NOT = {
-				portrait_mayor_trigger = {
+				portrait_mayor_trigger = { # "Lives in a city"
 					CULTURE_INPUT = $CULTURE_INPUT$
 				}
 			}
 		}
-		AND = {
+		AND = { # You are a Scholar Adventurer
 			government_has_flag = government_is_landless_adventurer
 			has_realm_law = camp_purpose_scholars
 		}
 	}
 	NOR = {
-		portrait_low_nobles_trigger = {
-			CULTURE_INPUT = $CULTURE_INPUT$ 
-		}
 		portrait_high_nobles_trigger = {
 			CULTURE_INPUT = $CULTURE_INPUT$ 
 		}
@@ -1008,38 +1138,30 @@ portrait_commoner_trigger = {
 		portrait_imperial_trigger = {
 			CULTURE_INPUT = $CULTURE_INPUT$ 
 		}
+		portrait_low_nobles_trigger = {
+			CULTURE_INPUT = $CULTURE_INPUT$ 
+		}
 	}
 	trigger_if = {
 		limit = { exists = this } # To check if this is an actual character
 		NOR = {
-			AND = {
-				exists = primary_spouse
-				primary_spouse ?= {
-					AND = {
-						highest_held_title_tier > tier_barony
-						NAND = {
-							government_has_flag = government_is_landless_adventurer
-							has_realm_law = camp_purpose_legitimists
-						}
+			primary_spouse ?= { # You have a spouse that is higher than baron, unless Legitimists
+				AND = {
+					highest_held_title_tier > tier_barony
+					NAND = {
+						government_has_flag = government_is_landless_adventurer
+						has_realm_law = camp_purpose_legitimists
 					}
 				}
 			}
-			AND = {
-				government_has_flag = government_is_republic
-				primary_title.tier > tier_barony
-			}
-			AND = {
-				is_ruler = yes
-				government_has_flag = government_is_theocracy
-			}
-			AND = {
+			AND = { # You cannot be the courtier of a Legitimist Adventurer
 				is_ruler = no
 				government_has_flag = government_is_landless_adventurer
 				liege ?= {
 					has_realm_law = camp_purpose_legitimists
 				}
 			}
-			has_no_particular_noble_roots_trigger = no
+			has_no_particular_noble_roots_trigger = no # You cannot have noble roots
 			AND = { # Members of Council
 				liege ?= {
 					highest_held_title_tier >= tier_duchy
@@ -1047,8 +1169,16 @@ portrait_commoner_trigger = {
 				OR = { 
     				has_council_position = councillor_chancellor
     				has_council_position = councillor_steward
-   				}	
-   				portrait_$CULTURE_INPUT$_clothing_trigger = yes			
+   				}		
+			}
+		}
+		trigger_if = {
+			limit = {
+				court_owner ?= { has_royal_court = yes }
+				has_dlc_feature = royal_court
+			}
+			court_owner = {
+				amenity_level = { type = court_fashion value < 4 }
 			}
 		}
 	}
@@ -1073,6 +1203,7 @@ portrait_commoner_clothing_trigger = {
 }
 
 portrait_commoner_no_mayors_trigger = {
+	portrait_$CULTURE_INPUT$_clothing_trigger = yes
 	OR = {
 		scope:highest_held_title_tier < tier_barony
 		AND = {
@@ -1083,70 +1214,58 @@ portrait_commoner_no_mayors_trigger = {
 	trigger_if = {
 		limit = { exists = this } # To check if this is an actual character
 		NOR = {
-			AND = {
-				exists = primary_spouse
-				primary_spouse = {
-					AND = {
-						highest_held_title_tier > tier_county
-						NAND = {
-							government_has_flag = government_is_landless_adventurer
-							has_realm_law = camp_purpose_legitimists
-						}
+			government_has_flag = government_is_republic
+			primary_spouse ?= {
+				AND = {
+					highest_held_title_tier > tier_county
+					NAND = {
+						government_has_flag = government_is_landless_adventurer
+						has_realm_law = camp_purpose_legitimists
 					}
 				}
 			}
-			government_has_flag = government_is_republic
-			AND = {
-				is_ruler = yes
-				government_has_flag = government_is_theocracy
+		}
+		trigger_if = {
+			limit = {
+				court_owner ?= { has_royal_court = yes }
+				has_dlc_feature = royal_court
+			}
+			court_owner = {
+				amenity_level = { type = court_fashion value < 4 }
 			}
 		}
 	}
-	# trigger_if = {
-	# 	limit = {
-	# 		exists = this
-	# 		exists = court_owner
-	# 		court_owner = { has_royal_court = yes }
-	# 	}
-	# 	court_owner = {
-	# 		amenity_level = { type = court_fashion value < 4 }
-	# 	}
-	# }
-	portrait_$CULTURE_INPUT$_clothing_trigger = yes
 	portrait_wear_no_armor_trigger = yes
 }
 
 portrait_commoner_headgear_fallback_trigger = {
 	exists = this
 	portrait_can_use_noble_headgear_trigger = no
-	portrait_$CULTURE_INPUT$_clothing_trigger = yes	
+	portrait_$CULTURE_INPUT$_clothing_trigger = yes
 }
 
 portrait_low_nobles_trigger = {
 	trigger_if = {
 		limit = { exists = this } # To check if this is an actual character
 		NOT = {
-			AND = {
-				exists = primary_spouse
-				primary_spouse = {
-					highest_held_title_tier >= tier_duchy
-					trigger_if = {
-						limit = {
-							government_has_flag = government_is_landless_adventurer
-						}
-						has_realm_law = camp_purpose_legitimists
+			primary_spouse ?= {
+				highest_held_title_tier >= tier_duchy
+				trigger_if = {
+					limit = {
+						government_has_flag = government_is_landless_adventurer
 					}
+					has_realm_law = camp_purpose_legitimists
 				}
 			}
 		}
 		NOR = {
-			portrait_high_nobles_trigger = {
+			portrait_imperial_trigger = {
 				CULTURE_INPUT = $CULTURE_INPUT$ 
 			}
 			portrait_royalty_trigger = {
 				CULTURE_INPUT = $CULTURE_INPUT$ 
 			}
-			portrait_imperial_trigger = {
+			portrait_high_nobles_trigger = {
 				CULTURE_INPUT = $CULTURE_INPUT$ 
 			}
 		}
@@ -1166,18 +1285,14 @@ portrait_low_nobles_trigger = {
    				portrait_$CULTURE_INPUT$_clothing_trigger = yes			
 			}
 			AND = { # Courtiers
-				highest_held_title_tier < tier_county 
-				exists = this
-				exists = court_owner
-				court_owner = {
+				highest_held_title_tier < tier_county
+				court_owner ?= {
 					highest_held_title_tier > tier_duchy
 				}
 				portrait_$CULTURE_INPUT$_clothing_trigger = yes
 			}
-			AND = { # Mayors
-				portrait_mayor_trigger = {
-					CULTURE_INPUT = $CULTURE_INPUT$
-				}
+			portrait_mayor_trigger = { # Mayors
+				CULTURE_INPUT = $CULTURE_INPUT$
 			}
 			AND = { # Mercenaries
 				government_has_flag = government_is_mercenary
@@ -1197,7 +1312,6 @@ portrait_low_nobles_trigger = {
 					highest_held_title_tier = tier_county
 				}
 				NOR = {
-					# has_dynasty = no
 					AND = {
 						government_has_flag = government_is_republic
 						primary_title.tier > tier_barony
@@ -1227,7 +1341,6 @@ portrait_low_nobles_trigger = {
 						}
 					}
 					NOR = {
-						# has_dynasty = no
 						AND = {
 							government_has_flag = government_is_republic
 							primary_title.tier > tier_barony
@@ -1265,7 +1378,7 @@ portrait_low_nobles_trigger = {
 			# }
 		}		
 	}
-	trigger_else = { 
+	trigger_else = {
 		scope:highest_held_title_tier = tier_county # We use scope in case this is not an actual character (for example the Hybrid Culture preview window)
 		portrait_$CULTURE_INPUT$_clothing_trigger = yes
 	}
@@ -1278,8 +1391,7 @@ portrait_low_nobles_clothing_trigger = {
 	portrait_wear_no_armor_trigger = yes
 }
 
-
-portrait_high_nobles_trigger = {	
+portrait_high_nobles_trigger = {
 	trigger_if = {
 		limit = { exists = this } # To check if this is an actual character
 		OR = {
@@ -1313,12 +1425,11 @@ portrait_high_nobles_trigger = {
 				portrait_$CULTURE_INPUT$_clothing_trigger = yes
 			}
 			AND = { # Spouses of rulers
-				exists = primary_spouse
 				OR = {
 					is_ruler = no
 					highest_held_title_tier <= tier_county
 				}
-				primary_spouse = {
+				primary_spouse ?= {
 					OR = {
 						highest_held_title_tier >= tier_duchy
 						AND = {
@@ -1423,7 +1534,10 @@ portrait_high_nobles_headgear_trigger = {
 						government_has_flag = government_is_republic
 						primary_title.tier > tier_county
 					}
-					AND = { is_ruler = yes government_has_flag = government_is_theocracy }
+					AND = {
+						is_ruler = yes
+						government_has_flag = government_is_theocracy
+					}
 				}
 				NOR = { # Blocked for mercenaries and adventurers
 					government_has_flag = government_is_mercenary
@@ -1485,7 +1599,6 @@ portrait_royalty_trigger = {
 		OR = {
 			# Rulers
 			AND = {
-				is_governor = no
 				highest_held_title_tier = tier_kingdom
 				NOR = {
 					AND = {
@@ -1496,17 +1609,17 @@ portrait_royalty_trigger = {
 						is_ruler = yes
 						government_has_flag = government_is_theocracy
 					}
+					is_governor = yes
 				}
 				portrait_$CULTURE_INPUT$_clothing_trigger = yes
 			}
 			# Spouses
 			AND = {
-				exists = primary_spouse
 				OR = {
 					is_ruler = no
 					highest_held_title_tier = tier_barony
 				}
-				primary_spouse = {
+				primary_spouse ?= {
 					is_governor = no
 					highest_held_title_tier = tier_kingdom
 					NOR = {
@@ -1524,9 +1637,8 @@ portrait_royalty_trigger = {
 			}
 			# Co-Rulers
 			AND = {
-				exists = liege
 				is_diarch = yes
-				liege = {
+				liege ?= {
 					has_diarchy_active_parameter = diarchy_is_co_rulership
 					highest_held_title_tier >= tier_kingdom
 					NOR = {
@@ -1718,26 +1830,37 @@ portrait_imperial_nobles_headgear_trigger = {
 	portrait_$CULTURE_INPUT$_clothing_trigger = yes
 }
 
-portrait_commoner_armor_trigger = {
-	portrait_commoner_trigger = {
-		CULTURE_INPUT = $CULTURE_INPUT$
-	}
+portrait_armor_generic_trigger = {
 	OR = {
 		has_character_flag = need_military_outfit
 		portrait_wear_armor_trigger = yes
+	}
+}
+
+portrait_commoner_armor_trigger = {
+	OR = {
+		has_character_flag = need_military_outfit
+		portrait_wear_armor_trigger = yes
+	}
+	portrait_commoner_trigger = {
+		CULTURE_INPUT = $CULTURE_INPUT$
 	}
 	NOT = { portrait_accoladed_knight_trigger = yes }
 }
 
 portrait_commoner_armor_in_army_trigger = {
+	portrait_wear_armor_currently_in_army_trigger = yes
 	portrait_commoner_trigger = {
 		CULTURE_INPUT = $CULTURE_INPUT$
 	}
-	portrait_wear_armor_currently_in_army_trigger = yes
 	NOT = { portrait_accoladed_knight_trigger = yes }
 }
 
 portrait_low_nobles_armor_trigger = {
+	OR = {
+		has_character_flag = need_military_outfit
+		portrait_wear_armor_trigger = yes
+	}
 	OR = {
 		portrait_low_nobles_trigger = {
 			CULTURE_INPUT = $CULTURE_INPUT$
@@ -1754,6 +1877,7 @@ portrait_low_nobles_armor_trigger = {
 }
 
 portrait_low_nobles_armor_in_army_trigger = {
+	portrait_wear_armor_currently_in_army_trigger = yes
 	OR = {
 		portrait_low_nobles_trigger = {
 			CULTURE_INPUT = $CULTURE_INPUT$
@@ -1762,30 +1886,30 @@ portrait_low_nobles_armor_in_army_trigger = {
         #     CULTURE_INPUT = $CULTURE_INPUT$
         # }
 	}
-	portrait_wear_armor_currently_in_army_trigger = yes 
 	NOT = { portrait_accoladed_knight_trigger = yes }
 }
 
 portrait_high_nobles_armor_trigger = {
 	OR = {
+		has_character_flag = need_military_outfit
+		portrait_wear_armor_trigger = yes
+	}
+	OR = {
 		portrait_high_nobles_trigger = {
 			CULTURE_INPUT = $CULTURE_INPUT$
-		}	
+		}
 		AND = {
 			portrait_accoladed_knight_trigger = yes
 			portrait_$CULTURE_INPUT$_clothing_trigger = yes
 		}
-        # court_fashion_level_5_trigger = { #LotR - fix
-        #     CULTURE_INPUT = $CULTURE_INPUT$
-        # }
-	}
-	OR = {
-		has_character_flag = need_military_outfit
-		portrait_wear_armor_trigger = yes
+		court_fashion_level_5_trigger = {
+			CULTURE_INPUT = $CULTURE_INPUT$
+		}
 	}
 }
 
 portrait_high_nobles_armor_in_army_trigger = {
+	portrait_wear_armor_currently_in_army_trigger = yes
 	OR = {
 		portrait_high_nobles_trigger = {
 			CULTURE_INPUT = $CULTURE_INPUT$
@@ -1794,32 +1918,31 @@ portrait_high_nobles_armor_in_army_trigger = {
         #     CULTURE_INPUT = $CULTURE_INPUT$
         # }
 	}
-	portrait_wear_armor_currently_in_army_trigger = yes 
 }
 
 portrait_royalty_armor_trigger = {
-	portrait_royalty_trigger = {
-		CULTURE_INPUT = $CULTURE_INPUT$
-	}	
 	OR = {
 		has_character_flag = need_military_outfit
 		portrait_wear_armor_trigger = yes
 	}
-}
-
-portrait_royalty_armor_in_army_trigger = {
 	portrait_royalty_trigger = {
 		CULTURE_INPUT = $CULTURE_INPUT$
 	}
-	portrait_wear_armor_currently_in_army_trigger = yes 
+}
+
+portrait_royalty_armor_in_army_trigger = {
+	portrait_wear_armor_currently_in_army_trigger = yes
+	portrait_royalty_trigger = {
+		CULTURE_INPUT = $CULTURE_INPUT$
+	}
 }
 
 portrait_war_nobles_accoladed_trigger = {
+	portrait_accoladed_knight_trigger = yes
 	OR = {
 		portrait_wear_armor_trigger = yes
 		portrait_wear_armor_currently_in_army_trigger = yes
 	}
-	portrait_accoladed_knight_trigger = yes
 }
 
 portrait_war_nobles_helmet_trigger = {
@@ -1979,11 +2102,13 @@ portrait_sickness_trigger = {
 	portrait_ep2_wedding_clothes_trigger = no
 }
 
+
 portrait_stealth_trigger = {
 	exists = this
 	OR = {
 		has_character_flag = use_stealth_clothes
-		trigger_if = {
+	
+		trigger_if = { #LotR
 			limit = {
 				OR = {
 					has_realm_law = camp_purpose_brigands
@@ -1997,17 +2122,18 @@ portrait_stealth_trigger = {
 	}
 }
 
+
 portrait_mayor_trigger = {
-	scope:highest_held_title_tier < tier_county
-	scope:government = government_type:republic_government
-	portrait_$CULTURE_INPUT$_clothing_trigger = yes
+	scope:highest_held_title_tier < tier_county # You are a baron or unlanded
+	scope:government = government_type:republic_government # You are a republic ruler or courtier
+	portrait_$CULTURE_INPUT$_clothing_trigger = yes # You have the cultural clothing
 }
 
 portrait_mayor_headgear_trigger = {
 	exists = this
 	highest_held_title_tier < tier_county
 	government_has_flag = government_is_republic
-	portrait_$CULTURE_INPUT$_clothing_trigger = yes	
+	portrait_$CULTURE_INPUT$_clothing_trigger = yes
 }
 
 portrait_jester_trigger = {
@@ -2021,42 +2147,74 @@ portrait_jester_trigger = {
 
 portrait_religious_devoted_trigger = {
 	exists = this
-    OR = {
-        portrait_has_trait_trigger = { TRAIT = devoted }
-        AND = {
-            faith = {
-                has_doctrine_parameter = vows_of_poverty_active
-            }
-            OR = {
-                AND = {
-                    has_council_position = councillor_court_chaplain
-                    faith = {
-                        has_doctrine = doctrine_theocracy_lay_clergy
-                    }
-                }
-                is_theocratic_lessee = yes
-                AND = { is_ruler = yes government_has_flag = government_is_theocracy }
-            }
-        }
-    }	
+	OR = {
+		AND = {
+			has_character_flag = need_priest_outfit
+			faith = {
+				has_doctrine_parameter = vows_of_poverty_active
+			}
+		}
+		portrait_has_trait_trigger = { TRAIT = devoted }
+		AND = {
+			faith = {
+				has_doctrine_parameter = vows_of_poverty_active
+			}
+			OR = {
+				AND = {
+					has_council_position = councillor_court_chaplain
+					faith = {
+						has_doctrine = doctrine_theocracy_lay_clergy
+					}
+				}
+				is_theocratic_lessee = yes
+				AND = {
+					is_ruler = yes
+					government_has_flag = government_is_theocracy
+				}
+			}
+		}
+	}
 }
 
 portrait_religious_high_trigger = {
 	exists = this
-    OR = {
-        has_character_flag = need_priest_outfit
-        is_theocratic_lessee = yes
-        AND = { 
-        	is_ruler = yes 
-        	government_has_flag = government_is_theocracy 
-        }
-        has_council_position = councillor_court_chaplain
-    }
-    NOT = {
-        faith = {
-            has_doctrine_parameter = vows_of_poverty_active
-        }
-    }
+	OR = {
+		has_character_flag = need_priest_outfit
+		is_theocratic_lessee = yes
+		AND = {
+			is_ruler = yes
+			government_has_flag = government_is_theocracy
+		}
+		has_council_position = councillor_court_chaplain
+	}
+	NOT = {
+		faith = {
+			has_doctrine_parameter = vows_of_poverty_active
+		}
+	}
+}
+
+portrait_iconoclast_high_trigger = {
+	always = no
+	exists = this
+	AND = {
+		faith = { has_doctrine = tenet_aniconism }
+		faith = { religion_tag = christianity_religion }
+	}
+	OR = {
+		has_character_flag = need_priest_outfit
+		is_theocratic_lessee = yes
+		AND = {
+			is_ruler = yes
+			government_has_flag = government_is_theocracy
+		}
+		has_council_position = councillor_court_chaplain
+	}
+	NOT = {
+		faith = {
+			has_doctrine_parameter = vows_of_poverty_active
+		}
+	}
 }
 
 portrait_religious_high_no_poverty_trigger = {
@@ -2064,9 +2222,12 @@ portrait_religious_high_no_poverty_trigger = {
 	OR = {
 		has_character_flag = need_priest_outfit
 		is_theocratic_lessee = yes
-		AND = { is_ruler = yes government_has_flag = government_is_theocracy }
+		AND = {
+			is_ruler = yes
+			government_has_flag = government_is_theocracy
+		}
 		has_council_position = councillor_court_chaplain
-	}	
+	}
 }
 
 portrait_religious_high_headgear_trigger = {
@@ -2074,7 +2235,10 @@ portrait_religious_high_headgear_trigger = {
 	OR = {
 		has_character_flag = need_priest_outfit
 		is_theocratic_lessee = yes
-		AND = { is_ruler = yes government_has_flag = government_is_theocracy }
+		AND = {
+			is_ruler = yes
+			government_has_flag = government_is_theocracy
+		}
 	}
 	NAND = {
 		is_ruler = yes
@@ -2093,23 +2257,21 @@ portrait_religious_high_headgear_trigger = {
 
 portrait_religious_head_trigger = {
 	exists = this
-    exists = primary_title
-    primary_title = {
-        is_head_of_faith = yes
-    }
-    NOT = {
-        faith = {
-            has_doctrine_parameter = vows_of_poverty_active
-        }
-    }
+	primary_title ?= {
+		is_head_of_faith = yes
+	}
+	NOT = {
+		faith = {
+			has_doctrine_parameter = vows_of_poverty_active
+		}
+	}
 }
 
 portrait_religious_head_no_poverty_trigger = {
 	exists = this
-	exists = primary_title
-	primary_title = {
+	primary_title ?= {
 		is_head_of_faith = yes
-	}	
+	}
 }
 
 portrait_religious_head_popes_trigger = {
@@ -2136,16 +2298,15 @@ portrait_religious_head_popes_trigger = {
 
 portrait_religious_head_ruler_trigger = {
 	exists = this
-    exists = primary_title
-    primary_title = {
-        is_head_of_faith = yes
-    }
-    is_ruler = yes
-    NOT = {
-        faith = {
-            has_doctrine_parameter = vows_of_poverty_active
-        }
-    }
+	primary_title ?= {
+		is_head_of_faith = yes
+	}
+	is_ruler = yes
+	NOT = {
+		faith = {
+			has_doctrine_parameter = vows_of_poverty_active
+		}
+	}
 }
 
 portrait_religious_head_caliph_trigger = {
@@ -2209,6 +2370,23 @@ portrait_religious_norse_trigger = {
 	always = no
 }
 
+## CCP4 KHANTY / SAMI ##
+
+portrait_religious_siberian_trigger = { # these probably need dlc check?
+	always = no
+	#has_cp4_dlc_trigger = yes
+	#religion = religion:siberian_religion
+}
+
+
+portrait_religious_sami_trigger = {
+	always = no
+	#has_cp4_dlc_trigger = yes
+	#religion = religion:finno_ugric_religion
+	#portrait_sami_clothing_trigger = yes
+}
+
+
 portrait_religious_steppe_trigger = {
     # OR = {
     #     religion = religion:tengrism_religion
@@ -2270,7 +2448,7 @@ portrait_religious_african_trigger = {
 ### DDE HRE ###
 
 portrait_reichskrone_trigger = {
-	exists = this	
+	exists = this
 	OR = {
 		# has_primary_title = title:e_hre #LotR
 		any_equipped_character_artifact = {
@@ -2420,6 +2598,17 @@ portrait_ep2_mena_cloak_duel_trigger = {
 		portrait_african_clothing_trigger = yes
 		portrait_indian_clothing_trigger = yes
 		portrait_steppe_clothing_trigger = yes
+	}
+	# Exclude pilgrimages
+	trigger_if = {
+		limit = { exists = current_travel_plan.travel_plan_activity }
+		NOT = {
+			current_travel_plan = {
+				travel_plan_activity = {
+					has_activity_type = activity_pilgrimage
+				}
+			}
+		}
 	}
 }
 
