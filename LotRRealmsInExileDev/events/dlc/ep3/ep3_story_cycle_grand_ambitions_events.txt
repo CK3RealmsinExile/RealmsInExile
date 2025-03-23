@@ -3475,24 +3475,80 @@ grand_ambitions.0200 = {
 		}
 	}
 
-	option = { 
+	option = {
 		name = grand_ambitions.0200.a
 		imprison = {
 			target = scope:target
 			type = dungeon
 		}
 		# Root becomes next in line for the empire title
-		scope:target.primary_title = {
-			current_heir = { save_scope_as = next_heir }
-			change_appointment_investment = {
-				target = root
-				value = {
-					value = "scope:next_heir.appointment_candidate_score(scope:target.primary_title)"
-					add = 100
+		if = {
+			limit = {
+				scope:target = {
+					has_realm_law_flag = appointment_type_succession
 				}
 			}
+			scope:target.primary_title = {
+				current_heir = { save_scope_as = next_heir }
+				change_appointment_investment = {
+					target = root
+					value = {
+						value = "scope:next_heir.appointment_candidate_score(scope:target.primary_title)"
+						add = 100
+					}
+				}
+			}
+			scope:target = { depose = yes }
 		}
-		scope:target = { depose = yes }
+		else = {
+			scope:target = {
+				every_vassal = { add_to_list = target_vassals_list }
+				add_to_list = target_vassals_list
+				every_held_title = {
+					limit = {
+						is_noble_family_title = no
+						tier >= tier_county
+					}
+					add_to_list = target_held_titles
+				}
+				capital_county = {
+					save_temporary_scope_as = new_capital
+				}
+			}
+			create_title_and_vassal_change = {
+				type = usurped
+				save_scope_as = change
+				add_claim_on_loss = yes
+			}
+			scope:target.primary_title = {
+				change_title_holder_include_vassals = {
+					holder = root
+					change = scope:change
+				}
+			}
+			# We hide some of the effects, since they are all implicit
+			hidden_effect = {
+				every_in_list = {
+					list = target_held_titles
+					change_title_holder_include_vassals = {
+						holder = root
+						change = scope:change
+					}
+				}
+				every_in_list = {
+					list = target_vassals_list
+					limit = {
+						NOT = { this = root }
+					}
+					change_liege = {
+						liege = root
+						change = scope:change
+					}
+				}
+				set_realm_capital = scope:new_capital
+			}
+			resolve_title_and_vassal_change = scope:change
+		}
 		change_influence_level = 1
 		reverse_add_opinion = {
 			target = scope:target
