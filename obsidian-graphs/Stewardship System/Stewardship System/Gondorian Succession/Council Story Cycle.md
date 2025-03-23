@@ -1,0 +1,1 @@
+Handles Pulse events during inheritance period 

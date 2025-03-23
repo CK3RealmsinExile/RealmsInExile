@@ -1,0 +1,1 @@
+If the king has choice among candidates, 3-5 are presented a la the Physician event 

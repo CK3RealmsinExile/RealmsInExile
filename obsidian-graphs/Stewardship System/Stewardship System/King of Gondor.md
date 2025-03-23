@@ -1,0 +1,1 @@
+The person that holds the e_gondor title

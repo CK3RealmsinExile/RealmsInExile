@@ -1,0 +1,1 @@
+Pulse effects when the succession is ongoing to encourage the resolution of the crisis
