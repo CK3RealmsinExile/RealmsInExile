@@ -7935,6 +7935,347 @@ harad.2500 = {
 		name = harad.2500.a 
 	}
 }
+
+harad.2600 = {
+	content_source = realms_dlc
+	type = character_event
+	title = harad.2600.t
+	desc = harad.2600.desc
+
+	theme = faith
+	override_background = { reference = terrain }
+
+	left_portrait = {
+		character = root
+		triggered_animation = {
+			trigger = {
+				martial >= 12
+			}
+			animation = inspect_weapon
+		}
+		triggered_animation = {
+			trigger = {
+				learning >= 12
+			}
+			animation = prayer
+		}
+		triggered_animation = {
+			trigger = {
+				always = yes
+			}
+			animation = personality_zealous
+		}
+	}
+	
+	immediate = {
+		location = {
+			save_scope_as = current_location
+			if = {
+				limit = { #Elves and Istari don't convert others to their own faith
+					root = {
+						faith_is_good = yes
+						OR = {
+							is_elf = yes
+							is_istari = yes 
+						}
+					}
+					faith_is_good = no
+					culture = { is_orc_culture = no }
+				}
+				if = {
+					limit = { scope:current_location.faith.religion = { is_in_family = rf_darkness } }
+					if = {
+						limit = {
+							scope:current_location.faith.religion = {
+								any_faith = {
+									OR = { 
+										has_doctrine = doctrine_echoes_of_the_ainur
+										has_doctrine = special_doctrine_is_freepeople_faith
+									}
+								}
+							}
+						}
+						scope:current_location.faith.religion = {
+							random_faith = { #Find a good faith to convert to in the same religion
+								limit = {
+									OR = { 
+										has_doctrine = doctrine_echoes_of_the_ainur
+										has_doctrine = special_doctrine_is_freepeople_faith
+									}
+								}
+								save_scope_as = new_faith
+							}
+						}
+					}
+					else = {
+						faith:faith_edain = { save_scope_as = new_faith }
+					}
+				}
+				else = { #If forces of evil, find an appropriate local faith
+					if = {
+						limit = { culture = { is_dwarf_culture = yes } }
+						faith:faith_khazad = { save_scope_as = new_faith }
+					}
+					else_if = {
+						limit = { culture = { is_hobbit_culture = yes } }
+						faith:faith_hobbit = { save_scope_as = new_faith }
+					}
+					else_if = {
+						limit = { culture = { is_druedain_culture = yes } }
+						faith:faith_druedain = { save_scope_as = new_faith }
+					}
+					else_if = {
+						limit = { geographical_region = middleearth_west_rohan }
+						faith:faith_rohirric = { save_scope_as = new_faith }
+					}
+					else_if = {
+						limit = { geographical_region = middleearth_west_enedhwaith }
+						faith:faith_dunlending_turthalis = { save_scope_as = new_faith }
+					}
+					else_if = {
+						limit = { geographical_region = middleearth_west_rhovanion }
+						faith:faith_woodmen = { save_scope_as = new_faith }
+					}
+					else_if = {
+						limit = { geographical_region = middleearth_west }
+						faith:faith_edain = { save_scope_as = new_faith }
+					}
+					else_if = {
+						limit = { geographical_region = middleearth_rhun_dorwinion }
+						faith:faith_dorwinion = { save_scope_as = new_faith }
+					}
+					else_if = {
+						limit = { geographical_region = middleearth_rhun }
+						faith:faith_rhun_araw_triumvirate = { save_scope_as = new_faith }
+					}
+					else_if = {
+						limit = { geographical_region = middleearth_mordor }
+						faith:faith_rhun_araw_triumvirate = { save_scope_as = new_faith }
+					}
+					else_if = {
+						limit = { geographical_region = middleearth_harad_near }
+						faith:faith_chelkar = { save_scope_as = new_faith }
+					}
+					else_if = {
+						limit = { geographical_region = middleearth_harad_far }
+						faith:faith_conservative_eruism = { save_scope_as = new_faith }
+					}
+					else_if = {
+						limit = { geographical_region = middleearth_uttersouth }
+						faith:faith_gimileth = { save_scope_as = new_faith }
+					}
+					else = {
+						faith:faith_edain = { save_scope_as = new_faith }
+					}
+				}
+			}
+			else = { root.faith = { save_scope_as = new_faith } }
+		}
+	}
+	trigger = { #Double safeguard
+		has_character_flag = zealous_missionary_timer
+		government_has_flag = government_is_landless_adventurer
+		location ?= {
+			has_holding = yes
+			culture = { is_elf_culture = no }
+			OR = {
+				AND = {
+					root = {
+						faith_is_good = yes
+						OR = {
+							is_elf = yes
+							is_istari = yes 
+						}
+					}
+					faith_is_good = no
+					culture = { is_orc_culture = no }
+				}
+				culture = { same_race_culture =  { TARGET = root.culture } }
+			}
+		}
+		NOT = {
+			location.faith = root.faith
+			is_ai = yes
+			any_player = {
+				OR = {
+					this = location.county.holder
+					this = location.county.holder.top_liege
+				}
+			}
+		}
+	}
+
+
+	option = { # Convert!
+		name = harad.2600.a
+		duel = {
+			skills = { diplomacy learning }
+			value = very_high_skill_rating
+			50 = {
+				compare_modifier = {
+					value = scope:duel_value
+					multiplier = 3.5
+					min = -49
+				}
+				modifier = {
+					add = {
+						subtract = location.county.county_opinion
+					}
+				}
+				modifier = {
+					factor = 0.75
+					location.county.faith.religion = root.religion
+				}
+				modifier = {
+					factor = 0.75
+					knows_language_of_culture = location.county.culture
+				}
+				send_interface_toast = {
+					type = event_toast_effect_good
+					title = harad.2600.a.success
+					left_icon = root
+					right_icon = location.county
+					location.county = {
+						# set_county_faith = root.faith
+						set_county_faith = scope:new_faith
+					}
+				}
+			}
+			50 = {
+				compare_modifier = {
+					value = scope:duel_value
+					multiplier = -3.5
+					min = -49
+				}
+				modifier = {
+					add = location.county.development_level
+				}
+				send_interface_toast = {
+					type = event_toast_effect_good
+					title = harad.2600.a.failure
+					left_icon = root
+					right_icon = location.county
+					add_stress = major_stress_gain
+				}
+			}
+		}
+		add_stress = miniscule_stress_gain
+		add_piety = {
+			value = 10
+			multiply = location.county.development_level
+			min = 20
+		}
+
+		reverse_add_opinion = {
+			modifier = vengeful_opinion
+			opinion = -75
+			target = location.county.holder
+		}
+
+		ai_chance = {
+			base = 25
+			modifier = {
+				add = root.learning
+			}
+		}
+	}
+
+	option = { # Embrace the peaceful ways of Iunast... BY FORCE!
+		name = harad.2600.b
+		duel = {
+			skills = { martial intrigue }
+			value = high_skill_rating
+			50 = {
+				compare_modifier = {
+					value = scope:duel_value
+					multiplier = 3.5
+					min = -49
+				}
+				modifier = {
+					add = {
+						value = root.number_of_knights
+						multiply = 10
+					}
+				}
+				modifier = {
+					add = root.current_military_strength
+				}
+				modifier = {
+					factor = 1.2
+					root.faith = {
+						has_doctrine = tenet_armed_pilgrimages
+					}
+				}
+				send_interface_toast = {
+					type = event_toast_effect_good
+					title = harad.2600.a.success
+					left_icon = root
+					right_icon = location.county
+					location.county = {
+						# set_county_faith = root.faith
+						set_county_faith = scope:new_faith
+					}
+					ep3_hasan_advance_radicalism = yes
+				}
+			}
+			50 = {
+				compare_modifier = {
+					value = scope:duel_value
+					multiplier = -3.5
+					min = -49
+				}
+				modifier = {
+					add = location.county.development_level
+				}
+				modifier = {
+					add = location.barony.building_max_garrison
+				}
+				send_interface_toast = {
+					type = event_toast_effect_good
+					title = harad.2600.a.failure
+					left_icon = root
+					right_icon = location.county
+					increase_wounds_effect = { REASON = fight }
+					random_courtier ?= {
+						increase_wounds_effect = { REASON = fight }
+					}
+				}
+			}
+		}
+		add_piety = 50
+		reverse_add_opinion = {
+			modifier = vengeful_opinion
+			opinion = -75
+			target = location.county.holder
+		}
+
+		ai_chance = {
+			base = 50
+			modifier = {
+				add = {
+					value = root.current_military_strength
+					multiply = 0.1
+				}
+			}
+			modifier = {
+				add = {
+					value = location.barony.building_max_garrison
+					multiply = -0.1
+				}
+			}
+			modifier = {
+				add = root.martial
+			}
+		}
+	}
+	option = { #It's a lost cause
+		name = harad.2600.c 
+		add_stress = minor_stress_gain
+		ai_chance = {
+			base = 0
+		}
+	}
+}
 		
 harad.2999 = {
 	hidden = yes
