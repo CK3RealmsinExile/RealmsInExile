@@ -33,6 +33,27 @@ on_declared_war = {
 	else_if = {
 		limit = {
 			exists = scope:war
+			has_mpo_dlc_trigger = yes
+			OR = {
+				scope:attacker = {
+					government_has_flag = government_is_nomadic
+			  		any_character_situation = {
+			  			this = situation:the_great_steppe
+			  		}
+				}
+				scope:defender = {
+					government_has_flag = government_is_nomadic
+			  		any_character_situation = {
+			  			this = situation:the_great_steppe
+			  		}
+				}
+			}
+		}
+		scope:attacker = { play_music_cue = mx_cue_the_khans_glory }
+	}
+	else_if = {
+		limit = {
+			exists = scope:war
 			scope:attacker = {
 				is_dwarf = yes
 			}
@@ -170,6 +191,27 @@ on_declared_war = {
 			}
 		}
 		scope:defender = { play_music_cue = lotr_action_good_01 }
+	}
+	else_if = {
+		limit = {
+			exists = scope:war
+			has_mpo_dlc_trigger = yes
+			OR = {
+				scope:attacker = {
+					government_has_flag = government_is_nomadic
+			  		any_character_situation = {
+			  			this = situation:the_great_steppe
+			  		}
+				}
+				scope:defender = {
+					government_has_flag = government_is_nomadic
+			  		any_character_situation = {
+			  			this = situation:the_great_steppe
+			  		}
+				}
+			}
+		}
+		scope:defender = { play_music_cue = mx_cue_the_khans_glory }
 	}
 	else_if = { # Saruman and Isengard
 		limit = {
@@ -347,6 +389,18 @@ on_declared_war = {
 		}
 		scope:attacker = {
 			break_alliance_due_to_attack_effect = { TARGET = scope:defender }
+		}
+	}
+	# Breaking Tributary
+	if = {
+		limit = {
+			OR = {
+				scope:attacker = { is_tributary_of = scope:defender	}
+				scope:defender = { is_tributary_of = scope:attacker	}
+			}
+		}
+		scope:attacker = {
+			break_tributary_contract_due_to_attack_effect = { DEFENDER = scope:defender }
 		}
 	}
 	# Breaking Defensive Alliance 
@@ -554,6 +608,52 @@ break_alliance_due_to_attack_effect = {
 		years = 3
 	}
 	break_alliance = $TARGET$
+}
+
+break_tributary_contract_due_to_attack_effect = {
+	save_scope_as = attacker
+	if = {
+		limit = { is_tributary_of = $DEFENDER$ }
+		custom_description_no_bullet = { text = attack_suzerain_text }
+		reverse_add_opinion = {
+			modifier = tributary_ceased_payments_opinion
+			target = $DEFENDER$
+		}
+		$DEFENDER$ = {
+			send_interface_toast = {
+				type = msg_tributary_contract_broken_due_to_war
+				left_icon = $DEFENDER$
+				right_icon = scope:attacker
+			}
+		}
+		send_interface_toast = {
+			type = msg_tributary_contract_broken_due_to_war
+			left_icon = scope:attacker
+			right_icon = $DEFENDER$
+		}
+		end_tributary = yes
+	}
+	else = {
+		custom_description_no_bullet = { text = attack_tributary_text }
+		reverse_add_opinion = {
+			modifier = betrayal_opinion
+			target = $DEFENDER$
+			opinion = -50
+		}
+		send_interface_toast = {
+			type = msg_tributary_contract_broken_due_to_war
+			left_icon = scope:attacker
+			right_icon = $DEFENDER$
+		}
+		$DEFENDER$ = {
+			send_interface_toast = {
+				type = msg_tributary_contract_broken_due_to_war
+				left_icon = $DEFENDER$
+				right_icon = scope:attacker
+			}
+			end_tributary = yes
+		}
+	}
 }
 
 ### LotR ##
@@ -1239,6 +1339,22 @@ on_peasant_faction_war_win_common = {
 }
 
 on_claimant_faction_war_win_common = {
+	$DEFENDER$ = {
+		if = {
+			limit = {
+				is_tributary = yes
+				exists = suzerain
+				$CLAIMANT$ = {
+					is_tributary = no
+					OR = {
+						is_ruler = no
+						is_vassal_or_below_of = $DEFENDER$
+					}
+				}
+			}
+			suzerain = { save_scope_as = handover_suzerain }
+		}
+	}
 	$CLAIMANT$ = {
 		save_scope_as = the_claimant
 	}
@@ -1436,7 +1552,10 @@ on_claimant_faction_war_win_common = {
 				scope:target_title.tier = tier_empire
 			}
 			scope:the_claimant = {
-				add_legitimacy = 1000
+				add_legitimacy = {
+					value = 1000
+					multiply = nomadic_legitimacy_claimant_multiplier
+				}
 			}
 		}
 		else_if = {
@@ -1444,7 +1563,10 @@ on_claimant_faction_war_win_common = {
 				scope:target_title.tier = tier_kingdom
 			}
 			scope:the_claimant = {
-				add_legitimacy = 750
+				add_legitimacy = {
+					value = 750
+					multiply = nomadic_legitimacy_claimant_multiplier
+				}
 			}
 		}
 		else_if = {
@@ -1452,12 +1574,18 @@ on_claimant_faction_war_win_common = {
 				scope:target_title.tier = tier_duchy
 			}
 			scope:the_claimant = {
-				add_legitimacy = 500
+				add_legitimacy = {
+					value = 500
+					multiply = nomadic_legitimacy_claimant_multiplier
+				}
 			}
 		}
 		else = {
 			scope:the_claimant = {
-				add_legitimacy = 300
+				add_legitimacy = {
+					value = 300
+					multiply = nomadic_legitimacy_claimant_multiplier
+				}
 			}
 		}
 		# Per number of faction members
@@ -1475,6 +1603,7 @@ on_claimant_faction_war_win_common = {
 				}
 			}
 		}
+		
 	}
 
 	# Add Appropriate Grandeur
@@ -1507,7 +1636,15 @@ on_claimant_faction_war_win_common = {
 	#		}
 	#	}
 	#}
-
+	if = {
+		limit = {
+			exists = scope:handover_suzerain
+		}
+		start_tributary_interaction_effect = {
+			TRIBUTARY = scope:the_claimant
+			SUZERAIN = scope:handover_suzerain
+		}
+	}
 	# TODO Add prestige effects based on $ATTACKER_PRESTIGE$ and $DEFENDER_PRESTIGE$
 }
 
@@ -1806,8 +1943,9 @@ add_truce_attacker_victory_effect = {
 			}
 		}
 	}
-	hidden_effect = {
-		scope:attacker = {
+	
+	scope:attacker = {
+		hidden_effect = {
 			add_truce_one_way = {
 				character = scope:defender
 				days = standard_truce_duration_days
@@ -1815,8 +1953,6 @@ add_truce_attacker_victory_effect = {
 				result = victory
 			}
 		}
-	}
-	scope:attacker = {
 		if = {
 			limit = {
 				existing_feud_against_target_trigger = { TARGET = scope:defender }
@@ -2444,12 +2580,17 @@ mongol_invasion_county_looting_chance_effect = {
 					title = mongols_sieged_county.t
 					left_icon = scope:county.holder
 					right_icon = scope:county
-					add_gold = {
-						add = scope:county.development_level
-						multiply = 5
+					if = {
+						limit = {
+							scope:county.development_level >= 1
+						}
+						add_gold = {
+							add = scope:county.development_level
+							multiply = 5
+						}
 					}
 					if = {
-						limit = { dread < 100 }
+						limit = { dread < 150 }
 						add_dread = 2
 					}
 				}
@@ -2461,7 +2602,7 @@ mongol_invasion_county_looting_chance_effect = {
 						title = mongols_sieged_county.t
 						left_icon = scope:mongol_emperor
 						right_icon = scope:county
-						# scope:county = { mongols_devastate_county_effect = yes }
+						scope:county = { mongols_devastate_county_effect = yes }
 					}
 				}
 			}
@@ -2908,7 +3049,7 @@ commander_trait_leveling_leveling_effect = {
 	if = { # Seasonal
 		limit = {
 			has_trait = winter_soldier
-			location = { has_winter_trigger = yes }
+			location = { has_winter_combat_trigger = yes }
 		}
 		add_trait_xp = {
 			trait = winter_soldier
