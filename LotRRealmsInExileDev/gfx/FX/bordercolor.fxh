@@ -31,7 +31,7 @@ PixelShader = {
 			LOTR_TryDiscardOverlayColor(HighlightColor);
 			// END MOD
 			HighlightColor.rgb *= 0.25;
-
+			
 			float3 Desaturated = vec3( ( HighlightColor.r + HighlightColor.g + HighlightColor.b ) / 3 );
 			HighlightColor.rgb = lerp( HighlightColor.rgb, Desaturated, 0.35 );
 
