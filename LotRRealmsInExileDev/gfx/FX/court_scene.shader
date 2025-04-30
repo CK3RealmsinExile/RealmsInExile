@@ -653,7 +653,7 @@ PixelShader =
 				}
 
 				float4 ColorIntensity = Light_Color_Intensity[i];
-				
+
 				float3 PosToLight = Light_Position_Radius[i].xyz - WorldSpacePos;
 				float DistanceToLight = length( PosToLight );
 				float3 ViewVector = normalize( CameraPosition - WorldSpacePos );
@@ -712,7 +712,7 @@ PixelShader =
 				}
 				else if( Light_Direction_Type[i].w == LIGHT_TYPE_DISC )
 				{
-					// Frostbite Disc					
+					// Frostbite Disc
 					float3 LightDirection = normalize( Light_Direction_Type[i].xyz );
 					float LightIntensity = CalcDiscDiffuse( PosToLight, Light_Position_Radius[i].w, MaterialProps._Normal, LightDirection );
 					float3 LightColorIntensity = Light_Color_Intensity[i].xyz * Light_Color_Intensity[i].w * LightIntensity;
@@ -753,7 +753,7 @@ PixelShader =
 						TranslucencyLight = CalculateLightingTranslucent( MaterialProps , LightingProps, TranslucencyProps, DiffuseIBL );
 					#endif
 				}
-			
+
 				// Return
 				DiffuseLightOut += DiffuseLight;
 				SpecularLightOut += SpecularLight;
@@ -787,7 +787,7 @@ PixelShader =
 			#elif defined( PDX_DEBUG_TRANSLUCENCY )
 				Out = DiffuseTranslucency;
 			#else
-			DebugReturn( Out, MaterialProps, LightingProps, EnvironmentMap );
+				DebugReturn( Out, MaterialProps, LightingProps, EnvironmentMap );
 			#endif
 		}
 
@@ -853,7 +853,7 @@ PixelShader =
 			#endif
 
 			float3 Color = DiffuseIBL + SpecularIBL + DiffuseLight + SpecularLight + DiffuseTranslucency;
-			
+
 			#ifdef VARIATIONS_ENABLED
 				ApplyClothFresnel( Input, CameraPosition, Normal, Color );
 			#endif
@@ -1243,15 +1243,14 @@ PixelShader =
 				float2 UV0 = Input.UV0;
 				float4 Diffuse = PdxTex2D( DiffuseMap, UV0 );
 				float4 Properties = PdxTex2D( PropertiesMap, UV0 );
-
+				float4 NormalSampleRaw = PdxTex2D( NormalMap, UV0 );
 				#ifdef DOUBLE_SIDED_ENABLED
-					float4 NormalSampleRaw = PdxTex2D( NormalMap, UV0 );
 					float3 NormalSample = UnpackRRxGNormal( NormalSampleRaw ) * ( PDX_IsFrontFace ? 1 : -1 );
 				#else
-					float3 NormalSample = UnpackRRxGNormal( PdxTex2D( NormalMap, UV0 ) );
+					float3 NormalSample = UnpackRRxGNormal( NormalSampleRaw );
 				#endif
 
-				Properties.r = 1.0; // wipe this clean now, ready to be modified later
+			
 				Diffuse.a = PdxMeshApplyOpacity( Diffuse.a, Input.Position.xy, PdxMeshGetOpacity( Input.InstanceIndex ) );
 
 				// MOD(godherja)
@@ -1259,28 +1258,35 @@ PixelShader =
 				// END MOD
 
 				#ifdef VARIATIONS_ENABLED
-					ApplyVariationPatterns( Input, Diffuse, Properties, NormalSample );
+					float4 SecondColorMask = vec4( 0.0f );
+					SecondColorMask.r = Properties.r;
+					SecondColorMask.g =  NormalSampleRaw.b;
+					ApplyVariationPatterns( Input, Diffuse, Properties, NormalSample, SecondColorMask );
 				#endif
-
+				
 				#ifdef COA_ENABLED
+					Properties.r = 1.0; // wipe this clean now, ready to be modified later
 					ApplyCoa( Input, Diffuse, CoaColor1, CoaColor2, CoaColor3, CoaOffsetAndScale.xy, CoaOffsetAndScale.zw, CoaTexture, Properties.r );
 				#endif
 
-				#ifdef USE_CHARACTER_DATA
-				float AppliedHover = HoverMult;
+				#if defined( NO_HOVER_HIGHLIGHT )
+					// this is only for courtroom objects that use a pattern on it but don't want to have a hover highlight.
+					float AppliedHover = 0;
+				#elif defined( USE_CHARACTER_DATA )
+					float AppliedHover = HoverMult;
 				#else
 					#ifdef VARIATIONS_ENABLED
-					// see portrait_user_data.fxh - it explains data layout for userdata
-					// we append hover value after _BodyPartIndex, so
-					// it's a float under index 1 in float4 element of Data array
-					// if portrait accessory use data layout changes, this will also break
-					static const int USER_DATA_HOVER_SLOT = 13;
-					float AppliedHover = GetUserData( Input.InstanceIndex, USER_DATA_HOVER_SLOT ).g;
+						// see portrait_user_data.fxh - it explains data layout for userdata
+						// we append hover value after _BodyPartIndex, so
+						// it's a float under index 1 in float4 element of Data array
+						// if portrait accessory use data layout changes, this will also break
+						static const int USER_DATA_HOVER_SLOT = 25;
+						float AppliedHover = GetUserData( Input.InstanceIndex, USER_DATA_HOVER_SLOT ).g;
 					#else
-					// if the effect doesn't have variations and is intended for a court artifact on a pedestal,
-					// then hover data is the only thing set for the entity
-					static const int USER_DATA_HOVER_SLOT = 0;
-					float AppliedHover = GetUserData( Input.InstanceIndex, USER_DATA_HOVER_SLOT ).r;
+						// if the effect doesn't have variations and is intended for a court artifact on a pedestal,
+						// then hover data is the only thing set for the entity
+						static const int USER_DATA_HOVER_SLOT = 0;
+						float AppliedHover = GetUserData( Input.InstanceIndex, USER_DATA_HOVER_SLOT ).r;
 					#endif
 				#endif
 
@@ -1700,7 +1706,7 @@ PixelShader =
 			PDX_MAIN
 			{
 				PS_COLOR_SSAO Out;
-
+				
 				#ifdef PARALLAX
 					#ifdef LOW_SPEC_SHADERS
 						Input.UV0 = ParallaxMappingLowSpec( ParallaxMap, Input.UV0, Input.Tangent, Input.Bitangent, Input.Normal, Input.WorldSpacePos, CameraPosition );
@@ -1761,7 +1767,12 @@ PixelShader =
 				Diffuse.a = PdxMeshApplyOpacity( Diffuse.a, Input.Position.xy, PdxMeshGetOpacity( Input.InstanceIndex ) );
 				Diffuse.rgb *= UserColor;
 
-				float3 NormalSample = UnpackRRxGNormal( PdxTex2D( NormalMap, Input.UV0 ) );
+				float4 NormalSampleRaw = PdxTex2D( NormalMap, Input.UV0 );
+				#ifdef DOUBLE_SIDED_ENABLED
+					float3 NormalSample = UnpackRRxGNormal( NormalSampleRaw ) * ( PDX_IsFrontFace ? 1 : -1 );
+				#else
+					float3 NormalSample = UnpackRRxGNormal( NormalSampleRaw );
+				#endif
 
 				Properties.g = 0.16f;	// Fixed specular mesh value /JR
 				float HoverMult = GetUserData( Input.InstanceIndex, USER_DATA_HOVER_SLOT ).r;
@@ -1832,6 +1843,12 @@ BlendState alpha_to_coverage
 	WriteMask = "RED|GREEN|BLUE|ALPHA"
 	SourceAlpha = "ONE"
 	DestAlpha = "INV_SRC_ALPHA"
+	AlphaToCoverage = yes
+}
+
+BlendState no_blend_alpha_to_coverage
+{
+	BlendEnable = no
 	AlphaToCoverage = yes
 }
 
@@ -1992,6 +2009,29 @@ Effect portrait_attachment_pattern_alpha_to_coverage_selection
 }
 
 Effect portrait_attachment_pattern_alpha_to_coverageShadow
+{
+	VertexShader = "VertexPdxMeshStandardShadow"
+	PixelShader = "PixelPdxMeshStandardShadow"
+	RasterizerState = "ShadowRasterizerState"
+	Defines = { "PDXMESH_DISABLE_DITHERED_OPACITY" "PDX_MESH_BLENDSHAPES" }
+}
+
+Effect portrait_attachment_pattern_no_blend_alpha_to_coverage
+{
+	VertexShader = "VS_standard"
+	PixelShader = "PS_attachment"
+	BlendState = "no_blend_alpha_to_coverage"
+	Defines = { "VARIATIONS_ENABLED" "USE_CHARACTER_DATA" "PDX_MESH_BLENDSHAPES" }
+}
+
+Effect portrait_attachment_pattern_no_blend_alpha_to_coverage_selection
+{
+	VertexShader = "VS_standard"
+	PixelShader = "PS_court_selection"
+	Defines = { "PDX_MESH_BLENDSHAPES" }
+}
+
+Effect portrait_attachment_pattern_no_blend_alpha_to_coverageShadow
 {
 	VertexShader = "VertexPdxMeshStandardShadow"
 	PixelShader = "PixelPdxMeshStandardShadow"
@@ -2272,6 +2312,22 @@ Effect portrait_hair_backside_selection
 	Defines = { "PDX_MESH_BLENDSHAPES" }
 }
 
+Effect portrait_hair_decrease_specular_light_alpha
+{
+	VertexShader = "VS_standard"
+	PixelShader = "PS_hair"
+	BlendState = "hair_alpha_blend"
+	DepthStencilState = "hair_alpha_blend"
+	Defines = { "PDX_MESH_BLENDSHAPES" "PDX_DECREASE_SPECULAR_LIGHT" }
+}
+
+Effect portrait_hair_decrease_specular_light_alpha_selection
+{
+	VertexShader = "VS_standard"
+	PixelShader = "PS_court_selection"
+	Defines = { "PDX_MESH_BLENDSHAPES" "PDX_DECREASE_SPECULAR_LIGHT" }
+}
+
 Effect court
 {
 	VertexShader = "VS_standard"
@@ -2459,6 +2515,28 @@ Effect portrait_artifact_pattern_alpha_to_coverage_selection
 }
 
 Effect portrait_artifact_pattern_alpha_to_coverageShadow
+{
+	VertexShader = "VertexPdxMeshStandardShadow"
+	PixelShader = "PixelPdxMeshStandardShadow"
+	RasterizerState = "ShadowRasterizerState"
+	Defines = { "PDXMESH_DISABLE_DITHERED_OPACITY" "PDX_MESH_BLENDSHAPES" }
+}
+
+Effect court_pattern
+{
+	VertexShader = "VS_standard"
+	PixelShader = "PS_attachment"
+	Defines = { "NO_HOVER_HIGHLIGHT" "VARIATIONS_ENABLED" "PDX_MESH_BLENDSHAPES" }
+}
+
+Effect court_pattern_selection
+{
+	VertexShader = "VS_standard"
+	PixelShader = "PS_court_selection"
+	Defines = { "PDX_MESH_BLENDSHAPES" }
+}
+
+Effect court_pattern_patternShadow
 {
 	VertexShader = "VertexPdxMeshStandardShadow"
 	PixelShader = "PixelPdxMeshStandardShadow"
@@ -2889,6 +2967,7 @@ Effect sine_flag_animation
 	VertexShader = "VS_standard"
 	PixelShader = "PS_noop"
 }
+
 
 Effect portrait_anisotropic_hair
 {

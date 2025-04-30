@@ -72,7 +72,7 @@ PixelShader =
 		SampleModeV = "Clamp"
 		Type = "Cube"
 	}
-	
+
 	MainCode MapNamePixelShader
 	{
 		Input = "VS_OUTPUT_MAPNAME"
@@ -126,7 +126,7 @@ PixelShader =
 
 			MixedColor.rgb = GH_ApplyAtmosphericEffects( MixedColor.rgb, Input.WorldSpacePos, FogOfWarAlpha );
 			MixedColor.rgb = ApplyDistanceFog( MixedColor.rgb, Input.WorldSpacePos );
-			
+
 			// Apply lighting and shadows, only if we're fully in flat-map mode
 			if ( HasFlatMapLightingEnabled == 1 && FlatMapLerp > 0.0 )
 			{
