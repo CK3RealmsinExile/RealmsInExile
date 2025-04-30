@@ -1,6 +1,7 @@
 Includes = {
+	"cw/pdxterrain.fxh"
 	"cw/pdxmesh.fxh"
-	
+
 	"jomini/jomini_lighting.fxh"
 	"jomini/jomini_fog.fxh"
 	# MOD(godherja)
@@ -12,9 +13,10 @@ Includes = {
 	"dynamic_masks.fxh"
 	"legend.fxh"
 	"disease.fxh"
+	"province_effects.fxh"
 }
 
-PixelShader = 
+PixelShader =
 {
 	TextureSampler DiffuseMap
 	{
@@ -42,7 +44,7 @@ PixelShader =
 		MipFilter = "Linear"
 		SampleModeU = "Wrap"
 		SampleModeV = "Wrap"
-	}	
+	}
 	TextureSampler TintMap
 	{
 		Index = 3
@@ -71,7 +73,7 @@ PixelShader =
 		MipFilter = "Linear"
 		SampleModeU = "Wrap"
 		SampleModeV = "Wrap"
-	}	
+	}
 	TextureSampler EnvironmentMap
 	{
 		Ref = JominiEnvironmentMap
@@ -105,10 +107,10 @@ VertexStruct VS_OUTPUT_TREE
 	float3	Scale_Seed_Yaw	: TEXCOORD7;
 }
 
-VertexShader = 
-{	
+VertexShader =
+{
 	Code
-	[[	
+	[[
 		VS_OUTPUT_TREE ConvertOutput( VS_OUTPUT_PDXMESH In )
 		{
 			VS_OUTPUT_TREE Out;
@@ -120,7 +122,7 @@ VertexShader =
 			Out.WorldSpacePos = In.WorldSpacePos;
 			return Out;
 		}
-		
+
 		void FinalizeOutput( inout VS_OUTPUT_TREE Out, in uint InstanceIndex, in float4x4 WorldMatrix )
 		{
 			Out.InstanceIndex = InstanceIndex;
@@ -130,13 +132,13 @@ VertexShader =
 		}
 	]]
 	MainCode VS_standard
-	{	
+	{
 		Input = "VS_INPUT_PDXMESHSTANDARD"
 		Output = "VS_OUTPUT_TREE"
 		Code
-		[[			
+		[[
 			PDX_MAIN
-			{				
+			{
 				VS_OUTPUT_TREE Out = ConvertOutput( PdxMeshVertexShaderStandard( Input ) );
 				FinalizeOutput( Out, Input.InstanceIndices.y, PdxMeshGetWorldMatrix( Input.InstanceIndices.y ) );
 				return Out;
@@ -144,13 +146,13 @@ VertexShader =
 		]]
 	}
 	MainCode VS_mapobject
-	{	
+	{
 		Input = "VS_INPUT_PDXMESH_MAPOBJECT"
 		Output = "VS_OUTPUT_TREE"
 		Code
-		[[			
+		[[
 			PDX_MAIN
-			{				
+			{
 				float4x4 WorldMatrix = UnpackAndGetMapObjectWorldMatrix( Input.InstanceIndex24_Opacity8 );
 				VS_OUTPUT_TREE Out = ConvertOutput( PdxMeshVertexShader( PdxMeshConvertInput( Input ), Input.InstanceIndex24_Opacity8, WorldMatrix ) );
 				FinalizeOutput( Out, Input.InstanceIndex24_Opacity8, WorldMatrix );
@@ -160,9 +162,9 @@ VertexShader =
 	}
 }
 
-PixelShader = 
+PixelShader =
 {
-	
+
 	Code
 	[[
 		float ApplyOpacity( in float Alpha, in float2 NoiseCoordinate, in uint InstanceIndex )
@@ -174,40 +176,39 @@ PixelShader =
 			#endif
 			return PdxMeshApplyOpacity( Alpha, NoiseCoordinate, Opacity );
 		}
-		
+
 		float3 CalculateLighting( in VS_OUTPUT_TREE Input, in float4 Diffuse, in float3 NormalSample, in float4 Properties, in float SnowHighlight )
 		{
 			float3 InNormal = normalize( Input.Normal );
 			float3x3 TBN = Create3x3( normalize( Input.Tangent ), normalize( Input.Bitangent ), InNormal );
 			float3 Normal = normalize( mul( NormalSample, TBN ) );
-			
+
 			float3 WorldSpacePos = Input.WorldSpacePos;
-		
+			float2 MapCoords = WorldSpacePos.xz * WorldSpaceToTerrain0To1;
 			float3 BorderColor;
 			float BorderPreLightingBlend;
 			float BorderPostLightingBlend;
-			GetBorderColorAndBlendGame( WorldSpacePos.xz, Diffuse.rgb, BorderColor, BorderPreLightingBlend, BorderPostLightingBlend );
+			GetBorderColorAndBlendGame( WorldSpacePos.xz , Diffuse.rgb, BorderColor, BorderPreLightingBlend, BorderPostLightingBlend );
 			Diffuse.rgb = lerp( Diffuse.rgb, BorderColor, BorderPreLightingBlend );
-				
-			ApplyHighlightColor( Diffuse.rgb, Input.WorldSpacePos.xz * WorldSpaceToTerrain0To1 );
-			CompensateWhiteHighlightColor( Diffuse.rgb, Input.WorldSpacePos.xz * WorldSpaceToTerrain0To1, SnowHighlight );
+			ApplyHighlightColor( Diffuse.rgb, MapCoords );
+			CompensateWhiteHighlightColor( Diffuse.rgb, MapCoords, SnowHighlight );
 			
 			SMaterialProperties MaterialProps = GetMaterialProperties( Diffuse.rgb, Normal, Properties.a, Properties.g, Properties.b );
 			SLightingProperties LightingProps = GetSunLightingProperties( WorldSpacePos, ShadowTexture );
-	
+
 			float3 Color = CalculateSunLighting( MaterialProps, LightingProps, EnvironmentMap );
-			ApplyLegendDiffuse( Color, WorldSpacePos.xz * WorldSpaceToTerrain0To1 );
-			ApplyDiseaseDiffuse( Color, WorldSpacePos.xz * WorldSpaceToTerrain0To1 );
+			ApplyLegendDiffuse( Color, MapCoords );
+			ApplyDiseaseDiffuse( Color, MapCoords );
 			Color = GH_ApplyAtmosphericEffects( Color, WorldSpacePos, FogOfWarAlpha );
 			Color = ApplyDistanceFog( Color, WorldSpacePos );
-			
+
 			Color.rgb = lerp( Color.rgb, BorderColor, BorderPostLightingBlend );
 
 			DebugReturn( Color, MaterialProps, LightingProps, EnvironmentMap );
 			return Color;
 		}
 	]]
-	
+
 	MainCode PS_leaf
 	{
 		Input = "VS_OUTPUT_TREE"
@@ -216,29 +217,36 @@ PixelShader =
 		[[
 			PDX_MAIN
 			{
+				float2 ColorMapCoords = Input.WorldSpacePos.xz * WorldSpaceToTerrain0To1;
 				float4 Diffuse = PdxTex2D( DiffuseMap, Input.UV0 );
 				float3 NormalSample = UnpackRRxGNormal( PdxTex2D( NormalMap, Input.UV0 ) );
 				float3x3 TBN = Create3x3( normalize( Input.Tangent ), normalize( Input.Bitangent ), normalize( Input.Normal ) );
 				float3 Normal = normalize( mul( NormalSample, TBN ) );
 
 				float4 Properties = PdxTex2D( PropertiesMap, Input.UV0 );
-				
+
 				//Opacity
 				Diffuse.a = ApplyOpacity( Diffuse.a, Input.Position.xy, Input.InstanceIndex );
-				clip( Diffuse.a - 0.4f );
 				
+				EffectIntensities ConditionData;
+				SampleProvinceEffectsMask( ColorMapCoords, ConditionData );
+				ApplyProvinceEffectsTree( ConditionData, Diffuse, ColorMapCoords, Input.WorldSpacePos.xz );
+
+				clip( Diffuse.a - 0.4f );
+
 				//Tint
 				float3 Tint = PdxTex2DLod0( TintMap, float2( Input.Scale_Seed_Yaw.y, 0.5f ) ).rgb;
 				Tint = GetOverlay( Diffuse.rgb, Tint, 1.0 );
-				
+
 				Diffuse.rgb = lerp( Diffuse.rgb, Tint, PdxTex2D( NormalMap, Input.UV0 ).b );
 
-				
-				
+
+
 				//Colormap
 				float SnowHighlight = 0.0f;
-				float2 ColorMapCoords = Input.WorldSpacePos.xz * WorldSpaceToTerrain0To1;
-				Diffuse.rgb = ApplyDynamicMasksDiffuse( Diffuse.rgb, Normal, ColorMapCoords, SnowHighlight );
+				//Diffuse.rgb = ApplyDynamicMasksDiffuse( Diffuse.rgb, Normal, ColorMapCoords, SnowHighlight );
+				ApplySnowMaterialMesh( ConditionData, Diffuse.rgb, Properties, Normal, Input.WorldSpacePos.xz, SnowHighlight );
+
 #if defined( PDX_OSX ) && defined( PDX_OPENGL )
 				// The amount of texture samplers is limited on Mac, so we don't read the data for the ColorMap directly
 				// from a texture. Instead we assign a default gray value here. This is also done for the terrain (on Mac)
@@ -250,8 +258,8 @@ PixelShader =
 				Diffuse.rgb = GetOverlay( Diffuse.rgb, ColorMap, 1.0 );
 
 				float3 Color = CalculateLighting( Input, Diffuse, NormalSample, Properties, SnowHighlight );
-				
-				return float4( Color, Diffuse.a );								
+
+				return float4( Color, Diffuse.a );
 			}
 		]]
 	}
@@ -269,7 +277,7 @@ PixelShader =
 
 				Color.a = ApplyOpacity( Color.a, Input.Position.xy, Input.InstanceIndex );
 				clip( Color.a - 0.5f );
-				
+
 				return vec4(1);
 			}
 		]]
@@ -278,18 +286,18 @@ PixelShader =
 
 BlendState BlendState
 {
-	BlendEnable = no	
-	alphatocoverage = yes 
+	BlendEnable = no
+	alphatocoverage = yes
 }
 BlendState BlendStateShadow
 {
-	BlendEnable = no	
-	alphatocoverage = no 
+	BlendEnable = no
+	alphatocoverage = no
 }
 BlendState BlendStateLod
 {
-	BlendEnable = no	
-	alphatocoverage = no 
+	BlendEnable = no
+	alphatocoverage = no
 }
 
 RasterizerState ShadowRasterizerState

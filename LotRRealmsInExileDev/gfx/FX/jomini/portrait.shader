@@ -491,16 +491,11 @@ PixelShader =
 				float2 UV0 = Input.UV0;
 				float4 Diffuse = PdxTex2D( DiffuseMap, UV0 );								
 				float4 Properties = PdxTex2D( PropertiesMap, UV0 );
-				
+				float4 NormalSampleRaw = PdxTex2D( NormalMap, UV0 );
 				#ifdef DOUBLE_SIDED_ENABLED
-					float4 NormalSampleRaw = PdxTex2D( NormalMap, UV0 );
 					float3 NormalSample = UnpackRRxGNormal( NormalSampleRaw ) * ( PDX_IsFrontFace ? 1 : -1 );
 				#else
-					float3 NormalSample = UnpackRRxGNormal( PdxTex2D( NormalMap, UV0 ) );		
-				#endif
-
-				#if defined( VARIATIONS_ENABLED ) || defined ( COA_ENABLED )
-					Properties.r = 1.0; // wipe this clean now, ready to be modified later
+					float3 NormalSample = UnpackRRxGNormal( NormalSampleRaw );	
 				#endif
 
 				// MOD(godherja)
@@ -508,9 +503,13 @@ PixelShader =
 				// END MOD
 
 				#ifdef VARIATIONS_ENABLED
-					ApplyVariationPatterns( Input, Diffuse, Properties, NormalSample );
+					float4 SecondColorMask = vec4( 0.0f );
+					SecondColorMask.r = Properties.r;
+					SecondColorMask.g =  NormalSampleRaw.b;
+					ApplyVariationPatterns( Input, Diffuse, Properties, NormalSample, SecondColorMask );
 				#endif
 				#ifdef COA_ENABLED
+					Properties.r = 1.0; // wipe this clean now, ready to be modified later
 					ApplyCoa( Input, Diffuse, CoaColor1, CoaColor2, CoaColor3, CoaOffsetAndScale.xy, CoaOffsetAndScale.zw, CoaTexture, Properties.r );
 				#endif
 
