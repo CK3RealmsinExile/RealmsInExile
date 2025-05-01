@@ -1,0 +1,250 @@
+﻿story_greatest_of_khans = {
+	
+	on_setup = {
+		if = {
+			limit = {
+				NOT = {
+					has_mpo_dlc_trigger = yes
+				}
+			}
+			end_story = yes
+		}
+		else = {
+			set_global_variable = {
+				name = gok_empire_crumble_date
+				value = {
+					value = current_year
+					add = 75
+				}
+			}
+			set_global_variable = {
+				name = first_gok
+				value = story_owner
+			}
+
+			set_global_variable = {
+				name = greatest_of_khans_title
+				value = story_owner.primary_title
+			}
+			global_var:greatest_of_khans_title = {
+				set_variable = {
+					name = chaotic_succession_protection
+					value = yes
+				}
+			}
+		}
+	}
+	
+	on_end = {
+		if = {
+			limit = {
+				exists = global_var:active_conquerors
+			}
+			change_global_variable = {
+				name = active_conquerors
+				add = -1
+			}
+		}
+		global_var:greatest_of_khans_title = {
+			remove_variable = chaotic_succession_protection
+		}
+		remove_global_variable = first_gok
+		remove_global_variable = gok_empire_crumble_date
+	}
+	
+	on_owner_death = {
+		# Handle story succession
+		story_owner = {
+			save_scope_as = old_khan # for news events
+			if = {
+				limit = {
+					any_child = { # if the Khan has a reasonable heir...
+						is_primary_heir_of = scope:story.story_owner
+					}
+				}
+				random_child = {
+					limit = {
+						is_primary_heir_of = scope:story.story_owner		
+					}
+					save_scope_as = new_khan # for news events
+					save_scope_as = new_story_owner # pass chain to appropriate target
+					add_character_flag = {
+						flag = gain_mongol_succession_dread
+						days = 2
+					}
+					add_character_modifier = {
+						modifier = the_great_khan_modifier
+					}
+				}
+				# every_player = {
+				# 	trigger_event = {
+				# 		id = mongol_invasion.1001
+				# 		days = 1
+				# 	}
+				# }
+			}
+			else_if = {
+				limit = {
+					dynasty = {
+						any_dynasty_member = { # if the Khan has some other heir not family?)
+							is_primary_heir_of = scope:story.story_owner
+						}
+					}
+				}				
+				dynasty = {
+					random_dynasty_member = {
+						limit = {
+							is_primary_heir_of = scope:story.story_owner
+						}
+						save_scope_as = new_khan # for news events
+						save_scope_as = new_story_owner # pass chain toappropriate target
+						add_character_flag = {
+							flag = gain_mongol_succession_dread
+							days = 2
+						}
+						add_character_modifier = {
+							modifier = the_great_khan_modifier
+						}
+					}
+				}
+				# every_player = { #LotR
+				# 	trigger_event = {
+				# 		id = mongol_invasion.1001
+				# 		days = 1
+				# 	}
+				# }
+			}
+			else_if = {
+				limit = {
+					primary_heir = {
+						is_grandchild_of = scope:story.story_owner
+					}
+				}
+				primary_heir = {
+					save_scope_as = new_khan # for news events
+					save_scope_as = new_story_owner # pass chain to appropriate target
+					add_character_flag = {
+						flag = gain_mongol_succession_dread
+						days = 2
+					}
+					add_character_modifier = {
+						modifier = the_great_khan_modifier
+					}
+				}
+				# every_player = { #LotR
+				# 	trigger_event = {
+				# 		id = mongol_invasion.1001
+				# 		days = 1
+				# 	}
+				# }
+			}
+			else_if = { # If the empire passes out of the original dynasty, the story will automatically end
+				limit = {
+					NOT = {
+						dynasty = {
+							any_dynasty_member = { # if the Khan has some otherheir (not family?)
+								is_primary_heir_of = scope:story.story_owner
+							}
+						}
+					}
+				}
+				scope:story.story_owner.primary_heir = {
+					save_scope_as = new_khan
+				}
+				# every_player = { #LotR
+				# 	trigger_event = {
+				# 		id = mongol_invasion.1001
+				# 		days = 1
+				# 	}
+				# }
+			}
+		}
+		if = {
+			limit = { exists = scope:new_story_owner }
+			make_story_owner = scope:new_story_owner
+		}
+		#Story end event
+		else = {
+			if = {
+				limit = {
+					exists = story_owner.player_heir
+					exists = story_owner.dynasty
+					story_owner.player_heir = {
+						dynasty ?= root.story_owner.dynasty
+					}
+				}
+				story_owner.player_heir ?= {
+					trigger_event = {
+						id = mpo_greatest_of_khans.0040
+						days = 1
+					}
+				}
+				global_var:first_gok.dynasty ?= {
+					remove_dynasty_modifier = gok_house_modifier
+				}
+			}
+			else = {
+				end_story = yes
+				global_var:first_gok.dynasty ?= {
+					remove_dynasty_modifier = gok_house_modifier
+				}
+			}
+		}
+	}
+
+	#Invalidation end!
+	effect_group = {
+		years = 75
+	
+		triggered_effect = {
+			trigger = {
+				exists = story_owner
+			}
+			effect = {
+				story_owner = {
+					save_scope_as = timed_out
+					trigger_event = {
+						id = mpo_greatest_of_khans.0040
+						days = 1
+					}
+				}
+			}
+		}
+	}
+
+	#Start a new war if none is ongoing
+	effect_group = {
+		days = { 30 60 }
+
+		trigger = {
+			story_owner = {
+				is_at_war = no
+				gold > 0
+				exists = global_var:greatest_of_khans_title
+				any_held_title = {
+					this = global_var:greatest_of_khans_title
+				}
+			}
+		}
+
+		triggered_effect = {
+			trigger = {
+				story_owner = {
+					is_ai = yes
+				}
+			}
+			effect = {
+				story_owner = {
+					gok_war_target_evaluation_and_declaration_effect = yes
+				}
+				debug_log = "The story started a new war for the Greatest of Khans"
+				debug_log_date = yes
+				story_owner = {
+					save_scope_as = owner
+				}
+				debug_log_scopes = yes
+			}
+		}
+	}
+
+}
