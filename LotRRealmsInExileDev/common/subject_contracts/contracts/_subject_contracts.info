@@ -1,0 +1,90 @@
+﻿# Obligations - how much does the subject give to their liege. The subject's government type determines which contract type is used.
+# Note that the values can be changed with the vassal_tax_contribution_add/mult, vassal_levy_contribution_add/mult and vassal_herd_contribution_add/mult modifiers. (Applies to tributaries as well)
+
+subject_contract = {
+	uses_opinion_of_liege = yes/no	# if set to yes, scope:opinion_of_liege can be used in the levies and tax script math (it's a value that's updated daily for player contracts, for AI it uses NSubjectContract::OPINION_OF_LIEGE_UPDATE_INTERVAL. No by default for performance reasons.
+
+	display_mode = tree/list/radiobutton # How are the obligations displayed in the negotiate contract UI, default is radiobutton
+
+	# Modifiable contract with multiple levels:
+	obligation_levels = {
+		# Scopes available:
+		# scope:liege the liege in the contract
+		# scope:subject the subject in the contract
+		# scope:vassal the subject in the contract. Same as scope:subject. Kept in for backwards compatability.
+		# scope:opinion_of_liege set if uses_opinion_of_liege = yes
+		# scope:tax_slot the slot they are in/are being considered to be placed in
+		# scope:tax_collector the collector for the above/the potential new collector
+
+		subject_obligation_low = { # choose a key for the level, it will be used for localization
+			levies = 0.5		# % of levies (0..1), default 0; can also use script math
+			tax = 0.2			# % of gold income (0..1), default 0; Can also use script math
+			herd = 0.2			# % of herd income (0..1), default 0; Can also use script math
+			min_levies = 0.1	# Optional min floor on levies. Can also use script math
+			min_tax = 0.0		# Optional min floor on tax. Can also use script math
+			min_herd = 0.0		# Optional min floor on herd. Can also use script math
+
+			contribution_desc = { ... }	# Optional dynamic description used for the breakdown of the tax, levies and herd contribution
+			
+			tax_contribution_postfix = "..."	# Optional postfix added to the tax contribution breakdown
+			levies_contribution_postfix = "..."	# Optional postfix added to the levies contribution breakdown
+			herd_contribution_postfix = "..."	# Optional postfix added to the herd contribution breakdown
+			
+			unclamped_contribution_label = "..."	# Breakdown label for the unclamped tax/levies/herd contribution
+			min_contribution_label = "..."			# Breakdown label for the minimum tax/levies/herd contribution the value is clamped to
+
+			subject_opinion = 0	# value for opinion of liege that's added to subject's opinion of the liege if they have this contract
+
+			flag = token # Arbitrary flag, can be checked in script to see if any obligation level in the current subject contract has a flag
+
+			score = int # Positive means it is better for the subject to have, 0 means neutral, negative is better for liege
+						# When changing obligations the current score and new score are compared to see if it is in favour of the subject or liege
+						# and by how much.
+						# Defaults to order the contracts are defined
+
+			ai_liege_desire = <script value int> # How much does the liege in the contract want this option
+			ai_subject_desire = <script value int> # How much does the subject in the contract want this option
+
+			liege_modifier = { <character modifiers> } # Modifiers applied to the liege in the contract
+			subject_modifier = { <character modifiers> } # Modifiers applied to the subject in the contract
+
+			is_valid = { <trigger> } # Is this obligation level valid for a subject
+
+			# Multiplier against the total tax/levies in a contract, be careful you do not get weird stacking beavhour if multiple are on at once
+			tax_factor = <script value fixed point>
+			levies_factor = <script value fixed point>
+			herd_factor = <script value fixed point>
+		}
+		subject_obligation_normal = {
+			default = yes # mark a level as default (otherwise the first will be the default)
+			parent = subject_obligation_low # What level can lead into this and that this can lead back to
+			position = { x y } # Where should this obligation icon appear when modifying contracts, multiplied with the NSubjectContract::OBLIGATION_OFFSET define
+			icon = "path/to/image.dds"		# Icon used in UI
+			...
+		}
+	}
+}
+
+# Whether a tributary will automatically join their suzerain's wars (Default: no)
+joins_suzerain_wars = yes/no
+
+### AI Note
+The liege and subject desire are used as follows:
+When finding the most desired level to change we check if any ajdacent obligation level to the currently active ones are desired by them more. Desires less than or equal to zero are not considered and if the score is less then or equal to the desire of the current level it is also not considered.
+
+The does_ai_liege_in_vassal_contract_desire_obligation_change and does_ai_vassal_in_vassal_contract_desire_obligation_change triggers check that we have any obligation level change desired at all.
+
+The apply_ai_vassal_obligation_vassal_most_desired and apply_ai_vassal_obligation_liege_most_desired effects apply the desired option via a weighted random of the desire score of all valid desired levels.
+
+# Text
+The following should be localised
+<contract_level>
+<obligation_level>
+<obligation_level>_short
+<obligation_level>_desc
+
+
+When modifying a subject contract, the following additional scopes are available:
+
+- scope:changed_obligations # a list of all contract obligations that have changed in the window
+- scope:new_value			# a scope value that represents how much the changes benefits the subject, based on the obligation's increase in score
