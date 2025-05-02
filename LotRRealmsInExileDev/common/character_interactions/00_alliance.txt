@@ -24,6 +24,12 @@ call_ally_interaction = {
 			}		
 			NOT = { has_culture = culture:wastelands }
 			is_in_valinor = no
+			trigger_if = {
+				limit = {
+					liege = scope:recipient # The recipient is actor's liege
+				}
+				subject_contract_has_flag = vassal_contract_liege_forced_war_override
+			}
 		}
 		scope:recipient = {
 			OR = {
@@ -86,6 +92,17 @@ call_ally_interaction = {
 		}
 
 		scope:actor = {
+			trigger_if = {
+				limit = { # if you're invoking your suzerain's defensive guarantee, it has to be for a defensive war
+					NOT = { is_allied_to = scope:recipient }
+					suzerain = scope:recipient
+					subject_contract_has_flag = tributary_contract_suzerain_guarantee_override
+				}
+				scope:target = {
+					primary_defender = scope:actor
+				}
+			}
+
 			trigger_if = {
 				limit = {
 					scope:target = {
@@ -181,6 +198,48 @@ call_ally_interaction = {
 				}
 			}
 		}
+		
+		# You cannot call a suzerain against their own tributary
+		trigger_if = {
+			limit = {
+				scope:target.casus_belli.primary_defender = scope:actor
+				scope:target.casus_belli.primary_attacker = { is_tributary_of_suzerain_or_above = scope:recipient }
+			}
+			NOT = {
+				scope:target.casus_belli.primary_attacker = { is_tributary_of_suzerain_or_above = scope:recipient }
+			}
+		}
+		trigger_else_if = {
+			limit = {
+				scope:target.casus_belli.primary_attacker = scope:actor
+				scope:target.casus_belli.primary_defender = { is_tributary_of_suzerain_or_above = scope:recipient }
+			}
+			NOT = {
+				scope:target.casus_belli.primary_defender = { is_tributary_of_suzerain_or_above = scope:recipient }
+			}
+		}
+		trigger_else = {}
+		
+		# You cannot call a tributary against their suzerain
+		trigger_if = {
+			limit = {
+				scope:target.casus_belli.primary_defender = scope:actor
+				scope:recipient = { is_tributary_of_suzerain_or_above = scope:target.casus_belli.primary_attacker }
+			}
+			NOT = {
+				scope:recipient = { is_tributary_of_suzerain_or_above = scope:target.casus_belli.primary_attacker }
+			}
+		}
+		trigger_else_if = {
+			limit = {
+				scope:target.casus_belli.primary_attacker = scope:actor
+				scope:recipient = { is_tributary_of_suzerain_or_above = scope:target.casus_belli.primary_defender }
+			}
+			NOT = {
+				scope:recipient = { is_tributary_of_suzerain_or_above = scope:target.casus_belli.primary_defender }
+			}
+		}
+		trigger_else = {}
 	}
 
 	can_be_picked = {
@@ -326,6 +385,59 @@ call_ally_interaction = {
 					}
 					scope:recipient = {
 						add_prestige_experience = massive_prestige_loss
+					}
+				}
+				if = {
+					limit = {
+						scope:actor = {
+							has_relation_blood_brother = scope:recipient
+						}
+					}
+					scope:recipient = {
+						add_piety_experience = massive_piety_loss
+						add_character_modifier = {
+							modifier = broke_blood_brotherhood_modifier
+							desc = broke_blood_brotherhood_modifier_acceptance_tt
+							years = 25
+						}
+						remove_relation_blood_brother = scope:actor
+					}
+					scope:actor = {
+						set_relation_rival = {
+							target = scope:recipient
+							reason = rival_blood_brother_refused_call_reason
+						}
+					}
+				}
+				# Nomad Vassals and Tributaries stop being Obedient if they have the Liege War Support / Suzerain Defensive Guarantee contract right
+				if = {
+					limit = {
+						scope:recipient = scope:actor.obedience_target
+						scope:actor = {
+							OR = {
+								subject_contract_has_flag = vassal_contract_liege_forced_war_override
+								subject_contract_has_flag = tributary_contract_suzerain_guarantee_override
+							}
+						}
+					}
+					scope:actor = {
+						set_variable = {
+							name = not_obedient_declined_call
+							value = scope:recipient
+							years = 5
+						}
+					}
+				}
+				if = {
+					limit = {
+						scope:recipient = scope:actor.suzerain
+						is_defender = scope:actor
+						scope:actor = {
+							subject_contract_has_flag = tributary_contract_suzerain_guarantee_override
+						}
+					}
+					scope:actor = {
+						end_tributary = yes #TODO_CD_MPO some sort of message here
 					}
 				}
 				hidden_effect = {
@@ -525,6 +637,28 @@ call_ally_interaction = {
 				
 			}
 			desc = WONT_FIGHT_SPOUSE_REASON
+		}
+		
+		modifier = {  # Refuse call against Suzerain if Obedient
+			add = -1000
+			trigger_if = {
+				limit = {
+					exists = scope:recipient.suzerain
+					trigger_if = {
+						limit = { scope:target.casus_belli.primary_defender = scope:actor }
+						scope:recipient.suzerain = scope:target.casus_belli.primary_attacker
+					}
+					trigger_else = {
+						scope:recipient.suzerain = scope:target.casus_belli.primary_defender
+					}
+					scope:recipient = {
+						exists = obedience_target
+						is_obedient = yes
+					}
+				}
+			}
+			trigger_else = { always = no }
+			desc = WONT_FIGHT_OBEDIENT_REASON
 		}
 
 		opinion_modifier = { # Opinion Factor
@@ -865,6 +999,21 @@ call_ally_interaction = {
 			}
 			desc = WONT_FIGHT_SOULMATE
 		}
+		modifier = { # Reluctant to join tributaries
+			add = -200
+			scope:actor = {
+				is_tributary_of = scope:recipient
+			}
+			scope:recipient = {
+				NOR = {
+					has_relation_lover = scope:actor
+					has_relation_friend = scope:actor
+					is_allied_to = scope:actor
+					subject_contract_has_flag = tributary_contract_suzerain_guarantee_override
+				}
+			}
+			desc = WONT_FIGHT_MEANINGLESS_REASON
+		}
 		modifier = {  # Refuse call for hostages' safety
 			any_home_court_hostage = {
 				warden = {
@@ -1026,6 +1175,11 @@ negotiate_alliance_interaction = {
 			OR = {
 				is_any_family_relation_or_spouse_trigger = { CHARACTER = scope:recipient }
 				hostage_oath_of_friendship_trigger = yes
+				#Parents/spouse were blood brothers
+				has_opinion_modifier = {
+					modifier = blood_brother_close_family_opinion
+					target = scope:recipient
+				}
 			}
 		}
 		trigger_if = {
@@ -1082,7 +1236,13 @@ negotiate_alliance_interaction = {
 			scope:actor = {
 				hostage_oath_of_friendship_trigger = yes
 			}
-			
+			#Parents/spouse were blood brothers
+			scope:actor = {
+				has_opinion_modifier = {
+					modifier = blood_brother_close_family_opinion
+					target = scope:recipient
+				}
+			}
 
 			custom_description = {
 				text = rulers_family_is_married_to_other_ruler_trigger
@@ -2325,7 +2485,10 @@ perk_alliance_interaction = {
 			is_in_valinor = no
 			has_perk = defensive_negotiations_perk
 			is_landless_adventurer = no
-			NOT = { # This interaction is harder to push through than Negotiate Alliance, and does the same thing, so don't show both
+			is_landless_adventurer = no
+			NOR = {
+				government_has_flag = government_is_herder
+				# This interaction is harder to push through than Negotiate Alliance, and does the same thing, so don't show both
 				is_character_interaction_shown = {
 					recipient = scope:recipient
 					interaction = negotiate_alliance_interaction
@@ -3424,6 +3587,49 @@ join_war_interaction = {
 					}
 				}
 			}
+			# if the actor and recipient is in the same confederation, they can always come to each others' aid
+			trigger_else_if = {
+				limit = {
+					exists = scope:recipient.confederation
+					scope:actor = { is_member_of_confederation = scope:recipient.confederation }
+				}
+				scope:actor = { is_member_of_confederation = scope:recipient.confederation } # for localization only
+			}
+
+			# suzerains can always join their tributaries' defensive wars
+			trigger_else_if = {
+				limit = {
+					scope:recipient = { 
+						is_tributary_of_suzerain_or_above = scope:actor
+					}
+				}
+				custom_tooltip = {
+					text = join_war_interaction_recipient_tributary_no_defensive_war
+					NOT = {
+						any_character_war = {
+							primary_defender = scope:recipient
+						}
+					}
+				}
+			}
+			# tributaries can always offer to join their direct suzerains' defensive wars
+			trigger_else_if = {
+				limit = {
+					scope:actor = { 
+						is_tributary_of = scope:recipient
+					}
+				}
+				custom_tooltip = {
+					text = join_war_interaction_recipient_tributary_no_defensive_war
+					NOT = {
+						any_character_war = {
+							primary_defender = scope:recipient
+						}
+					}
+				}
+			}
+
+			# if we haven't already passed any of the qualified conditions above, then we need to be allies
 			trigger_else = {
 				custom_description = {
 					text = join_war_interaction_recipient_not_ally
@@ -3471,14 +3677,38 @@ join_war_interaction = {
 	}
 	
 	can_be_picked = {
-		exists = scope:target
-		scope:target = {
+		scope:target ?= {
 
 			# recipient is war leader
 			is_war_leader = scope:recipient
+			
+			# special exception for tributaries and suzerains to fight for one another
+			trigger_if = {
+				limit = {
+					OR = {
+						scope:actor = {
+							is_tributary_of_suzerain_or_above = scope:recipient
+						}
+						scope:recipient = {
+							is_tributary_of = scope:actor
+						}
+					}
+				}
+				# if this is directed at a tributary, make sure they're the primary defender
+				trigger_if = {
+					limit = {
+						scope:recipient = { is_tributary_of = scope:actor }
+					}
+					custom_tooltip = {
+						text = join_war_interaction_recipient_tributary_not_primary_defender
+						primary_defender = scope:recipient
+					}
+				}
+				trigger_else = { always = yes }
+			}
 
 			#allow laamp_join_war_contract to bypass the requirements
-			trigger_if = {
+			trigger_else_if = {
 				limit = {
 					scope:actor = {
 						is_landless_adventurer = yes
@@ -3559,7 +3789,18 @@ join_war_interaction = {
 				}
 				always = yes
 			}
-
+			
+			#Confederation members can choose to join each others' offensive wars
+			trigger_else_if = {
+				limit = {
+					scope:actor = { NOT = { is_allied_to = scope:recipient } }
+					exists = scope:recipient.confederation
+				}
+				scope:actor = {
+					is_member_of_confederation = scope:recipient.confederation
+				}
+			}
+			
 			# If you're a permanent or non-permanent tributary, you can join your Suzerains war | PLAYER ONLY
 			trigger_else_if = {
 				limit = {
