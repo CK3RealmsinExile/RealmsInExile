@@ -1,17 +1,14 @@
 Includes = {
 	"jomini/countrynames.fxh"
 	"jomini/jomini_fog.fxh"
-	# MOD(godherja)
-	#"jomini/jomini_fog_of_war.fxh"
-	"gh_atmospheric.fxh"
-	"gh_camera_utils.fxh"
-	# END MOD
-	# MOD(lotr)
-	"jomini/jomini_province_overlays.fxh"
-	# END MOD
+	"jomini/jomini_fog_of_war.fxh"
 	"standardfuncsgfx.fxh"
 	"cw/lighting.fxh"
 	"jomini/jomini_lighting.fxh"
+	# MOD
+	"jomini/jomini_province_overlays.fxh"
+	"gh_atmospheric.fxh"
+	"gh_camera_utils.fxh"
 }
 
 VertexShader =
@@ -87,22 +84,18 @@ PixelShader =
 				return LOTR_GetOverlayAlphaMultiplier(OverlayColor.rgb);
 			}
 			// END MOD
-
 			PDX_MAIN
 			{
 			// MOD(lotr)
+			float LOTR_OverlayAlphaMultiplier = 1.0f;
+			float GH_CameraPitchAlphaMultiplier = GH_GetDefaultCameraPitchAlphaMultiplier();
+			float LOTR_Alpha = LOTR_OverlayAlphaMultiplier*GH_CameraPitchAlphaMultiplier;
+			// END MOD
+
 			// float4 TextColor = float4( 0, 0, 0, 1 );
 			// float4 OutlineColor = float4( 1, 1, 1, 1 );
-
-			//float LOTR_OverlayAlphaMultiplier   = LOTR_GetOverlayAlphaMultiplierAtWorldSpacePosXZ(Input.WorldSpacePos.xz);
-			float LOTR_OverlayAlphaMultiplier   = 1.0f; // Replace with the previous line to hide map names over black map overlay
-			float GH_CameraPitchAlphaMultiplier = GH_GetDefaultCameraPitchAlphaMultiplier();
-
-			float LOTR_Alpha = LOTR_OverlayAlphaMultiplier*GH_CameraPitchAlphaMultiplier;
-
-			float4 TextColor = float4(0, 0, 0, LOTR_Alpha);
-			float4 OutlineColor = float4(1, 1, 1, LOTR_Alpha);
-			// END MOD
+			float4 TextColor = float4( 0, 0, 0, LOTR_Alpha );
+			float4 OutlineColor = float4( 1, 1, 1, LOTR_Alpha );
 
 			float Sample = PdxTex2D( FontAtlas, Input.TexCoord ).r;
 			
@@ -174,3 +167,4 @@ Effect mapname
 
 	Defines = { "PDX_NAMES_SHADOW_PROJ" }
 }
+
