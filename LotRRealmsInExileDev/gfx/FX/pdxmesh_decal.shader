@@ -96,7 +96,7 @@ PixelShader =
 			#endif
 
 			float2 ColorMapCoords = WorldSpacePos.xz * WorldSpaceToTerrain0To1;
-			
+
 			EffectIntensities ConditionData;
 			SampleProvinceEffectsMask( ColorMapCoords, ConditionData );
 			ApplyProvinceEffectsDecal( ConditionData, Diffuse, ColorMapCoords );

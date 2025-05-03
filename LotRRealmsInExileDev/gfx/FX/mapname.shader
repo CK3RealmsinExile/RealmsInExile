@@ -1,4 +1,7 @@
 Includes = {
+	# MOD(lotr)
+	"cw/random.fxh"
+	# END MOD
 	"jomini/countrynames.fxh"
 	"jomini/jomini_fog.fxh"
 	"jomini/jomini_fog_of_war.fxh"
