@@ -530,7 +530,10 @@ PixelShader =
 
 				float2 ColorMapCoords =  Input.WorldSpacePos.xz *  WorldSpaceToTerrain0To1;
 				#if defined( APPLY_WINTER )
-					Diffuse.rgb = ApplyDynamicMasksDiffuse( Diffuse.rgb, Normal, ColorMapCoords );
+					float SnowHighlight = 0.0;
+					EffectIntensities ConditionData;
+					SampleProvinceEffectsMask( ColorMapCoords, ConditionData );
+					ApplySnowMaterialMesh( ConditionData, Diffuse.rgb, Properties, Normal, Input.WorldSpacePos.xz, SnowHighlight );
 				#endif
 
 				// Colormap blend, pre light
