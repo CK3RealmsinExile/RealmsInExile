@@ -597,7 +597,10 @@ PixelShader =
 				float3 FinalColor = CalculateSunLightingLowSpec( MaterialProps, LightingProps );
 
 				#ifndef UNDERWATER
+					// MOD(godherja)
+					//FinalColor = ApplyFogOfWar( FinalColor, Input.WorldSpacePos, FogOfWarAlpha );
 					FinalColor = GH_ApplyAtmosphericEffects( FinalColor, Input.WorldSpacePos, FogOfWarAlpha );
+					// END MOD
 					FinalColor = ApplyDistanceFog( FinalColor, Input.WorldSpacePos );
 				#endif
 
