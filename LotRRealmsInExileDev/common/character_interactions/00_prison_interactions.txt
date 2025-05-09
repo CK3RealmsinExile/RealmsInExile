@@ -82,6 +82,12 @@ imprison_interaction = {
 	is_valid_showing_failures_only = {
 		scope:actor = {
 			allowed_to_imprison_character_trigger = { CHARACTER = scope:recipient }
+			trigger_if = {
+				limit = {
+					government_has_flag = government_is_nomadic
+				}
+				NOT = { has_realm_law = nomadic_authority_1 }
+			}
 		}
 		imprison_neutral_is_valid_showing_failures_only_triggers_trigger = yes
 		custom_tooltip = {
@@ -618,7 +624,7 @@ imprison_interaction = {
 	}
 
 	auto_accept = no
-	
+
 	ai_accept = {
 		base = 0 # Try to make it 0 for most interactions
 
@@ -1522,7 +1528,7 @@ move_to_house_arrest_interaction = {
 
 ransom_interaction = {
 	interface_priority = 50
-	common_interaction = yes
+	common_interaction = no
 	use_diplomatic_range = no
 	category = interaction_category_prison
 	special_interaction = ransom_interaction
@@ -1861,11 +1867,34 @@ ransom_interaction = {
 		flag = influence_send_option
 		localization = TRADE_INFLUENCE_FOR_BETTER_AI_ACCEPTANCE
 	}
+	
+	# MPO Herd
+	send_option = {
+		is_shown = { # Actor must have a government that uses Herd 
+			scope:actor = {
+				government_has_flag = government_is_nomadic
+				exists = domicile
+				is_ai = no
+			}
+			# Recipient must care about Herd
+			scope:recipient ?= {
+				government_has_flag = government_is_nomadic
+				exists = domicile
+			}
+		}
+		is_valid = {
+			# Recipient has enough Herd
+			scope:recipient = { domicile.herd >= domicile.medium_herd_value }
+		}
+		flag = herd_send_option
+		localization = RANSOM_HERD_OPTION
+	}
 
 	localization_values = {
 		EXTORTIONATE_RANSOM_COST = scope:secondary_recipient.increased_ransom_cost_value
 		RANSOM_COST = scope:secondary_recipient.ransom_cost_value
 		CURRENT_GOLD = scope:recipient.gold
+		RANSOM_HERD_COST = ransom_herd_value_recipient
 	}
 
 	ai_accept = {
@@ -2166,7 +2195,7 @@ ransom_interaction = {
 #For lieges to ransom their courtiers
 pay_ransom_interaction = {
 	interface_priority = 50
-	common_interaction = yes
+	common_interaction = no
 	use_diplomatic_range = no
 	category = interaction_category_prison
 	icon = icon_gold
@@ -2716,6 +2745,27 @@ pay_ransom_interaction = {
 		flag = influence_send_option
 		localization = TRADE_INFLUENCE_FOR_BETTER_AI_ACCEPTANCE
 	}
+	
+	send_option = { # MPO Herd
+		is_shown = { # Actor must have a government that uses Herd 
+			scope:actor = {
+				government_has_flag = government_is_nomadic
+				exists = domicile
+				is_ai = no
+			}
+			# Recipient must care about Herd
+			scope:recipient = {
+				government_has_flag = government_is_nomadic
+				exists = domicile
+			}
+		}
+		is_valid = {
+			# Actor has enough Herd
+			scope:actor = { domicile.herd >= domicile.medium_herd_value }
+		}
+		flag = herd_send_option
+		localization = PAY_FOR_BETTER_AI_ACCEPTANCE
+	}
 
 	#Use hook
 	send_option = {
@@ -2739,6 +2789,7 @@ pay_ransom_interaction = {
 		EXTORTIONATE_RANSOM_COST = scope:secondary_recipient.increased_ransom_cost_value
 		RANSOM_COST = scope:secondary_recipient.ransom_cost_value
 		CURRENT_GOLD = scope:actor.gold
+		RANSOM_HERD_COST = ransom_herd_value_actor
 	}
 
 	ai_accept = {
@@ -2882,6 +2933,12 @@ pay_ransom_interaction = {
 			add = 25
 			scope:influence_send_option = yes
 			desc = INFLUENCE_INTERACTION_ACCEPTANCE_SEND_OPTION
+		}
+		
+		modifier = {
+			add = 25
+			scope:herd_send_option = yes
+			desc = HERD_INTERACTION_ACCEPTANCE_SEND_OPTION
 		}
 	}
 
@@ -3552,6 +3609,27 @@ ransom_me_interaction = {
 		flag = influence_send_option
 		localization = TRADE_INFLUENCE_FOR_BETTER_AI_ACCEPTANCE
 	}
+	
+	send_option = { # MPO Herd
+		is_shown = { # Actor must have a government that uses Herd 
+			scope:actor = {
+				government_has_flag = government_is_nomadic
+				exists = domicile
+				is_ai = no
+			}
+			# Recipient must care about Herd
+			scope:recipient = {
+				government_has_flag = government_is_nomadic
+				exists = domicile
+			}
+		}
+		is_valid = {
+			# Actor has enough Herd
+			scope:actor = { domicile.herd >= domicile.medium_herd_value }
+		}
+		flag = herd_send_option
+		localization = PAY_FOR_BETTER_AI_ACCEPTANCE
+	}
 
 	#Use hook
 	send_option = {
@@ -3574,6 +3652,7 @@ ransom_me_interaction = {
 		EXTORTIONATE_RANSOM_COST = scope:actor.increased_ransom_cost_value
 		RANSOM_COST = scope:actor.ransom_cost_value
 		CURRENT_GOLD = scope:actor.gold
+		RANSOM_HERD_COST = ransom_herd_value_actor
 	}
 
 	ai_accept = {
@@ -3731,6 +3810,12 @@ ransom_me_interaction = {
 			add = 25
 			scope:influence_send_option = yes
 			desc = INFLUENCE_INTERACTION_ACCEPTANCE_SEND_OPTION
+		}
+		
+		modifier = {
+			add = 25
+			scope:herd_send_option = yes
+			desc = HERD_INTERACTION_ACCEPTANCE_SEND_OPTION
 		}
 	}
 
@@ -4870,17 +4955,56 @@ release_from_prison_interaction = {
 				# trigger_else = {
 					scope:recipient = {
 						is_ai = yes #Not gonna depose player characters, for now
-					is_close_or_extended_family_of = scope:actor
-					NOT = {
-						is_heir_of = scope:actor
+						is_close_or_extended_family_of = scope:actor
+						NOT = {
+							is_heir_of = scope:actor
+						}
+					}
+					scope:actor = {
+						opinion = {
+							target = scope:recipient
+							value <= medium_negative_opinion
+						}
+					}
+					custom_description = {
+						text = "release_vows_invalid_not_your_court"
+						object = scope:recipient
+						subject = scope:actor
+						OR = {
+							scope:recipient = { is_courtier_of = scope:actor }
+							scope:recruit = yes
+						}
 					}
 				# }
-				scope:actor = {
-					opinion = {
-						target = scope:recipient
-						value <= medium_negative_opinion
+				#Enhanced Take the Vows for Byzantium players -- who do we want to boot to a monastery far, far away?
+				trigger_if = { #LotR
+					limit = {
+						# scope:actor = {
+						# 	culture = { has_cultural_pillar = heritage_byzantine }
+						# }
+						always = no #LotR
+					}
+					scope:recipient = {
+						is_ai = yes #Not gonna depose player characters, for now
+						custom_description = {
+							text = "release_byz_vows_invalid"
+							object = scope:recipient
+							subject = scope:actor
+							OR = {
+								is_close_or_extended_family_of = scope:actor
+								is_vassal_or_below_of = scope:actor
+								has_relation_rival = scope:actor
+								is_courtier_of = scope:actor
+							}
+						}
 					}
 				}
+				#Otherwise standard procedure Take the Vows requirements
+				trigger_else = {
+					scope:recipient = {
+						is_ai = yes #Not gonna depose player characters, for now
+					}
+					scope:actor = { is_close_or_extended_family_of = scope:recipient } #Triggering I_AM_NOT instead of CHARACTER_IS_NOT makes the tooltip look less cursed
 					custom_description = {
 						text = "release_vows_invalid_not_your_court"
 						object = scope:recipient
@@ -4891,108 +5015,69 @@ release_from_prison_interaction = {
 						}
 					}
 				}
-			}
-			#Enhanced Take the Vows for Byzantium players -- who do we want to boot to a monastery far, far away?
-			trigger_else_if = {
-				limit = {
-					# scope:actor = {
-					# 	culture = { has_cultural_pillar = heritage_byzantine }
-					# }
-					always = no #LotR
-				}
-				scope:recipient = {
-					is_ai = yes #Not gonna depose player characters, for now
-					custom_description = {
-						text = "release_byz_vows_invalid"
-						object = scope:recipient
-						subject = scope:actor
-						OR = {
-							is_close_or_extended_family_of = scope:actor
-							is_vassal_or_below_of = scope:actor
-							has_relation_rival = scope:actor
-							is_courtier_of = scope:actor
-						}
-					}
-				}
-			}
-			#Otherwise standard procedure Take the Vows requirements
-			trigger_else = {
-				scope:recipient = {
-					is_ai = yes #Not gonna depose player characters, for now
-				}
-				scope:actor = { is_close_or_extended_family_of = scope:recipient } #Triggering I_AM_NOT instead of CHARACTER_IS_NOT makes the tooltip look less cursed
 				custom_description = {
-					text = "release_vows_invalid_not_your_court"
+					text = "release_vows_invalid_not_your_faith"
 					object = scope:recipient
 					subject = scope:actor
-					OR = {
-						scope:recipient = { is_courtier_of = scope:actor }
-						scope:recruit = yes
+					trigger_if = {
+						limit = {
+							NOT = { scope:recipient.faith = scope:actor.faith }
+						}
+						scope:demand_conversion = yes
 					}
 				}
-			}
-			custom_description = {
-				text = "release_vows_invalid_not_your_faith"
-				object = scope:recipient
-				subject = scope:actor
-				trigger_if = {
-					limit = {
-						NOT = { scope:recipient.faith = scope:actor.faith }
-					}
-					scope:demand_conversion = yes
+				custom_description = {
+					text = "release_executioner_invalid_take_vows_condition"
+					object = scope:recipient
+					scope:become_executioner = no
 				}
-			}
-			custom_description = {
-				text = "release_executioner_invalid_take_vows_condition"
-				object = scope:recipient
-				scope:become_executioner = no
-			}
-			custom_description = {
-				text = "release_banish_invalid_take_vows"
-				object = scope:recipient
-				scope:banish = no
-			}
-			scope:recipient = {
-				age >= 10
-				NOR = {
-					has_trait = excommunicated
-					has_trait = devoted
-					has_trait = incapable
+				custom_description = {
+					text = "release_banish_invalid_take_vows"
+					object = scope:recipient
+					scope:banish = no
 				}
-				#Do they have the "wrong" marriage type?
-				NOR = {
-					custom_description = {
-						text = is_married_matrilineally
-						subject = scope:recipient
-						any_spouse = {
-							is_female = yes
-							matrilinear_marriage = yes
-						}
+				scope:recipient = {
+					age >= 10
+					NOR = {
+						has_trait = excommunicated
+						has_trait = devoted
+						has_trait = incapable
 					}
-					custom_description = {
-						text = is_married_patrilineally
-						subject = scope:recipient
-						any_spouse = {
-							is_male = yes
-							patrilinear_marriage = yes
+					#Do they have the "wrong" marriage type?
+					NOR = {
+						custom_description = {
+							text = is_married_matrilineally
+							subject = scope:recipient
+							any_spouse = {
+								is_female = yes
+								matrilinear_marriage = yes
+							}
 						}
-					}
-					custom_description = {
-						text = matrilinear_betrothal
-						subject = scope:recipient
-						exists = betrothed
-						betrothed = {
-							is_female = yes
-							matrilinear_betrothal = yes
+						custom_description = {
+							text = is_married_patrilineally
+							subject = scope:recipient
+							any_spouse = {
+								is_male = yes
+								patrilinear_marriage = yes
+							}
 						}
-					}
-					custom_description = {
-						text = patrilinear_betrothal
-						subject = scope:recipient
-						exists = betrothed
-						betrothed = {
-							is_male = yes
-							patrilinear_betrothal = yes
+						custom_description = {
+							text = matrilinear_betrothal
+							subject = scope:recipient
+							exists = betrothed
+							betrothed = {
+								is_female = yes
+								matrilinear_betrothal = yes
+							}
+						}
+						custom_description = {
+							text = patrilinear_betrothal
+							subject = scope:recipient
+							exists = betrothed
+							betrothed = {
+								is_male = yes
+								patrilinear_betrothal = yes
+							}
 						}
 					}
 				}
@@ -5037,7 +5122,7 @@ release_from_prison_interaction = {
 			}
 		}
 	}
-	
+
 	send_option = {
 		flag = recruit
 		localization = "RELEASE_RECRUIT"
@@ -5070,7 +5155,7 @@ release_from_prison_interaction = {
 								limit = { exists = liege }
 								NOT = { is_heir_of = liege }
 							}
-							NOT = { exists = liege } 
+							NOT = { exists = liege }
 						}
 					}				
 				}					
@@ -5096,8 +5181,8 @@ release_from_prison_interaction = {
 				liege_should_systematically_maim_co_ruler_trigger = no
 			}
 			scope:recipient = {
-				is_lotr_adult = yes
-				cannot_be_killed = no
+				is_lotr_adult = yes #LotR
+				cannot_be_killed = no #LotR
 			}
 		}
 		is_valid = {
@@ -5140,15 +5225,15 @@ release_from_prison_interaction = {
 		is_shown = {
 			scope:actor = {
 				#is_adult = yes
-				is_lotr_adult = yes
+				is_lotr_adult = yes #LotR
 				culture = { has_cultural_parameter = can_blind_prisoners }
 				# If they're our partner emperor, we should use the maiming interaction instead.
 				liege_should_systematically_maim_co_ruler_trigger = no
 			}
 			scope:recipient = {
 				#is_adult = yes
-				is_lotr_adult = yes
-				cannot_be_killed = no
+				is_lotr_adult = yes #LotR
+				cannot_be_killed = no #LotR
 			}
 		}
 		is_valid = {
@@ -5172,11 +5257,11 @@ release_from_prison_interaction = {
 				is_imprisoned_by = scope:actor
 				is_eunuch_trigger = no
 				is_male = yes
-				cannot_be_killed = no
+				cannot_be_killed = no #LotR
 			}
 			scope:actor = {
 				#is_adult = yes
-				is_lotr_adult = yes
+				is_lotr_adult = yes #LotR
 				culture = {
 					has_cultural_parameter = can_castrate_prisoners
 				}
@@ -5923,6 +6008,67 @@ execute_prisoner_interaction = {
 			}
 		}
 
+		#Nomads get the special beheading stuff
+		modifier = {
+			scope:actor = {
+				mpo_keep_prisoners_heads_trigger = yes
+				scope:recipient = {
+					is_ruler = yes
+					highest_held_title_tier >= tier_county
+					is_adult = yes
+				}
+				NOT = {
+					scope:recipient.top_liege ?= {
+						current_military_strength > scope:actor.current_military_strength
+						tier_difference = {
+							target = scope:actor
+							value >= -1
+						}
+					}
+				}
+			}
+			NOT = {
+				scope:actor.faith = { has_doctrine_parameter = human_sacrifice_active }
+			}
+			add = 10
+		}
+		#Boost further if actor if want to keep head
+		modifier = {
+			#want to keep head
+			scope:actor = {
+				mpo_keep_prisoners_heads_trigger = yes
+			}
+			scope:recipient = {
+				highest_held_title_tier >= tier_kingdom
+				is_adult = yes
+			}
+			NOT = {
+				scope:actor.faith = { has_doctrine_parameter = human_sacrifice_active }
+			}
+			add = 20
+		}
+		#Boost further if actor wants to be scary
+		modifier = {
+			#want to keep head
+			scope:actor = {
+				mpo_keep_prisoners_heads_trigger = yes
+				scope:recipient = {
+					is_ruler = yes
+					highest_held_title_tier >= tier_county
+					is_adult = yes
+				}
+				OR = {
+					has_trait = conqueror
+					has_trait = greatest_of_khans
+					is_gurkhan = yes
+				}
+			}
+			NOT = {
+				scope:actor.faith = { has_doctrine_parameter = human_sacrifice_active }
+			}
+			add = 30
+		}
+
 		modifier = {
 			scope:recipient = {
 				any_character_struggle = {
@@ -5966,13 +6112,7 @@ execute_prisoner_interaction = {
 
 	is_shown = {
 		scope:recipient = {
-			OR = {
-				is_imprisoned_by = scope:actor
-				AND = {
-					is_diarch_of_target = scope:actor
-					scope:actor = { has_diarchy_active_parameter = diarchy_is_co_rulership }
-				}
-			}
+			is_imprisoned_by = scope:actor
 		}
 	}
 
@@ -6517,7 +6657,12 @@ execute_prisoner_interaction = {
 
 	send_option = {
 		is_shown = {
-			scope:actor.faith = scope:recipient.faith
+			OR = {
+				scope:actor.faith = scope:recipient.faith
+				scope:actor = {
+					mpo_keep_prisoners_heads_trigger = yes
+				}
+			}
 			NOT = {
 				scope:actor.faith = { has_doctrine_parameter = human_sacrifice_active }
 			}
@@ -6547,9 +6692,14 @@ execute_prisoner_interaction = {
 
 	send_option = {
 		is_shown = {
-			NOT = {
-				scope:actor.faith = scope:recipient.faith
-				scope:actor.faith = { has_doctrine_parameter = human_sacrifice_active }
+			NOR = {
+				AND = {
+					scope:actor.faith = scope:recipient.faith
+					scope:actor.faith = { has_doctrine_parameter = human_sacrifice_active }
+				}
+				scope:actor = {
+					mpo_keep_prisoners_heads_trigger = yes
+				}
 			}
 		}
 		flag = execution_burned
@@ -6649,7 +6799,7 @@ debug_imprison_simple_interaction = {
 
 torture_interaction = {
 	interface_priority = 30
-	common_interaction = yes
+	common_interaction = no
 	icon = torture_interaction
 
 	category = interaction_category_prison
@@ -7312,7 +7462,7 @@ systematically_maim_character_interaction = {
 	interface_priority = 30
 	icon = torture_interaction
 	category = interaction_category_diarch
-	common_interaction = yes
+	common_interaction = no
 	desc = systematically_maim_character_interaction_desc
 
 	is_shown = {
@@ -7339,7 +7489,7 @@ systematically_maim_character_interaction = {
 				has_trait = disfigured
 				has_trait = maimed
 				has_trait = one_legged
-				cannot_be_killed = no
+				cannot_be_killed = no #LotR
 			}
 		}
 	}

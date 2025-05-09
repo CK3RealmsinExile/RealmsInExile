@@ -1029,7 +1029,7 @@ challenge_to_2p_chess_interaction = {
 	icon = icon_gaming
 	category = interaction_category_friendly
 	desc = challenge_to_2p_chess_interaction_desc
-	common_interaction = yes
+	common_interaction = no
 
 	greeting = positive
 	notification_text = CHALLENGE_TO_2P_CHESS_INTERACTION_NOTIFICATION
@@ -1040,9 +1040,9 @@ challenge_to_2p_chess_interaction = {
 
 	is_shown = {
 		scope:actor = {
-			NOT = { has_culture = culture:wastelands }
-			is_in_valinor = no
-			NOT = { has_trait = sauron_ringless }
+			NOT = { has_culture = culture:wastelands } #LotR
+			is_in_valinor = no #LotR
+			NOT = { has_trait = sauron_ringless } #LotR
 			# Actor needs to either have a CulTrad or be a fan of board games
 			OR = {
 				culture = { has_cultural_parameter = may_challenge_to_board_games }
@@ -1054,7 +1054,7 @@ challenge_to_2p_chess_interaction = {
 			# ... no, I'm sorry, you can't play yourself at board games.
 			NOT = { this = scope:recipient }
 		}
-		scope:recipient = {
+		scope:recipient = { #LotR
 			NOT = { has_culture = culture:wastelands }
 			is_in_valinor = no
 			#Elves won't play evil characters
@@ -2069,15 +2069,17 @@ purchase_truce_interaction = {
 	is_shown = {
 		NOT = { scope:actor = { has_culture = culture:wastelands } } #LotR
 		NOT = { scope:actor = scope:recipient }
-		# Scope:actor needs to either be involved in certain struggle types or else have a specific perk.
 		scope:actor = {
 			is_landless_adventurer = no
-			OR = {
-				any_character_struggle = {
-					involvement = involved
-					has_struggle_phase_parameter = unlocks_truce_purchasing_interaction
+
+			# If scope:recipient is a nomad and the actor is not, this is always available; otherwise,
+			# scope:actor needs to either be involved in certain struggle types or else have a specific perk.
+			OR = {	
+				AND = {
+					scope:recipient = { government_has_flag = government_is_nomadic }
+					NOT = { government_has_flag = government_is_nomadic }
 				}
-				has_perk = defensive_measures_perk
+				fp2_purchase_truce_interaction_soft_requirements_trigger = yes
 			}
 
 			# if you are not independent you should not be able to purchase truce with other fellow vassals only
@@ -2098,7 +2100,10 @@ purchase_truce_interaction = {
 
 	is_valid_showing_failures_only = {
 		# Scope:actor must be an available (adult or child).
-		scope:actor = { is_available = yes }
+		scope:actor = {
+			gold >= pt_sum_small_value
+			is_available = yes
+		}
 		# Scope:recipient must be at least available.
 		scope:recipient = { is_available = yes }
 		# Make sure that scope:actor is going into this with a clean, no-recent/active/forbidden hostilities mindset.
@@ -2513,45 +2518,6 @@ purchase_truce_interaction = {
 			add = 50
 			scope:actor.max_military_strength > scope:recipient.purchase_truce_interaction_recipient_far_stronger_value
 			desc = PT_AI_RECIPIENT_IS_MUCH_WEAKER
-		}
-
-		# Struggle
-		modifier = {
-			desc = AI_STRUGGLE_INTENT
-			scope:recipient = {
-				any_character_struggle = {
-					involvement = involved
-				}
-			}
-			scope:actor = {
-				any_character_struggle = {
-					involvement = involved
-				}
-			}
-			add = {
-				value = 0
-				if = {
-					limit = {
-						scope:recipient = {
-							any_character_struggle = {
-								phase_has_catalyst = catalyst_sign_truce_outside_war
-							}
-							has_character_flag = agenda_towards_escalation
-						}
-					}
-					add = -50
-				}
-				else_if = {
-					limit = {
-						scope:recipient = {
-							any_character_struggle = {
-								phase_has_catalyst = catalyst_sign_truce_outside_war
-							}
-						}
-					}
-					add = 100
-				}
-			}
 		}
 	}
 	## Performance-enhancement	
@@ -3247,31 +3213,33 @@ contract_assistance_interaction = {
 	is_shown = {
 		# Actor is Involved in Struggle
 		scope:actor = {
+			NOT = { government_has_flag = government_is_herder }
 			OR = {
-			any_character_struggle = {
-				involvement = involved
-				has_struggle_phase_parameter = unlocks_contract_assistance_interaction
-			}
+				# any_character_struggle = { #LotR
+				# 	involvement = involved
+				# 	has_struggle_phase_parameter = unlocks_contract_assistance_interaction #LotR
+				# }
+				# culture = { has_cultural_parameter = unlocks_contract_assistance } #LotR
 				is_landless_adventurer = yes
 			}
 		}
 		NOT = { scope:actor = { has_culture = culture:wastelands } } #LotR
 		# Recipient is Involved in Struggle, at war, and not at war with Actor
 		scope:recipient = {
-			trigger_if = {
-				limit = {
-					scope:actor = {
-						any_character_struggle = {
-							involvement = involved
-							has_struggle_phase_parameter = unlocks_contract_assistance_interaction
-						}
-					}
-				}
-				any_character_struggle = {
-					involvement = involved
-					has_struggle_phase_parameter = unlocks_contract_assistance_interaction
-				}
-			}
+			# trigger_if = { #LotR
+			# 	limit = {
+			# 		scope:actor = {
+			# 			any_character_struggle = {
+			# 				involvement = involved
+			# 				has_struggle_phase_parameter = unlocks_contract_assistance_interaction #LotR
+			# 			}
+			# 		}
+			# 	}
+			# 	any_character_struggle = {
+			# 		involvement = involved
+			# 		has_struggle_phase_parameter = unlocks_contract_assistance_interaction #LotR
+			# 	}
+			# }
 			is_at_war = yes
 			NOR = {
 				this = scope:actor
@@ -3351,6 +3319,21 @@ contract_assistance_interaction = {
 					LAAMP = scope:actor
 				}
 			}
+		}
+
+		# Sensible restrictions to keep CulTrads from making this OP.
+		scope:recipient = {
+			custom_tooltip = {
+				text = contract_assistance_tier_too_high_tt
+				OR = {
+					highest_held_title_tier = tier_county
+					highest_held_title_tier >= scope:actor.highest_held_title_tier
+					sub_realm_size >= scope:actor.sub_realm_size
+				}
+			}
+		}
+		scope:actor = {
+			NOT = { highest_held_title_tier >= tier_empire }
 		}
 	}
 	
@@ -3698,9 +3681,9 @@ contract_assistance_interaction = {
 		modifier = {
 			add = 50
 			desc = camp_purpose_mercenaries_reason
-			scope:actor = {
-				has_realm_law = camp_purpose_mercenaries
-			}
+  			scope:actor = {
+  				has_realm_law = camp_purpose_mercenaries
+   			}
 		}
 		# Allegiances
 		# fp2_contracting_ally_modifier = {
@@ -3713,6 +3696,7 @@ contract_assistance_interaction = {
 		is_imprisoned = no
 		is_at_war = no
 		ai_boldness >= -25
+		current_military_strength >= 500
 	}
 	ai_target_quick_trigger = { adult = yes }
 	ai_targets = {
@@ -3858,10 +3842,10 @@ request_contract_assistance_interaction = {
 		# Actor is Involved in Struggle
 		NOT = { scope:actor = { has_culture = culture:wastelands } } #LotR
 		scope:actor = {
-			any_character_struggle = {
-				involvement = involved
-				has_struggle_phase_parameter = unlocks_contract_assistance_interaction
-			}
+			# any_character_struggle = {
+			# 	involvement = involved
+			# 	has_struggle_phase_parameter = unlocks_contract_assistance_interaction #LotR
+			# }
 			is_at_war = yes
 			NOR = {
 				this = scope:recipient
@@ -3869,12 +3853,12 @@ request_contract_assistance_interaction = {
 			}
 		}
 		# Recipient is Involved in Struggle, at war, and not at war with Actor
-		scope:recipient = {
-			any_character_struggle = {
-				involvement = involved
-				has_struggle_phase_parameter = unlocks_contract_assistance_interaction
-			}
-		}
+		# scope:recipient = { #LotR
+		# 	any_character_struggle = {
+		# 		involvement = involved
+		# 		has_struggle_phase_parameter = unlocks_contract_assistance_interaction #LotR
+		# 	}
+		# }
 	}
 
 	has_valid_target = {
@@ -3882,7 +3866,40 @@ request_contract_assistance_interaction = {
 	}
 
 	has_valid_target_showing_failures_only = {
-		scope:target = { is_war_leader = scope:actor }
+		scope:target = { 
+			is_war_leader = scope:actor
+
+			# Cannot contract against allies
+			trigger_if = {
+				limit = {
+					any_war_attacker = { this = scope:recipient }
+				}
+				NOT = {
+					any_war_defender = { is_allied_to = scope:actor }
+				}
+			}
+			trigger_else = {
+				NOT = {
+					any_war_attacker = { is_allied_to = scope:actor }
+				}
+			}
+		}
+
+		# Adventurers can't join wars in places they're exiled from.
+		trigger_if = {
+			limit = {
+				scope:actor = { is_independent_ruler = no }
+			}
+			custom_tooltip = {
+				text = the_wake_1
+				NOT = {
+					is_laamp_exiled_from_province_trigger = {
+						PROVINCE = scope:actor.capital_province
+						LAAMP = scope:recipient
+					}
+				}
+			}
+		}
 	}
 
 	is_valid_showing_failures_only = {
@@ -4776,11 +4793,11 @@ bargain_fealty_interaction = {
 						is_landless_ruler = no
 					}
 				}
-			tier_difference = {
-				target = scope:recipient
-				value <= -1
+				tier_difference = {
+					target = scope:recipient
+					value <= -1
+				}
 			}
-		}
 			trigger_else = {
 				tier_difference = {
 					target = scope:recipient

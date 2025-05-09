@@ -1,8 +1,9 @@
 ﻿revoke_title_interaction = {
 	category = interaction_category_vassal
-	common_interaction = yes
+	common_interaction = no
 	highlighted_reason = HIGHLIGHTED_HAS_REVOKE_TITLE_REASON
 	notification_text = REVOKE_TITLE_PROPOSAL
+	interface_priority = 110
 
 	name = {
 		first_valid = {
@@ -34,7 +35,7 @@
 				}
 				desc = revoke_governorship_interaction_desc
 			}
-	desc = revoke_title_interaction_desc
+			desc = revoke_title_interaction_desc
 		}
 	}
 
@@ -71,6 +72,7 @@
 
 	is_shown = {
 		scope:recipient = {
+			NOT = { government_has_flag = government_is_herder } # They have their own interaction without cooldowns/maluses
 			is_landed_or_landless_administrative = yes
 			# should be shown but be disabled for indirect vassals
 			target_is_liege_or_above = scope:actor
@@ -97,7 +99,7 @@
 			}
 		}
 	}
-	
+
 	is_valid_showing_failures_only = {
 		title_revocation_standard_valid_showing_failures_only_trigger = yes
 		# Plus make sure there's a legal right to revoke.
@@ -167,6 +169,17 @@
 			is_vassal_of = scope:actor
 			is_busy_in_events_localised = yes
 			NOT = { has_strong_hook = scope:actor }
+			trigger_if = { # If admin, they need to hold a title that isn't their noble family title
+				limit = {
+					government_allows = administrative
+				}
+				custom_tooltip = {
+					text = admin_no_valid_appointment
+					any_held_title = {
+						NOT = { is_noble_family_title = yes }
+					}
+				}
+			}
 		}
 		custom_tooltip = {
 			text = cannot_take_overt_hostile_actions_against_diarch.tt
@@ -190,7 +203,7 @@
 			}
 		}
 	}
-	
+
 	# Highlighted in the interaction menu when right-clicking a character
 	is_highlighted = {
 		OR = {
@@ -211,7 +224,7 @@
 			}
 		}
 	}
-		
+
 	can_be_picked_title = {
 		scope:target = {
 			title_revocation_standard_can_pick_title_trigger = yes
@@ -232,7 +245,10 @@
 
 	has_valid_target = {
 		scope:target = {
-			NOT = { is_noble_family_title = yes }
+			NOR = { 
+				is_noble_family_title = yes 
+				is_nomad_title = yes
+			}
 		}
 	}
 
@@ -502,6 +518,35 @@
 			}
 			scope:actor = { remove_character_flag = flag_hostile_actions_disabled_delay }
 		}
+
+		# Harrying logic.
+		#scope:actor = { #LotR
+		#	if = {
+		#		limit = {
+		#			character_is_valid_for_harrying_of_the_north_trigger = yes
+		#			scope:recipient = {
+		#				character_is_valid_for_harrying_of_the_north_trigger = yes
+		#				is_important_or_vip_struggle_character = yes
+		#			}
+		#			culture != scope:recipient.culture
+		#		}
+		#		global_var:harrying_of_the_north = { save_scope_as = story }
+		#		if = {
+		#			limit = {
+		#				character_is_valid_norman_for_harrying_of_the_north_trigger = yes
+		#				scope:recipient = { character_is_valid_anglo_saxon_for_harrying_of_the_north_trigger = yes }
+		#			}
+		#			ep3_increase_pacification_effect = { AMOUNT = harrying_minor_increase_value }
+		#		}
+		#		else_if = {
+		#			limit = {
+		#				character_is_valid_anglo_saxon_for_harrying_of_the_north_trigger = yes
+		#				scope:recipient = { character_is_valid_norman_for_harrying_of_the_north_trigger = yes }
+		#			}
+		#			ep3_increase_resistance_effect = { AMOUNT = harrying_minor_increase_value }
+		#		}
+		#	}
+		#}
 	}
 
 	on_decline = {
@@ -610,25 +655,45 @@
 		if = {
 			limit = {
 				scope:landed_title.tier != tier_barony
+				NOT = {
+					scope:recipient = { government_has_flag = government_is_herder }
+				}
 			}
 			scope:actor = {
 				revocation_tyranny_effect = { VASSAL = scope:recipient }
 				title_revocation_stress_effect = { VASSAL = scope:recipient }
 			}
 		}
-		war_for_revoke_effect = {
-			LIEGE = scope:actor
-			REBEL = scope:recipient
+		if = {
+			limit = {
+				scope:recipient = { government_has_flag = government_is_herder }
+			}
+			scope:recipient = {
+				add_opinion = {
+					target = scope:actor
+					opinion = -10 # Herders don't care much
+					modifier = revoked_title
+				}
+			}
 		}
-		scope:recipient = {
-			add_opinion = {
-				target = scope:actor
-				modifier = revoked_title
+		else = {
+			war_for_revoke_effect = {
+				LIEGE = scope:actor
+				REBEL = scope:recipient
+			}
+			scope:recipient = {
+				add_opinion = {
+					target = scope:actor
+					modifier = revoked_title
+				}
 			}
 		}
 		if = {
 			limit = {
 				scope:actor = { has_realm_law_flag = vassal_refusal_is_treason }
+				NOT = {
+					scope:recipient = { government_has_flag = government_is_herder }
+				}
 			}
 			scope:actor = {
 				add_opinion = {
@@ -637,6 +702,36 @@
 				}
 			}
 		}
+
+		# Harrying logic.
+		#scope:actor = { #LotR
+		#	if = {
+		#		limit = {
+		#			character_is_valid_for_harrying_of_the_north_trigger = yes
+		#			scope:recipient = {
+		#				character_is_valid_for_harrying_of_the_north_trigger = yes
+		#				is_important_or_vip_struggle_character = yes
+		#			}
+		#			culture != scope:recipient.culture
+		#		}
+		#		global_var:harrying_of_the_north = { save_scope_as = story }
+		#		if = {
+		#			limit = {
+		#				character_is_valid_norman_for_harrying_of_the_north_trigger = yes
+		#				scope:recipient = { character_is_valid_anglo_saxon_for_harrying_of_the_north_trigger = yes }
+		#			}
+		#			ep3_increase_resistance_effect = { AMOUNT = harrying_minor_increase_value }
+		#		}
+		#		else_if = {
+		#			limit = {
+		#				character_is_valid_anglo_saxon_for_harrying_of_the_north_trigger = yes
+		#				scope:recipient = { character_is_valid_norman_for_harrying_of_the_north_trigger = yes }
+		#			}
+		#			ep3_increase_pacification_effect = { AMOUNT = harrying_minor_increase_value }
+		#		}
+		#	}
+		#}
+
 		if = {
 			limit = {
 				scope:actor = { has_character_flag = flag_hostile_actions_disabled_delay }
@@ -693,6 +788,14 @@
 			add = 40
 			desc = SCHEME_WEAK_HOOK_USED
 		}
+		
+		modifier = {
+			scope:recipient = {
+				government_has_flag = government_is_herder
+			}
+			add = 40
+			desc = MIGRATION_INTERACTION_HERDER
+		}
 
 		opinion_modifier = { # Opinion Factor
 			who = scope:recipient
@@ -700,7 +803,7 @@
 			multiplier = 0.8
 			desc = AI_OPINION_REASON
 		}
-		
+
 		modifier = {
 			add = 20
 			scope:actor = {
@@ -708,7 +811,7 @@
 			}
 			desc = AI_REFUSAL_IS_TREASON
 		}
-		
+
 		modifier = {
 			add = 20
 			scope:recipient = {
@@ -716,7 +819,7 @@
 			}
 			desc = TAKE_THE_VOWS_TRUSTING
 		}
-		
+
 		modifier = {
 			add = 20
 			scope:recipient = {
@@ -724,7 +827,7 @@
 			}
 			desc = INTERACTION_CONTENT
 		}
-		
+
 		modifier = {
 			add = 20
 			scope:actor.current_military_strength > scope:recipient.current_military_strength
@@ -733,7 +836,7 @@
 			}
 			desc = INTERACTION_CRAVEN
 		}
-		
+
 		modifier = {
 			exists = scope:actor.primary_title.title_capital_county
 			OR = {
@@ -743,7 +846,7 @@
 			add = 50
 			desc = AI_TITLE_IS_REALM_CAPITAL
 		}
-		
+
 		modifier = {
 			exists = scope:actor.primary_title.title_capital_county
 			NOR = {
@@ -754,7 +857,7 @@
 			add = 30
 			desc = AI_TITLE_IS_IN_CAPITAL_DUCHY
 		}
-		
+
 		modifier = {
 			add = 30
 			scope:actor = {
@@ -1255,7 +1358,7 @@
 			}
 			add = -2000
 		}
-		
+
 		modifier = { # The AI will always use a Hook if they can
 			scope:hook = yes
 			add = 1
@@ -1272,7 +1375,7 @@
 				is_at_war = yes
 			}
 			NOR = {
-			scope:recipient = {
+				scope:recipient = {
 					is_imprisoned_by = scope:actor
 				}
 				scope:recipient = {
@@ -1280,7 +1383,7 @@
 				}
 			}
 		}
-		
+
 		# Clan Government: Avoid revoking titles from house members if the AI wants to have high unity
 		modifier = {
 			scope:actor = {
@@ -1301,12 +1404,12 @@
 			scope:actor = {
 				has_ongoing_grand_activity_trigger = yes
 			}
-				NOR = {
-					scope:recipient = {
-						is_imprisoned_by = scope:actor
-					}
-					scope:recipient = {
-						highest_held_title_tier = tier_barony
+			NOR = {
+				scope:recipient = {
+					is_imprisoned_by = scope:actor
+				}
+				scope:recipient = {
+					highest_held_title_tier = tier_barony
 				}
 			}
 		}

@@ -91,21 +91,18 @@ select_local_animal_effect = {
 				10 = { # Wolf, Hyena, Lynx
 					trigger = {
 						NOT = { exists = scope:harmless_local_game }
+						scope:animal_location = {
+							OR = {
+								hunt_animal_wolf_trigger = yes
+								hunt_animal_hyena_trigger = yes
+								hunt_animal_lynx_trigger = yes
+							}
+						}
 					}
 					random_list = {
 						10 = { # Wolf
 							trigger = {
-								scope:animal_location = {
-									NAND = {
-										geographical_region = middleearth_haradwaith_far #LotR
-										OR = {
-											terrain = hills
-											terrain = forest
-											terrain = jungle
-											terrain = mountains
-										}
-									}
-								}
+								scope:animal_location = { hunt_animal_wolf_trigger = yes }
 							}
 							set_variable = { name = animal_type value = flag:wolf years = 3 }
 						}
@@ -303,15 +300,15 @@ end_hunt_mystical_animal_story_cycle_effect = {
 			has_dlc_feature = legends
 			NOT = { has_game_rule = historical_legends_only }
 		}
-	create_legend_seed = {
-		type = heroic
-		quality = famed
-		chronicle = beast_slayer
-		properties = {
-			beast = scope:activity.var:animal_type
-			location = root.location
+		create_legend_seed = {
+			type = heroic
+			quality = famed
+			chronicle = beast_slayer
+			properties = {
+				beast = scope:activity.var:animal_type
+				location = root.location
+			}
 		}
-	}
 	}
 	add_prestige = major_prestige_gain
 	give_nickname = nick_the_venator
@@ -372,7 +369,7 @@ hunt_activity_standard_game_effect = {
 	random_list = {
 		10 = { # Boar
 			trigger = {
-				$PROVINCE$ ?= { hunt_animal_boar_trigger = yes } #LotR
+				$PROVINCE$ = { hunt_animal_boar_trigger = yes }
 				NOT = { exists = scope:small_local_game }
 			}
 			# Master of Hunt aptitude affects chance of managed game
@@ -383,7 +380,7 @@ hunt_activity_standard_game_effect = {
 		}
 		30 = { # Deer/Antelope
 			trigger = {
-				$PROVINCE$ ?= { hunt_animal_deer_antelope_trigger = yes } #LotR
+				$PROVINCE$ = { hunt_animal_deer_antelope_trigger = yes }
 			}
 			# Master of Hunt aptitude affects chance of managed game
 			hunt_activity_master_aptitude_positive_modifier = { LIEGE = root }
@@ -393,23 +390,23 @@ hunt_activity_standard_game_effect = {
 		}
 		1 = { # Aurochs
 			trigger = {
-				$PROVINCE$ ?= { hunt_animal_aurochs_trigger = yes } #LotR
+				$PROVINCE$ = { hunt_animal_aurochs_trigger = yes }
 				# NOT = { $HUNTER$.religion = religion:hinduism_religion } #LotR
-				$HUNTER$ ?= { exists = this } #LotR - just to clear the log
+				exists = $HUNTER$ #LotR - Suppress errors when this is text replaced
 				NOT = { exists = scope:small_local_game }
 			}
 			set_variable = { name = animal_type value = flag:aurochs }
 		}
 		10 = { # Bison
 			trigger = {
-				$PROVINCE$ ?= { hunt_animal_bison_trigger = yes } #LotR
+				$PROVINCE$ = { hunt_animal_bison_trigger = yes }
 				NOT = { exists = scope:small_local_game }
 			}
 			set_variable = { name = animal_type value = flag:bison }
 		}
 		5 = { # Fox
 			trigger = {
-				$PROVINCE$ ?= { hunt_animal_fox_trigger = yes } #LotR
+				$PROVINCE$ = { hunt_animal_fox_trigger = yes }
 				NOT = { exists = scope:big_local_game }
 			}
 			set_variable = { name = animal_type value = flag:fox }
@@ -548,17 +545,7 @@ hunt_activity_dangerous_game_effect = {
 			random_list = {
 				10 = { # Wolf
 					trigger = {
-						$PROVINCE$ = {
-							NAND = {
-								# geographical_region = world_africa_west #LotR
-								OR = {
-									terrain = hills
-									terrain = forest
-									terrain = jungle
-									terrain = mountains
-								}
-							}
-						}
+						$PROVINCE$ = { hunt_animal_wolf_trigger = yes }
 					}
 					set_variable = { name = animal_type value = flag:wolf years = 3 }
 				}
@@ -590,7 +577,14 @@ hunt_activity_dangerous_game_effect = {
 		}
 		5 = { # Lion/Tiger/Leopard - Occasional (outside Europe)
 			trigger = {
-				$PROVINCE$ = { hunt_animal_big_cat_trigger = yes }
+				$PROVINCE$ = {
+					hunt_animal_big_cat_trigger = yes
+					OR = {
+						hunt_animal_lion_trigger = yes
+						hunt_animal_tiger_trigger = yes
+						hunt_animal_leopard_trigger = yes
+					}
+				}
 			}
 			modifier = {
 				exists = scope:small_local_game
@@ -949,10 +943,10 @@ hunt_activity_success_change_effect = {
 			}
 			set_variable = { name = hunt_success_chance_event value = 0 }
 		}
-			change_variable = {
-				name = hunt_success_chance_event
-				add = hunt_activity_success_$CHANGE$_value
-			}
+		change_variable = {
+			name = hunt_success_chance_event
+			add = hunt_activity_success_$CHANGE$_value
+		}
 		set_variable = {
 			name = hunt_success_chance
 			value = hunt_success_chance_value
@@ -1060,7 +1054,7 @@ hunt_individual_guest_awards_effect = {
 			trigger_if = {
 				limit = { is_clergy = yes }
 				OR = {
-				faith = { has_doctrine_parameter = clergy_can_fight }
+					faith = { has_doctrine_parameter = clergy_can_fight }
 					culture = { has_cultural_parameter = culture_clergy_can_fight }
 				}
 			}
@@ -1073,6 +1067,19 @@ hunt_individual_guest_awards_effect = {
 			add_piety = hunt_piety_guest_gain_value
 		}
 		else = { add_prestige = hunt_prestige_guest_gain_value }
+	}
+	# Nomads gain prowess from dangerous animal kills
+	if = {
+		limit = {
+			NOT = { this = scope:host }
+			government_has_flag = government_is_nomadic
+			scope:activity = {
+				var:hunt_success ?= flag:yes
+				NOT = { exists = var:animal_spared }
+				hunt_animal_type_dangerous_trigger = { VAR = var:animal_type }
+			}
+		}
+		add_prowess_skill = 1
 	}
 	# Trait XP
 	# Only called on the end of a *successful* hunt. Hunts which are interrupted due to death, imprisonment, etc., don't get this, so put critical clean-up stuff in the activity itself.
@@ -1133,6 +1140,40 @@ hunt_individual_guest_awards_effect = {
 	}
 	else = {
 		standard_activity_participation_legitimacy_effect = yes
+	}
+	# Memories
+	if = {
+		limit = {
+			save_temporary_scope_as = hunter_temp
+			NOT = {
+				any_memory = {
+					has_memory_type = hunt_animal_slayer_memory
+					memory_participant:animal_slayer = scope:hunter_temp
+					memory_participant:host = scope:host
+					memory_age_years < 1
+				}
+			}
+			exists = scope:activity.var:kill_animal_type
+		}
+		create_character_memory = {
+			type = hunt_success_memory
+			participants = {
+				host = scope:host
+			}
+		}
+		ordered_memory = {
+			limit = { has_memory_type = hunt_success_memory }
+			order_by = memory_creation_date
+			save_scope_as = new_memory
+			set_variable = {
+				name = animal_type
+				value = scope:activity.var:kill_animal_type
+			}
+			set_variable = {
+				name = location
+				value = scope:activity.activity_location
+			}
+		}
 	}
 }
 
@@ -1480,7 +1521,9 @@ hunt_animal_melee_kill_effect = {
 			hunt_wound_select_effect = yes
 		}
 	}
-	duel = { # Clean Success
+	save_scope_as = injury_target
+	hunt_wound_select_effect = yes
+	duel = {
 		skill = prowess
 		value = hunt_melee_kill_prowess_value
 		50 = {
@@ -1561,6 +1604,20 @@ hunt_animal_melee_kill_effect = {
 				}
 			}
 			modifier = { add = hunt_melee_danger_value }
+			# Effect
+			hidden_effect = {
+				scope:injury_target = {
+					if = {
+						limit = {
+							hunt_animal_type_dangerous_trigger = { VAR = $VAR$ }
+						}
+						hunt_wound_apply_effect = { SEVERE = yes }
+					}
+					else = {
+						hunt_wound_apply_effect = { SEVERE = no }
+					}
+				}
+			}
 			scope:activity ?= {
 				add_activity_log_entry = {
 					key = hunt_melee_log
@@ -1591,29 +1648,19 @@ hunt_animal_melee_kill_effect = {
 						key = hunt_melee_wounded_log
 						score = 75
 						tags = { kill }
-						character = scope:animal_slayer
-
-						# Effect
-						scope:animal_slayer = {
-							if = {
-								limit = {
-									hunt_animal_type_dangerous_trigger = { VAR = $VAR$ }
-								}
-								hunt_wound_apply_effect = { SEVERE = yes }
-							}
-							else = {
-								hunt_wound_apply_effect = { SEVERE = no }
-							}
-						}
+						character = scope:injury_target
+						scope:injury_target = { hunt_wound_tooltip_effect = yes }
 					}
 				}
 			}
 			if = {
-				limit = {
-					exists = scope:severe
-					scope:severe = yes
-				}
+				limit = { scope:severe ?= yes }
 				custom_tooltip = hunt_character_wound_tt
+			}
+			else = {
+				show_as_tooltip = {
+					increase_wounds_no_death_effect = { REASON = fight }
+				}
 			}
 			save_scope_as = melee_failure
 		}
@@ -1624,23 +1671,23 @@ hunt_animal_melee_kill_effect = {
 				NOT = {
 					hunt_small_game_trigger = { VAR = $VAR$ }
 				}
-				cannot_be_killed = no
-				NOT = { is_elf = yes }
+				cannot_be_killed = no #LotR
+				NOT = { is_elf = yes } #LotR
 			}
 			compare_modifier = {
 				value = scope:duel_value
 				multiplier = -3.5
 				min = 5
 			}
-			modifier = {
+			modifier = { #LotR
 				factor = 0.5
 				numenorean_blood_tier >= 5
 			}
-			modifier = {
+			modifier = { #LotR
 				factor = 0.5
 				has_trait = skinchanger
 			}
-			modifier = {
+			modifier = { #LotR
 				factor = 0.25
 				OR = {
 					numenorean_blood_tier < 5
@@ -1762,23 +1809,37 @@ hunt_animal_melee_kill_group_effect = {
 				factor = 0.1
 			}
 			modifier = { add = hunt_melee_danger_value }
-			modifier = {
+			# Effect
+			hidden_effect = {
+				scope:injury_target = {
+					if = { # Big animal injure big
+						limit = {
+							hunt_animal_type_dangerous_trigger = { VAR = $VAR$ }
+						}
+						hunt_wound_apply_effect = { SEVERE = yes }
+					}
+					else = { # Smol animal injure smol
+						hunt_wound_apply_effect = { SEVERE = no }
+					}
+				}
+			}
+			modifier = { #LotR
 				factor = 0.5
 				scope:injury_target = {
 					numenorean_blood_tier < 5
 				}
 			}
-			modifier = {
+			modifier = { #LotR
 				factor = 0.5
 				scope:injury_target = { has_trait = skinchanger }
 			}
-			modifier = {
+			modifier = { #LotR
 				factor = 0.25
 				scope:injury_target = {
 					numenorean_blood_tier >= 5
 				}
 			}
-			modifier = {
+			modifier = { #LotR
 				factor = 0.1
 				scope:injury_target = {
 					OR = {
@@ -1807,19 +1868,7 @@ hunt_animal_melee_kill_group_effect = {
 						score = 75
 						tags = { kill }
 						character = scope:injury_target
-
-						# Effect
-						scope:injury_target = {
-							if = { # Big animal injure big
-								limit = {
-									hunt_animal_type_dangerous_trigger = { VAR = $VAR$ }
-								}
-								hunt_wound_apply_effect = { SEVERE = yes }
-							}
-							else = { # Smol animal injure smol
-								hunt_wound_apply_effect = { SEVERE = no }
-							}
-						}
+						scope:injury_target = { hunt_wound_tooltip_effect = yes }
 					}
 				}
 			}
@@ -1833,27 +1882,27 @@ hunt_animal_melee_kill_group_effect = {
 				NOT = {
 					hunt_small_game_trigger = { VAR = $VAR$ }
 				}
-				scope:injury_target = { cannot_be_killed = no }
+				scope:injury_target = { cannot_be_killed = no } #LotR
 				
 			}
 			modifier = { add = hunt_melee_kill_prowess_value }
-			modifier = {
+			modifier = { #LotR
 				factor = 0.5
 				scope:injury_target = {
 					numenorean_blood_tier < 5
 				}
 			}
-			modifier = {
+			modifier = { #LotR
 				factor = 0.5
 				scope:injury_target = { has_trait = skinchanger }
 			}
-			modifier = {
+			modifier = { #LotR
 				factor = 0.25
 				scope:injury_target = {
 					numenorean_blood_tier >= 5
 				}
 			}
-			modifier = {
+			modifier = { #LotR
 				factor = 0.1
 				scope:injury_target = { is_elf = yes }
 			}
@@ -1886,11 +1935,13 @@ hunt_animal_melee_kill_group_effect = {
 		limit = {
 			NOT = { exists = scope:group_capture }
 		}
-		every_in_list = {
-			list = animal_slayers
-			custom = hunt_every_slay_beast_hunter_tt
-			# Complete activity intent if relevant
-			hunt_complete_slay_beast_intent_effect = yes
+		hidden_effect = {
+			every_in_list = {
+				list = animal_slayers
+				custom = hunt_every_slay_beast_hunter_tt
+				# Complete activity intent if relevant
+				hunt_complete_slay_beast_intent_effect = yes
+			}
 		}
 	}
 	scope:activity ?= {
@@ -1983,6 +2034,20 @@ hunt_animal_bow_kill_effect = {
 								show_as_tooltip = { complete_activity_intent = yes }
 							}
 							hunt_complete_slay_beast_intent_effect = yes
+							if = {
+								limit = {
+									has_activity_intent = impose_obedience_intent
+									scope:host.intent_target = {
+										NOT = { is_obedient_to = scope:host }
+									}
+								}
+								scope:host.intent_target = {
+									add_opinion = {
+										target = scope:host
+										modifier = obedience_opinion
+									}
+								}
+							}
 							hunt_animal_slayer_memory_effect = yes
 						}
 					}
@@ -2003,23 +2068,23 @@ hunt_animal_bow_kill_effect = {
 					factor = 0.1
 				}
 				modifier = { add = hunt_bow_danger_value }
-				modifier = {
+				modifier = { #LotR
 					factor = 0.5
 					scope:injury_target = {
 						numenorean_blood_tier < 5
 					}
 				}
-				modifier = {
+				modifier = { #LotR
 					factor = 0.5
 					scope:injury_target = { has_trait = skinchanger }
 				}
-				modifier = {
+				modifier = { #LotR
 					factor = 0.25
 					scope:injury_target = {
 						numenorean_blood_tier >= 5
 					}
 				}
-				modifier = {
+				modifier = { #LotR
 					factor = 0.1
 					scope:injury_target = {
 						OR = {
@@ -2051,9 +2116,7 @@ hunt_animal_bow_kill_effect = {
 									}
 									if = {
 										limit = { exists = scope:injury_target }
-										scope:injury_target = {
-											hunt_wound_apply_effect = { SEVERE = no }
-										}
+										scope:injury_target = { hunt_wound_tooltip_effect = yes }
 									}
 								}
 							}
@@ -2146,6 +2209,7 @@ animal_artifact_wealth_quality_effect = {
 						# Pets
 						scope:owner.var:animal_type ?= flag:cat
 						scope:owner.var:animal_type ?= flag:dog
+						scope:owner.var:animal_type ?= flag:eagle
 					}
 				}
 				add = { 30 60 }
@@ -2304,6 +2368,12 @@ hunt_animal_slayer_bow_opinion_effect = {
 				OR = {
 					has_activity_intent = befriend_attendee_intent
 					has_activity_intent = woo_attendee_intent
+					AND = {
+						has_activity_intent = impose_obedience_intent
+						scope:host.intent_target = { # They're not obedient to you already
+							NOT = { is_obedient_to = scope:host }
+						}
+					}
 				}
 			}
 			this = scope:host.intent_target		
@@ -2324,6 +2394,14 @@ hunt_animal_slayer_bow_opinion_effect = {
 						REASON = friend_gave_hunt_kill_reason
 						CHARACTER = scope:opinion_target
 						OPINION = default_lover_opinion
+					}
+				}
+				impose_obedience_intent = {
+					scope:opinion_target = {
+						add_opinion = {
+							target = scope:host
+							modifier = obedience_opinion
+						}
 					}
 				}
 			}
@@ -2392,6 +2470,12 @@ hunt_animal_slayer_melee_opinion_effect = {
 				OR = {
 					has_activity_intent = befriend_attendee_intent
 					has_activity_intent = woo_attendee_intent
+					AND = {
+						has_activity_intent = impose_obedience_intent
+						scope:host.intent_target = { # They're not obedient to you already
+							NOT = { is_obedient_to = scope:host }
+						}
+					}
 				}
 			}
 			this = scope:host.intent_target		
@@ -2412,6 +2496,14 @@ hunt_animal_slayer_melee_opinion_effect = {
 						REASON = friend_gave_hunt_kill_reason
 						CHARACTER = scope:opinion_target
 						OPINION = default_lover_opinion
+					}
+				}
+				impose_obedience_intent = {
+					scope:opinion_target = {
+						add_opinion = {
+							target = scope:host
+							modifier = obedience_opinion
+						}
 					}
 				}
 			}
@@ -2462,6 +2554,12 @@ activity_improve_relations_intent_effect = {
 			OR = {
 				has_activity_intent = befriend_attendee_intent
 				has_activity_intent = woo_attendee_intent
+				AND = {
+					has_activity_intent = impose_obedience_intent
+					scope:host.intent_target = { # They're not obedient to you already
+						NOT = { is_obedient_to = scope:host }
+					}
+				}
 			}
 		}
 		switch = {
@@ -2478,6 +2576,14 @@ activity_improve_relations_intent_effect = {
 					REASON = $REASON$
 					CHARACTER = $CHARACTER$
 					OPINION = default_lover_opinion
+				}
+			}
+			impose_obedience_intent = {
+				scope:opinion_target = {
+					add_opinion = {
+						target = scope:host
+						modifier = obedience_opinion
+					}
 				}
 			}
 		}
@@ -3078,6 +3184,7 @@ hunt_physician_treatment_effect = {
 					multiplier = 3.5
 					min = -25
 				}
+				min = 5
 				desc = hunt.4014.c.success
 				scope:host = {
 					send_interface_toast = {
@@ -3119,6 +3226,7 @@ hunt_physician_treatment_effect = {
 					factor = 0.5
 					has_trait = lifestyle_physician
 				}
+				min = 5
 				desc = hunt.4014.c.failure
 				scope:host = {
 					send_interface_toast = {
@@ -3232,6 +3340,16 @@ hunt_intent_outcome_tooltip_effect = {
 			custom_tooltip = intent_murder_dead_tt
 		}
 		else = { custom_tooltip = intent_murder_fail_tt }
+	}
+	if = { # Impose Obedience
+		limit = { has_activity_intent = impose_obedience_intent }
+		if = {
+			limit = {
+				intent_target = { is_obedient_to = root }
+			}
+			custom_tooltip = intent_obedience_success_tt
+		}
+		else = { custom_tooltip = intent_obedience_fail_tt }
 	}
 	else_if = { # Woo
 		limit = { has_activity_intent = woo_attendee_intent }
@@ -3533,79 +3651,72 @@ hunt_murder_add_and_reveal_attempted_murder = {
 hunt_gift_trophy_opinion_effect = {
 	if = {
 		limit = {
-			hunt_dharmic_pacificist_trigger = yes
-			NOT = { this = scope:host }
-		}
-		add_opinion = {
-			target = scope:host
-			modifier = hunt_dharmic_mercy_opinion
-			opinion = -10
-		}
-	}
-	else_if = {
-		limit = {
-			hunt_dharmic_pacificist_trigger = yes
 			NOT = { $RECIPIENT$ = scope:host }
 		}
-		reverse_add_opinion = {
-			target = scope:host
-			modifier = hunt_dharmic_mercy_opinion
-			opinion = -10
-		}
-	}
-	else_if = {
-		limit = {
-			scope:activity = {
-				has_activity_option = { category = special_type option = hunt_type_legendary }
+		if = {
+			limit = {
+				hunt_dharmic_pacificist_trigger = yes
+			}
+			add_opinion = {
+				target = scope:host
+				modifier = hunt_dharmic_mercy_opinion
+				opinion = -10
 			}
 		}
-		activity_improve_relations_intent_effect = {
-			CHARACTER = scope:host
-			REASON = friend_gave_hunt_trophy_reason
-			OPINION = 20
-			MODIFIER = hunt_gifted_trophy_opinion
-		}
-	}
-	else_if = {
-		limit = {
-			$RECIPIENT$ = { is_adult = yes }
-			scope:newly_created_artifact = {
-				OR = {
-					artifact_type = animal_trinket
-					artifact_type = bird_feather
+		else_if = {
+			limit = {
+				scope:activity = {
+					has_activity_option = { category = special_type option = hunt_type_legendary }
 				}
 			}
-			NOT = {
-				hunt_animal_type_predator_trigger = { VAR = scope:activity.var:animal_type }
+			activity_improve_relations_intent_effect = {
+				CHARACTER = scope:host
+				REASON = friend_gave_hunt_trophy_reason
+				OPINION = 20
+				MODIFIER = hunt_gifted_trophy_opinion
 			}
 		}
-		activity_improve_relations_intent_effect = {
-			CHARACTER = scope:host
-			REASON = friend_gave_hunt_trophy_reason
-			OPINION = 5
-			MODIFIER = hunt_gifted_trophy_opinion
-		}
-	}
-	else_if = {
-		limit = {
-			$RECIPIENT$ = { is_adult = yes }
-			scope:newly_created_artifact = {
-				hunt_activity_large_game_trigger = { VAR = var:animal_type }
+		else_if = {
+			limit = {
+				$RECIPIENT$ = { is_adult = yes }
+				scope:newly_created_artifact = {
+					OR = {
+						artifact_type = animal_trinket
+						artifact_type = bird_feather
+					}
+				}
+				NOT = {
+					hunt_animal_type_predator_trigger = { VAR = scope:activity.var:animal_type }
+				}
+			}
+			activity_improve_relations_intent_effect = {
+				CHARACTER = scope:host
+				REASON = friend_gave_hunt_trophy_reason
+				OPINION = 5
+				MODIFIER = hunt_gifted_trophy_opinion
 			}
 		}
-		activity_improve_relations_intent_effect = {
-			CHARACTER = scope:host
-			REASON = friend_gave_hunt_trophy_reason
-			OPINION = 15
-			MODIFIER = hunt_gifted_trophy_opinion
+		else_if = {
+			limit = {
+				$RECIPIENT$ = { is_adult = yes }
+				scope:newly_created_artifact = {
+					hunt_activity_large_game_trigger = { VAR = var:animal_type }
+				}
+			}
+			activity_improve_relations_intent_effect = {
+				CHARACTER = scope:host
+				REASON = friend_gave_hunt_trophy_reason
+				OPINION = 15
+				MODIFIER = hunt_gifted_trophy_opinion
+			}
 		}
-	}
-	else = {
-		activity_improve_relations_intent_effect = {
-			CHARACTER = scope:host
-			REASON = friend_gave_hunt_trophy_reason
-			OPINION = 10
-			MODIFIER = hunt_gifted_trophy_opinion
+		else = {
+			activity_improve_relations_intent_effect = {
+				CHARACTER = scope:host
+				REASON = friend_gave_hunt_trophy_reason
+				OPINION = 10
+				MODIFIER = hunt_gifted_trophy_opinion
+			}
 		}
 	}
 }
@@ -3788,6 +3899,12 @@ hunt_trophy_recipient_scope_effect = {
 			OR = {
 				has_activity_intent = woo_attendee_intent
 				has_activity_intent = befriend_attendee_intent
+				AND = {
+					has_activity_intent = impose_obedience_intent
+					scope:host.intent_target = { # They're not obedient to you already
+						NOT = { is_obedient_to = scope:host }
+					}
+				}
 			}
 		}
 		intent_target = { save_scope_as = trophy_recipient }
@@ -4094,6 +4211,7 @@ hunt_invalidation_event_effect = {
 		limit = { exists = scope:activity }
 		custom_tooltip = hunt_ends_tt
 	}
+	custom_tooltip = hunt_invalidated_warning_tt
 }
 
 # Unified effect for adding sightings to counties
@@ -4149,3 +4267,332 @@ hunt_remove_sighting_effect = {
 	remove_variable = animal_type
 	remove_variable = sighting_owner
 }
+
+### Nerge
+nerge_rewards_effect = {
+	if = {
+		limit = {
+			scope:activity.var:activity_special_type_progression < 25
+		}
+		scope:host = {
+			add_dread = unimpressive_nerge_dread_value
+		}
+	}
+	else_if = {
+		limit = {
+			scope:activity.var:activity_special_type_progression < 50
+		}
+		scope:host = {
+			add_dread = regular_nerge_dread_value
+			add_prestige = regular_nerge_prestige_value
+			add_gold = regular_nerge_gold_value
+			add_legitimacy = regular_nerge_legitimacy_value
+		}
+		scope:activity = {
+			every_attending_character = {
+				custom = every_nerge_character
+				limit = {
+					NOT = { this = scope:host }
+				}
+				add_prestige = regular_nerge_guest_prestige_value
+			}
+		}
+	}
+	else_if = {
+		limit = {
+			scope:activity.var:activity_special_type_progression < 75
+		}
+		scope:host = {
+			add_dread = impressive_nerge_dread_value
+			add_prestige = impressive_nerge_prestige_value
+			add_gold = impressive_nerge_gold_value
+			add_legitimacy = impressive_nerge_legitimacy_value
+		}
+		scope:activity = {
+			every_attending_character = {
+				custom = every_nerge_character
+				limit = {
+					NOT = { this = scope:host }
+				}
+				add_prestige = impressive_nerge_guest_prestige_value
+			}
+		}
+	}
+	else_if = {
+		limit = {
+			scope:activity.var:activity_special_type_progression < 100
+		}
+		scope:host = {
+			add_dread = great_nerge_dread_value
+			add_prestige = great_nerge_prestige_value
+			add_gold = great_nerge_gold_value
+			add_legitimacy = great_nerge_legitimacy_value
+		}
+		scope:activity = {
+			every_attending_character = {
+				custom = every_nerge_character
+				limit = {
+					NOT = { this = scope:host }
+				}
+				custom_tooltip = nerge_commander_trait_tt
+				add_prestige = great_nerge_guest_prestige_value
+			}
+		}
+	}
+	else_if = {
+		limit = {
+			scope:activity.var:activity_special_type_progression >= 100
+		}
+		scope:host = {
+			add_dread = fantastic_nerge_dread_value
+			add_prestige = fantastic_nerge_prestige_value
+			add_gold = fantastic_nerge_gold_value
+			add_legitimacy = fantastic_nerge_legitimacy_value
+			add_martial_skill = fantastic_nerge_martial_value
+			# MPO ACHIEVEMENT Shut up, Nerge
+			if = {
+				limit = { is_ai = no }
+				add_achievement_global_variable_effect = {
+					VARIABLE = mpo_shut_up_nerge_achievement_unlocked
+					VALUE = yes
+				}
+			}
+		}
+		scope:activity = {
+			every_attending_character = {
+				custom = every_nerge_character
+				limit = {
+					NOT = { this = scope:host }
+				}
+				custom_tooltip = nerge_commander_trait_tt
+				add_prestige = fantastic_nerge_guest_prestige_value
+				add_martial_skill = fantastic_nerge_guest_martial_value
+			}
+		}
+	}
+}
+
+hand_out_nerge_rewards = {
+	if = {
+		limit = {
+			this = scope:host
+		}
+		scope:activity = {
+			add_activity_log_entry = {
+				key = finished_nerge_$OUTCOME$
+				character = scope:host
+				show_in_conclusion = yes
+				scope:host = { nerge_rewards_effect = yes }
+			}
+		}
+	}
+	else = {
+		show_as_tooltip = {
+			nerge_rewards_effect = yes
+		}
+	}
+}
+
+nerge_check_commander_trait_effect = {
+	prev = {
+		if = {
+			limit = {
+				NOT = { has_trait = $TRAIT$ }
+			}
+			add_trait_force_tooltip = $TRAIT$
+		}
+	}
+}
+
+nerge_check_commander_trait_xp_effect = {
+	prev = {
+		if = {
+			limit = {
+				has_trait = $TRAIT$
+			}
+			add_trait_xp = {
+				trait = $TRAIT$
+				value = 10
+			}
+		}
+	}
+}
+
+nerge_commander_trait_effect = {
+	scope:nerge_location = {
+		switch = {
+			trigger = terrain
+			plains = {
+				nerge_check_commander_trait_xp_effect = { TRAIT = open_terrain_expert }
+			}
+			farmlands = {
+				nerge_check_commander_trait_xp_effect = { TRAIT = open_terrain_expert }
+			}
+			steppe = {
+				nerge_check_commander_trait_xp_effect = { TRAIT = open_terrain_expert }
+			}
+			wetlands = {
+				nerge_check_commander_trait_xp_effect = { TRAIT = rough_terrain_expert }
+			}
+			hills = {
+				nerge_check_commander_trait_xp_effect = { TRAIT = rough_terrain_expert }
+			}
+			mountains = {
+				nerge_check_commander_trait_xp_effect = { TRAIT = rough_terrain_expert }
+			}
+			desert = {
+				nerge_check_commander_trait_xp_effect = { TRAIT = rough_terrain_expert }
+			}
+			desert_mountains = {
+				nerge_check_commander_trait_xp_effect = { TRAIT = desert_warrior }
+			}
+			oasis = {
+				nerge_check_commander_trait_xp_effect = { TRAIT = desert_warrior }
+			}
+			drylands = {
+				nerge_check_commander_trait_xp_effect = { TRAIT = desert_warrior }
+			}
+			jungle = {
+				nerge_check_commander_trait_xp_effect = { TRAIT = jungle_stalker }
+			}
+			forest = {
+				nerge_check_commander_trait_xp_effect = { TRAIT = forest_fighter }
+			}
+			taiga = {
+				nerge_check_commander_trait_xp_effect = { TRAIT = forest_fighter }
+			}
+			floodplains = {
+				nerge_check_commander_trait_xp_effect = { TRAIT = forder }
+			}
+		}
+	}
+	if = {
+		limit = {
+			number_of_commander_traits < 3
+		}
+		scope:nerge_location = {
+			switch = {
+				trigger = terrain
+				plains = {
+					nerge_check_commander_trait_effect = { TRAIT = open_terrain_expert }
+				}
+				farmlands = {
+					nerge_check_commander_trait_effect = { TRAIT = open_terrain_expert }
+				}
+				steppe = {
+					nerge_check_commander_trait_effect = { TRAIT = open_terrain_expert }
+				}
+				wetlands = {
+					nerge_check_commander_trait_effect = { TRAIT = rough_terrain_expert }
+				}
+				hills = {
+					nerge_check_commander_trait_effect = { TRAIT = rough_terrain_expert }
+				}
+				mountains = {
+					nerge_check_commander_trait_effect = { TRAIT = rough_terrain_expert }
+				}
+				desert = {
+					nerge_check_commander_trait_effect = { TRAIT = rough_terrain_expert }
+				}
+				desert_mountains = {
+					nerge_check_commander_trait_effect = { TRAIT = desert_warrior }
+				}
+				oasis = {
+					nerge_check_commander_trait_effect = { TRAIT = desert_warrior }
+				}
+				drylands = {
+					nerge_check_commander_trait_effect = { TRAIT = desert_warrior }
+				}
+				jungle = {
+					nerge_check_commander_trait_effect = { TRAIT = jungle_stalker }
+				}
+				forest = {
+					nerge_check_commander_trait_effect = { TRAIT = forest_fighter }
+				}
+				taiga = {
+					nerge_check_commander_trait_effect = { TRAIT = forest_fighter }
+				}
+				floodplains = {
+					nerge_check_commander_trait_effect = { TRAIT = forder }
+				}
+			}
+		}
+	}
+}
+
+nerge_progression_effect = {
+	save_temporary_scope_as = root_scope
+	save_scope_value_as = {
+		name = amount_of_players
+		value = {
+			value = 1
+			scope:activity = {
+				every_attending_character = {
+					limit = {
+						is_ai = no
+					}
+					add = 1
+				}
+				subtract = 1
+			}
+			min = 1
+		}
+	}
+	if = {
+		limit = {
+			OR = {
+				is_ai = no
+				AND = {
+					NOT = {
+						involved_activity = { any_attending_character = { is_ai = no } }
+					}
+					scope:root_scope = involved_activity.activity_host
+				}
+			}
+		}
+		scope:activity ?= {
+			if = {
+				limit = {
+					exists = var:activity_special_type_progression
+				}
+				change_variable = {
+					name = activity_special_type_progression
+					add = {
+						value = $VALUE$
+						multiply = nerge_score_multiplier_value
+						divide = scope:amount_of_players
+					}
+				}
+			}
+		}
+		if = {
+			limit = {
+				$VALUE$ <= 2
+			}
+			custom_tooltip = nerge_outcome_boost_tiny
+		}
+		else_if = {
+			limit = {
+				$VALUE$ <= 5
+			}
+			custom_tooltip = nerge_outcome_boost_small
+		}
+		else_if = {
+			limit = {
+				$VALUE$ <= 9
+			}
+			custom_tooltip = nerge_outcome_boost_medium
+		}
+		else_if = {
+			limit = {
+				$VALUE$ >= 13
+			}
+			custom_tooltip = nerge_outcome_boost_large
+		}
+	}
+}
+
+nerge_progression_tiny_effect = { nerge_progression_effect = { VALUE = 2 } }
+nerge_progression_small_effect = { nerge_progression_effect = { VALUE = 5 } }
+nerge_progression_medium_effect = { nerge_progression_effect = { VALUE = 9 } }
+nerge_progression_large_effect = { nerge_progression_effect = { VALUE = 13 } }

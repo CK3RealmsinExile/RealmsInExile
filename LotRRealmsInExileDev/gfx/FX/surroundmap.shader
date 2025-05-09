@@ -138,7 +138,7 @@ PixelShader =
 		float4 GetFlatMapSurround( float2 UV )
 		{				
 			float Mask = PdxTex2D( SurroundMask, UV ).b;
-			
+
 			// We no longer use the surround 'woodgrain' tiling (keeping this here for some mods backward compat hint)
 			// float3 Tile = PdxTex2D( SurroundTile, UV * TileFactor ).rgb;
 			float3 Tile = float3(0, 0, 0);
@@ -238,7 +238,7 @@ PixelShader =
 				float FlatMapMask = 1 - SurroundMaskChannels.b; // to remove some artifacts when blending with the water shader
 				float CloudMask = SurroundMaskChannels.g; // don't draw clouds over map
 				float Mask = ( 1 - ( FlatMapMask * FlatMapLerp ) ) * CloudMask;
-				
+
 				float2 BaseCloudUV = UV * BaseCloudTileFactor;
 				float2 BaseCloudOffset = GlobalTime * BaseCloudScrolling;
 				float2 AnimatedBaseCloudUV = BaseCloudUV + BaseCloudOffset;
@@ -275,7 +275,7 @@ PixelShader =
 				Color *= 0.25;
 				
 				float FinalAlpha = smoothstep( MinCloudAlpha, MaxCloudAlpha, Alpha ) * Mask;
-				
+
 				float2 BlackUV = Input.uv * 0.75;
 				BlackUV += float2( 0.125, 0.125);
 				float3 Black = PdxTex2D( BlackMask, BlackUV ).rgb;
@@ -398,7 +398,7 @@ PixelShader =
 			{
 				float4 Ret = GetFlatMapSurround( Input.uv );
 				Ret.a *= FlatMapLerp;
-				
+
 				float2 BlackUV = Input.uv * 0.75;
 				BlackUV += float2( 0.125, 0.125);
 				float Black = PdxTex2D( BlackMask, BlackUV ).r;

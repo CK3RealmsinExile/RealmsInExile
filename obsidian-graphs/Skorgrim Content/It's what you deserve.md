@@ -1,0 +1,1 @@
+Kill Skorgrim, get the rings
