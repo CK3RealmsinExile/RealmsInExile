@@ -11,7 +11,7 @@
 #			elven.0801		Reclaim Sîrgala Kingdom - event after decision
 #			elven.0802		A New High-King
 
-elven.0101 = { #Elessar as a wedding present - Actor
+elven.0101 = { #Elessar as a Grand Wedding present - Actor
 	content_source = realms_dlc
 	type = character_event
 	type = activity_event
@@ -36,6 +36,7 @@ elven.0101 = { #Elessar as a wedding present - Actor
 		root = character:linefinwe36
 		scope:activity.special_guest:spouse_1 = character:lineisildur42
 		scope:activity.special_guest:spouse_2 = character:linefinwe30
+		any_character_artifact = { has_variable = elessar }
 	}
 	
 	immediate = {
@@ -82,6 +83,8 @@ elven.0102 = { #Elessar as a wedding present - Recipient
 		character = character:linefinwe36
 		animation = personality_forgiving
 	}
+
+	cooldown = { years = 1 }
 	
 	option = {
 		name = elven.0102.a
@@ -100,7 +103,7 @@ elven.0102 = { #Elessar as a wedding present - Recipient
 	}
 }
 
-elven.0103 = { #Elessar as a wedding present - Actor
+elven.0103 = { #Elessar as a normal wedding present - Actor
 	title = elven.0101.t
 	desc = elven.0101.desc
 	theme = marriage
@@ -115,12 +118,14 @@ elven.0103 = { #Elessar as a wedding present - Actor
 		character = character:lineisildur42
 		animation = happiness
 	}
+
+	trigger = { any_character_artifact = { has_variable = elessar } }
 	
 	option = {
 		name = elven.0101.a
 		character:lineisildur42 = {
 			trigger_event = {
-				id = elven.0104
+				id = elven.0102
 			}
 		}
 	}
@@ -131,40 +136,6 @@ elven.0103 = { #Elessar as a wedding present - Actor
 		add_piety_level = -1
 	}
 }
-
-elven.0104 = { #Elessar as a wedding present - Recipient
-	title = elven.0102.t
-	desc = elven.0102.desc
-	theme = marriage
-	override_background = {
-		reference = ep2_wedding_ceremony_western
-	}
-	right_portrait = {
-		character = root
-		animation = happiness
-	}
-	left_portrait = {
-		character = character:linefinwe36
-		animation = personality_forgiving
-	}
-	
-	option = {
-		name = elven.0102.a
-		character:linefinwe36 = {
-			every_character_artifact = {
-				limit = { has_variable = elessar }
-				set_owner = {
-					target = root
-					history = {
-						type = inherited
-						recipient = root
-					}
-				}
-			}
-		}
-	}
-}
-
 
 elven.0150 = { # Parth Celebrant receives elven envoy
 	content_source = realms_dlc
@@ -184,6 +155,7 @@ elven.0150 = { # Parth Celebrant receives elven envoy
 	
 	option = { 		#We submit, thank you. This will rekindle our claim to Drownholt!
 		name = elven.0150.a
+		trigger = { NOT = { has_title = title:d_drownholt } }
 		custom_tooltip = elven.0150.att
 			character:linefinwe36 = {
 				if = {
@@ -254,6 +226,87 @@ elven.0150 = { # Parth Celebrant receives elven envoy
 			}
 		}
 	}
+	
+	option = { 		#We submit, thank you. We will gladly settle your southern borders.
+		name = elven.0150.c
+		trigger = { has_title = title:d_drownholt }
+		custom_tooltip = elven.0150.c.tt
+			character:linefinwe36 = {
+				if = {
+					limit = {
+						is_alive = yes
+						is_landed = yes
+						has_royal_court = yes
+					}
+					trigger_event = {
+						id = elven.0153
+						days = 10
+					}
+					save_scope_as = parthliege
+				}
+				if = {
+					limit = {
+						is_alive = yes
+						is_landed = yes
+						has_royal_court = no	#fallback if no RC
+					}
+					trigger_event = {
+						id = elven.0151
+						days = 10
+					}
+					save_scope_as = parthliege
+				}
+			}
+			add_piety = 150
+			
+			save_scope_as = parthruler
+			create_title_and_vassal_change = {
+				type = swear_fealty
+				save_scope_as = change
+			}
+			scope:parthruler = {
+				change_liege = {
+					liege = scope:parthliege
+					change = scope:change
+				}
+				add_opinion = {
+					modifier = became_vassal
+					target = scope:parthliege
+					opinion = 10
+				}
+			}
+			resolve_title_and_vassal_change = scope:change
+		
+			ai_colonisation_effect = { WASTELANDS = title:b_byre_tor ROOT_SCOPE = root }
+			title:c_byre_tor.title_province = {
+				set_holding_type = tribal_holding
+			}
+			
+			ai_colonisation_effect = { WASTELANDS = title:b_glandagol ROOT_SCOPE = root }
+			title:c_athraduin.title_province = {
+				if = {
+					limit = { NOT = { has_holding_type = tribal_holding } }
+					set_holding_type = tribal_holding
+				}
+			}
+		
+			ai_chance = {
+				base = 0 # LotR: This should be tied to WotR mode.
+				modifier = { # Game Rule
+					has_game_rule = default_ai_behavior
+					add = 100
+				}
+				modifier = { # Game Rule
+					has_game_rule = weighted_ai_behavior
+					add = 70
+				}
+				modifier = { # Game Rule
+					has_game_rule = random_ai_behavior
+					add = 50
+				}
+			}
+	}
+	
 	option = { 		#We won't bow to some fae lady! She was our neighbour for 100 years and never came by to say hi!
 		name = elven.0150.b
 		custom_tooltip = elven.0150.btt
@@ -387,39 +440,80 @@ elven.0153 = { # Parth Celebrant submits, Galadriel informed about claim RC VAR
 		}
 	}
 	immediate = {
-		title:d_parth_celebrant.holder	= {
-			save_scope_as = parthruler
+		if = { 	
+			limit = {
+				exists = title:d_drownholt.holder
+				title:d_drownholt.holder = { faith_is_good = yes }
+			}
+			title:d_drownholt.holder = { save_scope_as = parthruler }
+		}
+		else = {
+			title:d_parth_celebrant.holder = { save_scope_as = parthruler }
 		}
 	}
 	option = { 		#Well thats nice.
 		name = elven.0153.a
-		show_as_tooltip = {
-			character:linefinwe36 = {
-				save_scope_as = actor
-			}
-			title:d_parth_celebrant.holder	= {
-				add_pressed_claim = title:d_drownholt
-				add_pressed_claim = title:c_thorlorien
-				root.primary_heir = {
+		if = {
+			limit = { exists = title:d_parth_celebrant.holder }
+			show_as_tooltip = {
+				character:linefinwe36 = {
+					save_scope_as = actor
+				}
+				title:d_parth_celebrant.holder	= {
 					add_pressed_claim = title:d_drownholt
 					add_pressed_claim = title:c_thorlorien
+					root.primary_heir = {
+						add_pressed_claim = title:d_drownholt
+						add_pressed_claim = title:c_thorlorien
+					}
+					create_title_and_vassal_change = {
+						type = swear_fealty
+						save_scope_as = change
+					}
+					scope:recipient ?= {
+						change_liege = {
+							liege = scope:actor
+							change = scope:change
+						}
+						add_opinion = {
+							modifier = became_vassal
+							target = scope:actor
+							opinion = 10
+						}
+					}
+					resolve_title_and_vassal_change = scope:change
 				}
+			}
+		}
+		else = {
+			show_as_tooltip = {
+				scope:parthruler = { add_piety = 150 }
 				create_title_and_vassal_change = {
 					type = swear_fealty
 					save_scope_as = change
 				}
-				scope:recipient = {
+				scope:parthruler = {
 					change_liege = {
-						liege = scope:actor
+						liege = root
 						change = scope:change
 					}
 					add_opinion = {
 						modifier = became_vassal
-						target = scope:actor
+						target = root
 						opinion = 10
 					}
 				}
 				resolve_title_and_vassal_change = scope:change
+			
+				ai_colonisation_effect = { WASTELANDS = title:b_byre_tor ROOT_SCOPE = scope:parthruler }
+				title:c_byre_tor.title_province = {
+					set_holding_type = tribal_holding
+				}
+				
+				ai_colonisation_effect = { WASTELANDS = title:b_glandagol ROOT_SCOPE = scope:parthruler }
+				title:c_athraduin.title_province = {
+					set_holding_type = tribal_holding
+				}
 			}
 		}
 	}
@@ -636,7 +730,7 @@ elven.2100 = { # Letter sent by Eonwe to vassalize all FP in a triggered distanc
 	
 	trigger = {
 		faith_is_good = yes
-		is_orc = no
+		NOT = { is_orc = yes }
 		is_nazgul = no
 		is_sauron = no
 	}

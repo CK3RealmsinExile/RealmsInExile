@@ -1,0 +1,2626 @@
+﻿
+namespace = mpo_greatest_of_khans
+
+
+################
+# Become Greatest of Khans events
+#Jason Cantalini
+
+#Out of order so that event numbering can still mirror central_asia_events that provide base game Great Khan content (sorry)
+#Hidden war of defiance setup event
+mpo_greatest_of_khans.0100 = {
+	hidden = yes
+	immediate = {
+		#Remove primary defender truces with root AND START WAR!
+		scope:primary_coalition_defender = {
+			if = {
+				limit = {
+					OR = {
+						any_truce_holder = {
+							this = root
+						}
+						any_truce_target = {
+							this = root
+						}
+					}
+				}
+				cancel_truce_both_ways = root
+			}
+			#BEGIN THE WAR!
+			start_war = {
+				cb = mpo_great_war_of_defiance_cb
+				target = root
+				target_title = root.primary_title
+			}
+			random_character_war = {
+				limit = {
+					using_cb = mpo_great_war_of_defiance_cb
+				}
+				every_in_list = {
+					list = anti_gok_coalition_members
+					limit = {
+						NOR = {
+							is_defender_in_war = prev
+							is_attacker_in_war = prev
+						}
+					}
+					prev = {
+						add_attacker = prev
+					}
+				}
+			}
+			random_character_war = {
+				limit = {
+					using_cb = mpo_great_war_of_defiance_cb
+				}
+				every_in_list = {
+					list = obedient_nomad_vassals
+					limit = {
+						NOR = {
+							is_defender_in_war = prev
+							is_attacker_in_war = prev
+						}
+					}
+					prev = {
+						add_defender = prev
+					}
+				}
+			}
+		}
+		#End all the other wars characters are involved in
+		every_in_list = {
+			list = anti_gok_coalition_members
+			# every_character_war = {
+			# 	limit = {
+			# 		NOR = {
+			# 			using_cb = mpo_great_war_of_defiance_cb
+			# 			using_cb = crusading_claim_cb
+			# 			AND = {
+			# 				primary_defender = prev
+			# 				NOT = {
+			# 					using_cb = peasant_war
+			# 				}
+			# 			}
+			# 			primary_defender = {
+			# 				is_ai = no
+			# 			}
+			# 		}
+			# 	}
+			# 	if = {
+			# 		limit = {
+			# 			primary_attacker = prev
+			# 		}
+			# 		end_war = white_peace
+			# 	}
+			# 	else = {
+			# 		remove_participant = prev
+			# 	}
+			# }
+		}
+		every_in_list = {
+			list = obedient_nomad_vassals
+			# every_character_war = {
+			# 	limit = {
+			# 		NOR = {
+			# 			using_cb = mpo_great_war_of_defiance_cb
+			# 			using_cb = crusading_claim_cb
+			# 			AND = {
+			# 				primary_defender = prev
+			# 				NOT = {
+			# 					using_cb = peasant_war
+			# 				}
+			# 			}
+			# 			primary_defender = {
+			# 				is_ai = no
+			# 			}
+			# 		}
+			# 	}
+			# 	if = {
+			# 		limit = {
+			# 			primary_attacker = prev
+			# 		}
+			# 		end_war = white_peace
+			# 	}
+			# 	else = {
+			# 		remove_participant = prev
+			# 	}
+			# }
+		}
+		#Add global_variable that prevents anyone taking decision
+		if = {
+			limit = {
+				any_character_war = {
+					using_cb = mpo_great_war_of_defiance_cb
+				}
+			}
+			set_global_variable = {
+				name = mpo_gok_war_ongoing
+				value = root
+			}
+		}
+		random_character_war = {
+			limit = {
+				using_cb = mpo_great_war_of_defiance_cb
+			}
+			save_scope_as = gok_war
+		}
+		if = {
+			limit = {
+				OR = {
+					has_relation_potential_rival = scope:primary_coalition_defender
+					scope:primary_coalition_defender = {
+						opinion = {
+							target = root
+							value < -40
+						}
+					}
+				}
+			}
+			set_relation_rival = {
+				target = scope:primary_coalition_defender
+				reason = rival_led_coalition_against_me
+			}
+		}
+		#Memory for Gurkhan
+		create_character_memory = {
+			type = gok_called_the_clans
+		}
+
+		#trigger event for gurkhan - obedient vassals pledge to fight
+		if = {
+			limit = {
+				any_in_list = {
+					list = obedient_nomad_vassals
+					any_character_war = {
+						using_cb = mpo_great_war_of_defiance_cb
+					}
+				}
+			}
+			trigger_event = {
+				id = mpo_greatest_of_khans.0101
+				days = 1
+			}
+		}
+		else = {
+			#add submitters as tributaries since root is getting no event 
+			every_in_list = {
+				list = gok_submitters
+				start_tributary_interaction_effect = {
+					TRIBUTARY = this
+					SUZERAIN = root
+				}
+			} 
+			save_scope_as = gurkhan_to_gok
+			#Player notification and offer to join/submit event
+			every_player = {
+				limit = {
+					mpo_war_of_defiance_notified_player_trigger = yes
+				}
+				trigger_event = {
+					id = mpo_greatest_of_khans.0102
+					days = 2
+				}
+			}
+		}
+	}
+}
+
+scripted_trigger mpo_greatest_of_khans_0101_ideal_vassal_trigger = {
+	is_adult = yes
+	is_imprisoned = no
+	has_contagious_deadly_disease_trigger = no
+	can_be_knight_trigger = { ARMY_OWNER = root }
+}
+
+scripted_trigger mpo_greatest_of_khans_0101_uninvolved_vassal_trigger = {
+	NOR = {
+		is_obedient_to = root
+		any_character_war = {
+			using_cb = mpo_great_war_of_defiance_cb
+		}
+		is_at_war_with = root
+		has_relation_rival = root
+		is_imprisoned = yes
+	}
+	government_has_flag = government_is_nomadic
+	basic_is_available_ai = yes
+	is_adult = yes
+}
+
+#You are the Gurkhan and now fighting to be GoK
+mpo_greatest_of_khans.0101 = {
+	type = character_event
+	title = mpo_greatest_of_khans.0101.t
+	desc = {
+		desc = mpo_greatest_of_khans.0101.desc_intro
+		first_valid = {
+			triggered_desc = {	
+				trigger = {
+					exists = scope:gok_opponent
+					NOT = {
+						scope:primary_coalition_defender = {
+							this = scope:gok_opponent
+						}
+					}
+				}
+				desc = mpo_greatest_of_khans.0101.desc_gok_opponent
+			}
+			desc = mpo_greatest_of_khans.0101.desc_primary_attacker
+		}
+		triggered_desc = {	
+			trigger = {
+				exists = scope:big_sub
+			}
+			desc = mpo_greatest_of_khans.0101.desc_sub
+		}
+		desc = mpo_greatest_of_khans.0101.desc
+	}
+	theme = nomads
+	left_portrait = {
+		character = scope:vassal_1
+		animation = horse_sword_shield
+		camera = camera_event_horse_left_forward
+
+	}
+	right_portrait = {
+		character = scope:vassal_2
+		animation = jockey_gallop
+		camera = camera_event_horse_right_forward
+	}
+	lower_left_portrait = scope:potential_joiner_1
+	lower_center_portrait = scope:potential_joiner_2
+	lower_right_portrait = scope:potential_joiner_3
+	override_background = { reference = wilderness }
+	override_effect_2d = {
+		reference = rain	
+	}
+
+	trigger = {
+		is_at_war = yes
+		any_character_war = {
+			using_cb = mpo_great_war_of_defiance_cb
+		}
+		any_in_list = {
+			list = obedient_nomad_vassals
+			age >= 10
+			is_imprisoned = no
+			any_character_war = {
+				using_cb = mpo_great_war_of_defiance_cb
+			}
+		}
+	}
+	
+	immediate = {
+		#add submitters as tributaries
+		if = {
+			limit = {
+				list_size = {
+					name = gok_submitters
+					value <= 4
+				}
+			}
+			every_in_list = {
+				list = gok_submitters
+				custom_tooltip = became_your_tributary_tt
+				add_opinion = {
+					target = root
+					modifier = obedience_opinion
+					years = 10
+				}
+				hidden_effect = {
+					start_tributary_interaction_effect = {
+						TRIBUTARY = this
+						SUZERAIN = root
+					}
+				}
+			}
+		}
+		#vague tooltip if too many to show
+		else = {
+			custom_tooltip = gok_submitters_became_tributaries_tt
+			hidden_effect = {
+				every_in_list = {
+					list = gok_submitters
+					custom_tooltip = became_your_tributary_tt
+					add_opinion = {
+						target = root
+						modifier = obedience_opinion
+						years = 10
+					}
+					start_tributary_interaction_effect = {
+						TRIBUTARY = this
+						SUZERAIN = root
+					}
+				}
+			}
+		}
+		
+		if = {
+			limit = {
+				any_in_list = {
+					list = gok_submitters
+				}
+			}
+			ordered_in_list = {
+				list = gok_submitters
+				order_by = current_military_strength
+				save_scope_as = big_sub
+			}
+		}
+		if = {
+			limit = {
+				any_in_list = {
+					list = obedient_nomad_vassals
+					any_character_war = {
+						using_cb = mpo_great_war_of_defiance_cb
+					}
+					mpo_greatest_of_khans_0101_ideal_vassal_trigger = yes
+				}
+			}
+			ordered_in_list = {
+				list = obedient_nomad_vassals
+				order_by = current_military_strength
+				limit = {
+					any_character_war = {
+						using_cb = mpo_great_war_of_defiance_cb
+					}
+					mpo_greatest_of_khans_0101_ideal_vassal_trigger = yes
+				}
+				save_scope_as = vassal_1
+			}
+		}
+		else = {
+			ordered_in_list = {
+				list = obedient_nomad_vassals
+				order_by = current_military_strength
+				limit = {
+					is_adult = yes
+					is_imprisoned = no
+					any_character_war = {
+						using_cb = mpo_great_war_of_defiance_cb
+					}
+				}
+				save_scope_as = vassal_1
+			}
+		}
+		if = {
+			limit = {
+				any_in_list = {
+					list = obedient_nomad_vassals
+					any_character_war = {
+						using_cb = mpo_great_war_of_defiance_cb
+					}
+					mpo_greatest_of_khans_0101_ideal_vassal_trigger = yes
+					NOT = { this = scope:vassal_1 }
+				}
+			}
+			ordered_in_list = {
+				list = obedient_nomad_vassals
+				order_by = current_military_strength
+				limit = {
+					any_character_war = {
+						using_cb = mpo_great_war_of_defiance_cb
+					}
+					mpo_greatest_of_khans_0101_ideal_vassal_trigger = yes
+					NOT = { this = scope:vassal_1 }
+				}
+				save_scope_as = vassal_2
+			}
+		}
+		else = {
+			ordered_in_list = {
+				list = obedient_nomad_vassals
+				order_by = current_military_strength
+				limit = {
+					age >= 10
+					is_imprisoned = no
+					any_character_war = {
+						using_cb = mpo_great_war_of_defiance_cb
+					}
+					NOT = { this = scope:vassal_1 }
+				}
+				save_scope_as = vassal_2
+			}
+		}
+		scope:vassal_1 = {
+			add_character_flag = need_military_outfit
+		}
+		scope:vassal_2 ?= {
+			add_character_flag = need_military_outfit
+		}
+		#Potential additional joiners
+		ordered_vassal = {
+			order_by = current_military_strength
+			limit = {
+				mpo_greatest_of_khans_0101_uninvolved_vassal_trigger = yes
+			}
+			save_scope_as = potential_joiner_1
+			add_to_list = potential_joiners
+		}
+		#Potential additional joiners
+		ordered_vassal = {
+			order_by = current_military_strength
+			limit = {
+				mpo_greatest_of_khans_0101_uninvolved_vassal_trigger = yes
+				NOT = {
+					this = scope:potential_joiner_1
+				}
+			}
+			save_scope_as = potential_joiner_2
+			add_to_list = potential_joiners
+		}
+		#Potential additional joiners
+		ordered_vassal = {
+			order_by = current_military_strength
+			limit = {
+				mpo_greatest_of_khans_0101_uninvolved_vassal_trigger = yes
+				NOR = {
+					this = scope:potential_joiner_1
+					this = scope:potential_joiner_2
+				}
+			}
+			save_scope_as = potential_joiner_3
+			add_to_list = potential_joiners
+		}
+	}
+
+	#Entreat even more help from other vassals
+	option = {
+		name = mpo_greatest_of_khans.0101.a
+		flavor = mpo_greatest_of_khans.0101.a.flavor
+		trigger = {
+			exists = scope:potential_joiner_1
+			exists = dynasty
+		}
+		#Will pay renown to get aid
+		if = {
+			limit = {
+				is_ai = no
+				#Combined title tiers of joiners to roughly judge their strength
+				potential_joiner_combined_value >= 13
+			}
+			dynasty = {
+				add_dynasty_prestige = monumental_dynasty_prestige_loss
+			}
+		}
+		else_if = {
+			limit = {
+				potential_joiner_combined_value >= 7
+				is_ai = no
+			}
+			dynasty = {
+				add_dynasty_prestige = massive_dynasty_prestige_loss
+			}
+		}
+		else_if = {
+			limit = {
+				is_ai = no
+			}
+			dynasty = {
+				add_dynasty_prestige = major_dynasty_prestige_loss
+			}
+		}
+		else = {
+			#Lower loss for AI because they can't make smart judgements like players and will always take this
+			dynasty = {
+				add_dynasty_prestige = medium_dynasty_prestige_loss
+			}
+		}
+		
+		scope:gok_war = {
+			every_in_list = {
+				list = potential_joiners
+				limit = {
+					NOR = {
+						is_defender_in_war = prev
+						is_attacker_in_war = prev
+					}
+				}
+				prev = {
+					add_defender = prev
+				}
+			}
+		}
+		hidden_effect = {
+			every_in_list = {
+				list = potential_joiners
+				# every_character_war = {
+				# 	limit = {
+				# 		NOR = {
+				# 			using_cb = mpo_great_war_of_defiance_cb
+				# 			using_cb = crusading_claim_cb
+				# 			AND = {
+				# 				primary_defender = prev
+				# 				NOT = {
+				# 					using_cb = peasant_war
+				# 				}
+				# 			}
+				# 			primary_defender = {
+				# 				is_ai = no
+				# 			}
+				# 		}
+				# 	}
+				# 	if = {
+				# 		limit = {
+				# 			primary_attacker = prev
+				# 		}
+				# 		end_war = white_peace
+				# 	}
+				# 	else = {
+				# 		remove_participant = prev
+				# 	}
+				# }
+			}
+		}
+		custom_tooltip = gok_joiners_wars_cancelled_tt
+		if = {
+			limit = {
+				is_ai = no
+			}
+			stress_impact = {
+				arrogant = major_stress_impact_gain
+				brave = major_stress_impact_gain
+				ambitious = major_stress_impact_gain
+			}
+		}
+		ai_chance = {
+			base = 1000
+		}
+	}
+	#Refuse their aid for the swag
+	option = {
+		name = mpo_greatest_of_khans.0101.b
+		flavor = mpo_greatest_of_khans.0101.b.flavor
+
+		custom_tooltip = gok_obedient_vassals_leave_war_tt
+		hidden_effect = {
+			every_in_list = {
+				list = obedient_nomad_vassals
+				limit = {
+					NOT = {
+						this = root
+					}
+				}
+				scope:gok_war = {
+					remove_participant = prev
+				}
+			}
+		}
+		custom_tooltip = gok_fights_alone_reward_on_victory_tt
+		set_variable = {
+		 	name = fought_for_gok_alone
+		 	value = gok_obedient_vassals_strength_value
+		}
+		stress_impact = {
+			humble = medium_stress_impact_gain
+			craven = major_stress_impact_gain
+		}
+		#The AI should be as scary as possible
+		ai_chance = {
+			base = 0
+		}
+	}
+	#Just accept their aid
+	option = {
+		name = mpo_greatest_of_khans.0101.c
+
+		#AI should take first option if they have it
+		ai_chance = {
+			base = 100
+			modifier = {
+				exists = scope:potential_joiner_1
+				exists = dynasty
+				factor = 0
+			}
+		}
+	}
+	after = {
+		scope:vassal_1 = {
+			remove_character_flag = need_military_outfit
+		}
+		scope:vassal_2 ?= {
+			remove_character_flag = need_military_outfit
+		}
+		save_scope_as = gurkhan_to_gok
+		#Player notification and offer to join/submit event
+		every_player = {
+			limit = {
+				mpo_war_of_defiance_notified_player_trigger = yes
+			}
+			trigger_event = {
+				id = mpo_greatest_of_khans.0102
+				days = 2
+			}
+		}
+	}
+}
+
+#Someone is trying to become GoK! Stop them!
+mpo_greatest_of_khans.0102 = {
+	type = character_event
+	title = mpo_greatest_of_khans.0102.t
+	desc = mpo_greatest_of_khans.0102.desc
+	theme = nomads
+	left_portrait = {
+		character = scope:gurkhan_to_gok
+		animation = horse_archer_aggressive
+		camera = camera_event_horse_left_forward
+	}
+	right_portrait = {
+		character = scope:knight
+		animation = horse_archer_aggressive
+		camera = camera_event_horse_right_facing_left
+		hide_info = yes
+	}
+	lower_right_portrait = scope:primary_coalition_defender
+	override_background = {
+		trigger = {
+			NOT = {
+				government_has_flag = government_is_nomadic
+			}
+		}
+		reference = burning_building
+	}
+	override_background = {
+		trigger = {
+			government_has_flag = government_is_nomadic
+		}
+		reference = mpo_steppe_evening
+	}
+	override_effect_2d = {
+		reference = smoke	
+	}
+	
+	immediate = {
+		scope:gurkhan_to_gok = {
+			add_character_flag = need_military_outfit
+			custom_tooltip = gok_took_become_gok_decision_tt
+			custom_tooltip = gok_began_war_of_defiance_tt
+			custom_tooltip = gok_gurkhan_declared_intent_tt
+			custom_tooltip = gok_warning_one_off_tt
+		}
+		scope:gurkhan_to_gok = {
+			ordered_knight = {
+				order_by = prowess
+				limit = {
+					is_imprisoned = no
+					NOT = {
+						this = root
+					}
+				}
+				save_scope_as = knight
+				add_character_flag = need_military_outfit
+			}
+
+		}
+	}
+	#Join war to aid Gurkhan!
+	option = {
+		trigger = {
+			OR = {
+				is_vassal_or_below_of = scope:gurkhan_to_gok
+				is_tributary_of_suzerain_or_above = scope:gurkhan_to_gok
+				is_allied_to = scope:gurkhan_to_gok
+				dynasty ?= {
+					any_dynasty_member = {
+						this = scope:gurkhan_to_gok
+					}
+				}
+				has_relation_soulmate = scope:gurkhan_to_gok
+				has_relation_friend = scope:gurkhan_to_gok
+				any_spouse = {
+					this = scope:gurkhan_to_gok
+				}
+			}
+			NOR = {
+				is_at_war_with = scope:gurkhan_to_gok
+				has_relation_rival = scope:gurkhan_to_gok
+			}
+		}
+		name = mpo_greatest_of_khans.0102.a
+		add_internal_flag = dangerous
+		scope:gok_war = {
+			add_defender = root
+		}
+		#Makes Gurkhan like you
+		reverse_add_opinion = {
+			modifier = pleased_opinion
+			target = scope:gurkhan_to_gok
+			opinion = 40
+		}
+		stress_impact = {
+			craven = medium_stress_impact_gain
+		}
+	}
+	#Join war against Gurkhan!
+	option = {
+		trigger = {
+			NOR = {
+				is_at_war_with = scope:gurkhan_to_gok
+				is_at_war_with = scope:primary_coalition_defender
+				is_imprisoned_by = scope:gurkhan_to_gok
+			}
+		}
+		name = mpo_greatest_of_khans.0102.b
+		add_internal_flag = dangerous
+		scope:gok_war = {
+			add_attacker = root
+		}
+		reverse_add_opinion = {
+			modifier = pleased_opinion
+			target = scope:primary_coalition_defender
+			opinion = 20
+		}
+		#This is a crime if you're his vassal!
+		if = {
+			limit = {
+				is_vassal_or_below_of = scope:gurkhan_to_gok
+			}
+			#Makes Gurkhan hate you
+			reverse_add_opinion = {
+				modifier = coup_plotter_opinion
+				target = scope:gurkhan_to_gok
+				opinion = -100
+			}
+		}
+		else_if = {
+			limit = {
+				is_allied_to = scope:gurkhan_to_gok
+			}
+			reverse_add_opinion = {
+				modifier = betrayal_opinion
+				target = scope:gurkhan_to_gok
+				opinion = -100
+			}
+			break_alliance = scope:gurkhan_to_gok
+			
+		}
+		else = {
+			reverse_add_opinion = {
+				modifier = hate_opinion
+				target = scope:gurkhan_to_gok
+				opinion = -40
+			}
+		}
+		stress_impact = {
+			craven = medium_stress_impact_gain
+		}
+	}
+	#I will submit as a tributary
+	option = {
+		trigger = {
+			is_independent_ruler = yes
+			is_tributary = no
+			NOT = {
+				is_at_war_with = scope:gurkhan_to_gok
+			}
+		}
+		name = mpo_greatest_of_khans.0102.c
+		start_tributary_interaction_effect = {
+			TRIBUTARY = root
+			SUZERAIN = scope:gurkhan_to_gok
+		}
+		reverse_add_opinion = {
+			modifier = pleased_opinion
+			target = scope:gurkhan_to_gok
+			opinion = 10
+		}
+		stress_impact = {
+			brave = medium_stress_impact_gain
+			arrogant = major_stress_impact_gain
+		}
+	}
+	#I will submit as a vassal
+	option = {
+		trigger = {
+			is_independent_ruler = yes
+			NOR = {
+				is_at_war_with = scope:gurkhan_to_gok
+				is_vassal_or_below_of = scope:gurkhan_to_gok
+				AND = {
+					is_tributary = yes
+					NOT = {
+						is_tributary_of_suzerain_or_above = scope:gurkhan_to_gok
+					}
+				}
+			}
+			#is roughly the gurkhan's neighbor
+			OR = {
+				scope:gurkhan_to_gok = {
+					any_land_neighboring_realm_with_tributaries_owner = {
+						this = root
+					}
+				}
+				root = {
+					any_land_neighboring_realm_with_tributaries_owner = {
+						this = scope:gurkhan_to_gok
+					}
+				}
+			}
+			
+		}
+		name = mpo_greatest_of_khans.0102.d
+		create_title_and_vassal_change = {
+			type = swear_fealty
+			save_scope_as = change
+		}
+		change_liege = {
+			liege = scope:gurkhan_to_gok
+			change = scope:change
+		}
+		resolve_title_and_vassal_change = scope:change
+
+		reverse_add_opinion = {
+			modifier = pleased_opinion
+			target = scope:gurkhan_to_gok
+			opinion = 30
+		}
+
+		stress_impact = {
+			brave = medium_stress_impact_gain
+			arrogant = major_stress_impact_gain
+		}
+	}
+	#Uh... well that's ominous
+	option = {
+		name = mpo_greatest_of_khans.0102.e
+	}
+
+	after = {
+		scope:gurkhan_to_gok = {
+			remove_character_flag = need_military_outfit
+		}
+		scope:knight = {
+			remove_character_flag = need_military_outfit
+		}
+	}
+}
+
+#The Gurkhan lost the war. Hah. Loser.
+mpo_greatest_of_khans.0103 = {
+	type = character_event
+	title = mpo_greatest_of_khans.0103.t
+	desc = {
+		first_valid = {
+			triggered_desc = {
+				trigger = {
+					root = scope:defender
+				}
+				desc = mpo_greatest_of_khans.0103.desc_defender_intro
+			}
+			desc = mpo_greatest_of_khans.0103.desc_intro
+		}
+		first_valid = {
+			triggered_desc = {
+				trigger = {
+					root = scope:defender
+				}
+				desc = mpo_greatest_of_khans.0103.desc_defender
+			}
+			triggered_desc = {
+				trigger = {
+					root = scope:attacker
+				}
+				desc = mpo_greatest_of_khans.0103.desc_attacker
+			}
+			triggered_desc = {
+				trigger = {
+					root = {
+						is_in_list = anti_gok_defenders
+					}
+				}
+				desc = mpo_greatest_of_khans.0103.desc_defenders
+			}
+			triggered_desc = {
+				trigger = {
+					root = {
+						is_in_list = anti_gok_attackers
+					}
+				}
+				desc = mpo_greatest_of_khans.0103.desc_attackers
+			}
+			desc = mpo_greatest_of_khans.0103.desc
+		}
+	}
+	theme = nomads
+	left_portrait = {
+		character = scope:defender
+		animation = prisonhouse
+		camera = camera_event_left_forward
+		override_imprisonment_visuals = yes
+		outfit_tags = { beggar_rags }
+	}
+	right_portrait = {
+		character = scope:knight
+		animation = menacing
+		hide_info = yes
+	}
+	lower_right_portrait = scope:attacker
+	override_background = {
+		reference = wilderness_scope
+	}
+	override_effect_2d = {
+		reference = flies	
+	}
+	
+	immediate = {
+		scope:attacker = {
+			capital_province = { save_scope_as = background_wilderness_scope }
+			ordered_knight = {
+				order_by = prowess
+				limit = {
+					is_imprisoned = no
+					NOR = {
+						this = root
+						this = scope:defender
+					}
+				}
+				save_scope_as = knight
+				add_character_flag = need_military_outfit
+			}
+		}
+	}
+	option = {
+		name = mpo_greatest_of_khans.0103.a
+	}
+}
+
+scripted_trigger mpo_greatest_of_khans_0002_confederation_trigger = {
+	is_confederation_member = yes
+	#Prev be with you
+	NOR = {
+		has_relation_rival = prev
+		is_at_war_with = prev
+		is_causing_raid_hostility_towards = prev
+		prev = {
+			is_causing_raid_hostility_towards = prev
+		}
+		opinion = {
+			target = prev
+			value <= -50
+		}
+		reverse_opinion = {
+			target = prev
+			value <= -50
+		}
+	}
+}
+
+#I became Greatest of Khans
+mpo_greatest_of_khans.0001 = {
+	type = character_event
+	window = fullscreen_event
+	title = mpo_greatest_of_khans.0001.t
+	desc = mpo_greatest_of_khans.0001.desc
+	theme = nomads
+	left_portrait = {
+		character = root
+		animation = personality_vengeful
+	}
+	override_background = { reference = mpo_fullscreen_greatest_of_khans }
+	
+	immediate = {
+		save_scope_as = genghis_khan
+		
+		play_music_cue = mx_cue_conquest_of_the_golden_horde
+
+		add_trait = greatest_of_khans
+		if = {
+			limit = {
+				prestige_level < 5
+			}
+			add_prestige_level = 1
+		}
+		legend_seed_new_title_effect = yes
+		form_the_greatest_khan_empire_effect = yes
+
+		create_story = story_greatest_of_khans
+		save_scope_value_as = {
+			name = gok_empire_crumble_date
+			value = {
+				value = current_year
+				add = 75
+			}
+		}
+		#Add dynasty prestige if you chose to fight this without vassals' aid
+		if = {
+			limit = {
+				has_variable = fought_for_gok_alone
+				exists = dynasty
+			}
+			dynasty = {
+				add_dynasty_prestige = fought_gok_alone_value
+			}
+		}
+		if = {
+			limit = {
+				exists = dynasty
+			}
+			dynasty = {
+				add_dynasty_modifier = gok_house_modifier
+			}
+		}
+	}
+
+	option = {
+		name = mpo_greatest_of_khans.0001.a
+		custom_tooltip = greatest_of_khans_prevents_mongol_invasion_tt
+		custom_tooltip = gok_enable_offer_submission_or_ruin_tt
+		custom_tooltip = become_greatest_of_khans_decision_enable_gok_invasion_cb
+		add_to_global_variable_list = {
+			name = unavailable_unique_decisions
+			target = flag:mpo_become_greatest_of_khans_decision
+		}
+		custom_tooltip = gok_protected_from_chaotic_succession_tt
+		custom_tooltip = gok_time_limit_end_decision_tt
+	}
+	after = {
+		#You pick a nickname
+		trigger_event = mpo_greatest_of_khans.0003
+	}
+}
+
+#Someone became Greatest of Khans
+mpo_greatest_of_khans.0002 = {
+	type = character_event
+	window = fullscreen_event
+	title = mongol_invasion.1002.t
+	desc = {
+		first_valid = {
+			triggered_desc = {
+				trigger = {
+					OR = {
+						any_realm_province = {
+							OR = {
+								geographical_region = special_mongol_empire_start_region
+								geographical_region = special_mongol_empire_conquest_region_prio_1
+								geographical_region = special_mongol_empire_conquest_region_prio_2
+							}
+						}
+						NOT = {
+							government_has_flag = government_is_nomadic
+						}
+					}
+				}
+				desc = {
+					desc = mongol_invasion.1002.desc.close
+					first_valid = {
+						triggered_desc = {
+							trigger = {
+								any_realm_province = {
+									geographical_region = special_mongol_empire_start_region
+								}
+							}
+							desc = mongol_invasion.1002.desc.close_mongolia
+						}
+						desc = mongol_invasion.1002.desc.close_steppes
+					}
+					desc = mongol_invasion.1002.desc.close.mid
+					#Great Khan or Genghis?
+					first_valid = {
+						triggered_desc = {
+							trigger = {
+								exists = scope:temujin
+							}
+							desc = mongol_invasion.1002.desc.genghis
+						}
+						desc = mongol_invasion.1002.desc.gok
+					}
+					desc = mongol_invasion.1002.desc.close.end
+				}
+			}
+			desc = mongol_invasion.1002.desc.far_intro
+			first_valid = {
+				triggered_desc = {
+					trigger = {
+						exists = scope:temujin
+						root = scope:temujin
+					}
+					desc = mongol_invasion.1002.desc.genghis
+				}
+				desc = mongol_invasion.1002.desc.gok
+			}
+			desc = mongol_invasion.1002.desc.far
+		}
+	}
+	theme = nomads
+	left_portrait = {
+		character = scope:genghis_khan
+		animation = personality_vengeful
+	}
+	override_background = { reference = mpo_fullscreen_greatest_of_khans }
+	
+	immediate = {
+		play_music_cue = mx_cue_conquest_of_the_golden_horde
+		show_as_tooltip = {
+			scope:genghis_khan = {
+				add_trait_force_tooltip = greatest_of_khans
+				form_the_greatest_khan_empire_effect = yes
+				custom_tooltip = gok_threatening_powers_tt
+				custom_tooltip = mongol_invasion.1002.genghis_khan_tt
+				custom_tooltip = gok_time_limit_end_decision_other_players_tt
+			}
+			if = {
+				limit = {
+					exists = scope:genghis_khan.dynasty
+					dynasty ?= scope:genghis_khan.dynasty
+				}
+				scope:genghis_khan.dynasty = {
+					add_dynasty_modifier = gok_house_modifier
+				}
+			}
+			if = {
+				limit = {
+					OR = {
+						government_has_flag = government_is_nomadic
+						has_trait = nomadic_philosophy
+					}
+				}
+				custom_tooltip = become_gok_decision_now_unavailable_tt
+			}
+		}
+
+		#Save confederation if there is one
+		if = {
+			limit = {
+				any_land_neighboring_realm_with_tributaries_owner = {
+					mpo_greatest_of_khans_0002_confederation_trigger = yes
+					save_temporary_scope_as = confed_buddy
+				}
+				valid_confederation_member_trigger = { CHARACTER = scope:confed_buddy }
+				is_at_war = no
+			}
+			ordered_land_neighboring_realm_with_tributaries_owner = {
+				order_by = current_military_strength
+				limit = {
+					mpo_greatest_of_khans_0002_confederation_trigger = yes
+				}
+				save_scope_as = confederation_neighbor
+				confederation = {
+					save_scope_as = confederation
+				}
+			}
+		}
+	}
+	#Submit to the Great Khan if you're already their tributary anyway
+	option = {
+		trigger = {
+			NOR = {
+				is_vassal_or_below_of = scope:genghis_khan
+				is_at_war_with = scope:genghis_khan
+			}
+			is_tributary_of_suzerain_or_above = scope:genghis_khan
+		}
+		name = mpo_greatest_of_khans.0002.a
+		#tributary of great khan's vassal or below
+		if = {
+			limit = {
+				is_tributary_of_suzerain_or_above = scope:genghis_khan
+				suzerain = {
+					highest_held_title_tier > root.highest_held_title_tier
+				}
+			}
+			suzerain = {
+				save_scope_as = new_liege
+			}
+			create_title_and_vassal_change = {
+				type = swear_fealty
+				save_scope_as = change
+			}
+			change_liege = {
+				liege = scope:new_liege
+				change = scope:change
+			}
+			resolve_title_and_vassal_change = scope:change
+		}
+		else = {
+			create_title_and_vassal_change = {
+				type = swear_fealty
+				save_scope_as = change
+			}
+			change_liege = {
+				liege = scope:genghis_khan
+				change = scope:change
+			}
+			resolve_title_and_vassal_change = scope:change
+		}
+
+		stress_impact = {
+			brave = minor_stress_impact_gain
+			stubborn = minor_stress_impact_gain
+		}
+		ai_chance = {
+			base = 200
+			ai_value_modifier = {
+				ai_boldness = 1
+			}
+			modifier = {
+				has_trait = ambitious
+				add = -20
+			}
+			modifier = {
+				has_dread_level_towards = {
+					target = scope:genghis_khan
+					level >= 1
+				}
+				add = 100
+			}
+			modifier = {
+				has_dread_level_towards = {
+					target = scope:genghis_khan
+					level >= 2
+				}
+				add = 200
+			}
+			modifier = {
+				government_has_flag = government_is_herder
+				add = 1000
+			}
+			modifier = {
+				add = 50
+				opinion = {
+					target = scope:genghis_khan
+					value >= 50
+				}
+			}
+			modifier = {
+				add = 50
+				opinion = {
+					target = scope:genghis_khan
+					value >= 75
+				}
+			}
+			modifier = {
+				add = -50
+				opinion = {
+					target = scope:genghis_khan
+					value <= -50
+				}
+			}
+			modifier = {
+				add = -50
+				opinion = {
+					target = scope:genghis_khan
+					value <= -75
+				}
+			}
+		}
+	}
+	#Join a confederation that's next to me
+	option = {
+		trigger = {
+			exists = scope:confederation
+		}
+		name = mpo_greatest_of_khans.0002.b
+		scope:confederation = { add_confederation_member = root }
+		scope:confederation_neighbor = {
+			if = {
+				limit = {
+					is_at_war = yes
+				}
+				every_character_war = {
+					limit = {
+						primary_defender = {
+							is_member_of_confederation = scope:confederation
+						}
+					}
+					add_defender = root
+				}
+			}
+		}
+		if = {
+			limit = {
+				government_has_flag = government_is_nomadic
+			}
+			add_character_modifier = {
+				modifier = mpo_confederation_member_modifier
+				years = 5
+			}
+			capital_county ?= {
+				change_county_fertility = major_county_fertility_level_gain
+			}
+		}
+		stress_impact = {
+			ambitious = minor_stress_impact_gain
+		}
+		ai_chance = {
+			base = 100
+			modifier = {
+				add = 50
+				opinion = {
+					target = scope:confederation_neighbor
+					value > 50
+				}
+			}
+			modifier = {
+				add = 50
+				opinion = {
+					target = scope:confederation_neighbor
+					value > 0
+				}
+			}
+			modifier = {
+				add = -50
+				opinion = {
+					target = scope:confederation_neighbor
+					value < -25
+				}
+			}
+			modifier = {
+				add = -50
+				opinion = {
+					target = scope:confederation_neighbor
+					value < -75
+				}
+			}
+			modifier = {
+				has_trait = ambitious
+				add = -50
+			}
+		}
+	}
+	#Cry (unless you are vassal of the Khan!)
+	option = {
+		name = {
+			trigger = {
+				NOT = {
+					government_has_flag = government_is_nomadic
+				}
+			}
+			text = mongol_invasion.1002.b
+		}
+		name = {
+			trigger = {
+				government_has_flag = government_is_nomadic
+			}
+			text = mongol_invasion.1002.a
+		}
+
+		ai_chance = {
+			base = 100
+			ai_value_modifier = {
+				ai_boldness = 1
+				ai_honor = -0.5
+			}
+		}
+	}
+}
+
+#Greatest of Khans picks nickname
+mpo_greatest_of_khans.0003 = {
+	type = character_event
+	title = mpo_greatest_of_khans.0003.t
+	desc = mpo_greatest_of_khans.0003.desc
+	theme = nomads
+	left_portrait = {
+		character = root
+		animation = standing_horse
+		camera = camera_event_standing_with_horse_left
+	}
+	override_background = {
+		reference = mpo_temple_steppe
+	}
+	override_effect_2d = {
+		reference = legend_glow	
+	}
+	option = {
+		# trigger = { #LotR
+		# 	NOT = {
+		# 		culture = {
+		# 			has_cultural_pillar = language_turkic
+		# 		}
+		# 	}
+		# }
+		name = mpo_greatest_of_khans.0003.a
+		if = {
+			limit = { has_any_nickname = yes }
+			remove_nickname = yes
+		}
+		give_nickname = nick_genghis_khan
+		ai_chance = {
+			base = 50
+			# modifier = { #LotR
+			# 	factor = 0
+			# 	NOT = {
+			# 		culture = {
+			# 			has_cultural_pillar = language_mongolic
+			# 		}
+			# 	}
+			# }
+			# modifier = { #LotR
+			# 	factor = 100
+			# 	this = character:125501
+			# }
+		}
+	}
+	option = {
+		# trigger = { #LotR
+		# 	culture = {
+		# 		has_cultural_pillar = language_turkic
+		# 	}
+		# }
+		name = mpo_greatest_of_khans.0003.b
+		if = {
+			limit = { has_any_nickname = yes }
+			remove_nickname = yes
+		}
+		give_nickname = nick_cengiz_khan
+		ai_chance = {
+			base = 50
+		}
+	}
+	option = {
+		# trigger = { #LotR
+		# 	culture = {
+		# 		has_cultural_pillar = language_mongolic
+		# 	}
+		# }
+		name = mpo_greatest_of_khans.0003.c
+		if = {
+			limit = { has_any_nickname = yes }
+			remove_nickname = yes
+		}
+		give_nickname = nick_yekhe_khagan
+		ai_chance = {
+			base = 50
+		}
+	}
+	option = {
+		# trigger = { #LotR
+		# 	culture = {
+		# 		has_cultural_pillar = language_turkic
+		# 	}
+		# }
+		name = mpo_greatest_of_khans.0003.d
+		if = {
+			limit = { has_any_nickname = yes }
+			remove_nickname = yes
+		}
+		give_nickname = nick_dort_yonlug_khagan
+		ai_chance = {
+			base = 50
+		}
+	}
+	option = {
+		# trigger = { #LotR
+		# 	NOR = {
+		# 		faith.religion = religion:christianity_religion
+		# 		faith.religion = religion:islam_religion
+		# 	}
+		# }
+		name = mpo_greatest_of_khans.0003.e
+		if = {
+			limit = { has_any_nickname = yes }
+			remove_nickname = yes
+		}
+		give_nickname = nick_tengri_khagan
+		ai_chance = {
+			base = 50
+			# modifier = { #LotR
+			# 	add = -45
+			# 	NOT = {
+			# 		faith.religion = religion:tengrism_religion
+			# 	}
+			# }
+		}
+	}
+	option = {
+		# trigger = { #LotR
+		# 	OR = {
+		# 		faith = faith:nestorian
+		# 		faith.religion = faith:manichean.religion
+		# 	}
+		# }
+		name = mpo_greatest_of_khans.0003.f
+		if = {
+			limit = { has_any_nickname = yes }
+			remove_nickname = yes
+		}
+		give_nickname = nick_xormuzta
+		ai_chance = {
+			base = 100
+		}
+	}
+	option = {
+		# trigger = { #LotR
+		# 	faith.religion = religion:islam_religion
+		# 	capital_province ?= {
+		# 		OR = {
+		# 			geographical_region = world_middle_east
+		# 			geographical_region = world_asia_minor
+		# 			geographical_region = world_steppe_tarim
+		# 			geographical_region = world_steppe_central
+		# 		}
+		# 	}
+		# 	current_date >= 1250
+		# }
+		name = mpo_greatest_of_khans.0003.g
+		if = {
+			limit = { has_any_nickname = yes }
+			remove_nickname = yes
+		}
+		give_nickname = nick_cihangir
+		ai_chance = {
+			base = 100
+		}
+	}
+	option = {
+		# trigger = { #LotR
+		# 	faith = faith:nestorian
+		# }
+		name = mpo_greatest_of_khans.0003.h
+		if = {
+			limit = { has_any_nickname = yes }
+			remove_nickname = yes
+		}
+		give_nickname = nick_mar_sargis
+		ai_chance = {
+			base = 100
+		}
+	}
+	option = {
+		# trigger = { #LotR
+		# 	culture = {
+		# 		OR = {
+		# 			has_cultural_pillar = language_iranian
+		# 			has_cultural_pillar = language_scythian
+		# 		}
+		# 	}
+		# }
+		name = mpo_greatest_of_khans.0003.i
+		if = {
+			limit = { has_any_nickname = yes }
+			remove_nickname = yes
+		}
+		give_nickname = nick_akhshunwar
+		ai_chance = {
+			base = 100
+		}
+	}
+	option = {
+		name = mpo_greatest_of_khans.0003.j
+		if = {
+			limit = { has_any_nickname = yes }
+			remove_nickname = yes
+		}
+		give_nickname = nick_culture_khagan
+		ai_chance = {
+			base = 10
+		}
+	}
+	option = {
+		name = mpo_greatest_of_khans.0003.k
+		ai_chance = {
+			base = 0
+		}
+	}
+	after = {
+		#notification events go to other rulers
+
+		add_to_temporary_list = received_notification
+		every_vassal_or_below = {
+			limit = {
+				is_ai = no
+			}
+			trigger_event = {
+				id = mpo_greatest_of_khans.0002 #Someone has become Genghis Khan
+				days = 1
+			}
+			add_to_temporary_list = received_notification
+		}
+		every_ruler = {
+			limit = {
+				NOT = {
+					is_in_list = received_notification
+				}
+				OR = {
+					#Notify players
+					is_ai = no
+					#Give AI tributaries and herder neighbors chance to submit
+					#And strengthen confederations
+					AND = {
+						OR = {
+							AND = {
+								is_independent_ruler = yes
+								highest_held_title_tier <= tier_duchy
+								is_tributary = no
+							}
+							is_tributary_of_suzerain_or_above = root
+						}
+						OR = {
+							is_tributary_of_suzerain_or_above = root
+							#Is on the steppe and can join a confederation
+							AND = {
+								any_character_situation = {
+									this = situation:the_great_steppe
+								}
+								any_land_neighboring_realm_with_tributaries_owner = {
+									mpo_greatest_of_khans_0002_confederation_trigger = yes
+									save_temporary_scope_as = maybe_confederate
+								}
+								valid_confederation_member_trigger = { CHARACTER = scope:maybe_confederate }
+								
+							}
+						}
+					}
+					
+				}
+			}
+			trigger_event = {
+				id = mpo_greatest_of_khans.0002 #Someone has become Genghis Khan
+				days = 1
+			}
+		}
+	}
+}
+
+#Fires notification that minor lord has accepted submission
+mpo_greatest_of_khans.0020 = {
+	hidden = yes
+	immediate = {
+		send_interface_message = {
+			type = event_gok_submission_with_text
+			title = mpo_greatest_of_khans.0020_title
+			left_icon = scope:recipient
+
+			show_as_tooltip = {
+				mpo_gok_offer_submission_effect = yes
+			}
+		}
+	}
+}
+
+#Your new vassal chooses to submit
+mpo_greatest_of_khans.0021 = {
+	type = letter_event
+	opening = {
+		desc = mpo_greatest_of_khans.0021.opening
+	}
+	desc = {
+		first_valid = {
+			triggered_desc = {
+				trigger = {
+					scope:recipient = {
+						OR = {
+							government_has_flag = government_is_nomadic
+							government_has_flag = government_is_herder
+						}
+					}
+				}
+				desc = mpo_greatest_of_khans.0021.desc_nomad
+			}
+			desc = mpo_greatest_of_khans.0021.desc
+		}
+	}
+		
+	sender = scope:recipient
+
+	immediate = {
+		
+	}
+
+	option = {
+		name = mpo_greatest_of_khans.0021.a
+		show_as_tooltip = { 
+			mpo_gok_offer_submission_effect = yes
+		}
+	}
+}
+
+#Your generous offer of submission has been refused... this means war
+mpo_greatest_of_khans.0022 = {
+	type = letter_event
+	opening = {
+		desc = mpo_greatest_of_khans.0022.opening
+	}
+	desc = {
+		first_valid = {
+			triggered_desc = {
+				trigger = {
+					scope:recipient = {
+						OR = {
+							government_has_flag = government_is_nomadic
+							government_has_flag = government_is_herder
+						}
+					}
+				}
+				desc = mpo_greatest_of_khans.0022.desc_nomad
+			}
+			desc = mpo_greatest_of_khans.0022.desc
+		}
+	}
+		
+	sender = scope:recipient
+
+	option = {
+		name = {
+			trigger = {
+				scope:recipient = {
+					NOR = {
+						government_has_flag = government_is_nomadic
+						government_has_flag = government_is_herder
+					}
+				}
+			}
+			text = mpo_greatest_of_khans.0022.a
+		}
+		name = {
+			trigger = {
+				scope:recipient = {
+					OR = {
+						government_has_flag = government_is_nomadic
+						government_has_flag = government_is_herder
+					}
+				}
+			}
+			text = mpo_greatest_of_khans.0022.a_nomadic
+		}
+		mpo_gok_offer_submission_refusal_effect = yes
+	}
+}
+
+#Final Greatest of Khans decision event
+mpo_greatest_of_khans.0030 = {
+	type = character_event
+	window = visit_settlement_window
+	title = mpo_greatest_of_khans.0030.t
+	desc = mpo_greatest_of_khans.0030.desc
+	theme = nomads
+	left_portrait = {
+		character = scope:knight
+		animation = throne_room_two_handed_passive_shield
+		camera = camera_event_very_left
+		hide_info = yes
+	}
+	center_portrait = {
+		character = root
+		animation = war_over_win
+		camera = camera_event_center
+	}
+	right_portrait = {
+		character = scope:scholar
+		animation = reading
+		camera = camera_event_very_right
+		hide_info = yes
+	}
+	override_background = {
+		reference = throne_room
+	}
+	override_effect_2d = {
+		reference = legend_glow	
+	}
+	immediate = {
+		ordered_knight = {
+			order_by = prowess
+			limit = {
+				basic_is_available_ai = yes
+				is_adult = yes
+				# culture = { #LotR
+				# 	OR = {
+				# 		has_cultural_pillar = heritage_mongolic
+				# 		has_cultural_pillar = heritage_turkic
+				# 	}
+				# }
+				is_courtier_of = root
+			}
+			alternative_limit = {
+				basic_is_available_ai = yes
+				is_adult = yes
+				# culture = { #LotR
+				# 	OR = {
+				# 		has_cultural_pillar = heritage_mongolic
+				# 		has_cultural_pillar = heritage_turkic
+				# 	}
+				# }
+			}
+			alternative_limit = {
+				basic_is_available_ai = yes
+				is_adult = yes
+			}
+			save_scope_as = knight
+			add_character_flag = need_military_outfit
+		}
+		ordered_courtier = {
+			order_by = learning
+			limit = {
+				basic_is_available_ai = yes
+				is_adult = yes
+				# culture = { #LotR
+				# 	trigger_if = {
+				# 		limit = {
+				# 			NOT = {
+				# 				this = culture:uyghur
+				# 			}
+				# 		}
+				# 		NOR = {
+				# 			has_cultural_pillar = heritage_mongolic
+				# 			has_cultural_pillar = heritage_turkic
+				# 		}
+				# 	}
+				# }
+			}
+			alternative_limit = {
+				basic_is_available_ai = yes
+				is_adult = yes
+			}
+			save_scope_as = scholar
+		}
+		custom_tooltip = gok_reform_invalides_gok_stuff_tt
+		gok_world_conquest_generic_rewards_effect = yes
+		every_owned_story = {
+			limit = {
+				story_type = story_greatest_of_khans
+			}
+			end_story = yes
+		}
+	}
+	#BURN THE SETTLED WORLD AND LET US GRAZE
+	option = {
+		name = mpo_greatest_of_khans.0030.a
+		flavor = mpo_greatest_of_khans.0030.a.flavor
+		add_dread = massive_dread_gain
+		add_gold = {
+			add = "list_size(burned_to_nomadism)"
+			multiply = miniscule_gold_value
+		}
+		add_internal_flag = dangerous
+		custom_tooltip = gok_counties_become_nomad_counties_tt
+		custom_tooltip = gok_new_nomad_counties_lose_development_tt
+		custom_tooltip = gok_other_counties_lose_development_tt
+		hidden_effect = {
+			every_in_list = {
+				list = burned_to_nomadism
+				raze_county = {
+					holding_type = nomad_holding
+					purge_secondary_holdings = yes
+				}
+				if = {
+					limit = {
+						development_level > 1
+					}
+					save_scope_value_as = {
+						name = dev_reduction
+						value = {
+							add = development_level
+							multiply = -1
+							add = 1
+						}
+					}
+				}
+				change_development_level = scope:dev_reduction
+				change_county_control = -100
+			}
+			#damage the rest a bit too
+			every_realm_county = {
+				limit = {
+					NOR = {
+						is_in_list = burned_to_nomadism
+						any_county_province = {
+							OR = {
+								has_holding_type = nomad_holding
+								has_holding_type = herder_holding
+							}
+						}
+						holder = {
+							is_ai = no
+						}
+					}
+					development_level > 1
+				}
+				change_development_level = {
+					add = development_level
+					divide = 10
+					floor = yes
+					multiply = -1
+				}
+			}
+		}
+		
+		custom_tooltip = gok_non_nomads_become_nomad_tt
+		#Willing vassals convert to nomad
+		hidden_effect = {
+			every_in_list = {
+				list = sedentary_to_nomad_vassals
+				adopt_nomadic_ways_decision_effect = yes
+			}
+		}
+
+		custom_tooltip = gok_city_state_creation
+		hidden_effect = {
+			every_in_list = {
+				list = city_state_vassals
+				every_held_title = {
+					limit = {
+						tier >= tier_county
+						is_head_of_faith = no
+						is_landless_type_title = no
+						#Leave them with their capital duchy
+						NOR = {
+							this = holder.capital_county
+							this = holder.capital_county.duchy
+							AND = {
+								tier = tier_county
+								duchy = holder.capital_county.duchy
+							}
+						}
+					}
+					create_title_and_vassal_change = {
+						type = revoked
+						save_scope_as = change
+						add_claim_on_loss = yes
+					}
+					change_title_holder = {
+						holder = root
+						change = scope:change
+						take_baronies = no
+					}
+					resolve_title_and_vassal_change = scope:change
+				}
+			}
+		}
+		stress_impact = {
+			compassionate = major_stress_impact_gain
+			greedy = massive_stress_impact_gain
+			lazy = medium_stress_impact_gain
+			forgiving = medium_stress_impact_gain
+		}
+		ai_chance = {
+			base = 0
+		}
+	}
+	#Convert to admin government
+	option = {
+		trigger = {
+			has_dlc_feature = admin_gov
+		}
+		name = mpo_greatest_of_khans.0030.b
+		flavor = mpo_greatest_of_khans.0030.b.flavor
+		add_internal_flag = special
+		nomad_domicile_refund_effect = yes
+		nomad_convert_herds_to_gold_special_troops_effect = yes
+		gok_upgrade_realm_and_government_effect = yes
+		custom_tooltip = gok_some_sedentaries_become_admin_tt
+		hidden_effect = {
+			if = {
+				limit = {
+					ep3_is_clan_inclined_trigger = yes
+				}
+				nomad_convert_people_to_clan_effect = yes
+			}
+			else = {
+				nomad_convert_people_to_feudal_effect = yes
+			}
+		}
+		convert_to_administrative_from_feudalism_effect = yes
+		hidden_effect = {
+			every_vassal = {
+				limit = {
+					gok_willing_new_admin_vassal_trigger = yes
+				}
+				change_to_administrative_effect = yes
+				every_vassal = {
+					limit = {
+						gok_willing_new_admin_vassal_trigger = yes
+					}
+					change_to_administrative_effect = yes
+					every_vassal = {
+						limit = {
+							gok_willing_new_admin_vassal_trigger = yes
+						}
+						change_to_administrative_effect = yes
+						every_vassal = {
+							limit = {
+								gok_willing_new_admin_vassal_trigger = yes
+							}
+							change_to_administrative_effect = yes
+						}
+					}
+				}
+
+			}
+		}
+		
+		ai_chance = {
+			base = 100
+			# modifier = { #LotR
+			# 	OR = {
+			# 		primary_title = title:e_byzantium
+			# 		primary_title = title:e_roman_empire
+			# 	}
+			# 	add = 100
+			# }
+			modifier = {
+				culture = {
+					OR = {
+						has_cultural_pillar = ethos_bureaucratic 
+						has_cultural_pillar = ethos_courtly 
+						has_cultural_pillar = ethos_egalitarian 
+					}
+				}
+				add = 50
+			}
+			modifier = {
+				culture = {
+					has_cultural_tradition = tradition_legalistic
+				}
+				add = 50
+			}
+			modifier = {
+				culture = {
+					OR = {
+						has_cultural_tradition = tradition_fp3_enlightened_magnates 
+						has_cultural_tradition = tradition_loyal_soldiers 
+					}
+				}
+				add = 20
+			}
+			modifier = {
+				culture = {
+					OR = {
+						has_cultural_tradition = tradition_ep3_indomitable_azatani
+						has_cultural_tradition = tradition_ep3_audacious_cadets
+						has_cultural_tradition = tradition_fp3_fierce_independence
+					}
+				}
+				add = -50
+			}
+			modifier = {
+				culture = {
+					has_cultural_tradition = tradition_staunch_traditionalists
+				}
+				add = -50
+			}
+			modifier = {
+				culture = {
+					has_cultural_tradition = tradition_quarrelsome
+				}
+				add = -50
+			}
+			modifier = {
+				culture = {
+					has_cultural_tradition = tradition_warrior_culture
+				}
+				add = -50
+			}
+			modifier = {
+				culture = {
+					has_cultural_tradition = tradition_hereditary_hierarchy
+				}
+				add = -50
+			}
+			modifier = {
+				culture = {
+					has_cultural_tradition = tradition_hereditary_hierarchy
+				}
+				add = -50
+			}
+			modifier = {
+				culture = {
+					OR = {
+						has_cultural_pillar = ethos_stoic
+						has_cultural_pillar = ethos_bellicose 
+						has_cultural_pillar = ethos_communal 
+					}
+				}
+				add = -50
+			}
+			# modifier = { #LotR
+			# 	culture = {
+			# 		any_parent_culture_or_above = {
+			# 			OR = {
+			# 				this = culture:han
+			# 				this = culture:greek
+			# 			}
+			# 		}
+			# 	}
+			# 	add = 100
+			# }
+		}
+	}
+	#Convert to feudal government
+	option = {
+		name = mpo_greatest_of_khans.0030.c
+		flavor = mpo_greatest_of_khans.0030.c.flavor
+		nomad_domicile_refund_effect = yes
+		nomad_convert_herds_to_gold_special_troops_effect = yes
+		gok_upgrade_realm_and_government_effect = yes
+		nomad_convert_people_to_feudal_effect = yes
+		hidden_effect = {
+			every_in_list = {
+				list = switching_vassals
+				nomad_convert_people_to_feudal_effect = yes
+			}
+		}
+		ai_chance = {
+			base = 0
+			modifier = {
+				ep3_is_clan_inclined_trigger = no
+				add = 5
+			}
+		}
+	}
+	#Convert to clan government
+	option = {
+		name = mpo_greatest_of_khans.0030.d
+		flavor = mpo_greatest_of_khans.0030.d.flavor
+		nomad_domicile_refund_effect = yes
+		nomad_convert_herds_to_gold_special_troops_effect = yes
+		gok_upgrade_realm_and_government_effect = yes
+		nomad_convert_people_to_clan_effect = yes
+		hidden_effect = {
+			every_in_list = {
+				list = switching_vassals
+				nomad_convert_people_to_clan_effect = yes
+			}
+		}
+		ai_chance = {
+			base = 0
+			modifier = {
+				ep3_is_clan_inclined_trigger = yes
+				add = 5
+			}
+		}
+	}
+	#Actually... I don't want to change anything
+	option = {
+		name = mpo_greatest_of_khans.0030.e
+		flavor = mpo_greatest_of_khans.0030.e.flavor
+		ai_chance = {
+			base = 0
+		}
+	}
+
+	after = {
+		scope:knight = {
+			remove_character_flag = need_military_outfit
+		}
+	}
+}
+
+#Invalidate event for story - your dynasty timed out or lost control of the GoK title
+mpo_greatest_of_khans.0040 = {
+	type = character_event
+	title = mpo_greatest_of_khans.0040.t
+	desc = {
+		first_valid = {
+			triggered_desc = {
+				trigger = {
+					exists = scope:timed_out
+				}
+				desc = mpo_greatest_of_khans.0040.desc_timed_out
+			}
+			desc = mpo_greatest_of_khans.0040.desc
+		}
+	}
+	theme = nomads
+	left_portrait = {
+		character = root
+		animation = horse_exhausted
+		camera = camera_event_horse_very_left
+	}
+	override_background = {
+		reference = mpo_steppe_evening
+	}
+	immediate = {
+		add_legitimacy = major_legitimacy_loss
+		custom_tooltip = gok_no_more_reform_decision
+		custom_tooltip = gok_no_more_special_powers
+		custom_tooltip = gok_lose_succession_protection_tt
+		if = {
+			limit = {
+				has_realm_law = nomadic_authority_5
+			}
+			remove_realm_law = nomadic_authority_5
+			add_realm_law = nomadic_authority_4
+		}
+		if = {
+			limit = {
+				has_trait = greatest_of_khans
+			}
+			remove_trait = greatest_of_khans
+		}
+		if = {
+			limit = {
+				exists = global_var:first_gok.dynasty
+				global_var:first_gok.dynasty = {
+					has_dynasty_modifier = gok_house_modifier
+				}
+			}
+			global_var:first_gok.dynasty = {
+				remove_dynasty_modifier = gok_house_modifier
+			}
+		}
+		if = {
+			limit = {
+				has_character_modifier = the_great_khan_modifier
+			}
+			remove_character_modifier = the_great_khan_modifier
+		}
+		
+		every_owned_story = {
+			limit = { story_type = story_greatest_of_khans }
+			end_story = yes
+		}
+	}
+	option = {
+		name = mpo_greatest_of_khans.0040.a
+		if = {
+			limit = {
+				any_held_title = {
+					this = global_var:greatest_of_khans_title
+				}
+			}
+			custom_tooltip = gok_guaranteed_disastrous_chaotic_succession_tt
+			global_var:greatest_of_khans_title = {
+				set_variable = {
+					name = guaranteed_disastrous_succession
+					value = yes
+				}
+			}
+		}
+	}
+}
+
+#
+# END Become Greatest of Khans events
+#################
+
+#MONGOL INVASION EVENTS - UPDATED FOR MPO
+
+### Appearance of Genghis Khan (others)
+# by Petter Vilberg (updated by Jason Cantalini)
+mpo_greatest_of_khans.1001 = {
+	orphan = yes #LotR
+	type = character_event
+	window = fullscreen_event
+	title = mongol_invasion.1002.t
+	desc = {
+		first_valid = {
+			triggered_desc = {
+				trigger = {
+					OR = {
+						any_realm_province = {
+							OR = {
+								geographical_region = special_mongol_empire_start_region
+								geographical_region = special_mongol_empire_conquest_region_prio_1
+								geographical_region = special_mongol_empire_conquest_region_prio_2
+							}
+						}
+						government_has_flag = government_is_nomadic
+					}
+				}
+				desc = {
+					desc = mongol_invasion.1002.desc.close
+					first_valid = {
+						triggered_desc = {
+							trigger = {
+								any_realm_province = {
+									geographical_region = special_mongol_empire_start_region
+								}
+							}
+							desc = mongol_invasion.1002.desc.close_mongolia
+						}
+						desc = mongol_invasion.1002.desc.close_steppes
+					}
+					desc = mongol_invasion.1002.desc.close.mid
+					#Great Khan or Genghis?
+					first_valid = {
+						triggered_desc = {
+							trigger = {
+								exists = scope:temujin
+							}
+							desc = mongol_invasion.1002.desc.genghis
+						}
+						desc = mongol_invasion.1002.desc.gok
+					}
+					desc = mongol_invasion.1002.desc.close.end
+				}
+			}
+
+			desc = {
+				desc = mongol_invasion.1002.desc.far_intro
+				first_valid = {
+					triggered_desc = {
+						trigger = {
+							exists = scope:temujin
+							root = scope:temujin
+						}
+						desc = mongol_invasion.1002.desc.genghis
+					}
+					desc = mongol_invasion.1002.desc.gok
+				}
+				desc = mongol_invasion.1002.desc.far
+			}
+		}
+	}
+	theme = nomads
+	left_portrait = {
+		character = scope:temujin
+		animation = celebrate_sword
+		camera = camera_event_left_forward
+	}
+	override_background = { reference = mpo_fullscreen_greatest_of_khans }
+
+	immediate = {
+		play_music_cue = mx_cue_conquest_of_the_golden_horde
+		
+		scope:temujin = {
+			save_scope_as = genghis_khan
+			primary_title = {
+				save_scope_as = gok_title
+			}
+			show_as_tooltip = {
+				add_trait_force_tooltip = greatest_of_khans
+			}
+			
+			custom_tooltip = genghis_khan_mongol_empire_tt
+			custom_tooltip = genghis_khan_mongol_troops_tt
+			custom_tooltip = gok_threatening_powers_tt
+			custom_tooltip = mongol_invasion.1002.genghis_khan_tt
+		}
+		if = {
+			limit = {
+				exists = scope:genghis_khan.dynasty
+			}
+			scope:genghis_khan.dynasty = {
+				add_dynasty_modifier = gok_house_modifier
+			}
+		}
+
+		if = {
+			limit = {
+				OR = {
+					government_has_flag = government_is_nomadic
+					has_trait = nomadic_philosophy
+				}
+			}
+			custom_tooltip = become_gok_decision_now_unavailable_tt
+		}
+
+		#Save confederation if there is one
+		if = {
+			limit = {
+				any_land_neighboring_realm_with_tributaries_owner = {
+					mpo_greatest_of_khans_0002_confederation_trigger = yes
+					save_temporary_scope_as = confed_buddy
+				}
+				valid_confederation_member_trigger = { CHARACTER = scope:confed_buddy }
+				is_at_war = no
+			}
+			ordered_land_neighboring_realm_with_tributaries_owner = {
+				order_by = current_military_strength
+				limit = {
+					mpo_greatest_of_khans_0002_confederation_trigger = yes
+				}
+				save_scope_as = confederation_neighbor
+				confederation = {
+					save_scope_as = confederation
+				}
+			}
+		}
+	}
+	#Submit to the Great Khan if you're already their tributary anyway
+	option = {
+		trigger = {
+			NOR = {
+				is_vassal_or_below_of = scope:genghis_khan
+				is_at_war_with = scope:genghis_khan
+			}
+			is_tributary_of_suzerain_or_above = scope:genghis_khan
+		}
+		name = mpo_greatest_of_khans.0002.a
+		#tributary of great khan's vassal or below
+		if = {
+			limit = {
+				is_tributary_of_suzerain_or_above = scope:genghis_khan
+				suzerain = {
+					highest_held_title_tier > root.highest_held_title_tier
+				}
+			}
+			suzerain = {
+				save_scope_as = new_liege
+			}
+			create_title_and_vassal_change = {
+				type = swear_fealty
+				save_scope_as = change
+			}
+			change_liege = {
+				liege = scope:new_liege
+				change = scope:change
+			}
+			resolve_title_and_vassal_change = scope:change
+		}
+		else = {
+			create_title_and_vassal_change = {
+				type = swear_fealty
+				save_scope_as = change
+			}
+			change_liege = {
+				liege = scope:genghis_khan
+				change = scope:change
+			}
+			resolve_title_and_vassal_change = scope:change
+		}
+
+		stress_impact = {
+			brave = minor_stress_impact_gain
+			stubborn = minor_stress_impact_gain
+		}
+		ai_chance = {
+			base = 200
+			ai_value_modifier = {
+				ai_boldness = 1
+			}
+			modifier = {
+				has_trait = ambitious
+				add = -20
+			}
+			modifier = {
+				has_dread_level_towards = {
+					target = scope:genghis_khan
+					level >= 1
+				}
+				add = 100
+			}
+			modifier = {
+				has_dread_level_towards = {
+					target = scope:genghis_khan
+					level >= 2
+				}
+				add = 200
+			}
+			modifier = {
+				government_has_flag = government_is_herder
+				add = 1000
+			}
+			modifier = {
+				add = 50
+				opinion = {
+					target = scope:genghis_khan
+					value >= 50
+				}
+			}
+			modifier = {
+				add = 50
+				opinion = {
+					target = scope:genghis_khan
+					value >= 75
+				}
+			}
+			modifier = {
+				add = -50
+				opinion = {
+					target = scope:genghis_khan
+					value <= -50
+				}
+			}
+			modifier = {
+				add = -50
+				opinion = {
+					target = scope:genghis_khan
+					value <= -75
+				}
+			}
+		}
+	}
+	#Join a confederation that's next to me
+	option = {
+		trigger = {
+			exists = scope:confederation
+		}
+		name = mpo_greatest_of_khans.0002.b
+		scope:confederation = { add_confederation_member = root }
+		scope:confederation_neighbor = {
+			if = {
+				limit = {
+					is_at_war = yes
+				}
+				every_character_war = {
+					limit = {
+						primary_defender = {
+							is_member_of_confederation = scope:confederation
+						}
+					}
+					add_defender = root
+				}
+			}
+		}
+		if = {
+			limit = {
+				government_has_flag = government_is_nomadic
+			}
+			add_character_modifier = {
+				modifier = mpo_confederation_member_modifier
+				years = 5
+			}
+			capital_county ?= {
+				change_county_fertility = major_county_fertility_level_gain
+			}
+		}
+		stress_impact = {
+			ambitious = minor_stress_impact_gain
+		}
+		ai_chance = {
+			base = 100
+			modifier = {
+				add = 50
+				opinion = {
+					target = scope:confederation_neighbor
+					value > 50
+				}
+			}
+			modifier = {
+				add = 50
+				opinion = {
+					target = scope:confederation_neighbor
+					value > 0
+				}
+			}
+			modifier = {
+				add = -50
+				opinion = {
+					target = scope:confederation_neighbor
+					value < -25
+				}
+			}
+			modifier = {
+				add = -50
+				opinion = {
+					target = scope:confederation_neighbor
+					value < -75
+				}
+			}
+			modifier = {
+				has_trait = ambitious
+				add = -50
+			}
+		}
+	}
+	
+	option = { # Option for close characters
+		name = {
+			trigger = { has_trait = craven }
+			text = mongol_invasion.1002.craven
+		}
+		name = {
+			text = mongol_invasion.1002.a
+		}
+		trigger = {
+			government_has_flag = government_is_nomadic
+		}
+
+		if = {
+			limit = {
+				highest_held_title_tier < tier_empire
+			}
+			custom_tooltip = mongol_invasion_submission_reminder_tt
+		}
+		ai_chance = {
+			base = 100
+		}
+	}
+	
+	option = { # Options for distant characters
+		name = {
+			text = mongol_invasion.1002.craven
+			trigger = { has_trait = craven }
+		}
+		name = {
+			text = mongol_invasion.1002.b
+		}
+		trigger = {
+			NOT = { government_has_flag = government_is_nomadic }
+		}
+		custom_tooltip = mongol_invasion.1002.genghis_khan_tt
+
+		if = {
+			limit = {
+				highest_held_title_tier < tier_empire
+			}
+		}
+		ai_chance = {
+			base = 100
+		}
+			
+	}
+}

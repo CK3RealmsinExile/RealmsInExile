@@ -1,0 +1,1612 @@
+﻿#Effects used for religion interactions
+
+excommunicate_character = {
+	if = {
+		limit = {
+			$REQUESTING_CHARACTER$.faith = $TARGET_CHARACTER$.faith
+		}
+
+		$REQUESTING_CHARACTER$ = {
+			save_scope_as = requesting_character
+		}
+		$TARGET_CHARACTER$ = {
+			save_scope_as = target_character
+			faith.religious_head = {
+				save_scope_as = religious_head
+			}
+
+			# If our religious head was convinced/persuaded to excommunicate us by another ruler, we want to make that clear.
+			if = {
+				limit = {
+					NOT = { scope:requesting_character = scope:religious_head }
+				}
+				add_excommunication_actual_effect = yes
+				add_opinion = {
+					modifier = angry_opinion
+					target = scope:religious_head
+					opinion = -30
+				}
+				add_opinion = {
+					modifier = hate_opinion
+					target = scope:requesting_character
+					opinion = -50
+				}
+			}
+			# Though if our head independently decided to excommunicate us, that should also be clear.
+			else = {
+				add_excommunication_actual_effect = yes
+				add_opinion = {
+					modifier = angry_opinion
+					target = scope:religious_head
+					opinion = -50
+				}
+			}
+
+			# LEGITIMACY LOSS FROM EXCOMMUNICATION
+			excommunication_legitimacy_effect = yes
+
+			progress_towards_rival_effect = {
+				CHARACTER = scope:requesting_character
+				REASON = rival_requested_excommunication
+				OPINION = 0
+			}
+			set_variable = { #TO save who wanted you excommunicated
+				name = requested_my_excommunication
+				value = scope:requesting_character
+			}
+
+			# Regardless of why the excommunication happened, players should be aware whenever a character of interest is excommunicated.
+			every_player = {
+				limit = {
+					faith = scope:target_character.faith
+					NOR = {
+						this = scope:target_character # If we are the excommunication target, we were already send a notification in the script above this.
+						this = scope:requesting_character #If we are the excommunication requester, we already get a diplomacy response telling us about the excommunication.
+					}
+
+					save_temporary_scope_as = player
+					OR = {
+						top_liege = scope:target_character # Our realm's top liege is a character of interest.
+						top_liege = {
+							any_vassal_or_below = { # Peers of the realm are also characters of interest...
+								this = scope:target_character
+								OR = {
+									NOT = { highest_held_title_tier = 1 } #... unless they're someone else's baron (then they're too inconsequential).
+									is_vassal_of = scope:player
+								}
+							}
+						}
+						any_close_family_member = {
+							this = scope:target_character # Family members are characters of interest, even if not part of our realm.
+						}
+						any_neighboring_top_liege_realm_owner = {
+							this = scope:target_character # Finally, any neighboring realm owners are characters of interest (as we get an excommunication war CB on them, as well as the ability to request claims).
+						}
+					}
+				}
+				save_scope_as = this_player
+				send_interface_message = {
+					type = excommunicated_other_message
+					title = excommunicated_other_message
+					desc = other_excommunicated_message
+					left_icon = scope:target_character
+					right_icon = scope:religious_head	
+				}
+			}
+		}
+	}
+}
+
+lift_character_excommunication_effect = {
+	$REQUESTING_CHARACTER$ = {
+		hidden_effect = {
+			send_interface_toast = {	
+				title = lift_excommunicate_interaction_desc.tt
+				left_icon = $TARGET_CHARACTER$
+				$TARGET_CHARACTER$ = {
+					show_as_tooltip = { remove_trait = excommunicated }
+				}
+			}
+		}
+	}
+	$TARGET_CHARACTER$ = {
+		remove_trait = excommunicated
+		add_character_modifier = {
+			modifier = excommunication_recently_lifted
+			years = 10
+		}
+		add_opinion = {
+			modifier = grateful_opinion
+			target = $REQUESTING_CHARACTER$
+			opinion = 30
+		}
+		# To nudge friendship.
+		hidden_effect = {
+			if = {
+				limit = {
+					NOR = {
+						has_relation_friend = $REQUESTING_CHARACTER$
+						has_relation_potential_friend = $REQUESTING_CHARACTER$
+					}
+				}
+				set_relation_potential_friend = $REQUESTING_CHARACTER$
+			}
+		}
+	}
+}
+
+# Saves the target kingdom to scope:target_kingdom, and the target character to scope:target_character
+determine_ghw_target_effect = {
+	# Find every *possible* kingdom
+	$FAITH$ = {
+		save_temporary_scope_value_as = {
+			name = faith_strength
+			value = faith_military_strength
+		}
+	}
+	#1178 Catholics target the Holy Land, to support Kingdom of Jerusalem and make Fourth Crusade more likely to trigger
+	if = {
+		limit = {
+			# LOTR
+			# #Definitely hasn't been a crusade already
+			# NOR = {
+			# 	has_global_variable = frankokratia_occurred
+			# 	has_global_variable = cath_crusade_1
+			# }
+			# game_start_date = 1178.10.1
+			# $FAITH$ = {
+			# 	this = faith:catholic
+			# }
+			# #Any holy land kingdom is valid
+			# any_kingdom = {
+			# 	valid_ghw_target_trigger = { FAITH = $FAITH$ }
+			# 	OR = {
+			# 		title_capital_county.title_province = { geographical_region = world_middle_east_arabia }
+			# 		title_capital_county.title_province = { geographical_region = world_middle_east_jerusalem }
+			# 		title_capital_county.title_province = { geographical_region = world_asia_minor }
+			# 		this = title:k_cyprus
+			# 		this = title:k_egypt
+			# 	}
+			# }
+			always = no
+		}
+		# #Most likely to be aiding kingdom of jerusalem
+		# if = { # LOTR
+		# 	limit = {
+		# 		exists = title:k_jerusalem.holder
+		# 		title:k_jerusalem.holder = {
+		# 			faith = faith:catholic
+		# 		}
+		# 		any_kingdom = {
+		# 			valid_ghw_target_trigger = { FAITH = $FAITH$ }
+		# 			OR = {
+		# 				title_capital_county.title_province = { geographical_region = world_middle_east_arabia }
+		# 				title_capital_county.title_province = { geographical_region = world_middle_east_jerusalem }
+		# 				title_capital_county.title_province = { geographical_region = world_asia_minor }
+		# 				this = title:k_cyprus
+		# 				this = title:k_egypt
+		# 			}
+		# 			any_de_jure_county = {
+		# 				OR = {
+		# 					holder = title:k_jerusalem.holder
+		# 					holder.top_liege = title:k_jerusalem.holder
+		# 					any_neighboring_county = {
+		# 						OR = {
+		# 							holder = title:k_jerusalem.holder
+		# 							holder.top_liege = title:k_jerusalem.holder
+		# 						}
+		# 					}
+		# 				}
+		# 			}
+		# 		}
+		# 	}
+		# 	every_kingdom = {
+		# 		limit = {
+		# 			valid_ghw_target_trigger = { FAITH = $FAITH$ }
+		# 			OR = {
+		# 				title_capital_county.title_province = { geographical_region = world_middle_east_arabia }
+		# 				title_capital_county.title_province = { geographical_region = world_middle_east_jerusalem }
+		# 				title_capital_county.title_province = { geographical_region = world_asia_minor }
+		# 				this = title:k_cyprus
+		# 				this = title:k_egypt
+		# 			}
+		# 			any_de_jure_county = {
+		# 				OR = {
+		# 					holder = title:k_jerusalem.holder
+		# 					holder.top_liege = title:k_jerusalem.holder
+		# 					any_neighboring_county = {
+		# 						OR = {
+		# 							holder = title:k_jerusalem.holder
+		# 							holder.top_liege = title:k_jerusalem.holder
+		# 						}
+		# 					}
+		# 				}
+		# 			}
+		# 		}
+		# 		add_to_list = potential_kingdoms
+		# 	}
+		# }
+		# else = {
+		# 	every_kingdom = {
+		# 		limit = {
+		# 			valid_ghw_target_trigger = { FAITH = $FAITH$ }
+		# 			OR = {
+		# 				title_capital_county.title_province = { geographical_region = world_middle_east_arabia }
+		# 				title_capital_county.title_province = { geographical_region = world_middle_east_jerusalem }
+		# 				title_capital_county.title_province = { geographical_region = world_asia_minor }
+		# 				this = title:k_cyprus
+		# 				this = title:k_egypt
+		# 			}
+		# 		}
+		# 		add_to_list = potential_kingdoms
+		# 	}
+		# }
+	}
+	else = {
+		every_kingdom = {
+			limit = {
+				valid_ghw_target_trigger = { FAITH = $FAITH$ }
+			}
+			add_to_list = potential_kingdoms
+		}
+	}
+	
+	# Pick out the 10 "best" ones
+	ordered_in_list = {
+		list = potential_kingdoms
+		order_by = great_holy_war_target_kingdom_weight
+		
+		min = 0
+		max = 10
+		check_range_bounds = no
+		
+		add_to_list = filtered_potential_kingdoms
+	}
+	# Pick one of the top 10 at random (weighted)
+	random_in_list = {
+		list = filtered_potential_kingdoms
+		weight = {
+			base = 10
+			modifier = {
+				add = great_holy_war_target_kingdom_weight
+			}
+		}
+		save_scope_as = target_kingdom
+	}
+	random_log_scopes = yes
+	# Find a random top liege in the area
+	scope:target_kingdom = {
+		random_in_de_jure_hierarchy = {
+			continue = { tier > tier_county }
+			limit = { #Try to pick the largest ruler in the area.
+				tier = tier_county
+				$FAITH$ = {
+					is_hostile_enough_for_holy_war_trigger = { FAITH = prev.holder.faith }
+				}
+				holder = {
+					highest_held_title_tier >= 4
+					any_realm_county = { count >= 5 }
+				}
+			}
+			alternative_limit = {
+				tier = tier_county
+				$FAITH$ = {
+					is_hostile_enough_for_holy_war_trigger = { FAITH = prev.holder.faith }
+				}
+				holder = {
+					highest_held_title_tier >= 3
+					any_realm_county = { count >= 5 }
+				}
+			}
+			alternative_limit = {
+				tier = tier_county
+				$FAITH$ = {
+					is_hostile_enough_for_holy_war_trigger = { FAITH = prev.holder.faith }
+				}
+				holder = {
+					highest_held_title_tier >= 2
+					any_realm_county = { count >= 5 }
+				}
+			}
+			alternative_limit = {
+				tier = tier_county
+				$FAITH$ = {
+					is_hostile_enough_for_holy_war_trigger = { FAITH = prev.holder.faith }
+				}
+			}
+			alternative_limit = {
+				tier = tier_kingdom
+				$FAITH$ = {
+					is_hostile_enough_for_holy_war_trigger = { FAITH = prev.holder.faith }
+				}
+			}
+			holder = {
+				save_scope_as = target_character
+			}
+		}
+	}
+}
+
+pledge_ghw_piety_gain_effect = {
+	if = {
+		limit = { highest_held_title_tier = 5 }
+		add_piety = 150
+	}
+	if = {
+		limit = { highest_held_title_tier = 4 }
+		add_piety = 120
+	}
+	if = {
+		limit = { highest_held_title_tier = 3 }
+		add_piety = 90
+	}
+	if = {
+		limit = { highest_held_title_tier = 2 }
+		add_piety = 60
+	}
+	if = {
+		limit = { highest_held_title_tier = 1 }
+		add_piety = 30
+	}
+}
+
+pledge_ghw_piety_loss_effect = {
+	if = {
+		limit = { highest_held_title_tier = tier_empire }
+		add_piety = massive_piety_loss
+	}
+	if = {
+		limit = { highest_held_title_tier = tier_kingdom }
+		add_piety = major_piety_loss
+	}
+	if = {
+		limit = { highest_held_title_tier <= tier_duchy }
+		add_piety = medium_piety_loss
+	}
+}
+
+pledge_ghw_war_chest_prestige_effect = { #To be fired within the scope of an Attacker of the correct Faith.
+	if = {
+		limit = { prev = { highest_held_title_tier = 5 } }
+		change_war_chest_prestige =  3000
+	}
+	if = {
+		limit = { prev = { highest_held_title_tier = 4 } }
+		change_war_chest_prestige =  1500
+	}
+	if = {
+		limit = { prev = { highest_held_title_tier = 3 } }
+		change_war_chest_prestige =  1000
+	}
+	if = {
+		limit = { prev = { highest_held_title_tier = 2 } }
+		change_war_chest_prestige =  500
+	}
+	if = {
+		limit = { prev = { highest_held_title_tier = 1 } }
+		change_war_chest_prestige =  250
+	}
+}
+
+pledge_ghw_war_chest_piety_effect = { #To be fired within the scope of an Attacker of the correct Faith.
+	if = {
+		limit = { prev = { highest_held_title_tier = 5 } }
+		change_war_chest_piety =  1200
+	}
+	if = {
+		limit = { prev = { highest_held_title_tier = 4 } }
+		change_war_chest_piety =  600
+	}
+	if = {
+		limit = { prev = { highest_held_title_tier = 3 } }
+		change_war_chest_piety =  300
+	}
+	if = {
+		limit = { prev = { highest_held_title_tier = 2 } }
+		change_war_chest_piety =  150
+	}
+	if = {
+		limit = { prev = { highest_held_title_tier = 1 } }
+		change_war_chest_piety =  75
+	}
+}
+
+unpledge_ghw_war_chest_prestige_effect = { #To be fired within the ghw scope, assuming that the prev scope is the character joining it as an attacker.
+	if = {
+		limit = { prev = { highest_held_title_tier = 5 } }
+		change_war_chest_prestige =  -3000
+	}
+	if = {
+		limit = { prev = { highest_held_title_tier = 4 } }
+		change_war_chest_prestige =  -1500
+	}
+	if = {
+		limit = { prev = { highest_held_title_tier = 3 } }
+		change_war_chest_prestige =  -1000
+	}
+	if = {
+		limit = { prev = { highest_held_title_tier = 2 } }
+		change_war_chest_prestige =  -500
+	}
+	if = {
+		limit = { prev = { highest_held_title_tier = 1 } }
+		change_war_chest_prestige =  -250
+	}
+}
+
+unpledge_ghw_war_chest_piety_effect = { #To be fired within the scope of an Attacker of the correct Faith.
+	if = {
+		limit = { prev = { highest_held_title_tier = 5 } }
+		change_war_chest_piety =  -1200
+	}
+	if = {
+		limit = { prev = { highest_held_title_tier = 4 } }
+		change_war_chest_piety =  -600
+	}
+	if = {
+		limit = { prev = { highest_held_title_tier = 3 } }
+		change_war_chest_piety =  -300
+	}
+	if = {
+		limit = { prev = { highest_held_title_tier = 2 } }
+		change_war_chest_piety =  -150
+	}
+	if = {
+		limit = { prev = { highest_held_title_tier = 1 } }
+		change_war_chest_piety =  -75
+	}
+}
+
+ghw_set_new_war_declarer_effect = {
+	#Determine Sponsor. (effect fired within FAITH scope)
+	if = {
+		limit = {
+			exists = religious_head
+		}
+		religious_head = {
+			save_scope_as = ghw_sponsor
+		}
+		great_holy_war = {
+			set_war_declarer = scope:ghw_sponsor
+			if = {
+				limit = {
+					NOT = { has_pledged_attacker = scope:ghw_sponsor }
+				}
+				pledge_attacker = scope:ghw_sponsor
+			}
+		}
+	}
+}
+
+#Used within an undirected ghw scope to determine the Beneficiary selected by the war's leader.
+#Notable scopes:
+#the_faith
+#target_faith
+#target_kingdom
+#ghw_sponsor
+
+undirected_ghw_recipient_selection_effect = {
+	#Prioritize Holder of the target_kingdom.
+	#Then Claimants of the target_kingdom.
+	#And so forth...
+	if = { #The Kingdom is held by a member of the Faith, the Crusade is attempting to restore some of its provinces.
+		limit = {
+			scope:target_kingdom = {
+				exists = holder
+				holder = {
+					this.faith = scope:the_faith
+					NOR = {
+						has_trait = excommunicated
+						has_trait = incapable
+						has_trait = devoted
+					}
+				}
+			}
+		}
+		scope:the_faith.great_holy_war = {
+			set_designated_winner = scope:target_kingdom.holder
+		}
+	}
+	else_if = { #Claimants of the King-title belonging to the Faith exist.
+		limit = {
+			scope:target_kingdom = {
+				any_claimant = {
+					this.faith = scope:the_faith
+					NOR = {
+						has_trait = excommunicated
+						has_trait = incapable
+						has_trait = devoted
+					}
+				}
+			}
+		}
+		scope:target_kingdom = {
+			random_claimant = {
+				limit = {
+					this.faith = scope:the_faith
+					is_adult = yes
+					has_trait = zealous
+					NOR = {
+						has_trait = excommunicated
+						has_trait = incapable
+						has_trait = devoted
+					}
+					OR = {
+						AND = {
+							is_male = yes
+							faith = { has_doctrine = doctrine_gender_male_dominated }
+						}
+						AND = {
+							is_female = yes
+							faith = { has_doctrine = doctrine_gender_female_dominated }
+						}
+						NOR = {
+							faith = { has_doctrine = doctrine_gender_male_dominated }
+							faith = { has_doctrine = doctrine_gender_female_dominated }
+						}
+					}
+					reverse_opinion = {
+						target = scope:ghw_sponsor
+						value >= 0
+					}
+				}
+				alternative_limit = {
+					this.faith = scope:the_faith
+					is_adult = yes
+					NOR = {
+						has_trait = excommunicated
+						has_trait = incapable
+						has_trait = devoted
+					}
+					OR = {
+						AND = {
+							is_female = no
+							faith = { has_doctrine = doctrine_gender_male_dominated }
+						}
+						AND = {
+							is_female = yes
+							faith = { has_doctrine = doctrine_gender_female_dominated }
+						}
+						NOR = {
+							faith = { has_doctrine = doctrine_gender_male_dominated }
+							faith = { has_doctrine = doctrine_gender_female_dominated }
+						}
+					}
+					reverse_opinion = {
+						target = scope:ghw_sponsor
+						value >= 0
+					}
+				}
+				alternative_limit = {
+					this.faith = scope:the_faith
+					is_adult = yes
+					NOR = {
+						has_trait = excommunicated
+						has_trait = incapable
+						has_trait = devoted
+					}
+					OR = {
+						AND = {
+							is_female = no
+							faith = { has_doctrine = doctrine_gender_male_dominated }
+						}
+						AND = {
+							is_female = yes
+							faith = { has_doctrine = doctrine_gender_female_dominated }
+						}
+						NOR = {
+							faith = { has_doctrine = doctrine_gender_male_dominated }
+							faith = { has_doctrine = doctrine_gender_female_dominated }
+						}
+					}
+				}
+				alternative_limit = {
+					this.faith = scope:the_faith
+					NOR = {
+						has_trait = excommunicated
+						has_trait = incapable
+						has_trait = devoted
+					}
+					OR = {
+						AND = {
+							is_female = no
+							faith = { has_doctrine = doctrine_gender_male_dominated }
+						}
+						AND = {
+							is_female = yes
+							faith = { has_doctrine = doctrine_gender_female_dominated }
+						}
+						NOR = {
+							faith = { has_doctrine = doctrine_gender_male_dominated }
+							faith = { has_doctrine = doctrine_gender_female_dominated }
+						}
+					}
+				}
+				alternative_limit = {
+					this.faith = scope:the_faith
+					NOR = {
+						has_trait = excommunicated
+						has_trait = incapable
+						has_trait = devoted
+					}
+				}
+				save_scope_as = ghw_claimant
+			}
+		}
+		scope:the_faith.great_holy_war = {
+			set_designated_winner = scope:ghw_claimant
+		}
+	}
+	else = { #Else leave Open: the Recepient of the top contributor gets it.
+		scope:the_faith.great_holy_war = {
+			reset_designated_winner = yes
+		}
+	}
+}
+
+undirected_ghw_recipient_selection_on_death_effect = {
+	#Prioritize Holder of the target_kingdom.
+	#Then Claimants of the target_kingdom.
+	#And so forth...
+	if = { #The Kingdom is held by a member of the Faith, the Crusade is attempting to restore some of its provinces.
+		limit = {
+			scope:target_kingdom = {
+				exists = holder
+				holder = {
+					this.faith = scope:the_faith
+					NOR = {
+						has_trait = excommunicated
+						has_trait = incapable
+						has_trait = devoted
+						this = root
+					}
+				}
+			}
+		}
+		scope:the_faith.great_holy_war = {
+			set_designated_winner = scope:target_kingdom.holder
+		}
+		scope:target_kingdom.holder = {
+			save_scope_as = ghw_claimant
+		}
+	}
+	else_if = { #Claimants of the King-title belonging to the Faith exist.
+		limit = {
+			scope:target_kingdom = {
+				any_claimant = {
+					this.faith = scope:the_faith
+					NOR = {
+						has_trait = excommunicated
+						has_trait = incapable
+						has_trait = devoted
+						this = root
+					}
+				}
+			}
+		}
+		scope:target_kingdom = {
+			random_claimant = {
+				limit = {
+					this.faith = scope:the_faith
+					is_adult = yes
+					has_trait = zealous
+					NOR = {
+						has_trait = excommunicated
+						has_trait = incapable
+						has_trait = devoted
+						this = root
+					}
+					OR = {
+						AND = {
+							is_female = no
+							faith = { has_doctrine = doctrine_gender_male_dominated }
+						}
+						AND = {
+							is_female = yes
+							faith = { has_doctrine = doctrine_gender_female_dominated }
+						}
+						NOR = {
+							faith = { has_doctrine = doctrine_gender_male_dominated }
+							faith = { has_doctrine = doctrine_gender_female_dominated }
+						}
+					}
+					reverse_opinion = {
+						target = scope:ghw_sponsor
+						value >= 0
+					}
+				}
+				alternative_limit = {
+					this.faith = scope:the_faith
+					is_adult = yes
+					NOR = {
+						has_trait = excommunicated
+						has_trait = incapable
+						has_trait = devoted
+						this = root
+					}
+					OR = {
+						AND = {
+							is_female = no
+							faith = { has_doctrine = doctrine_gender_male_dominated }
+						}
+						AND = {
+							is_female = yes
+							faith = { has_doctrine = doctrine_gender_female_dominated }
+						}
+						NOR = {
+							faith = { has_doctrine = doctrine_gender_male_dominated }
+							faith = { has_doctrine = doctrine_gender_female_dominated }
+						}
+					}
+					reverse_opinion = {
+						target = scope:ghw_sponsor
+						value >= 0
+					}
+				}
+				alternative_limit = {
+					this.faith = scope:the_faith
+					is_adult = yes
+					NOR = {
+						has_trait = excommunicated
+						has_trait = incapable
+						has_trait = devoted
+						this = root
+					}
+					OR = {
+						AND = {
+							is_female = no
+							faith = { has_doctrine = doctrine_gender_male_dominated }
+						}
+						AND = {
+							is_female = yes
+							faith = { has_doctrine = doctrine_gender_female_dominated }
+						}
+						NOR = {
+							faith = { has_doctrine = doctrine_gender_male_dominated }
+							faith = { has_doctrine = doctrine_gender_female_dominated }
+						}
+					}
+				}
+				alternative_limit = {
+					this.faith = scope:the_faith
+					NOR = {
+						has_trait = excommunicated
+						has_trait = incapable
+						has_trait = devoted
+						this = root
+					}
+					OR = {
+						AND = {
+							is_female = no
+							faith = { has_doctrine = doctrine_gender_male_dominated }
+						}
+						AND = {
+							is_female = yes
+							faith = { has_doctrine = doctrine_gender_female_dominated }
+						}
+						NOR = {
+							faith = { has_doctrine = doctrine_gender_male_dominated }
+							faith = { has_doctrine = doctrine_gender_female_dominated }
+						}
+					}
+				}
+				alternative_limit = {
+					this.faith = scope:the_faith
+					NOR = {
+						has_trait = excommunicated
+						has_trait = incapable
+						has_trait = devoted
+						this = root
+					}
+				}
+				save_scope_as = ghw_claimant
+			}
+		}
+		scope:the_faith.great_holy_war = {
+			set_designated_winner = scope:ghw_claimant
+		}
+	}
+	else = { #Else leave Open: the Recepient of the top contributor gets it.
+		scope:the_faith.great_holy_war = {
+			reset_designated_winner = yes
+		}
+	}
+}
+
+undirected_ghw_recipient_selection_on_victory_effect = { #Set in the event of no Recipient or Beneficiary when a Crusade is won.
+	#Prioritize Holder of the target_kingdom.
+	#Then Claimants of the target_kingdom.
+	#And so forth...
+	if = { #The Kingdom is held by a member of the Faith, the Crusade is attempting to restore some of its provinces.
+		limit = {
+			exists = scope:target_kingdom
+			exists = scope:target_kingdom.holder
+			exists = scope:the_faith.great_holy_war
+			scope:target_kingdom.holder = {
+				faith = scope:the_faith
+				NOR = {
+					has_trait = excommunicated
+					has_trait = incapable
+					has_trait = devoted
+				}
+			}
+		}
+		scope:target_kingdom.holder = {
+			save_scope_as = title_recipient
+		}
+		scope:the_faith.great_holy_war = {
+			set_designated_winner = scope:title_recipient
+		}
+	}
+	else_if = { #Claimants of the King-title belonging to the Faith exist.
+		limit = {
+			exists = scope:target_kingdom
+			exists = scope:the_faith.great_holy_war
+			scope:target_kingdom = {
+				any_claimant = {
+					faith = scope:the_faith
+					NOR = {
+						has_trait = excommunicated
+						has_trait = incapable
+						has_trait = devoted
+					}
+				}
+			}
+		}
+		scope:target_kingdom = {
+			random_claimant = {
+				limit = {
+					faith = scope:the_faith
+					is_adult = yes
+					has_trait = zealous
+					NOR = {
+						has_trait = excommunicated
+						has_trait = incapable
+						has_trait = devoted
+					}
+					OR = {
+						AND = {
+							is_female = no
+							faith = { has_doctrine = doctrine_gender_male_dominated }
+						}
+						AND = {
+							is_female = yes
+							faith = { has_doctrine = doctrine_gender_female_dominated }
+						}
+						NOR = {
+							faith = { has_doctrine = doctrine_gender_male_dominated }
+							faith = { has_doctrine = doctrine_gender_female_dominated }
+						}
+					}
+					reverse_opinion = {
+						target = scope:ghw_sponsor
+						value >= 0
+					}
+				}
+				alternative_limit = {
+					this.faith = scope:the_faith
+					is_adult = yes
+					NOR = {
+						has_trait = excommunicated
+						has_trait = incapable
+						has_trait = devoted
+					}
+					OR = {
+						AND = {
+							is_female = no
+							faith = { has_doctrine = doctrine_gender_male_dominated }
+						}
+						AND = {
+							is_female = yes
+							faith = { has_doctrine = doctrine_gender_female_dominated }
+						}
+						NOR = {
+							faith = { has_doctrine = doctrine_gender_male_dominated }
+							faith = { has_doctrine = doctrine_gender_female_dominated }
+						}
+					}
+					reverse_opinion = {
+						target = scope:ghw_sponsor
+						value >= 0
+					}
+				}
+				alternative_limit = {
+					this.faith = scope:the_faith
+					is_adult = yes
+					NOR = {
+						has_trait = excommunicated
+						has_trait = incapable
+						has_trait = devoted
+					}
+					OR = {
+						AND = {
+							is_female = no
+							faith = { has_doctrine = doctrine_gender_male_dominated }
+						}
+						AND = {
+							is_female = yes
+							faith = { has_doctrine = doctrine_gender_female_dominated }
+						}
+						NOR = {
+							faith = { has_doctrine = doctrine_gender_male_dominated }
+							faith = { has_doctrine = doctrine_gender_female_dominated }
+						}
+					}
+				}
+				alternative_limit = {
+					this.faith = scope:the_faith
+					NOR = {
+						has_trait = excommunicated
+						has_trait = incapable
+						has_trait = devoted
+					}
+					OR = {
+						AND = {
+							is_female = no
+							faith = { has_doctrine = doctrine_gender_male_dominated }
+						}
+						AND = {
+							is_female = yes
+							faith = { has_doctrine = doctrine_gender_female_dominated }
+						}
+						NOR = {
+							faith = { has_doctrine = doctrine_gender_male_dominated }
+							faith = { has_doctrine = doctrine_gender_female_dominated }
+						}
+					}
+				}
+				alternative_limit = {
+					this.faith = scope:the_faith
+					NOR = {
+						has_trait = excommunicated
+						has_trait = incapable
+						has_trait = devoted
+					}
+				}
+				save_scope_as = title_recipient
+			}
+		}
+		scope:the_faith.great_holy_war = {
+			set_designated_winner = scope:title_recipient
+		}
+	}
+	else_if = { #If truly no character is available, just pick a random faithful.
+		limit = {
+			exists = scope:ghw_sponsor
+			exists = scope:the_faith.great_holy_war
+			scope:ghw_sponsor = {
+				any_courtier = {
+					is_adult = yes
+					is_ai = yes
+					NOR = {
+						has_trait = excommunicated
+						has_trait = incapable
+						has_trait = devoted
+					}
+					faith = scope:the_faith
+				}
+			}
+		}
+		scope:ghw_sponsor = {
+			random_courtier = {
+				limit = {
+					has_character_flag = flag_is_ghw_fallback_recipient
+					is_adult = yes
+					is_ai = yes
+					NOR = {
+						has_trait = excommunicated
+						has_trait = incapable
+						has_trait = devoted
+					}
+					faith = scope:the_faith
+				}
+				alternative_limit = {
+					scope:the_faith = { has_doctrine = doctrine_gender_male_dominated }
+					is_female = no
+					is_adult = yes
+					is_ai = yes
+					NOR = {
+						has_trait = excommunicated
+						has_trait = incapable
+						has_trait = devoted
+					}
+					faith = scope:the_faith
+				}
+				alternative_limit = {
+					scope:the_faith = { has_doctrine = doctrine_gender_female_dominated }
+					is_female = yes
+					is_adult = yes
+					is_ai = yes
+					NOR = {
+						has_trait = excommunicated
+						has_trait = incapable
+						has_trait = devoted
+					}
+					faith = scope:the_faith
+				}
+				alternative_limit = {
+					is_adult = yes
+					is_ai = yes
+					NOR = {
+						has_trait = excommunicated
+						has_trait = incapable
+						has_trait = devoted
+					}
+					faith = scope:the_faith
+				}
+				save_scope_as = title_recipient
+			}
+		}
+		scope:the_faith.great_holy_war = {
+			set_designated_winner = scope:title_recipient
+		}
+	}
+}
+
+# SECRET FAITH EFFECTS
+
+# When someone is demanded to change their faith, find out which of their spouses/family will also convert
+grab_spouses_and_family_to_convert_effect = {
+	scope:recipient = {
+		# Add yourself
+		add_to_list = spouses_and_family_to_convert
+		add_character_flag = spouse_or_family_to_convert
+		# Spouses convert
+		every_spouse = {
+			limit = {
+				OR = {
+					is_courtier_of = scope:actor
+					is_courtier_of = scope:recipient
+					is_vassal_of = scope:actor
+					is_vassal_of = scope:recipient
+				}
+				NOT = { has_character_flag = spouse_or_family_to_convert }
+			}
+		add_to_list = spouses_and_family_to_convert
+		add_character_flag = spouse_or_family_to_convert
+		}
+		# Family in recipient's court also convert
+		if = {
+			limit = {
+				is_ruler = yes
+			}
+			every_close_or_extended_family_member = {
+				custom = all_family_members_at_court
+				limit = {
+					exists = employer
+					employer = scope:recipient
+					faith = scope:recipient.faith
+					NOT = { faith = scope:actor.faith }
+					is_ai = yes
+					NOT = { has_character_flag = spouse_or_family_to_convert }
+					# Don't add the recipient twice
+					#NOT = { root = scope:recipient }
+				}
+				add_to_list = spouses_and_family_to_convert
+				add_character_flag = spouse_or_family_to_convert
+			}
+		}
+	}
+	every_in_list = {
+		list = spouses_and_family_to_convert
+		remove_character_flag = spouse_or_family_to_convert
+	}
+}
+
+# Default conversion effect; allows the recipient to demure whether to keep a secret faith or not
+demand_conversion_interaction_effect = {
+	grab_spouses_and_family_to_convert_effect = yes
+	show_as_tooltip = {
+		convert_family_to_faith_effect = {
+			FALSE_CONVERSION = no
+			FORCED = yes
+		}
+	}
+	every_in_list = {
+		list = spouses_and_family_to_convert
+		# Don't say that people can convert when you know they can't
+		if = {
+			limit = {
+				faith = scope:recipient.faith
+				NOT = { has_crypto_religionist_secret_known_by_character_trigger = { CHARACTER = scope:actor } }
+				NOT =  { exists = secret_faith }
+			}
+			custom_tooltip = ask_for_conversion_interaction_accept_tooltip
+		}
+	}
+	scope:recipient = {
+		trigger_event = false_conversion.0900
+	}
+}
+
+# Switch a character to the specified faith and keep their old faith as a secret (or not)
+# Assumes that spouses and family to convert have already been grabbed
+convert_family_to_faith_effect = {
+	every_in_list = {
+		list = spouses_and_family_to_convert
+		# Make crypto-religionists of them, if applicable
+		if = {
+			limit = {
+				$FALSE_CONVERSION$ = yes
+				faith = scope:recipient.faith
+			}
+			scope:recipient.faith = { save_temporary_scope_as = old_faith }
+			set_character_faith = scope:actor.faith
+			make_character_crypto_religionist_effect = { CRYPTO_RELIGION = scope:old_faith }
+			# Grab the character's recently added crypto secret
+			if = {
+				limit = {
+					any_secret = { secret_type = secret_crypto_religionist }
+					exists = secret_faith
+					# Ignore the crypto secret if it's not new
+					# This prevents the edge case of family members finding out about other family's different crypto faiths
+					secret_faith = scope:old_faith
+				}
+				random_secret = {
+					limit = {
+						secret_type = secret_crypto_religionist
+					}
+					save_scope_as = crypto_religionist_secret
+				}
+			}
+			# Make the secret known to all other family members
+			every_in_list = {
+				list = spouses_and_family_to_convert
+				if = {
+					limit = {
+						exists = scope:crypto_religionist_secret
+						NOT = { prev = this }
+					}
+					scope:crypto_religionist_secret = {
+						reveal_to_without_events_effect = { CHARACTER = prev }
+					}
+				}
+			}
+		}
+		else = {
+			set_character_faith = scope:actor.faith
+		}
+		if = {
+			limit = {
+				$FORCED$ = yes
+			}
+			hidden_effect = {
+				add_character_flag = {
+					flag = converted_by_forced_conversion_interaction
+					years = 5
+				}
+			}
+		}
+	}
+	scope:recipient = {
+		bastard_to_wild_oat_conversion_interaction_effect = yes
+	}
+	# Struggle Catalysts.
+	if = {
+		limit = {
+			scope:recipient = { is_important_or_vip_struggle_character = yes }
+			scope:actor = {
+				any_character_struggle = {
+					involvement = involved
+					activate_struggle_catalyst_secondary_character_involvement_involved_trigger = {
+						CATALYST = catalyst_demanding_important_conversion
+						CHAR = scope:recipient
+					}
+				}
+			}
+		}
+		scope:actor = {
+			every_character_struggle = {
+				involvement = involved
+				limit = {
+					activate_struggle_catalyst_secondary_character_involvement_involved_trigger = {
+						CATALYST = catalyst_demanding_important_conversion
+						CHAR = scope:recipient
+					}
+				}
+				activate_struggle_catalyst = {
+					catalyst = catalyst_demanding_important_conversion
+					character = scope:actor
+				}
+			}
+		}
+	}
+}
+
+make_character_crypto_religionist_effect = {
+	if = {
+		limit = {
+			NOR = {
+				any_secret = { secret_type = secret_crypto_religionist }
+				exists = secret_faith
+				$CRYPTO_RELIGION$ = faith
+			}
+		}
+		hidden_effect = { set_character_secret_faith = $CRYPTO_RELIGION$ }
+		add_secret = {
+			type = secret_crypto_religionist
+		}
+	}
+}
+
+make_county_crypto_religionists_effect = {
+	set_variable = {
+		name = false_convert
+		value = $FAITH$
+		days = 18250
+	}
+	add_county_modifier = {
+		modifier = false_convert_modifier
+		years = 50
+	}
+}
+
+# Makes the target a crypto-religionist of the root's faith and exposes both secrets to one another
+# Owner_Crypto_Secret needs to be already scoped before calling this effect
+spread_crypto_religion_to_target_effect = {
+	$TARGET$ = {
+		if = {
+			limit = {
+				NOT = {
+					any_secret = { secret_type = secret_crypto_religionist }
+				}
+			}
+
+			make_character_crypto_religionist_effect = { CRYPTO_RELIGION = scope:owner.secret_faith }
+			random_secret = {
+				limit = { secret_type = secret_crypto_religionist }
+				reveal_to_without_events_effect = { CHARACTER = root }
+			}
+			if = {
+				limit = {
+					NOT = { scope:owner_crypto_secret = { is_known_by = $TARGET$ } }
+				}
+				scope:owner_crypto_secret = {
+					reveal_to_without_events_effect = { CHARACTER = $TARGET$ }
+				}
+			}
+		}
+	}
+}
+
+child_secret_faith_conversion_success_effect = {
+	scope:child = {
+		make_character_crypto_religionist_effect = {
+			CRYPTO_RELIGION = scope:guardian.secret_faith
+		}
+	}
+	# Notify the actor
+	scope:guardian = {
+		send_interface_message = {
+			type = event_religious_good
+			title = secret_faith.1001.message
+			left_icon = scope:child
+			scope:child = {
+				random_secret = {
+					limit = {
+						NOT = { is_known_by = scope:guardian }
+						secret_type = secret_crypto_religionist
+					}
+					reveal_to = scope:guardian
+				}
+				add_opinion = {
+					target = PREV
+					modifier = impressed_opinion
+					opinion = 20
+				}
+			}
+			random_secret = {
+				limit = {
+					NOT = { is_known_by = scope:child }
+					secret_type = secret_crypto_religionist
+				}
+				reveal_to = scope:child
+			}
+		}
+	}
+}
+
+child_secret_faith_conversion_failure_effect = {
+	scope:guardian = {
+		send_interface_toast = {
+			title = child_secret_faith_conversion_failure_effect.desc
+			left_icon = scope:child
+			scope:child = {
+			 	add_opinion = {
+					target = scope:guardian
+					modifier = suspicion_opinion
+					opinion = -15
+				}
+			}
+		}
+		scope:guardian = {
+			if = {
+				limit = { this = root }
+				hidden_effect = {
+					add_opinion = {
+						target = scope:child
+						modifier = disappointed_opinion
+						opinion = -15
+					}
+				}
+			}
+			else = {
+				add_opinion = {
+					target = scope:child
+					modifier = disappointed_opinion
+					opinion = -15
+				}
+			}
+		}
+	}
+}
+
+child_secret_faith_conversion_critical_failure_effect = {
+	hidden_effect = {
+		# Save and reveal secret
+		scope:guardian = {
+			random_secret = {
+				limit = {
+					secret_type = secret_crypto_religionist
+				}
+				save_scope_as = guardian_secret_faith_secret
+				if = {
+					limit = { NOT = { is_known_by = scope:child } }
+					reveal_to = scope:child
+				}
+			}
+		}
+		scope:child = {
+			# Inform the child's liege if relevant
+			if = {
+				limit = {
+					is_ruler = yes
+					NOR = {
+						liege = this
+						liege ?= scope:guardian
+					}
+				}
+				liege = {
+					send_interface_message = {
+						type = event_religious_neutral
+						title = child_secret_faith_conversion_critical_failure_effect.liege.desc
+						left_icon = scope:child
+						right_icon = scope:guardian
+						show_as_tooltip = {
+							scope:guardian_secret_faith_secret = { expose_secret = scope:child }
+							scope:child = {
+								add_opinion = {
+									target = scope:guardian
+									modifier = hate_opinion
+									opinion = -30
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+	scope:child = {
+		# Inform the child
+		send_interface_toast = {
+			type = event_religious_neutral
+			title = child_secret_faith_conversion_critical_failure_effect.desc
+			left_icon = scope:child
+			right_icon = scope:guardian
+	 		scope:guardian_secret_faith_secret = { expose_secret = scope:child }
+		 	add_opinion = {
+				target = scope:guardian
+				modifier = hate_opinion
+				opinion = -30
+			}
+		}
+	}
+	scope:guardian = {
+		if = {
+			limit = { this = root }
+			hidden_effect = {
+				add_opinion = {
+					target = scope:child
+					modifier = hate_opinion
+					opinion = -30
+				}
+			}
+		}
+		else = {
+			add_opinion = {
+				target = scope:child
+				modifier = hate_opinion
+				opinion = -30
+			}
+		}
+	}
+}
+
+new_faith_created_conversion_effect = {
+	# Convert Capital (if of same faith as recipient's old faith)
+	if = {
+		limit = {
+			scope:recipient = {
+				is_playable_character = yes
+				highest_held_title_tier > tier_barony
+				capital_county.faith = scope:recipient.faith
+			}
+		}
+		scope:recipient.capital_county = {
+			set_county_faith = scope:actor.faith
+		}
+	}
+	grab_spouses_and_family_to_convert_effect = yes
+	convert_family_to_faith_effect = {
+		FALSE_CONVERSION = no
+		FORCED = yes
+	}
+}
+
+adopt_religion_interaction_effect = {
+	# Convert Capital (if of same faith as recipient's old faith)
+	if = {
+		limit = {
+			scope:actor = {
+				highest_held_title_tier > tier_barony
+				NOT = { capital_county.faith = scope:recipient.faith }
+			}
+		}
+		scope:actor.capital_county = {
+			set_county_faith = scope:recipient.faith
+		}
+	}
+	# Spouses and family convert
+	grab_spouses_and_family_to_convert_effect = yes
+	convert_family_to_faith_effect = {
+		FALSE_CONVERSION = no
+		FORCED = no
+	}
+}
+
+sun_trial_death_effect = {
+	scope:prisoner = {
+		death = {
+			death_reason = death_sun_trial
+			killer = scope:imprisoner
+		}
+	}
+
+	#Opinion penalties
+	every_close_or_extended_family_member = {
+		# Non-imprisoner-same-faith family upset that you threw their family out into the desert to die.
+		limit = {
+			NOT = { this = scope:imprisoner }
+			NAND = { faith = scope:imprisoner.faith }
+		}
+		custom = sun_trial_interaction.non_faith_family
+		add_opinion = {
+			target = scope:imprisoner
+			modifier = executed_close_family
+		}
+	}	
+}
+
+sun_trial_survival_effect = {
+	scope:prisoner = {
+		release_from_prison = yes
+
+		# Non-imprisoner-same-faith are upset that you threw them out into the desert to die.
+		if = { 	
+			limit = {
+				NAND = {
+					faith = scope:imprisoner.faith
+					ai_zeal >= low_positive_ai_value
+				}
+			}
+			add_opinion = {
+				target = scope:imprisoner
+				modifier = angry_opinion
+				opinion = -40
+			}
+		}
+		
+		# imprisoner-same-faith gain a bonus if they survive the sun trial.
+		if = {
+			limit = {
+				faith = scope:imprisoner.faith
+			}
+			add_character_modifier = {
+				modifier = blessed_by_the_sun_modifier
+				years = 15
+			}
+		}
+
+		# Don't notify the player that they were released from prison (they were already released as part of the interaction).
+		hidden_effect = {
+			add_character_flag = {
+				flag = block_for_prison_release_notification
+				days = 3
+			}
+		}
+	}
+	scope:imprisoner = {
+		consume_imprisonment_reasons = scope:prisoner
+		hidden_effect = {
+			consume_imprisonment_reasons = scope:prisoner
+			consume_banish_reasons = scope:prisoner
+			consume_execute_reasons = scope:prisoner
+			consume_revoke_title_reason = scope:prisoner
+		}
+	}
+}
+
+humsacd_a_hof_effect = {
+	if = {
+		limit = {
+			$SACRIFICER$.faith = { has_doctrine_parameter = human_sacrifice_active }
+			$SACRIFICED_HOF$.faith = {
+				religious_head = $SACRIFICED_HOF$
+				NOT = { has_doctrine_parameter = human_sacrifice_active }
+			}
+		}
+		$SACRIFICER$ = {
+			# Save scopes for future events.
+			save_scope_as = sacrificer
+			# Forever tarnished to members of the faith.
+			add_to_variable_list = {
+				name = humsacd_hofs
+				target = $SACRIFICED_HOF$.faith
+			}
+		}
+		# Give $SACRIFICED_HOF$'s faith some fervour for this atrocity.
+		$SACRIFICED_HOF$ = {
+			# Save scopes for future events.
+			save_scope_as = sacrificed_hof
+			# Up fervour.
+			faith = {
+				change_fervor = {
+					value = hof_humsacd_fervour_gain
+					desc = fervor_sacrificed_our_head_of_faith
+				}
+			}
+			# Martyr the HoF explicitly if possible.
+			if = {
+				limit = {
+					OR = {
+						has_bad_nickname = yes
+						has_any_nickname = no
+					}
+				}
+				give_nickname = nick_the_martyr
+			}
+		}
+		# Inform players of the consequences.
+		## Scope:sacrificer is now cheaper to holy war if they're a separate faith.
+		if = {
+			limit = {
+				NOT = { scope:sacrificer.faith = scope:sacrificed_hof.faith }
+			}
+			every_player = {
+				limit = { faith = scope:sacrificed_hof.faith }
+				trigger_event = fp1_other_decisions.0021
+			}
+		}
+		# Inform scope:sacrificer about any consequences if appropriate.
+		scope:sacrificer = {
+			# ... Eventually.
+			if = {
+				limit = {
+					NOT = { faith = scope:sacrificed_hof.faith }
+				}
+				trigger_event = {
+					id = fp1_other_decisions.0022
+					months = 1
+				}
+			}
+		}
+	}
+}
+
+give_piety_for_clinging_to_state_faith_effect = {
+	if = {
+		limit = { top_liege.primary_title.state_faith ?= scope:recipient.faith }
+		add_piety = 200
+	}
+}

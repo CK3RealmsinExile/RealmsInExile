@@ -1,0 +1,476 @@
+﻿#################################################
+# TRIGGER LIST 									#
+#################################################
+
+mpo_has_greatest_of_khans_nickname_trigger = {
+	OR = {
+		has_nickname = nick_genghis_khan
+		has_nickname = nick_cengiz_khan
+		has_nickname = nick_yekhe_khagan
+		has_nickname = nick_dort_yonlug_khagan
+		has_nickname = nick_tengri_khagan
+		has_nickname = nick_cihangir
+		has_nickname = nick_culture_khagan
+	}
+}
+mpo_has_gok_mongol_empire_trigger = {
+	OR = {
+		# has_title = title:e_mongol_empire #LotR
+		custom_tooltip = {
+			text = gok_title_trigger
+			exists = global_var:greatest_of_khans_title
+			any_held_title = {
+				this = global_var:greatest_of_khans_title
+			}
+		}
+	}
+}
+
+mpo_gok_coalition_member_trigger = {
+	save_temporary_scope_as = foe
+	
+	in_diplomatic_range = root
+	is_ai = yes
+	OR = {
+		is_landless_nomad = yes
+		is_landless_adventurer = yes
+		is_landed = yes
+	}
+	NOR = {
+		this = root
+		top_liege = root
+		is_allied_to = root
+		has_relation_friend = root
+		has_relation_blood_brother = root
+		opinion = {
+			target = root
+			value >= 100
+		}
+		
+		highest_held_title_tier < tier_county
+		government_has_flag = government_is_herder
+		is_imprisoned_by = root
+		is_obedient_to = root
+	}
+	##Only relatively strong non-nomads will mess with you
+	trigger_if = {
+		limit = {
+			NOT = {
+				government_has_flag = government_is_nomadic
+			}
+		}
+		OR = {
+			AND = {
+				highest_held_title_tier >= tier_duchy
+				sub_realm_size >= 8
+			}
+			is_confederation_member = yes
+		}
+	}
+	##Only house members who dislike you will oppose you
+	trigger_if = {
+		limit = {
+			OR = {
+				AND = {
+					exists = house
+					exists = root.house
+					house = {
+						this = root.house
+					}
+				}
+				#also those with direct alliances to root
+				is_allied_to = root
+			}
+			
+		}
+		opinion = {
+			target = root
+			value < 0
+		}
+	}
+	#Lower tier rulers
+	trigger_if = {
+		limit = {
+			highest_held_title_tier < tier_duchy
+		}
+		OR = {
+			NOT = {
+				has_dread_level_towards = {
+					target = root
+					level >= 2
+				}
+			}
+			faith = {
+				faith_hostility_level = {
+					target = root.faith
+					value > faith_astray_level
+				}
+			}
+			opinion = {
+				target = root
+				value <= -40
+			}
+			is_confederation_member = yes
+			root = {
+				any_land_neighboring_realm_with_tributaries_owner = {
+					this = scope:foe
+				}
+			}
+		}
+		
+	}
+}
+
+mpo_gok_submitting_coward_trigger = {
+	is_ai = yes
+	is_confederation_member = no
+	OR = {
+		is_tributary_of = root
+		is_tributary = no
+	}
+	is_landed = yes
+	highest_held_title_tier < tier_duchy
+	NOT = {
+		has_relation_rival = root
+	}
+	OR = {
+		is_imprisoned_by = root
+		government_has_flag = government_is_herder
+		has_relation_friend = root
+		AND = {
+			exists = root.house
+			house ?= root.house
+			NOT = {
+				is_in_list = anti_gok_coalition_members
+			}
+		}
+		opinion = {
+			target = root
+			value >= 100
+		}
+		ai_boldness <= medium_negative_ai_value
+		has_dread_level_towards = {
+			target = root
+			level >= 2
+		}
+		is_tributary_of = root
+		AND = {
+			exists = house
+			exists = root.house
+			house = {
+				this = root.house
+			}
+			opinion = {
+				target = root
+				value >= 0
+			}
+		}
+	}
+	trigger_if = {
+		limit = {
+			current_military_strength > 0
+			root.current_military_strength > 0
+		}
+		current_military_strength < root.current_military_strength
+	}
+	NOT = {
+		any_character_war = {
+			OR = {
+				primary_defender = prev
+				AND = {
+					primary_attacker = prev
+					primary_defender = {
+						top_liege = root
+					}
+				}
+				primary_defender = {
+					is_ai = no
+				}
+			}
+		}
+	}
+}
+
+mpo_war_of_defiance_notified_player_trigger = {
+	NOT = {
+		this = root
+	}
+	OR = {
+		top_liege = root
+		top_suzerain = root
+		any_character_situation = {
+			this = situation:the_great_steppe
+		}
+		any_relation = {
+			type = rival
+			this = root
+		}
+		#Those within same de jure empire
+		capital_county ?= {
+			empire = {
+				any_de_jure_county = {
+					holder.top_liege = {
+						this = root
+					}
+				}
+			}
+		}
+		capital_county ?= {
+			empire = {
+				any_de_jure_county = {
+					holder.top_suzerain = {
+						this = root
+					}
+				}
+			}
+		}
+		AND = {
+			exists = root.capital_county
+			realm_to_title_distance_squared = {
+				title = root.capital_county
+				value <= squared_distance_almost_massive
+			}
+		}
+	}
+}
+
+gok_desirable_vassal_trigger = {
+	OR = {
+		ai_boldness <= medium_negative_ai_value
+		has_trait = loyal
+		is_obedient_to = scope:gok
+		has_any_good_relationship_with_character_trigger = { CHARACTER = scope:gok }
+		AND = {
+			exists = scope:gok.dynasty
+			dynasty ?= scope:gok.dynasty
+		}
+		is_allied_to = scope:gok
+		opinion = {
+			target = scope:gok
+			value >= 70
+		}
+	}
+}
+mpo_greatest_of_khans_0030_willing_nomad_vassal = {
+	OR = {
+		government_has_flag = government_is_nomadic
+		government_has_flag = government_is_herder
+	}
+	OR = {
+		is_obedient = yes
+		opinion = {
+			target = liege
+			value >= 0
+		}
+		has_dread_level_towards = {
+			target = liege
+			level >= 1
+		}
+	}
+	NOR = {
+		is_at_war_with = liege
+		has_trait = stubborn
+		culture = {
+			has_cultural_tradition = tradition_staunch_traditionalists
+		}
+	}
+}
+
+mpo_greatest_of_khans_0030_dominated_nomad_vassal = {
+	OR = {
+		government_has_flag = government_is_nomadic
+		government_has_flag = government_is_herder
+	}
+	OR = {
+		is_obedient = yes
+		opinion = {
+			target = liege
+			value >= 60
+		}
+		has_dread_level_towards = {
+			target = liege
+			level >= 2
+		}
+	}
+	NOR = {
+		is_at_war_with = liege
+		has_trait = stubborn
+		culture = {
+			OR ={
+				has_cultural_tradition = tradition_staunch_traditionalists
+				has_cultural_tradition = tradition_quarrelsome
+				has_cultural_tradition = tradition_isolationist
+			}
+		}
+	}
+}
+
+mpo_greatest_of_khans_0030_willing_sedentary_vassal = {
+	NOR = {
+		government_has_flag = government_is_nomadic
+		government_has_flag = government_is_herder
+		government_has_flag = government_is_theocracy
+		government_has_flag = government_is_landless_adventurer
+	}
+	OR = {
+		is_obedient = yes
+		opinion = {
+			target = liege
+			value >= 0
+		}
+		has_dread_level_towards = {
+			target = liege
+			level >= 1
+		}
+	}
+	NOR = {
+		is_at_war_with = liege
+		has_trait = stubborn
+		culture = {
+			has_cultural_tradition = tradition_staunch_traditionalists
+		}
+	}
+}
+mpo_greatest_of_khans_0030_dominated_sedentary_vassal = {
+	NOR = {
+		government_has_flag = government_is_nomadic
+		government_has_flag = government_is_herder
+		government_has_flag = government_is_theocracy
+		government_has_flag = government_is_landless_adventurer
+	}
+	OR = {
+		is_obedient = yes
+		opinion = {
+			target = liege
+			value >= 50
+		}
+		has_dread_level_towards = {
+			target = liege
+			level >= 2
+		}
+	}
+	NOR = {
+		is_at_war_with = liege
+		has_trait = stubborn
+		culture = {
+			has_cultural_tradition = tradition_staunch_traditionalists
+		}
+		culture = {
+			has_cultural_tradition = tradition_legalistic
+		}
+	}
+}
+
+gok_gov_switch_valid_vassal_trigger = {
+	highest_held_title_tier >= tier_county
+	is_landed = yes
+	is_ai = yes
+	NOT = {
+		is_at_war_with = root
+	}
+	NOT = {
+		any_liege_or_above = {
+			is_ai = no
+			NOT = {
+				this = root
+			}
+		}
+	}
+	NOR = {
+		government_has_flag = government_is_theocracy 
+		government_has_flag = government_is_landless_adventurer
+	}
+}
+
+gok_willing_new_admin_vassal_trigger = {
+	gok_gov_switch_valid_vassal_trigger = yes
+	OR = {
+		mpo_greatest_of_khans_0030_dominated_nomad_vassal = yes
+		mpo_greatest_of_khans_0030_willing_sedentary_vassal = yes
+		culture = culture:greek
+		culture = {
+			any_parent_culture_or_above = {
+				this = culture:greek
+			}
+		}
+		culture = culture:han
+		culture = {
+			any_parent_culture_or_above = {
+				this = culture:han
+			}
+		}
+	}
+	NOR = {
+		government_has_flag = government_is_administrative
+		government_has_flag = government_is_tribal
+	}
+}
+
+mpo_offer_submission_or_ruin_shown_actor_trigger = {
+	has_mpo_dlc_trigger = yes
+	is_landed = yes
+	any_owned_story = {
+		OR = {
+			story_type = story_greatest_of_khans
+			# story_type = story_mongol_invasion #LotR
+		}
+	}
+}
+mpo_offer_submission_or_ruin_shown_recipient_trigger = {
+	NOT = { this = scope:actor }
+	is_landed = yes
+	NOT = { government_has_flag = cannot_be_vassal_or_liege }
+}
+mpo_offer_submission_or_ruin_valid_actor_trigger = {
+	prestige_level >= 1
+	trigger_if = {
+		limit = {
+			exists = scope:recipient
+		}
+		custom_description = {
+			text = truce_on_recipient_tt
+			NOT = {
+				any_truce_target = {
+					this = scope:recipient
+				}
+			}
+		}
+	}
+}
+mpo_offer_submission_or_ruin_valid_recipient_trigger = {
+	is_independent_ruler = yes
+	NOT = {
+		is_at_war_with = scope:actor
+	}
+	custom_description = {
+		text = was_recently_granted_independence
+		NOT = {
+			has_opinion_modifier = {
+				modifier = granted_independence_opinion
+				target = scope:actor
+			}
+		}
+	}
+	custom_description = {
+		text = not_recently_offered_submission
+		NOT = {
+			has_character_flag = accepted_gok_submission
+		}
+	}
+}
+
+#Basically just checking they are tribal (and shouldn't provide siege) or have a unique maa that's interesting to have
+#I think this will balance how much siege vs. military strength AI take as GoK
+mpo_gok_auto_cultural_maa_trigger = {
+	OR = {
+		government_has_flag = government_is_tribal
+		government_has_flag = government_is_nomadic
+		culture = {
+			OR = {
+				culture_has_archer_cavalry_maa = yes
+				# has_cultural_parameter = unlock_maa_cataphract_archers
+			}
+		}
+		
+	}
+}

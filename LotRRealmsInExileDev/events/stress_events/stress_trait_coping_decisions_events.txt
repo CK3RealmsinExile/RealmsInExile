@@ -396,10 +396,6 @@ stress_trait_coping_decisions.2002 = {
 	left_portrait = {
 		character = root
 		animation = shock
-		triggered_outfit = {
-			remove_default_outfit = yes
-			outfit_tags = { no_clothes }
-		}
 	}
 	right_portrait = {
 		character = scope:rival
@@ -444,6 +440,7 @@ stress_trait_coping_decisions.2002 = {
 				}
 			}
 		}
+		add_character_flag = is_naked
 	}
 
 	option = {
@@ -489,8 +486,312 @@ stress_trait_coping_decisions.2002 = {
 		remove_short_term_gold = 20
 		add_prestige = minor_prestige_loss
 	}
+	after = {
+		remove_character_flag = is_naked
+	}
 }
 
+##################################################
+# Brothel Bastard
+# by Joe Parkin
+# 2003-2004
+##################################################
+
+scripted_trigger potential_brothel_bastard_real_father_trigger = {
+	is_male = yes
+	is_adult = yes
+	is_attracted_to_women = yes
+	fertility > 0
+	might_cheat_on_every_partner_trigger = yes
+}
+
+stress_trait_coping_decisions.2003 = {
+	type = character_event
+	hidden = yes
+	cooldown = { years = 15 }
+
+	trigger = {
+		is_ai = no
+		# Only men have a chance of bastards this way, as real_father cannot be anonymous
+		is_male = yes
+		# Must be attracted to women
+		is_attracted_to_women = yes
+	}
+
+	immediate = {
+		# Determine real father and fire event in 9 months
+		random_list = {
+			25 = { # Real father is someone else
+				# An existing nearby character
+				location.province_owner = {
+					every_courtier_or_guest = {
+						limit = { potential_brothel_bastard_real_father_trigger = yes }
+						add_to_list = potential_real_fathers
+					}
+					every_vassal = {
+						limit = { potential_brothel_bastard_real_father_trigger = yes }
+						add_to_list = potential_real_fathers
+					}
+					every_liege_or_above = {
+						limit = { potential_brothel_bastard_real_father_trigger = yes }
+						add_to_list = potential_real_fathers
+					}
+				}
+				every_pool_character = {
+					province = root.location
+					limit = { potential_brothel_bastard_real_father_trigger = yes }
+					add_to_list = potential_real_fathers
+				}
+				random_in_list = {
+					list = potential_real_fathers
+					weight = {
+						base = 1
+						modifier = {
+							has_trait = fecund
+							add = 25
+						}
+						modifier = {
+							has_trait = lustful
+							add = 25
+						}
+						modifier = {
+							has_trait = rakish
+							add = 100
+						}
+					}
+					save_scope_as = real_father
+				}
+				# Fallback unknown real father
+				if = {
+					limit = {
+						NOT = { exists = scope:real_father }
+					}
+					create_character = {
+						location = root.location
+						culture = root.location.culture
+						faith = root.location.faith
+						template = peasant_character
+						gender = root
+						save_scope_as = real_father
+					}
+					scope:real_father = { add_character_flag = silently_disappear }
+				}
+			}
+			50 = { # You are the real father
+				trigger = { fertility > 0 }
+				modifier = {
+					add = {
+						value = fertility
+						multiply = scope:brothel_bastard_chance
+					}
+				}
+				save_scope_as = real_father
+			}
+		}
+		set_variable = {
+			name = prostitute_culture_scope
+			value = root.location.culture
+		}
+		set_variable = {
+			name = prostitute_faith_scope
+			value = root.location.faith
+		}
+		trigger_event = {
+			id = stress_trait_coping_decisions.2004
+			months = 9
+		}
+		
+		# Delete real father if generated
+		scope:real_father ?= {
+			if = {
+				limit = { has_character_flag = silently_disappear }
+				silent_disappearance_effect = yes
+			}
+		}
+	}
+}
+
+stress_trait_coping_decisions.2004 = {
+	type = character_event
+	title = stress_trait_coping_decisions.2004.t
+	desc = stress_trait_coping_decisions.2004.desc
+	theme = mental_break
+	left_portrait = { 
+		character = root
+		animation = stunned
+	}
+	right_portrait = {
+		character = scope:prostitute
+		animation = newborn
+	}
+	lower_center_portrait = scope:baby
+	override_background = { reference = market }
+
+	trigger = {
+		exists = var:prostitute_culture_scope
+		exists = var:prostitute_faith_scope
+		exists = scope:real_father
+	}
+
+	immediate = {
+		# Create brothel partner
+		create_character = {
+			location = root.location
+			template = beautiful_peasant_character
+			opposite_gender = root
+			culture = root.var:prostitute_culture_scope
+			faith = root.var:prostitute_faith_scope
+			save_scope_as = prostitute
+		}
+		# Mirror your diseases
+		hidden_effect = {
+			if = {
+				limit = { has_trait = great_pox }
+				scope:prostitute = { add_trait = great_pox }
+			}
+			if = {
+				limit = { has_trait = lovers_pox }
+				scope:prostitute = { add_trait = lovers_pox }
+			}
+		}
+		# Save characters who might be annoyed at your claiming a bastard
+		every_child = {
+			limit = {
+				NOR = {
+					has_trait = bastard
+					has_trait = wild_oat
+				}
+			}
+			add_to_list = insulted_list
+		}
+		every_spouse = { add_to_list = insulted_list }
+		every_relation = {
+			type = lover
+			add_to_list = insulted_list
+		}
+		# Create a child of real father and prostitute
+		create_character = {
+			location = root.location
+			real_father = scope:real_father
+			mother = scope:prostitute
+			dynasty = none
+			culture = scope:prostitute.culture
+			faith = scope:prostitute.faith
+			gender_female_chance = 50
+			age = 0
+			save_scope_as = baby
+		}
+		# Add bastardy trait to child
+		scope:baby = {
+			if = {
+				limit = {
+					faith = { has_doctrine = doctrine_bastardry_none }
+				}
+				add_trait = wild_oat
+			}
+			else = { add_trait = bastard }
+		}
+	}
+
+	option = { # Claim child as own
+		name = stress_trait_coping_decisions.2004.a
+		scope:baby = {
+			set_father = root
+			set_house = root.house
+		}
+		add_courtier = scope:prostitute
+		every_in_list = {
+			list = insulted_list
+			custom = stress_trait_coping_decisions_2004_a_custom
+			limit = {
+				NOR = {
+					this = scope:baby
+					this = scope:prostitute
+				}
+			}
+			add_opinion = {
+				target = root
+				modifier = angry_opinion
+				opinion = -25
+			}
+			add_opinion = {
+				target = scope:prostitute
+				modifier = angry_opinion
+				opinion = -50
+			}
+			add_opinion = {
+				target = scope:baby
+				modifier = angry_opinion
+				opinion = -50
+			}
+		}
+		add_legitimacy = major_legitimacy_loss
+		stress_impact = {
+			base = minor_stress_impact_gain
+			callous = medium_stress_impact_gain
+			paranoid = medium_stress_impact_gain
+			arrogant = medium_stress_impact_gain
+			humble = minor_stress_impact_loss
+			compassionate = medium_stress_impact_loss
+		}
+	}
+
+	option = { # Take child and mother into court, but don't acknowledge them as your own
+		name = stress_trait_coping_decisions.2004.b
+		add_piety = minor_piety_gain
+		add_courtier = scope:baby
+		add_courtier = scope:prostitute
+		every_in_list = {
+			list = insulted_list
+			custom = stress_trait_coping_decisions_2004_a_custom
+			limit = {
+				NOR = {
+					this = scope:baby
+					this = scope:prostitute
+				}
+			}
+			add_opinion = {
+				target = root
+				modifier = angry_opinion
+				opinion = -10
+			}
+			add_opinion = {
+				target = scope:prostitute
+				modifier = angry_opinion
+				opinion = -25
+			}
+			add_opinion = {
+				target = scope:baby
+				modifier = angry_opinion
+				opinion = -25
+			}
+		}
+		stress_impact = {
+			callous = minor_stress_impact_gain
+			paranoid = minor_stress_impact_gain
+			arrogant = minor_stress_impact_gain
+			greedy = minor_stress_impact_gain
+			generous = medium_stress_impact_loss
+			compassionate = minor_stress_impact_loss
+		}
+	}
+
+	option = { # Reject child and mother
+		name = stress_trait_coping_decisions.2004.c
+		stress_impact = {
+			base = medium_stress_impact_gain
+			callous = minor_stress_impact_loss
+			compassionate = medium_stress_impact_gain
+			honest = medium_stress_impact_gain
+		}
+	}
+
+	after = {
+		# Clean up variables
+		remove_variable = prostitute_culture_scope
+		remove_variable = prostitute_faith_scope
+	}
+}
 
 ###############
 #	RECLUSIVE
@@ -752,7 +1053,6 @@ stress_trait_coping_decisions.3501 = {
 	left_portrait = {
 		character = root
 		animation = pain
-		outfit_tags = { no_clothes }
 	}
 	override_background = { reference = bedchamber }
 
@@ -769,12 +1069,16 @@ stress_trait_coping_decisions.3501 = {
 		else = {
 			increase_wounds_effect = { REASON = whipping }
 		}
+		add_character_flag = is_naked
 	}
 
 	option = {
 		name = stress_trait_coping_decisions.3501.a
 		trait = flagellant
 		add_stress = major_stress_loss
+	}
+	after = {
+		remove_character_flag = is_naked
 	}
 }
 

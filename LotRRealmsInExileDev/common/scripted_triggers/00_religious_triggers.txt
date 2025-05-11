@@ -59,6 +59,50 @@ has_strong_religious_conviction_trigger = {
 
 is_christian_trigger = {
 	always = no
+	#OR = {
+	#	faith = { religion_tag = christianity_religion }
+	#}
+}
+
+# Not-non-XYZ triggers allow us to check for specific historical faiths whilst still defaulting to something positive for variant faiths.
+## E.g., looking to see if something would only be of interest to Catholics, but if we're dealing with a player-made heresy, still return true. This way mechanics will default to on rather than off (still likely to result in weird GHWs, but at least less random ones).
+not_non_catholic_standard_christian_faith_trigger = {
+	always = no
+	#NOR = {
+	#	this = faith:orthodox
+	#	this = faith:iconoclast
+	#	this = faith:coptic
+	#	this = faith:armenian_apostolic
+	#}
+}
+
+not_non_orthodox_standard_christian_faith_trigger = {
+	always = no
+	#NOR = {
+	#	this = faith:catholic
+	#	this = faith:coptic
+	#	this = faith:armenian_apostolic
+	#}
+}
+
+not_non_coptic_standard_christian_faith_trigger = {
+	always = no
+	#NOR = {
+	#	this = faith:catholic
+	#	this = faith:orthodox
+	#	this = faith:iconoclast
+	#	this = faith:armenian_apostolic
+	#}
+}
+
+not_non_armenian_standard_christian_faith_trigger = {
+	always = no
+	#NOR = {
+	#	this = faith:catholic
+	#	this = faith:orthodox
+	#	this = faith:iconoclast
+	#	this = faith:coptic
+	#}
 }
 
 is_weak_claimant_due_to_gender_trigger = {
@@ -137,7 +181,10 @@ can_be_combatant_based_on_gender_trigger = {
 				has_trait = shieldmaiden
 			}
 			# Event-based special exceptions
-			has_character_modifier = ignores_gender_army_rules
+			OR = {
+				has_character_modifier = ignores_gender_army_rules
+				has_character_modifier = mpo_destined_leader_modifier
+			}
 			AND = {
 				$ARMY_OWNER$ = { culture = { has_cultural_parameter = high_prowess_ignores_knight_restrictions } }
 				NOT = { $ARMY_OWNER$ = { culture = { has_cultural_parameter = minimum_prowess_for_knights } } }
@@ -793,6 +840,12 @@ is_preferred_heresy = {
 				faiths_are_in_dunedain_group_and_appropriate = {FAITH_1 = $ORIGIN_FAITH$ FAITH_2 = $HERETICAL_FAITH$ }
 			}
 		}
+		AND = {
+			this = faith:faith_corsair
+			scope:heretic_capital ?= {
+				title_province = { geographical_region = custom_close_corsair_coast }
+			}
+		}
 
 		#Otherwise, we don't have any special preferences.
 		AND = {
@@ -801,6 +854,7 @@ is_preferred_heresy = {
 				#religion_tag = christianity_religion #LOTR
 				religion_tag = dunedain_religion
 				#religion_tag = northmen_religion
+				this = faith:faith_corsair
 			}
 		}
 	}
@@ -1102,6 +1156,12 @@ valid_demand_conversion_conditions_trigger = {
 			}
 		}
 	}
+	scope:actor = {
+		NAND = {
+			has_trait = nomadic_philosophy
+			has_trait = zealous
+		}
+	}
 	scope:recipient = {
 		NOR = { 
 			has_trait = maiar
@@ -1231,6 +1291,25 @@ is_reincarnation_trigger = {
 
 # Used in faith scope, COUNT is number of faiths to at least have and CHARACTER is who must own them
 num_realm_holy_sites_faithful_holders = {
+	$CHARACTER$ = { save_temporary_scope_as = root_scope }
+	trigger_if = {
+		limit = {
+			exists = $CHARACTER$.confederation
+		}
+		custom_description = {
+			text = direct_realm_holy_sites_held_by_faithful_confederation
+			subject = $CHARACTER$
+			object = this
+			value = 1
+			any_holy_site = {
+				county = {
+					save_temporary_scope_as = current_holy_site
+					is_holy_site_controlled_by = $CHARACTER$
+					holder.faith = $CHARACTER$.faith
+				}
+			}
+		}
+	}
 	custom_description = {
 		text = number_realm_holy_sites_held_by_faithful
 		subject = $CHARACTER$
@@ -1239,7 +1318,17 @@ num_realm_holy_sites_faithful_holders = {
 		any_holy_site = {
 			count >= $COUNT$
 			county = {
+				save_temporary_scope_as = current_holy_site
+				OR = {
 				is_holy_site_controlled_by = $CHARACTER$
+					$CHARACTER$.confederation ?= {
+						any_confederation_member = {
+							scope:current_holy_site = {
+								is_holy_site_controlled_by = prev
+							}
+						}
+					}
+				}
 				holder.faith = $CHARACTER$.faith
 			}
 		}
@@ -1547,6 +1636,7 @@ has_tolerant_faith_or_culture_trigger = {
 	OR = {
 		faith = { has_doctrine = doctrine_pluralism_pluralistic }
 		# culture = { has_cultural_parameter = less_likely_to_force_conversion } #LotR
+		has_trait = nomadic_philosophy
 	}
 }
 

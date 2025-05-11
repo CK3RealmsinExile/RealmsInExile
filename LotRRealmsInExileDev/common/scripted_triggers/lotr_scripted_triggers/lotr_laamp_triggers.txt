@@ -11,6 +11,10 @@
 	}
 }
 
+lotr_valid_for_story_contracts = {
+	has_variable = lotr_story_content
+}
+
 lotr_can_recruit_in_laamp = {
 	cannot_be_killed = no
 	is_wastelands = no
@@ -21,7 +25,7 @@ lotr_can_recruit_in_laamp = {
 	}
 	#Elves won't join just any camp
 	trigger_else = {
-		is_elf = no
+		NOT = { is_elf = yes }
 	}
 	
 	#Orcs only take on evil characters or other Orcs
@@ -59,7 +63,7 @@ lotr_location_can_spawn_laamp_courtiers = {
 		limit = { ROOT = { is_elf = yes } }
 		location = {
 			faith_is_evil = no
-			is_orc = no
+			NOT = { is_orc = yes }
 		}
 	}
 	trigger_if = {
@@ -77,53 +81,84 @@ lotr_location_can_spawn_laamp_courtiers = {
 	}
 }
 
-lotr_appropriate_contract_employer_trigger = {
-	is_wastelands = no
-	trigger_if = {
-		limit = { $CHARACTER$ =  { faith_is_evil = yes } }
-		NOR = {
-			is_elf = yes
-			is_maiar = yes
+valid_hostile_laamp_basic_trigger = {
+	custom_description = {
+		text = adventurer_not_famous_or_patron_trigger_tt
+		object = $EMPLOYER$
+		value = $EMPLOYER$.highest_held_title_tier
+		OR = {
+			$EMPLOYER$.highest_held_title_tier <= tier_county
+			$EMPLOYER$.highest_held_title_tier <= $LAAMP$.prestige_level
+			$EMPLOYER$ = { is_contact_of = $LAAMP$ }
+			$LAAMP$ = { lotr_valid_for_story_contracts = yes } #LotR
 		}
 	}
-	trigger_else = {
-		NOR = {
-			is_orc = yes
-			is_undead = yes
-			is_maiar_fallen = yes
+	$EMPLOYER$ = {
+		# Players shouldn't get tangled up in contracts, ever.
+		is_ai = yes
+		# Plus some standard stuff.
+		is_alive = yes
+		trigger_if = { #LotR
+			limit = { $LAAMP$ = { is_alive = yes } NOT = { $LAAMP$ = { has_variable = lotr_story_content } } }
+			is_lotr_adult = yes
+		}
+	}
+	$EMPLOYER$ = { is_incapable = no }
+	# Laamps shouldn't offer contracts in their local area, ever.
+	$EMPLOYER$ = {
+		OR = {
+			employer = $LAAMP$
+			NOT = { government_has_flag = government_is_landless_adventurer }
 		}
 	}
 	
-	trigger_if = {
-		limit = { 
-			$CHARACTER$ = { 
-				OR = {
-					is_elf = yes 
-					is_maiar = yes
-				}
-			}
-		}
-		NOR = {
-			faith_is_evil = yes
-			is_orc = yes
-			is_maiar_fallen = yes
-			is_undead = yes
+	$LAAMP$ = { government_has_flag = government_is_landless_adventurer }
+	$LAAMP$ = {
+		trigger_if = {
+			limit = { is_at_war = no }
+			is_commanding_army = no
 		}
 	}
-	trigger_if = {
-		limit = { 
-			$CHARACTER$ = { 
-				OR = {
-					is_orc = yes
-					is_maiar_fallen = yes
-					is_undead = yes
-				}
-			}
+}
+
+valid_hostile_ranger_laamp_basic_trigger = {
+	custom_description = {
+		text = adventurer_not_famous_or_patron_trigger_tt
+		object = $EMPLOYER$
+		OR = {
+			$EMPLOYER$.highest_held_title_tier <= tier_county
+			$EMPLOYER$.highest_held_title_tier <= {
+				value = $LAAMP$.prestige_level
+				add = 2
+			} 
+			$EMPLOYER$ = { is_contact_of = $LAAMP$ }
+			$LAAMP$ = { lotr_valid_for_story_contracts = yes } #LotR
 		}
-		faith_is_evil = yes
-		NOR = {
-			is_elf = yes
-			is_maiar = yes
+	}
+	$EMPLOYER$ = {
+		# Players shouldn't get tangled up in contracts, ever.
+		is_ai = yes
+		# Plus some standard stuff.
+		is_alive = yes
+		trigger_if = { #LotR
+			limit = { $LAAMP$ = { is_alive = yes } NOT = { $LAAMP$ = { has_variable = lotr_story_content } } }
+			is_lotr_adult = yes
+		}
+	}
+	$EMPLOYER$ = { is_incapable = no }
+	# Laamps shouldn't offer contracts in their local area, ever.
+	$EMPLOYER$ = {
+		OR = {
+			employer = $LAAMP$
+			NOT = { government_has_flag = government_is_landless_adventurer }
+		}
+	}
+	
+	$LAAMP$ = { government_has_flag = government_is_landless_adventurer }
+	$LAAMP$ = {
+		trigger_if = {
+			limit = { is_at_war = no }
+			is_commanding_army = no
 		}
 	}
 }
@@ -248,16 +283,18 @@ lotr_laamp_can_visit_location = {
 		limit = { location.culture = { is_elf_culture = yes } }
 		NOT = { faith_is_evil = yes }
 		NOT = { is_orc = yes }
-		OR = {
+		trigger_if = {
+			limit = {
+				NOT = { is_elf = yes }
+				is_maiar = no
+				NAND = {
+					location.county.holder.top_liege = title:k_imladris.holder
+					culture = culture:dunedain_ranger
+				}
+			}
 			custom_tooltip = {
 				text = need_one_racial_patron
 				any_contact = { is_elf = yes } #Have an Elven patron
-			}
-			is_elf = yes
-			is_maiar = yes
-			trigger_if = { #Rangers are welcome in Imladris
-				limit = { location.county.holder.top_liege = title:k_imladris.holder }
-				culture = culture:dunedain_ranger
 			}
 		}
 	}
@@ -276,7 +313,17 @@ lotr_valid_laamp_contract_foe_trigger = {
 	}
 	NOR = {
 		# Filter out anything that might look odd.
-		has_any_good_relationship_with_character_trigger = { CHARACTER = scope:employer }
+		trigger_if = {
+			limit = { exists = scope:task_contract.task_contract_employer }	
+			has_any_good_relationship_with_character_trigger = { CHARACTER = scope:task_contract.task_contract_employer }
+		}
+		trigger_if = {
+			limit = { exists = scope:task_contract }
+			has_any_good_relationship_with_character_trigger = { CHARACTER = scope:task_contract.task_contract_employer }
+		} trigger_else_if = {
+			limit = { exists = scope:employer }
+			has_any_good_relationship_with_character_trigger = { CHARACTER = scope:employer }
+		} trigger_else = { always = no }
 		# Plus don't include anything connected to a player.
 		save_temporary_scope_as = char_temp
 		any_player = {
@@ -288,7 +335,21 @@ lotr_valid_laamp_contract_foe_trigger = {
 		}
 	}
 	# And check their location is valid.
-	in_diplomatic_range = root
+	trigger_if = {
+		limit = { exists = scope:task_contract }
+		in_diplomatic_range = scope:task_contract.task_contract_employer
+	} trigger_else_if = {
+		limit = { exists = scope:employer }
+		in_diplomatic_range = scope:employer
+	} trigger_else = { always = no }
 }
 		
-			
+disable_interaction_for_bountig_trigger = {
+	trigger_if = {
+		limit = { scope:recipient = character:bountigmedlokan }
+		custom_tooltip = {
+			text = owns_a_story_trigger
+			NOT = { scope:recipient = { owns_story_of_type = story_cycle_bountig_medlokan } }
+		}
+	}
+}

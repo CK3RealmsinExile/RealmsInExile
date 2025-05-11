@@ -182,6 +182,13 @@ wastelands.0006 = {
 		###
 		is_ai = yes
 
+		NOT = { any_owned_story = { story_type = story_conqueror } } #Conquerors have their own logic
+
+	 	trigger_if = {
+			limit = { is_independent_ruler = no }
+			has_character_flag = vassal_directive_settle_wastelands
+		}
+
 		###
 		### Culture/Character ID triggers
 		###
@@ -228,7 +235,6 @@ wastelands.0006 = {
 				NOT = { has_county_modifier = block_settlement_ability }
 			}
 		}
-
 
 		###
 		### Check whether the ruler is above their settlement limit
@@ -346,7 +352,17 @@ wastelands.0006 = {
 								title_province ?= { terrain = desert_mountains }
 								title_province ?= { terrain = caverns }
 								title_province ?= { terrain = halls }
-								title_province ?= { terrain = hills }
+								AND = {
+									title_province ?= { terrain = hills }
+									any_neighboring_county = {
+										OR = {
+											title_province ?= { terrain = desert_mountains }
+											title_province ?= { terrain = caverns }
+											title_province ?= { terrain = halls }
+											title_province ?= { terrain = mountains }
+										}
+									}
+								}
 								title_province ?= { terrain = mountains }
 							}
 						}
@@ -590,6 +606,7 @@ wastelands.0006 = {
 					}
 				}
 			}
+		
 		}
 		if = { # GAME RULE --> normal_colonisation_speed
 			limit = { has_game_rule = normal_colonisation_speed }
@@ -632,6 +649,7 @@ wastelands.0006 = {
 					}
 				}
 			}
+		
 		}
 
 		ordered_in_list = {
@@ -670,8 +688,18 @@ wastelands.0006 = {
 		### MAKE AI COLONISE COUNTY ###
 		scope:wastelands ?= { debug_log_scopes = yes } # Only needed for testing
 		if = {
-			limit = { exists = scope:wastelands }
-			ai_colonisation_effect = { WASTELANDS = scope:wastelands }
+			limit = { 
+				exists = scope:wastelands
+				
+				###
+				### Desolation of Smaug blocker
+				###
+				trigger_if = {
+					limit = { title:c_throne_of_erebor.title_province = { has_building = smaug } }
+					NOT = { scope:wastelands.county.title_province = { has_building = smaug_desolation } }				
+				}
+			}
+			ai_colonisation_effect = { WASTELANDS = scope:wastelands ROOT_SCOPE = root }
 		}		
 	}
 }
@@ -1909,6 +1937,22 @@ wastelands.1003 = { # Wolf-mother
 		animation = personality_bold
 	}
 
+	immediate = {
+		if = {
+			limit = { 
+				any_knight = { 
+					is_ai = yes
+					count > 0
+				}
+			}
+			ordered_knight = {
+				limit = { is_ai = yes }
+				order_by = prowess
+				save_scope_as = knight
+			}
+		}
+	}
+
 	option = { # Prowess Duel
 		name = wastelands.1003.a
 
@@ -2379,9 +2423,7 @@ wastelands.1007 = { # Howls from the Hills
 
     trigger = {
         scope:obstacle_province = {
-            location = {
-                terrain = hills
-            }
+            terrain = hills
         }
     }
 
@@ -3607,14 +3649,16 @@ wastelands.1208 = { # Bear-Baiting
         name = wastelands.1208.b
         scope:obstacle_province = {
             remove_building = bear_den_cleared
+        }
+        scope:obstacle_province.county = {
             add_county_modifier = {
                 modifier = banned_bear_fighting
                 years = 5
             }
-            stress_impact = {
-                compassionate = medium_stress_loss
-            }
         }
+		stress_impact = {
+			compassionate = medium_stress_loss
+		}
     }
 
     option = {
@@ -4238,6 +4282,17 @@ wastelands.1403 = { # Saved from the Lair
 						}
 					}
 				}
+				if = {
+					limit = { 
+						has_variable = num_settled_wilderness 
+						var:num_settled_wilderness > 0
+					}
+					decrease_variable = {
+						NAME = num_settled_wilderness
+						AMOUNT = 1
+					}
+					remove_wastelands_tracker_variable = yes
+				}
 
 			}
 			25 = {
@@ -4503,15 +4558,21 @@ wastelands.1601 = { # The Outcasts
 				send_interface_toast = {
 					left_icon = root
 					title = wastelands.1601.failure.toast.t
-					reverse_add_opinion = {
-						modifier = disappointed_opinion
-						opinion = -30
-						target = scope:spymaster
+					if = {
+						limit = { exists = scope:spymaster }
+						reverse_add_opinion = {
+							modifier = disappointed_opinion
+							opinion = -30
+							target = scope:spymaster
+						}
 					}
-					reverse_add_opinion = {
-						modifier = disappointed_opinion
-						opinion = -30
-						target = scope:marshal
+					if = {
+						limit = { exists = scope:marshal }
+						reverse_add_opinion = {
+							modifier = disappointed_opinion
+							opinion = -30
+							target = scope:marshal
+						}
 					}
 					add_prestige = -150
 					hidden_effect = { scope:obstacle_province = { remove_building = bandits_cleared } }
@@ -5387,6 +5448,17 @@ wastelands.1606 = { # The Cunning Brigand
 				
 			}
 		}
+		if = {
+			limit = { 
+				has_variable = num_settled_wilderness 
+				var:num_settled_wilderness > 0
+			}
+			decrease_variable = {
+				NAME = num_settled_wilderness
+				AMOUNT = 1
+			}
+			remove_wastelands_tracker_variable = yes
+		}
 	}	
 	option = { # The province is yours
 		name = wastelands.1606.d 
@@ -5405,7 +5477,35 @@ wastelands.1606 = { # The Cunning Brigand
 				}
 				scope:obstacle_province = {
 					set_holding_type = dwarven_holding
-				}	
+			    }
+				scope:obstacle_province.county = {
+					set_county_faith = scope:brigand.faith
+					set_county_culture = scope:brigand.culture
+					change_development_level = 3
+					generate_coa = yes
+				}
+				
+				create_title_and_vassal_change = {
+					type = conquest
+					save_scope_as = title_change
+					add_claim_on_loss = yes
+				}
+				scope:obstacle_province.county = {
+					change_title_holder = {
+						holder = scope:brigand
+						change = scope:title_change
+						take_baronies = yes
+					}
+				}
+				scope:brigand = {
+					becomes_independent = { change = scope:title_change }
+				}
+				
+				resolve_title_and_vassal_change = scope:title_change
+				
+				scope:brigand = {
+					change_government = feudal_government
+				}				
 			}
 			else = {
 				scope:obstacle_province = { 
@@ -5441,6 +5541,17 @@ wastelands.1606 = { # The Cunning Brigand
 				}
 			}
 		}
+		if = {
+			limit = { 
+				has_variable = num_settled_wilderness 
+				var:num_settled_wilderness > 0
+			}
+			decrease_variable = {
+				NAME = num_settled_wilderness
+				AMOUNT = 1
+			}
+			remove_wastelands_tracker_variable = yes
+		}
 	}
 }
 
@@ -5472,8 +5583,23 @@ wastelands.1701 = { # Lost in the Forest
 			}
 			save_scope_as = lost_person
 		}
-		
-		remove_courtier_or_guest = scope:lost_person
+		if = {
+			limit = { exists = scope:lost_person }
+			remove_courtier_or_guest = scope:lost_person
+		} else = {
+			create_character = {
+				template = peasant_character
+				dynasty = none
+				culture = scope:obstacle_province.culture
+				faith = scope:obstacle_province.faith
+				location = scope:obstacle_province
+				gender_female_chance = 50
+				save_scope_as = lost_person
+				after_creation = {
+					remove_trait = peasant_leader
+				}
+			}
+		}
 	}
 
 	option = { # We must find them!
@@ -5618,7 +5744,12 @@ wastelands.1701 = { # Lost in the Forest
 
 	option = { # I know these woods like the back of my hand
 		name = wastelands.1701.d
-		trigger = { is_druedain = yes }
+		trigger = { 
+			OR = {
+				is_druedain = yes 
+				is_elf = yes 
+			}
+		}
 		add_courtier = scope:lost_person
 		add_prestige = medium_prestige_gain
 		root = {
@@ -6626,6 +6757,17 @@ wastelands.1901 = { # The Orcish leader
 						change_government = tribal_government
 					}
 				}
+				if = {
+					limit = { 
+						has_variable = num_settled_wilderness 
+						var:num_settled_wilderness > 0
+					}
+					decrease_variable = {
+						NAME = num_settled_wilderness
+						AMOUNT = 1
+					}
+					remove_wastelands_tracker_variable = yes
+				}
 			}	
 		}
 
@@ -6667,11 +6809,12 @@ wastelands.1902 = { # Loot left behind
 
 	right_portrait = {
 		character = scope:steward
+		trigger = { exists = scope:steward }
 		animation = steward
 	}
 	
 	immediate = {
-		cp:councillor_steward = {
+		cp:councillor_steward ?= {
 			save_scope_as = steward
 		}
 	}
@@ -6700,7 +6843,6 @@ wastelands.1902 = { # Loot left behind
 			remove_building = wild_orcs_cleared 
 		}
 	}
-	
 }
 
 wastelands.1903 = { # More Orcs arrive
@@ -6750,9 +6892,6 @@ wastelands.1903 = { # More Orcs arrive
 				scope:chosen_knight = {
 					add_prestige = medium_prestige_gain
 				}
-				scope:obstacle_province = { 
-					remove_building = wild_orcs_cleared 
-				}
 			}
 			25 = {
 				desc = wastelands.1903.b.failure
@@ -6763,10 +6902,7 @@ wastelands.1903 = { # More Orcs arrive
 				scope:chosen_knight = {
 					increase_wounds_effect = { REASON = fight }
 				}
-				scope:obstacle_province = { 
-					remove_building = wild_orcs_cleared 
-					add_building = wild_orcs
-				}
+				scope:obstacle_province = { add_building = wild_orcs }
 			}
 		}
 	}
@@ -7023,7 +7159,25 @@ wastelands.1904 = { # The Crafty Goblin
  				}
 				scope:obstacle_province = { 
 					remove_building = wild_orcs_cleared 
-					set_holding_type = tribal_holding
+					if = {
+						limit = {
+							scope:obstacle_province = {
+								OR = {
+									#terrain = mountains
+									terrain = halls
+									#terrain = desert_mountains
+								}
+							}
+						}
+						scope:obstacle_province = {
+							set_holding_type = dwarven_holding
+						}	
+					}	
+					else = {
+						scope:obstacle_province = {
+							set_holding_type = tribal_holding
+						}
+					}
 				}
 				scope:obstacle_province.county = {
 					set_county_faith = scope:goblin_leader.faith
@@ -7057,7 +7211,17 @@ wastelands.1904 = { # The Crafty Goblin
 				}
 			}	
 		}
-
+		if = {
+			limit = { 
+				has_variable = num_settled_wilderness 
+				var:num_settled_wilderness > 0
+			}
+			decrease_variable = {
+				NAME = num_settled_wilderness
+				AMOUNT = 1
+			}
+			remove_wastelands_tracker_variable = yes
+		}
 	}
 	
 	option = { #Send a military force
@@ -7269,7 +7433,7 @@ wastelands.2002 = { # Marsh Fever
 	}
 
 	trigger = {
-		is_elf = no
+		NOT = { is_elf = yes }
 		NOT = { has_character_flag = had_event_wasteland_blocker_0052 }
 		scope:obstacle_province.county = { NOT = { has_county_modifier = colony_disease_recovery_county_modifier } }
 	}
@@ -7458,6 +7622,7 @@ wastelands.2101 = { # SpoOooOOoky sightings
 						add_prestige = minor_prestige_loss
 					}
 					10 = {
+						trigger = { is_elf = no }
 						add_trait = lunatic_1
 					}
 				}
@@ -7533,9 +7698,6 @@ wastelands.2102 = { # Turns out it was a "prank"
 		name = wastelands.2102.a 
 		hidden_effect = { scope:obstacle_province = { remove_building = ghosts_cleared } }
 		add_prestige = minor_prestige_gain
-		scope:prankster = {
-			banish = yes			
-		}
 	}
 	option = { #Hilarious. Your pranks shall entertain my court.
 		name = wastelands.2102.b
@@ -7588,7 +7750,56 @@ wastelands.2102 = { # Turns out it was a "prank"
 	}
 }
 	
-
+wastelands.2103 = { # Discover a desecrated burial site nearby
+	content_source = realms_dlc
+	type = character_event
+	title = wastelands.2103.t
+	desc = wastelands.2103.desc
+	theme = intrigue
+	left_portrait = {
+		character = root
+		animation = worry
+	}
+	immediate = { }
+	
+	option = { #Let the dead rip in peace
+		name = wastelands.2103.a 
+		trigger = {
+			OR = {
+				faith_is_good = yes
+				faith_is_neutral = yes 
+			}
+		}
+		hidden_effect = { scope:obstacle_province = { remove_building = ghosts_cleared } }
+		add_prestige = minor_piety_gain
+	}
+	option = { #Clear out the graveyard
+		name = wastelands.2103.b
+		hidden_effect = { scope:obstacle_province = { remove_building = ghosts_cleared } }
+		add_piety = medium_piety_loss
+		stress_impact = {
+			base = minor_stress_gain
+			cynical = medium_stress_loss
+			paranoid = major_stress_gain
+			forgiving = medium_stress_gain
+			compassionate = medium_stress_gain
+			zealous = major_stress_gain
+			impatient = medium_stress_loss
+		}
+	}
+	option = { #Desecrate it further!
+		name = wastelands.2103.c
+		hidden_effect = { scope:obstacle_province = { remove_building = ghosts_cleared } }
+		add_dread = medium_dread_gain
+	}
+	option = { #Hire someone to guide the spirits away
+		name = wastelands.2102.d
+		remove_short_term_gold = minor_gold_value
+		hidden_effect = { scope:obstacle_province = { remove_building = ghosts_cleared } }
+		add_prestige = minor_prestige_loss
+	}
+}
+	
 ############################
 #  Collapsed Ceilings Den  #
 ############################
@@ -7906,7 +8117,7 @@ wastelands.2401 = { # Toxic Leak!
 	}
 
 	trigger = {
-		is_elf = no
+		NOT = { is_elf = yes }
 		NOT = { has_character_flag = had_event_wasteland_blocker_0056 }
 		scope:obstacle_province.county = { NOT = { has_county_modifier = colony_disease_recovery_county_modifier } }
 	}
@@ -8820,10 +9031,9 @@ wastelands.2801 = { # Noises and shadows (ispanets)
 	option = { # Rest
 		name = wastelands.2801.b
 		skill = prowess
-		trigger = {
-			root = {
-				is_elf = no
-			}
+		trigger = { 
+			cannot_be_killed = no
+			is_elf = no
 		}
 		scope:knight = {
 			duel = {
@@ -8937,6 +9147,7 @@ wastelands.2802 = { # Noises and Shadows
 				}
 			}
 			30 = {
+				trigger = { scope:knight = { is_elf = no } }
 				compare_modifier = {
 					value = scope:duel_value
 					multiplier = -2
@@ -8989,6 +9200,7 @@ wastelands.2802 = { # Noises and Shadows
 				}
 			}
 			30 = {
+				trigger = { is_elf = no }
 				compare_modifier = {
 					value = scope:duel_value
 					multiplier = -2
@@ -9405,6 +9617,10 @@ wastelands.2804 = { # Artifacts of old
 		}
 		random_list = {
 			50 = {
+				trigger = { 
+					cannot_be_killed = no
+					is_elf = no
+				}
 				desc = wastelands.2804.d.duel_failure
 				send_interface_toast = {
 					left_icon = root
@@ -9413,7 +9629,7 @@ wastelands.2804 = { # Artifacts of old
 				}
 			}
 			50 = {
-				desc = wastelands.2804.d.duel_failure
+				desc = wastelands.2804.d.duel_success
 				random_list = {
 					2 = {
 						send_interface_toast = {
@@ -9893,6 +10109,17 @@ wastelands.3203 = { # The Bold Explorer
 				}
 				
 			}
+		}
+		if = {
+			limit = { 
+				has_variable = num_settled_wilderness 
+				var:num_settled_wilderness > 0
+			}
+			decrease_variable = {
+				NAME = num_settled_wilderness
+				AMOUNT = 1
+			}
+			remove_wastelands_tracker_variable = yes
 		}
 	}
 	

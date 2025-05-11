@@ -1,0 +1,1 @@
+Affected Dwarves get a reduced dev/humiliation/revenge CB against the Dourhands

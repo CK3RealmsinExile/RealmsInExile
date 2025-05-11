@@ -7,6 +7,7 @@ on_travel_plan_movement = {
 	}
 
 	on_actions = {
+		lotr_on_travel_plan_movement
 		travel_event_tombola
 		delay = { days = 1 }
 		travel_danger_events_on_action
@@ -14,35 +15,18 @@ on_travel_plan_movement = {
 		adventurer_talent_scouting_on_action
 		delay = { days = 3 }
 		adventurer_encourage_realtionships_on_action
+		migration_events_on_action
+		delay = { days = 1 }
+	}
+
+	events = {
+		mpo_special_flavor_events.0001
 	}
 
 	# Increment the count of how many provinces the character has passed through
 	# Used for loc in the travel completion event
 	# Variable cleanup in the completion event (travel_completion_event.1000)
 	effect = {
-		if = { #LotR
-			limit = {
-				any_maa_regiment = { is_maa_type = laamp_settler_maa }
-				current_travel_plan = { is_travel_with_domicile = yes }
-				current_travel_plan.current_location = { has_holding = yes }
-				NOT = { current_travel_plan.current_location = { has_holding_type = wastelands_holding } }
-				NOT = { current_travel_plan.current_location = { has_variable = no_more_settlers } }
-			}
-			random_maa_regiment = {
-				limit = { is_maa_type = laamp_settler_maa }
-				change_maa_troops_count = 50
-			}
-			current_travel_plan.current_location = { set_variable = { name = no_more_settlers value = yes months = 6 } }
-		}
-		if = { #LotR One does not simply walk into Mordor | Achievement
-			limit = {
-				realms_achievements_enabled = yes
-				is_ai = no
-				NOT = { exists = global_var:lotr_achievement_19 }
-				root.location = province:620
-			}
-			set_global_variable = lotr_achievement_19
-		}
 		# Increase xp for traveler trait
 		traveler_progress_point_gain_effect = { CHANGE = 1 RANDOM_CHANGE = 1 }
 		# Increment the count of how many provinces the character has passed through
@@ -114,7 +98,7 @@ on_travel_plan_movement = {
 					}
 				}
 			}
-		}		
+		}
 		# Visited Points of Interest tracker, currently only for Adventurers
 		points_of_interest_tracker_effect = yes
 
@@ -281,6 +265,7 @@ on_travel_plan_movement = {
 			root = {
 				if = {
 					limit = {
+						domicile = { domicile_uses_provisions = yes }
 						domicile.provisions < provisions_threshold_critical_low_value
 						NOT = { has_character_flag = notified_of_low_provisions }
 					}
@@ -441,7 +426,7 @@ on_travel_plan_movement = {
 							}
 						}
 						faith_is_good = no
-						is_orc = no
+						NOT = { is_orc = yes }
 					}
 					OR = {
 						is_pool_character = yes
@@ -475,7 +460,7 @@ on_travel_plan_movement = {
 								}
 							}
 							faith_is_good = no
-							is_orc = no
+							NOT = { is_orc = yes }
 						}
 						OR = {
 							is_pool_character = yes
@@ -564,11 +549,11 @@ on_travel_plan_movement = {
 								faith:faith_rhun_araw_triumvirate = { save_scope_as = new_faith }
 							}
 							else_if = {
-								limit = { location = { geographical_region = middleearth_haradwaith_near } }
+								limit = { location = { geographical_region = middleearth_harad_near } }
 								faith:faith_chelkar = { save_scope_as = new_faith }
 							}
 							else_if = {
-								limit = { location = { geographical_region = middleearth_haradwaith_far } }
+								limit = { location = { geographical_region = middleearth_harad_far } }
 								faith:faith_conservative_eruism = { save_scope_as = new_faith }
 							}
 							else_if = {
@@ -581,14 +566,17 @@ on_travel_plan_movement = {
 						}
 					}
 				}
-				send_interface_message = {
-					type = send_interface_message_good
-					title = adventurers_proselytize_zealously_option.title
-					left_icon = scope:wanderer_to_convert
-					add_piety = miniscule_piety_value
-					scope:wanderer_to_convert = {
-						# set_character_faith = root.faith
-						set_character_faith = scope:new_faith
+				if = {
+					limit = { exists = scope:new_faith }
+					send_interface_message = {
+						type = send_interface_message_good
+						title = adventurers_proselytize_zealously_option.title
+						left_icon = scope:wanderer_to_convert
+						add_piety = miniscule_piety_value
+						scope:wanderer_to_convert = {
+							# set_character_faith = root.faith
+							set_character_faith = scope:new_faith
+						}
 					}
 				}
 			}
@@ -662,10 +650,41 @@ on_travel_plan_movement = {
 				}
 			}
 		}
+		#Special raiding migration event option
+		if = {
+			limit = {
+				location = {
+					has_holding = yes
+				}
+				is_migrating = yes
+				has_character_flag = migration_raiding_flag
+				location.county.holder = {
+					NOR = {
+						has_relation_friend = root
+						has_relation_best_friend = root
+						root = {
+							is_tributary_of = prev
+						}
+						is_vassal_of = root
+						root = {
+							is_vassal_of = prev
+						}
+						is_allied_to = root
+					}
+				}
+			}
+			location.county.holder = {
+				save_scope_as = local_ruler
+			}
+			trigger_event = migration_events.1051
+		}
 	}
 }
 
 travel_danger_events_on_action = {
+	trigger = {
+		is_migrating = no # No Danger events while migrating
+	}
 	random_events = {
 		chance_of_no_event = {
 			value = {
@@ -675,9 +694,9 @@ travel_danger_events_on_action = {
 						exists = root.current_travel_plan
 						exists = root.location
 					}
-				subtract = root.current_travel_plan.current_danger_value
-				add = root.current_travel_plan.travel_safety
-			}
+					subtract = root.current_travel_plan.current_danger_value
+					add = root.current_travel_plan.travel_safety
+				}
 			}
 			max = {
 				value = 100
@@ -729,6 +748,7 @@ travel_danger_events_on_action = {
 		100 = travel_events.2016 # Danger! Visit a hill farm - Bull rush! (moved here because of extreme danger)
 		100 = travel_danger_events.5000 # Danger! Your entourage members have a dispute
 		100 = travel_danger_events.5010 # Danger! pariah event
+		100 = travel_danger_events.7000 # Danger! an entourage member is bitten by a snake
 		#Bilateral Ruler events
 		100 = travel_events.2106 # Danger! You get attacked while passing through a capital province; will the Province Owner help you?
 		100 = travel_events.4020 # Danger! Strong believers harass your caravan and demand payment
@@ -780,6 +800,12 @@ travel_events_on_action = {
 					highest_held_title_tier < tier_duchy
 				}
 				add = 15 # AI counts aren't particularly important
+			}
+			if = { # Less regular travel events when you're migrating
+				limit = {
+					is_migrating = yes
+				}
+				add = 15
 			}
 		}
 		100 = 0 
@@ -929,15 +955,16 @@ travel_events_on_action = {
 		300 = travel_events_fp3.0010 #Dying Embers
 		300 = travel_events_fp3.0030 #A Feast for Falcons
 		200 = fp3_scholarship.1010 # The Last Magi
+
 		#FP3 Travel Events
 		150 = travel_events_fp3.0020 #Qanat Diving
 		200 = travel_events_fp3.0040 #Mare's Milk
 		150 = travel_events_fp3.0050 #Tomb Raiders
-		
+
 		#CE1 Travel Events
 		100 = legend_spread_events.8010 #Someone challenges you to a duel
 		100 = travel_events.5001 #You come across a local legend
-		
+
 		#EP3 Travel Events
 		# 1000 = ep3_travel_events.3000 #Waters of the Jordan #LotR
 		# 300 = ep3_travel_events.3002 #Where Armenians Govern #LotR
@@ -951,6 +978,16 @@ travel_events_on_action = {
 		200 = ep3_travel_events.8000 #To Belong Somewhere
 		200 = ep3_travel_events.8010 #Won't Be Missed
 		# 1000 = ep3_story_cycle_violet_poet.1000 #Nature's Bounty #LotR
+		
+		#MPO Travel Events
+		100 = mpo_events_tova.0003 #A Jest Too Far
+		100 = mpo_events_tova.0004 #Upset Rank
+		100 = mpo_events_tova.0005 #Unhappy Soldiers
+		100 = travel_events_mpo.0001 #You spot eagles circling the sky
+		100 = travel_events_mpo.0010 # You encounter a muslim trader, riding a white camel
+		100 = mpo_events_anna.0015 #A Morsel of Meat - choose the fate of a fawn stuck in a trap
+		100 = mpo_events_anna.0020 #Race Against Time - encounter a wounded messenger
+		100 = mpo_events_anna.0025 #Familiar Tunes - encounter with a performer
 
 		#LotR Travel Events
 		100 = lotr_travel_events.0001 # A Colossal Wreck - Ozymandias Poem Reference
@@ -962,6 +999,51 @@ travel_events_on_action = {
 		200 = lotr_travel_events.0014 # Ruins of the North
 		200 = lotr_travel_events.0015 # Flies and Spiders
 		200 = lotr_travel_events.0016 # The Haunted Ruins
+		15 = lotr_travel_events.0018 # A Gruesome Cave
+		200 = lotr_travel_events.0020 # Trans-Haradric Merchants: The Tongue of Trade
+	}
+}
+
+migration_events_on_action = {
+	trigger = {
+		is_migrating = yes
+	}
+
+	effect = {
+		# Invalidate travelling hostages
+		hostage_travel_invalidation_effect = yes
+		# Invalidate travelling wards
+		ward_travel_invalidation_effect = yes
+		# Invalidate travelling guardians
+		guardian_travel_invalidation_effect = yes
+	}
+
+	random_events = {
+		chance_of_no_event = {
+			value = 80
+			if = {
+				limit = {
+					is_ai = yes
+					highest_held_title_tier < tier_duchy
+				}
+				add = 15 # AI counts aren't particularly important
+			}
+		}
+		200 = 0
+		100 = migration_events.1000 #happened upon a nice spot... to steal from
+		100 = migration_events.1010 #Wife wants you to travel in the yurt wagon
+		50 = migration_events.1020 #Family member wants to take land from local herder
+		50 = migration_events.1030 #Your herds can't find good grazing land
+		100 = migration_events.1040 #Local ruler offers you a meal and a gift 
+		50 = migration_events.1050 #Your warriors raid a settlement your people pass
+		50 = migration_events.1060 #The going is slow and your warriors want to ride on ahead
+		100 = mpo_migration_travel_events.0001 # A ruler offers herd
+		100 = mpo_migration_travel_events.0010 # You decide to give some herd away
+		100 = mpo_migration_travel_events.0020 # Your migration target has low fertility
+		100 = mpo_migration_travel_events.0040 # Herd must cross a river
+		100 = mpo_migration_travel_events.0050 # A courtier falls in love and wants to stay behind
+		20 = mpo_migration_travel_events.0030 # Danger! Herd is sick
+		20 = mpo_migration_travel_events.0060 # Danger! Crazy horse
 	}
 }
 
@@ -1073,16 +1155,6 @@ on_travel_plan_arrival = {
 		
 		# Visited Points of Interest tracker, currently only for Adventurers
 		points_of_interest_tracker_effect = yes
-
-		if = {
-			limit = {
-				root.location = title:c_ost_in_edhil.title_province
-				root = character:linefinwe11
-				has_variable = temp_maglor_var
-			}
-			trigger_event = maglor_event_chain.0026
-			remove_variable = temp_maglor_var
-		}
 	}
 }
 
@@ -1098,6 +1170,7 @@ on_travel_plan_start = {
 		}
 		NOT = { has_variable = recently_invalidated_hostage }
 	}
+	on_actions = { lotr_on_travel_plan_start }
 	effect = {
 		if = {
 			limit = {
@@ -1285,6 +1358,23 @@ on_travel_plan_start = {
 				}
 			}
 		}
+		# fishery yurt modifier
+		if = {
+			limit = {
+				government_has_flag = nomadic_government
+				domicile ?= {
+					has_domicile_building_or_higher = fishing_yurt_01
+				}
+			}
+			domicile.domicile_location.county = {
+				switch = {
+					trigger = has_county_modifier
+					fishing_yurt_county_modifier_3 = { remove_county_modifier = fishing_yurt_county_modifier_3 }
+					fishing_yurt_county_modifier_2 = { remove_county_modifier = fishing_yurt_county_modifier_2 }
+					fishing_yurt_county_modifier_1 = { remove_county_modifier = fishing_yurt_county_modifier_1 }
+				}
+			}		
+		}
 		# Wayfarer Popularity
 		of_the_people_effect = yes
 		# Wayfarer Stress Loss
@@ -1311,6 +1401,22 @@ on_travel_plan_start = {
 				stress_impact = { base = -25 }
 				remove_character_modifier = wanderer_restlessness_modifier
 			}
+		}
+
+		# Caravan Master Task
+		if = {
+			limit = {
+				has_variable = prepare_travels_value
+				var:prepare_travels_value >= 1
+			}
+			current_travel_plan = {
+				set_variable = {
+					name = prepare_travels_modifier_value
+					value = root.var:prepare_travels_value
+				}
+				add_travel_plan_modifier = prepare_travels_modifier
+			}
+			remove_variable = prepare_travels_value
 		}
 	}
 	events = {
@@ -1340,6 +1446,7 @@ on_travel_plan_complete = {
 	trigger = {
 		is_ruler = yes
 	}
+	on_actions = { lotr_on_travel_plan_complete }
 	first_valid = {
 		pilgrimage.9010 #Bury the old host after finishing the Pilgrimage
 		pilgrimage.9001 #Nice Spiritual Journey
@@ -1351,34 +1458,6 @@ on_travel_plan_complete = {
 	}
 
 	effect = {
-		if = { #LotR One does not simply walk into Mordor | Achievement
-			limit = {
-				realms_achievements_enabled = yes
-				is_ai = no
-				NOT = { exists = global_var:lotr_achievement_19 }
-				root.location = province:620
-			}
-			set_global_variable = lotr_achievement_19
-		}
-		if = { # I’m going on an adventure! | Achievement
-			limit = {
-				NOT = { exists = global_var:lotr_achievement_02 }
-				realms_achievements_enabled = yes
-				is_ai = no
-				is_hobbit = yes
-				has_trait_xp = {
-					trait = lifestyle_traveler
-					track = travel
-					value = 100
-				}
-				has_trait_xp = {
-					trait = lifestyle_traveler
-					track = danger
-					value = 100
-				}
-			}
-			set_global_variable = lotr_achievement_02
-		}
 		if = {
 			limit = {
 				exists = var:travel_plan_start_date
@@ -1559,6 +1638,53 @@ on_travel_plan_complete = {
 				}
 			}
 		}
+		if = {
+			limit = {
+				has_focus = wanderer_destination_focus
+				any_child = {
+					is_available_ai_child = yes
+					age >= 6
+					location = root.location
+					save_temporary_scope_as = temp_scope
+					NOT = {
+						root.current_travel_plan = {
+							any_entourage_character = {
+								this = scope:temp_scope
+							}
+						}
+					}
+				}
+			}
+			random = {
+				chance = 20
+				random_child = {
+					limit = {
+						is_available_ai_child = yes
+						age >= 6
+						location = root.location
+						save_temporary_scope_as = temp_scope
+						NOT = {
+							root.current_travel_plan = {
+								any_entourage_character = {
+									this = scope:temp_scope
+								}
+							}
+						}
+					}
+					save_scope_as = demanding_relation
+
+					root = {
+						current_travel_plan.final_destination_province = {
+							save_scope_as = dest_province
+						}
+						trigger_event = {
+							ID = mpo_events_tova.0001
+							days = { 2 3 }
+						}
+					}
+				}
+			}
+		}
 
 		# Visited Points of Interest tracker, currently only for Adventurers
 		points_of_interest_tracker_effect = yes
@@ -1566,8 +1692,50 @@ on_travel_plan_complete = {
 		zealous_missionary_conversion_effect = yes
 
 		if = {
-			limit = {has_character_modifier = laamp_provisions_forgiveness_travel_modifier }
+			limit = { has_character_modifier = laamp_provisions_forgiveness_travel_modifier }
 			remove_character_modifier = laamp_provisions_forgiveness_travel_modifier
+		}
+
+		# fishery yurt modifier
+		if = {
+			limit = {
+				government_has_flag = nomadic_government
+				domicile ?= {
+					has_domicile_building_or_higher = fishing_yurt_01
+				}
+			}
+			domicile ?= {
+				switch = {
+					trigger = has_domicile_parameter
+					fishing_yurt_riverside_lakeside_fertility_bonus_lvl_3 = { domicile_location.county = { add_county_modifier = fishing_yurt_county_modifier_3 } }
+					fishing_yurt_riverside_lakeside_fertility_bonus_lvl_2 = { domicile_location.county = { add_county_modifier = fishing_yurt_county_modifier_2 } }
+					fishing_yurt_riverside_lakeside_fertility_bonus_lvl_1 = { domicile_location.county = { add_county_modifier = fishing_yurt_county_modifier_1 } }
+				}
+			}		
+		}
+
+		if = { # A fallback for the contract "Settle Theological Arguments" if you have your domicile in the same location as the start province, due to how the 'Travel Plan' effect works
+			limit = {
+				is_ai = no
+				is_landless_adventurer = yes
+				exists = domicile
+				root.domicile.domicile_location = current_travel_plan.final_destination_province
+				any_character_task_contract = {
+					has_variable = opportunities_left_tally
+					var:opportunities_left_tally = 0
+				}
+			}
+			random_character_task_contract = {
+				limit = {
+					has_variable = opportunities_left_tally
+					var:opportunities_left_tally = 0
+				}
+				save_scope_as = task_contract
+				task_contract_employer = {
+					save_scope_as = employer
+				}
+			}
+			trigger_event = laamp_base_learning_contract_events.4017
 		}
 	}
 }
@@ -1651,6 +1819,9 @@ on_travel_plan_abort = {
 			# remove variables and flags 
 			petition_liege_variable_cleanup_effect = yes
 		}
+
+		# Invalidating travels to a Nomadic Settlement Contract
+		mpo_invalidating_settlement_contract_effect = yes
 	}
 }
 
@@ -1754,6 +1925,9 @@ on_travel_plan_cancel = {
 			}
 			remove_character_flag = roaming_character
 		}
+
+		# Invalidating travels to a Nomadic Settlement Contract
+		mpo_invalidating_settlement_contract_effect = yes
 	}
 }
 
@@ -1807,12 +1981,12 @@ on_travel_leader_removed = {
 
 #On action triggered from the poi_grand_city point of interest:
 on_visited_grand_city = {
+	on_actions = { lotr_on_visited_grand_city }
 	events = {
-		lotr_travel_events_cities.1010
-		lotr_travel_events_cities.1020
-		lotr_travel_events_cities.1030
-		lotr_travel_events_cities.1040
-		lotr_travel_events_cities.1050
+		# delay = { days = 1 }
+		# travel_events_cities.1010
+		# travel_events_cities.1020
+		# travel_events_cities.1030
 	}
 }
 
@@ -1847,6 +2021,7 @@ travel_laamps_provisions_on_action = {
 	trigger = {
 		exists = domicile
 		domicile.provisions <= provisions_privation_threshold_start
+		NOT = { government_has_flag = government_is_nomadic } # Yurts don't have provisions
 	}
 
 	events = {
@@ -1899,4 +2074,3 @@ adventurer_encourage_realtionships_on_action = {
 		100 = ep3_travel_option_events.0004
 	}
 }
-

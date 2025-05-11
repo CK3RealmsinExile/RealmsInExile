@@ -4,7 +4,8 @@
 ###################
 claim_throne_interaction = {
 	icon = icon_scheme_claim_throne
-	category = interaction_category_hostile
+	category = interaction_category_vassal
+	interface_priority = 268 # after Start Claimant Faction
 
 	ai_targets = {
 		ai_recipients = liege
@@ -13,6 +14,7 @@ claim_throne_interaction = {
 	auto_accept = yes
 	use_diplomatic_range = no
 	ignores_pending_interaction_block = yes
+
 
 	scheme = claim_throne
 
@@ -60,6 +62,14 @@ claim_throne_interaction = {
 						}
 					}
 				}
+				#AND = {
+				#	exists = title:d_sunni.holder
+				#	is_vassal_of = title:d_sunni.holder
+				#	any_character_struggle = {
+				#		involvement = involved
+				#		has_struggle_phase_parameter = unlocks_claim_throne_for_caliph_vassals
+				#	}
+				#}
 			}
 		}
 		NOT = { scope:recipient = scope:actor }	
@@ -545,14 +555,10 @@ fabricate_hook_interaction = {
 		ai_recipients = vassals
 	}
 
-	ai_targets = { #LotR Changes
-		ai_recipients = peer_vassals
-		max = 15
-	}
-
-	ai_targets = { #LotR Changes
+	ai_targets = {
 		ai_recipients = neighboring_rulers
-		max = 20
+		ai_recipients = peer_vassals
+		max = 10
 	}
 	
 	ai_targets = {
@@ -596,7 +602,7 @@ fabricate_hook_interaction = {
 		adult = yes
 	}
 
-	ai_frequency = 6
+	ai_frequency = 12
 
 	ai_will_do = {
 		base = 10
@@ -707,18 +713,29 @@ fabricate_hook_interaction = {
 # by Petter Vilberg
 ###################
 demand_payment_interaction = {
-		
-	category = interaction_category_diplomacy
+	category = interaction_category_friendly
 	icon = icon_gold
 
 	auto_accept = yes
 	use_diplomatic_range = yes
+	interface_priority = 35
 
 	desc = demand_payment_interaction_desc
 
 	is_shown = {
 		scope:actor = {
-			has_perk = golden_obligations_perk
+			OR = {
+				has_perk = golden_obligations_perk
+				AND = {
+					any_character_struggle = {
+						involvement = involved
+						has_struggle_phase_parameter = unlocks_demand_payments_for_all
+						is_secondary_character_involvement_either_trigger = {
+							CHAR = scope:recipient
+						}
+					}
+				}
+			}
 			is_in_valinor = no
 			NOT = { has_culture = culture:wastelands }
 		}
@@ -833,7 +850,7 @@ demand_payment_interaction = {
 	
 	ai_will_do = {
 		base = 100
-		
+
 		# Unity modifiers
 		evaluate_action_increasing_house_unity = {
 			VALUE = -100
@@ -923,7 +940,6 @@ buy_claim_interaction = {
 			is_in_valinor = no
 			NOT = { has_culture = culture:wastelands }
 		}
-
 		NOT = {
 			scope:actor = scope:recipient
 			AND = {
@@ -933,7 +949,6 @@ buy_claim_interaction = {
 				}
 			}
 		}
-
 		scope:recipient = {
 			is_playable_character = yes
 			primary_title.tier > tier_barony
@@ -955,7 +970,7 @@ buy_claim_interaction = {
 			}
 		}
 	}
-
+	
 	is_valid_showing_failures_only = {
 		trigger_if = { # Can't request on titles you already have a claim on
 			limit = {
@@ -1191,6 +1206,24 @@ challenge_to_single_combat_interaction = {
 	ai_max_reply_days = 0
 	popup_on_receive = yes
 	pause_on_receive = yes
+	
+	name = {
+		first_valid = {
+			triggered_desc = {
+				trigger = {
+					scope:actor = {
+						government_has_flag = government_is_nomadic
+					}
+					scope:recipient = {
+						government_has_flag = government_is_nomadic
+					}
+				}
+				desc = challenge_to_single_combat_nomadic_interaction
+			}
+			desc = challenge_to_single_combat_interaction
+		}
+	}
+	
 	desc = challenge_to_single_combat_interaction_desc
 
 	greeting = negative
@@ -1214,7 +1247,20 @@ challenge_to_single_combat_interaction = {
 		# First, check for the perk.
 		scope:actor = { can_challenge_rival_to_single_combat_trigger = yes }
 		# Then, look to see if this character is a rival.
-		scope:actor = { has_relation_rival = scope:recipient }
+		OR = {
+			scope:actor = { has_relation_rival = scope:recipient }
+			AND = { # If you are a Nomad you can challenge martial non-close family characters
+				scope:actor = {
+					government_has_flag = government_is_nomadic
+					has_perk = stalwart_leader_perk
+				}
+				scope:recipient = {
+					government_has_flag = government_is_nomadic
+					NOT = { is_close_family_of = scope:actor }
+					can_be_combatant_based_on_gender_trigger = { ARMY_OWNER = scope:actor }
+				}
+			}
+		}
 		# Can't duel yourself.
 		NOT = { scope:actor = scope:recipient }
 	}
@@ -1534,6 +1580,18 @@ challenge_to_single_combat_interaction = {
 				value = ai_energy
 				multiply = -0.25
 			}
+		}
+		
+		# To prevent Nomads from being constantly injured everywhere
+		modifier = {
+			NOT = {
+				scope:recipient = { has_relation_rival = scope:actor }
+			}
+			add = -100
+		}
+		modifier = {
+			scope:actor = { has_any_good_relationship_with_character_trigger = { CHARACTER = scope:recipient } }
+			add = -100
 		}
 
 		# Unity modifiers

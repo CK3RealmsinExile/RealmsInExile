@@ -60,7 +60,7 @@ explore_history.0001 = {
 		if = {
 			limit = { scope:activity.activity_location = { 
 				OR = {
-					geographical_region = middleearth_haradwaith 
+					geographical_region = middleearth_harad 
 					geographical_region = middleearth_uttersouth
 				} 
 			}}
@@ -469,7 +469,7 @@ explore_history.0031 = {
 					geographical_region = middleearth_rhun
 					geographical_region = middleearth_mordor
 					geographical_region = middleearth_forodwaith
-					geographical_region = middleearth_haradwaith_near
+					geographical_region = middleearth_harad_near
 				}
 			}
 		}
@@ -503,7 +503,7 @@ explore_history.0031 = {
 		name = explore_history.0031.e
 		trigger = { scope:activity.activity_location = { 
 				OR = {
-					geographical_region = middleearth_haradwaith 
+					geographical_region = middleearth_harad 
 					geographical_region = middleearth_uttersouth
 				} 
 			}}
@@ -511,7 +511,7 @@ explore_history.0031 = {
 	}
 	option = { # On second thoughts...
 		name = explore_history.0031.f
-		trigger = { scope:activity.activity_location = { not = { geographical_region = middleearth_haradwaith } } }
+		trigger = { scope:activity.activity_location = { not = { geographical_region = middleearth_harad } } }
 		trigger_event = {
 			id = explore_history.0001
 			days = 1
@@ -644,7 +644,7 @@ explore_history.0040 = {
 					geographical_region = middleearth_rhun
 					geographical_region = middleearth_mordor
 					geographical_region = middleearth_forodwaith
-					geographical_region = middleearth_haradwaith_near
+					geographical_region = middleearth_harad_near
 				}
 			}
 		}
@@ -682,7 +682,7 @@ explore_history.0040 = {
 	option = { # Of Narkuzîr and Berúthiel
 		name = explore_history.0040.b
 		trigger = { 
-			is_elf = no
+			NOT = { is_elf = yes }
 			game_start_date > 4887
 		}
 		trigger_event = {
@@ -717,7 +717,7 @@ explore_history.0040 = {
 		trigger = { 
 			scope:activity.activity_location = { 
 				OR = {
-					geographical_region = middleearth_haradwaith 
+					geographical_region = middleearth_harad 
 					geographical_region = middleearth_uttersouth
 				} 
 			}
@@ -759,7 +759,7 @@ explore_history.0040 = {
 					geographical_region = middleearth_rhun
 					geographical_region = middleearth_mordor
 					geographical_region = middleearth_forodwaith
-					geographical_region = middleearth_haradwaith_near
+					geographical_region = middleearth_harad_near
 				}
 			}
 			game_start_date > 5480
@@ -804,7 +804,7 @@ explore_history.0040 = {
 					geographical_region = middleearth_rhun
 					geographical_region = middleearth_mordor
 					geographical_region = middleearth_forodwaith
-					geographical_region = middleearth_haradwaith_near
+					geographical_region = middleearth_harad_near
 				}
 			}
 			game_start_date > 6008.12.24
@@ -862,7 +862,18 @@ explore_history.0050 = {
 	}
 	
 	immediate = {
-		disburse_history_activity_rewards = yes
+		scope:activity = {
+			add_activity_log_entry = {
+				key = history_completed_log
+				score = 80
+				tags = { complete good }
+				character = scope:host
+				show_in_conclusion = yes
+
+				# EFFECT
+				disburse_history_activity_rewards = yes
+			}
+		}
 		scope:activity = { progress_activity_phase_after = { days = 1 } }
 	}
 	
@@ -874,14 +885,18 @@ explore_history.0050 = {
 			}
 			if = {
 				limit = {
-					is_elf = no
+					NOT = { is_elf = yes }
+					has_trait = lifestyle_archivist
 				}
 				random = {
 					chance = 10
 					set_nickname_effect = { NICKNAME = nick_archivist }
 				}
 			}
-			else = {
+			else_if = {
+				limit = {
+					has_trait = lifestyle_archivist
+				}
 				random = {
 					chance = 2
 					set_nickname_effect = { NICKNAME = nick_archivist }
@@ -937,19 +952,42 @@ explore_history.0060 = {
 	cooldown = { weeks = 1 }
 	
 	immediate = {
-		scope:activity = {
-			every_attending_character = {
-				limit = {
-					location = scope:activity.activity_location
-					OR = {
-						has_court_position = chronicler_court_position
-						has_court_position = antiquarian_court_position
-						has_council_position = councillor_court_chaplain
+		if = {
+			limit = {
+				scope:activity = {
+					any_attending_character = {
+						location = scope:activity.activity_location
+						OR = {
+							has_court_position = chronicler_court_position
+							has_court_position = antiquarian_court_position
+							has_council_position = councillor_court_chaplain
+						}
 					}
 				}
+			}
+			scope:activity = {
+				random_attending_character = {
+					limit = {
+						location = scope:activity.activity_location
+						OR = {
+							has_court_position = chronicler_court_position
+							has_court_position = antiquarian_court_position
+							has_council_position = councillor_court_chaplain
+						}
+					}
+					save_scope_as = chronicler
+				}
+			}
+		}
+		else = {
+			create_character = {
+				template = adult_education_teacher
+				dynasty = none
+				location = scope:activity.activity_location
 				save_scope_as = chronicler
 			}
 		}
+		
 		explore_history_generate_first_book_effect = yes
 		scope:newly_created_artifact = { save_scope_as = book_1 }
 		if = {
@@ -975,38 +1013,93 @@ explore_history.0060 = {
 	option = {
 		name = explore_history.0060.a
 		custom_tooltip = explore_history.0060.a.tt
-		scope:book_1 = {
-			destroy_artifact = this
-		}
-		if = {
-			limit = { exists = scope:book_2 }
-			scope:book_2 = {
+		hidden_effect = {
+			scope:book_1 = {
 				destroy_artifact = this
 			}
+			if = {
+				limit = { exists = scope:book_2 }
+				scope:book_2 = {
+					destroy_artifact = this
+				}
+			}
 		}
-		add_prestige = major_prestige_gain
-		add_piety = major_piety_gain
+		scope:activity = {
+			add_activity_log_entry = {
+				key = donated_books_log
+				show_in_conclusion = yes
+				character = scope:host
+				scope:host = {
+					add_prestige = major_prestige_gain
+					add_piety = major_piety_gain
+				}
+			}
+		}	
 	}
 	
 	option = {
 		trigger = { not = { exists = scope:book_2 } }
 		name = explore_history.0060.b
 		custom_tooltip = explore_history.0060.b.tt
+		scope:activity = {
+			add_activity_log_entry = {
+				key = chose_book1_log
+				show_in_conclusion = yes
+				character = scope:host
+				scope:book_1 = {
+					set_owner = {
+						target = scope:host
+						history = {
+							type = given
+							recipient = scope:host
+						}
+					}
+				}
+			}
+		}
 	}
 	
 	option = {
 		name = explore_history.0060.c
 		trigger = { exists = scope:book_2 }
-		scope:book_2 = {
-			destroy_artifact = this
+		hidden_effect = { scope:book_2 = { destroy_artifact = this } }
+		scope:activity = {
+			add_activity_log_entry = {
+				key = chose_book1_log
+				show_in_conclusion = yes
+				character = scope:host
+				scope:book_1 = {
+					set_owner = {
+						target = scope:host
+						history = {
+							type = given
+							recipient = scope:host
+						}
+					}
+				}
+			}
 		}
 	}
 	
 	option = {
 		name = explore_history.0060.d
 		trigger = { exists = scope:book_2 }
-		scope:book_1 = {
-			destroy_artifact = this
+		hidden_effect = { scope:book_1 = { destroy_artifact = this } }
+		scope:activity = {
+			add_activity_log_entry = {
+				key = chose_book2_log
+				show_in_conclusion = yes
+				character = scope:host
+				scope:book_2 = {
+					set_owner = {
+						target = scope:host
+						history = {
+							type = given
+							recipient = scope:host
+						}
+					}
+				}
+			}
 		}
 	}
 }
@@ -2198,7 +2291,6 @@ explore_history.1002 = {
 	}
 }
 
-
 # The Vanyar
 explore_history.1003 = {
 	type = activity_event
@@ -2579,7 +2671,6 @@ explore_history.1012 = {
 		}
 	}
 }
-
 
 # The Silmarils and the unquiet of the Ñoldor
 explore_history.1013 = {
@@ -2973,11 +3064,14 @@ explore_history.1022 = {
 		name = explore_history.1022.c	
 		if = {
 			limit = { has_trait = logistician }
-			add_martial_lifestyle_xp = 300
+			add_trait_xp = {
+				trait = logistician
+				value = 10 
+			}
 		}
 		else = {
 			random = {
-				chance = 75
+				chance = 40
 				add_trait = logistician
 			}
 		}
@@ -2990,7 +3084,6 @@ explore_history.1022 = {
 		}
 	}
 }
-
 
 # The Doom of Mandos
 explore_history.1023 = {
@@ -3199,11 +3292,14 @@ explore_history.1025 = {
 		name = explore_history.1025.c
 		if = {
 			limit = { has_trait = reckless }
-			add_martial_lifestyle_xp = 300
+			add_trait_xp = {
+				trait = reckless 
+				value = 10 
+			}
 		}
 		else = {
 			random = {
-				chance = 75
+				chance = 40
 				add_trait = reckless
 			}
 		}
@@ -3296,7 +3392,16 @@ explore_history.2001 = {
 		}
 		random = {
 			chance = 50
-			add_trait = unyielding_defender
+			if = {
+				limit = { has_trait = unyielding_defender }
+				add_trait_xp = {
+					trait = unyielding_defender
+					value = 10 
+				}
+			}
+			else = {
+				add_trait = unyielding_defender
+			}
 		}
 	}
 	
@@ -3343,7 +3448,6 @@ explore_history.2002 = {
 		animate_if_dead = yes
 	}
 	
-
 	option = { # Maglor with only cavalry
 		name = explore_history.2002.a
 		random = {
@@ -3352,7 +3456,16 @@ explore_history.2002 = {
 		}
 		random = {
 			chance = 50
-			add_trait = open_terrain_expert
+			if = {
+				limit = { has_trait = cavalry_leader }
+				add_trait_xp = {
+					trait = cavalry_leader
+					value = 10 
+				}
+			}
+			else = { 
+				add_trait = cavalry_leader
+			}
 		}
 	}
 
@@ -3955,6 +4068,26 @@ explore_history.2015 = {
 		}
 	}
 	
+	option = { # Labyrinthine caverns
+		name = explore_history.2015.d
+		if = {
+			limit = { NOT = { has_trait = cavern_commander } } 
+			random = {
+				chance = 33
+				add_trait = cavern_commander 
+			}
+		}
+		else = {
+			random = {
+				chance = 33 
+				add_trait_xp = {
+					trait = cavern_commander
+					value = 10 
+				}
+			}
+		}
+	}
+	
 	after = {
 		trigger_event = {
 			id = explore_history.2016
@@ -4113,11 +4246,14 @@ explore_history.2021 = {
 		name = explore_history.2021.a
 		if = {
 			limit = { has_trait = unyielding_defender }
-			add_martial_lifestyle_xp = 300
+			add_trait_xp = {
+				trait = unyielding_defender
+				value = 10 
+			}
 		}
 		else = {
 			random = {
-				chance = 75
+				chance = 40
 				add_trait = unyielding_defender
 			}
 		}
@@ -4474,7 +4610,6 @@ explore_history.2025 = {
 	}
 }
 
-
 ## Tuor and the Fall of Gondolin by Brice Underhill
 # Nirnaeth Arnoediad
 explore_history.2031 = {
@@ -4760,7 +4895,16 @@ explore_history.2035 = {
 	option = { # Morgoth's plan
 		name = explore_history.2035.a
 		add_piety = -50
-		add_trait = military_engineer
+		if = {
+			limit = { has_trait = military_engineer }
+			add_trait_xp = {
+				trait = military_engineer
+				value = 10 
+			}
+		}
+		else = { 
+			add_trait = military_engineer
+		}
 	}
 
 	option = { # Admiration of elven warriors
@@ -4968,7 +5112,7 @@ explore_history.3003 = {
 	desc = explore_history.3003.desc
 	theme = explore_history_activity
 	override_background = {
-		reference = docks_dunedain
+		reference = docks_numenor
 	}
 	center_portrait = {
 		character = root
@@ -5410,7 +5554,16 @@ explore_history.3013 = {
 		}
 		random = {
 			chance = 25
-			add_trait = unyielding_defender
+			if = {
+				limit = { has_trait = unyielding_defender }
+				add_trait_xp = {
+					trait = unyielding_defender
+					value = 10 
+				}
+			}
+			else = {
+				add_trait = unyielding_defender
+			}
 		}
 	}
 	
@@ -5542,7 +5695,16 @@ explore_history.3015 = {
 		}	
 		random = {
 			chance = 33
-			add_trait = holy_warrior
+			if = {
+				limit = { has_trait = holy_warrior }
+				add_trait_xp = {
+					trait = holy_warrior 
+					value = 10 
+				}
+			}
+			else = {
+				add_trait = holy_warrior
+			}
 		}
 	}
 
@@ -6261,11 +6423,14 @@ explore_history.3034 = {
 		name = explore_history.3034.a
 		if = {
 			limit = { has_trait = military_engineer }
-			add_martial_lifestyle_xp = 300
+			add_trait_xp = {
+				trait = military_engineer
+				value = 10 
+			}
 		}
 		else = {
 			random = {
-				chance = 75
+				chance = 40
 				add_trait = military_engineer
 			}
 		}
@@ -6341,11 +6506,14 @@ explore_history.3035 = {
 		name = explore_history.3035.a
 		if = {
 			limit = { has_trait = holy_warrior }
-			add_martial_lifestyle_xp = 300
+			add_trait_xp = {
+				trait = holy_warrior
+				value = 10 
+			}
 		}
 		else = {
 			random = {
-				chance = 75
+				chance = 40
 				add_trait = holy_warrior
 			}
 		}
@@ -6581,11 +6749,29 @@ explore_history.3043 = {
 		name = explore_history.3043.c	
 		Random_list = { 
 			37 = { 
-				add_trait = organizer
+				if = {
+					limit = { has_trait = organizer }
+					add_trait_xp = {
+						trait = organizer
+						value = 10 
+					}
+				}
+				else = {
+					add_trait = organizer
+				}
 			} 
 			37 = { 
-				add_trait = cautious_leader
-			}
+				if = {
+					limit = { has_trait = cautious_leader }
+					add_trait_xp = {
+						trait = cautious_leader
+						value = 10 
+					}
+				}
+				else = {
+					add_trait = cautious_leader
+				}
+			} 
 			26 = {}
 		}
 	}
@@ -6996,7 +7182,7 @@ explore_history.3054 = {
 	desc = explore_history.3054.desc
 	theme = explore_history_activity
 	override_background = {
-		reference = docks_dunedain
+		reference = docks_numenor
 	}
 	center_portrait = {
 		character = character:lineofelros15 # Tar-Ancalimon
@@ -7390,11 +7576,14 @@ explore_history.3062 = {
 		name = explore_history.3062.b
 		if = {
 			limit = { has_trait = aggressive_attacker }
-			add_martial_lifestyle_xp = 300
+			add_trait_xp = {
+				trait = aggressive_attacker
+				value = 10 
+			}
 		}
 		else = {
 			random = {
-				chance = 75
+				chance = 40
 				add_trait = aggressive_attacker
 			}
 		}
@@ -7494,11 +7683,14 @@ explore_history.3063 = {
 			limit = {
 				has_trait = unyielding_defender
 			}
-			add_martial_lifestyle_xp = 300
+			add_trait_xp = {
+				trait = unyielding_defender
+				value = 10 
+			}
 		}
 		else = {
 			random = {
-				chance = 75
+				chance = 40
 				add_trait = unyielding_defender
 			}
 		}
@@ -7594,11 +7786,14 @@ explore_history.3064 = {
 			limit = {
 				has_trait = logistician
 			}
-			add_stewardship_lifestyle_xp = 300
+			add_trait_xp = {
+				trait = logistician
+				value = 10 
+			}
 		}
 		else = {
 			random = {
-				chance = 75
+				chance = 40
 				add_trait = logistician
 			}
 		}
@@ -7840,11 +8035,14 @@ explore_history.4001 = {
 		}
 		if = {
 			limit = { has_trait = aggressive_attacker }
-			add_martial_lifestyle_xp = 300
+			add_trait_xp = {
+				trait = aggressive_attacker
+				value = 10 
+			}
 		}
 		else = {
 			random = {
-				chance = 75
+				chance = 40
 				add_trait = aggressive_attacker
 			}
 		}
@@ -7859,6 +8057,19 @@ explore_history.4001 = {
 		random = {
 			chance = 25
 			add_martial_skill = 1
+		}
+		random = {
+			chance = 25
+			if = {
+				limit = { has_trait = cavalry_leader }
+				add_trait_xp = {
+					trait = cavalry_leader
+					value = 10 
+				}
+			}
+			else = { 
+				add_trait = cavalry_leader
+			}
 		}
 	}
 	
@@ -8016,11 +8227,14 @@ explore_history.4003 = {
 		}
 		if = {
 			limit = { has_trait = unyielding_defender }
-			add_martial_lifestyle_xp = 300
+			add_trait_xp = {
+				trait = unyielding_defender
+				value = 10 
+			}
 		}
 		else = {
 			random = {
-				chance = 75
+				chance = 40
 				add_trait = unyielding_defender
 			}
 		}
@@ -8049,7 +8263,7 @@ explore_history.4004 = {
 	}
 	
 	center_portrait = {
-		character = character:6000000 #Eorl
+		character = character:lineofeorl1 #Eorl
 		animation = aggressive_spear
 		animate_if_dead = yes
 	}
@@ -8106,6 +8320,20 @@ explore_history.4004 = {
 		}
 	}
 	
+	option = { # Once again, horses save the day 
+		name = explore_history.4004.c
+		if = {
+			limit = { NOT = { has_trait = cavalry_leader } }
+			add_trait = cavalry_leader
+		}
+		else = {
+			add_trait_xp = {
+				trait = cavalry_leader
+				value = 15 
+			}
+		}
+	}
+	
 	after = {
 		trigger_event = {
 			id = explore_history.4005
@@ -8126,7 +8354,7 @@ explore_history.4005 = {
 	}
 	
 	right_portrait = {
-		character = character:6000000
+		character = character:lineofeorl1
 		animation = personality_compassionate
 		animate_if_dead = yes
 	}
@@ -8498,7 +8726,7 @@ explore_history.4014 = {
 	desc = explore_history.4014.desc
 	theme = explore_history_activity
 	override_background = {
-		reference = docks_dunedain
+		reference = docks_gondor
 	}
 	
 	center_portrait = {
@@ -8612,11 +8840,14 @@ explore_history.4015 = {
 		name = explore_history.4015.b
 		if = {
 			limit = { has_trait = aggressive_attacker }
-			add_martial_lifestyle_xp = 300
+			add_trait_xp = {
+				trait = aggressive_attacker
+				value = 10 
+			}
 		}
 		else = {
 			random = {
-				chance = 75
+				chance = 40
 				add_trait = aggressive_attacker
 			}
 		}
@@ -8696,7 +8927,7 @@ explore_history.4021 = {
 		}
 		else = {
 			random = {
-				chance = 75
+				chance = 40
 				add_trait = flexible_leader
 			}
 		}
@@ -8714,11 +8945,14 @@ explore_history.4021 = {
 		name = explore_history.4021.c
 		if = {
 			limit = { has_trait = desert_warrior }
-			add_martial_lifestyle_xp = 300
+			add_trait_xp = {
+				trait = desert_warrior
+				value = 10 
+			}
 		}
 		else = {
 			random = {
-				chance = 75
+				chance = 40
 				add_trait = desert_warrior
 			}
 		}
@@ -8818,7 +9052,7 @@ explore_history.4023 = {
 	}
 	
 	center_portrait = {
-		character = character:izindubeth1 # Imrathôr
+		character = character:izindubethfaithfounder # Imrathôr of Narîk-zadan, Izindubêth the Prophet
 		animation = personality_zealous
 		animate_if_dead = yes
 	}
@@ -9285,11 +9519,14 @@ explore_history.4033 = {
 		name = explore_history.4033.b
 		if = {
 			limit = { has_trait = military_engineer }
-			add_martial_lifestyle_xp = 300
+			add_trait_xp = {
+				trait = military_engineer
+				value = 10 
+			}
 		}
 		else = {
 			random = {
-				chance = 75
+				chance = 40
 				add_trait = military_engineer
 			}
 		}
@@ -9336,7 +9573,7 @@ explore_history.4034 = {
 	desc = explore_history.4034.desc
 	theme = explore_history_activity
 	override_background = {
-		reference = docks_dunedain
+		reference = docks_gondor
 	}
 	
 	right_portrait = {
@@ -9367,11 +9604,14 @@ explore_history.4034 = {
 		name = explore_history.4034.b
 		if = {
 			limit = { has_trait = organizer }
-			add_martial_lifestyle_xp = 300
+			add_trait_xp = {
+				trait = organizer
+				value = 10 
+			}
 		}
 		else = {
 			random = {
-				chance = 75
+				chance = 40
 				add_trait = organizer
 			}
 		}
@@ -9631,11 +9871,14 @@ explore_history.4042 = {
 		name = explore_history.4042.a
 		if = {
 			limit = { has_trait = unyielding_defender }
-			add_martial_lifestyle_xp = 300
+			add_trait_xp = {
+				trait = unyielding_defender
+				value = 10 
+			}
 		}
 		else = {
 			random = {
-				chance = 75
+				chance = 40
 				add_trait = unyielding_defender
 			}
 		}
@@ -9727,12 +9970,15 @@ explore_history.4043 = {
 			limit = { has_trait = reaver }
 			random = {
 				chance = 50
-				add_martial_skill = 1
+				add_trait_xp = {
+					trait = reaver
+					value = 15 
+				}
 			}
 		}
 		else = {
 			random = {
-				chance = 75
+				chance = 40
 				add_trait = reaver
 			}
 		}
@@ -9900,11 +10146,14 @@ explore_history.4045 = {
 		name = explore_history.4045.b
 		if = {
 			limit = { has_trait = aggressive_attacker }
-			add_martial_lifestyle_xp = 300
+			add_trait_xp = {
+				trait = aggressive_attacker
+				value = 10
+			}
 		}
 		else = {
 			random = {
-				chance = 75
+				chance = 40
 				add_trait = aggressive_attacker
 			}
 		}
@@ -10409,7 +10658,7 @@ explore_history.9007 = { #The Bellakar Delusion
 	}
 
 	trigger = {
-		NOT = { root.location = { geographical_region = middleearth_haradwaith_far } }
+		NOT = { root.location = { geographical_region = middleearth_harad_far } }
 	}
 	
 	immediate = {
