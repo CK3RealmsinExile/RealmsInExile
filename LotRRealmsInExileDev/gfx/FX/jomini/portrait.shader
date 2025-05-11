@@ -491,26 +491,25 @@ PixelShader =
 				float2 UV0 = Input.UV0;
 				float4 Diffuse = PdxTex2D( DiffuseMap, UV0 );								
 				float4 Properties = PdxTex2D( PropertiesMap, UV0 );
-				
+				float4 NormalSampleRaw = PdxTex2D( NormalMap, UV0 );
 				#ifdef DOUBLE_SIDED_ENABLED
-					float4 NormalSampleRaw = PdxTex2D( NormalMap, UV0 );
 					float3 NormalSample = UnpackRRxGNormal( NormalSampleRaw ) * ( PDX_IsFrontFace ? 1 : -1 );
 				#else
-					float3 NormalSample = UnpackRRxGNormal( PdxTex2D( NormalMap, UV0 ) );		
+					float3 NormalSample = UnpackRRxGNormal( NormalSampleRaw );
 				#endif
 
-				#if defined( VARIATIONS_ENABLED ) || defined ( COA_ENABLED )
-					Properties.r = 1.0; // wipe this clean now, ready to be modified later
+				#ifdef VARIATIONS_ENABLED
+					float4 SecondColorMask = vec4( 0.0f );
+					SecondColorMask.r = Properties.r;
+					SecondColorMask.g =  NormalSampleRaw.b;
+					ApplyVariationPatterns( Input, Diffuse, Properties, NormalSample, SecondColorMask );
 				#endif
 
 				// MOD(godherja)
 				float3 Emissive = float3(0.0f, 0.0f, 0.0f);
 				// END MOD
-
-				#ifdef VARIATIONS_ENABLED
-					ApplyVariationPatterns( Input, Diffuse, Properties, NormalSample );
-				#endif
 				#ifdef COA_ENABLED
+					Properties.r = 1.0;
 					ApplyCoa( Input, Diffuse, CoaColor1, CoaColor2, CoaColor3, CoaOffsetAndScale.xy, CoaOffsetAndScale.zw, CoaTexture, Properties.r );
 				#endif
 
@@ -779,6 +778,12 @@ BlendState alpha_to_coverage
 	AlphaToCoverage = yes
 }
 
+BlendState no_blend_alpha_to_coverage
+{
+	BlendEnable = no
+	AlphaToCoverage = yes
+}
+
 RasterizerState rasterizer_no_culling
 {
 	CullMode = "none"
@@ -893,6 +898,22 @@ Effect portrait_attachment_pattern_alpha_to_coverage
 }
 
 Effect portrait_attachment_pattern_alpha_to_coverageShadow
+{
+	VertexShader = "VertexPdxMeshStandardShadow"
+	PixelShader = "PixelPdxMeshStandardShadow"
+	RasterizerState = "ShadowRasterizerState"
+	Defines = { "PDX_MESH_BLENDSHAPES" }
+}
+
+Effect portrait_attachment_pattern_no_blend_alpha_to_coverage
+{
+	VertexShader = "VS_standard"
+	PixelShader = "PS_attachment"
+	BlendState = "no_blend_alpha_to_coverage"
+	Defines = { "VARIATIONS_ENABLED" "PDX_MESH_BLENDSHAPES" }
+}
+
+Effect portrait_attachment_pattern_no_blend_alpha_to_coverageShadow
 {
 	VertexShader = "VertexPdxMeshStandardShadow"
 	PixelShader = "PixelPdxMeshStandardShadow"
@@ -1041,6 +1062,15 @@ Effect portrait_hair_alpha
 	#Defines = { "PDX_MESH_BLENDSHAPES" }
 	Defines = { "PDX_MESH_BLENDSHAPES" "GH_EMISSION_DISABLED" }
 	# END MOD
+}
+
+Effect portrait_hair_decrease_specular_light_alpha
+{
+	VertexShader = "VS_standard"
+	PixelShader = "PS_hair"
+	BlendState = "hair_alpha_blend"
+	DepthStencilState = "hair_alpha_blend"
+	Defines = { "PDX_MESH_BLENDSHAPES" "PDX_DECREASE_SPECULAR_LIGHT" }
 }
 
 Effect portrait_hair_opaque

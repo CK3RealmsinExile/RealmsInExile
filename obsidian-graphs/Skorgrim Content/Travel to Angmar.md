@@ -1,0 +1,1 @@
+Set off to return the Rings to the Witch-King, hoping for reward

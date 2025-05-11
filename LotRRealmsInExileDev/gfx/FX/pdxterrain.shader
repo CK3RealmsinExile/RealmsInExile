@@ -18,6 +18,7 @@ Includes = {
 	"cw/lighting.fxh"
 	"dynamic_masks.fxh"
 	"disease.fxh"
+	"province_effects.fxh"
 }
 
 VertexStruct VS_OUTPUT_PDX_TERRAIN
@@ -201,12 +202,12 @@ VertexShader =
 			}
 
 			float2 DetailUV = CalcDetailUV( WorldSpacePosXZ );
-			
+
 			float4 DiffuseTexture0 = PdxTex2DLod0( DetailTextures, float3( DetailUV, DetailIndex[0] ) ) * smoothstep( 0.0, 0.1, DetailMask[0] );
 			float4 DiffuseTexture1 = PdxTex2DLod0( DetailTextures, float3( DetailUV, DetailIndex[1] ) ) * smoothstep( 0.0, 0.1, DetailMask[1] );
 			float4 DiffuseTexture2 = PdxTex2DLod0( DetailTextures, float3( DetailUV, DetailIndex[2] ) ) * smoothstep( 0.0, 0.1, DetailMask[2] );
 			float4 DiffuseTexture3 = PdxTex2DLod0( DetailTextures, float3( DetailUV, DetailIndex[3] ) ) * smoothstep( 0.0, 0.1, DetailMask[3] );
-			
+
 			float4 BlendFactors = CalcHeightBlendFactors( float4( DiffuseTexture0.a, DiffuseTexture1.a, DiffuseTexture2.a, DiffuseTexture3.a ), DetailMask, DetailBlendRange );
 			//BlendFactors = DetailMask;
 			
@@ -419,7 +420,7 @@ PixelShader =
 			return LightingProps;
 		}
 	]]
-	
+
 	MainCode PixelShader
 	{
 		Input = "VS_OUTPUT_PDX_TERRAIN"
@@ -444,7 +445,11 @@ PixelShader =
 #else
 				float3 ColorMap = PdxTex2D( ColorTexture, float2( ColorMapCoords.x, 1.0 - ColorMapCoords.y ) ).rgb;
 #endif
-				
+				float WaterNormalLerp = 0.0;
+				EffectIntensities ConditionData;
+				SampleProvinceEffectsMask( ColorMapCoords, ConditionData );
+				ApplyProvinceEffectsTerrain( ConditionData, DetailDiffuse, DetailNormal, DetailMaterial, Input.WorldSpacePos, WaterNormalLerp );
+
 				float3 FlatMap = float3( vec3( 0.5f ) ); // neutral overlay
 				#ifdef TERRAIN_FLAT_MAP_LERP
 					FlatMap = lerp( FlatMap, PdxTex2D( FlatMapTexture, float2( ColorMapCoords.x, 1.0 - ColorMapCoords.y ) ).rgb, FlatMapLerp );
@@ -452,11 +457,11 @@ PixelShader =
 
 				float3 Normal = CalculateNormal( Input.WorldSpacePos.xz );
 
-				float3 ReorientedNormal = ReorientNormal( Normal, DetailNormal );
+				float3 ReorientedNormal = ReorientNormal( lerp( Normal, float3( 0.0, 1.0, 0.0 ), WaterNormalLerp ), DetailNormal );
 
 				float SnowHighlight = 0.0f;
 				#ifndef UNDERWATER
-					DetailDiffuse.rgb = ApplyDynamicMasksDiffuse( DetailDiffuse.rgb, ReorientedNormal, ColorMapCoords );
+					ApplySnowMaterialTerrain( ConditionData, DetailDiffuse, DetailNormal, DetailMaterial, Input.WorldSpacePos.xz, SnowHighlight );
 				#endif
 
 				float3 Diffuse = GetOverlay( DetailDiffuse.rgb, ColorMap, ( 1 - DetailMaterial.r ) * COLORMAP_OVERLAY_STRENGTH );
@@ -592,7 +597,10 @@ PixelShader =
 				float3 FinalColor = CalculateSunLightingLowSpec( MaterialProps, LightingProps );
 
 				#ifndef UNDERWATER
+					// MOD(godherja)
+					//FinalColor = ApplyFogOfWar( FinalColor, Input.WorldSpacePos, FogOfWarAlpha );
 					FinalColor = GH_ApplyAtmosphericEffects( FinalColor, Input.WorldSpacePos, FogOfWarAlpha );
+					// END MOD
 					FinalColor = ApplyDistanceFog( FinalColor, Input.WorldSpacePos );
 				#endif
 

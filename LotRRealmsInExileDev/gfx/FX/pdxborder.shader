@@ -1,4 +1,7 @@
 Includes = {
+	# MOD(lotr)
+	"cw/random.fxh"
+	# END MOD
 	"cw/camera.fxh"
 	"jomini/jomini_flat_border.fxh"
 	"jomini/jomini_fog.fxh"
@@ -38,7 +41,7 @@ VertexShader =
 				Out.WorldSpacePos = position;
 				Out.Position = FixProjectionAndMul( ViewProjectionMatrix, float4( position, 1.0 ) );
 				Out.UV = Input.UV;
-			
+
 				Out.ShadowProj = mul( ShadowMapTextureMatrix, float4( Out.WorldSpacePos, 1.0 ) );
 
 				return Out;
@@ -89,7 +92,7 @@ PixelShader =
 		SampleModeV = "Clamp"
 		Type = "Cube"
 	}
-	
+
 	MainCode PixelShader
 	{
 		Input = "VS_OUTPUT_PDX_BORDER"
@@ -103,7 +106,7 @@ PixelShader =
 				Diffuse.rgb = GH_ApplyAtmosphericEffects( Diffuse.rgb, Input.WorldSpacePos, FogOfWarAlpha );
 				Diffuse.rgb = ApplyDistanceFog( Diffuse.rgb, Input.WorldSpacePos );
 				Diffuse.a *= _Alpha;
-				
+
 				// Apply shadows, only if we're fully in flat-map mode
  				if ( HasFlatMapLightingEnabled == 1 && FlatMapLerp > 0.0 )
 				{
@@ -134,7 +137,7 @@ PixelShader =
 				Diffuse.rgb = GH_ApplyAtmosphericEffects( Diffuse.rgb, Input.WorldSpacePos, FogOfWarAlpha );
 				Diffuse.rgb = ApplyDistanceFog( Diffuse.rgb, Input.WorldSpacePos );
 				Diffuse.a *= _Alpha;
-				
+
 				// Apply shadows, only if we're fully in flat-map mode
  				if ( HasFlatMapLightingEnabled == 1 && FlatMapLerp > 0.0 )
 				{
