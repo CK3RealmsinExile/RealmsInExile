@@ -38,6 +38,7 @@
 # lotr_laamp_4001	Heal courtier or ruler
 #
 # #Prowess Contracts lotr_laamp_5xxx
+# lotr_laamp_5001	Raid settlement
 #
 # #Justicar Contracts lotr_laamp_6xxx
 #
@@ -1682,7 +1683,246 @@ lotr_laamp_4001 = {
 
 
 ##################################################
-# JUSTICAR CONTRACTS
+# PROWESS CONTRACTS
+
+lotr_laamp_5001 = {
+	group = laamp_contracts_ranger_group
+	icon = "gfx/interface/icons/scheme_types/war.dds"
+
+	travel = yes
+	use_diplomatic_range = no
+
+	weight = {
+		# Standard weights.
+		value = 1000
+		add = laamp_contracts_weight_up_prowess_value
+		# Employer weights.
+		scope:employer = {
+			add = {
+				# Weight up.
+				## Traits that want to be effective but subtle.
+				if = {
+					limit = { has_trait = craven }
+					add = task_contract_weight_bonus_employer_has_associated_traits_value
+				}
+				if = {
+					limit = { has_trait = shy }
+					add = task_contract_weight_bonus_employer_has_associated_traits_value
+				}
+				if = {
+					limit = { has_trait = lazy }
+					add = task_contract_weight_bonus_employer_has_associated_traits_value
+				}
+				if = {
+					limit = { has_trait = trusting }
+					add = task_contract_weight_bonus_employer_has_associated_traits_value
+				}
+				# Weight down.
+				## Traits that feel this type of manipulation is beneath them
+				if = {
+					limit = { has_trait = brave }
+					add = task_contract_weight_malus_employer_has_associated_traits_value
+				}
+				if = {
+					limit = { has_trait = wrathful }
+					add = task_contract_weight_malus_employer_has_associated_traits_value
+				}
+				# Restrictions.
+				min = task_contract_weight_employer_associated_traits_min_value
+				max = task_contract_weight_employer_associated_traits_max_value
+			}
+			multiply = task_contract_weight_by_tier_value
+			# This weight is an override, so make sure it's placed at the bottom.
+			add = task_contract_weight_employer_contact_list_value
+		}
+	}
+
+	# Validity Triggers
+	valid_to_create = {
+		# Standard triggers.
+		valid_hostile_ranger_laamp_basic_trigger = {
+			EMPLOYER = scope:employer
+			LAAMP = root
+		}
+		valid_laamp_sensible_start_trigger = yes
+		scope:employer = { 
+			opposite_alignment = { TARGET = root }
+			is_landed = yes
+			capital_province = {
+				NOT = { has_province_modifier = recently_looted_modifier }
+			}
+		}
+	}
+	valid_to_accept = {
+		# Standard triggers.
+		valid_laamp_basic_accept_only_trigger = yes
+		valid_hostile_ranger_laamp_basic_trigger = {
+			EMPLOYER = scope:employer
+			LAAMP = root
+		}
+		scope:employer = { 
+			opposite_alignment = { TARGET = root }
+			is_landed = yes
+			capital_province = {
+				NOT = { has_province_modifier = recently_looted_modifier }
+			}
+		}
+	}
+	valid_to_continue = {
+		# Standard triggers.
+		valid_hostile_ranger_laamp_basic_trigger = {
+			EMPLOYER = root.task_contract_employer
+			LAAMP = root.task_contract_taker
+		}
+		task_contract_employer = { 
+			opposite_alignment = { TARGET = root }
+			is_landed = yes
+			capital_province = {
+				NOT = { has_province_modifier = recently_looted_modifier }
+			}
+		}
+	}
+	valid_to_keep = {
+		# Standard triggers.
+		valid_hostile_ranger_laamp_basic_trigger = {
+			EMPLOYER = root.task_contract_employer
+			LAAMP = root.task_contract_taker
+		}
+		task_contract_employer = { 
+			opposite_alignment = { TARGET = root }
+			is_landed = yes
+			capital_province = {
+				NOT = { has_province_modifier = recently_looted_modifier }
+			}
+		}
+	}
+
+	# On_actions
+	on_accepted = {
+		task_contract_taker = { play_sound_effect = "event:/DLC/EP3/SFX/UI/Contracts/ep3_ui_contracts_accept_contract" }
+		# For the intro event.
+		save_scope_as = task_contract
+		task_contract_employer = { save_scope_as = employer }
+		
+		set_variable = {
+			name = task_contract_employer
+			value = scope:task_contract.task_contract_employer
+		}
+		# Then we start the scheme.
+		task_contract_taker ?= {
+			start_scheme = {
+				type = lotr_laamp_5001_contract_scheme
+				contract = root
+				target_character = root.var:task_contract_employer
+			}
+			# Make a note of what the scheme even is; we'll need this for the event too.
+			scope:task_contract.scheme = { save_scope_as = scheme }
+			trigger_event = lotr_laamp_contract_schemes.5001
+		}
+	}
+	on_create = {
+		scope:contract = {
+			# Make our gold rewards static.
+			grab_gold_fuzz_number_effect = yes
+			save_scope_as = task_contract
+			set_variable = {
+				name = gold_success_standard
+				value = task_contract_taker.task_contract_success_gold_gain_crime_value
+			}
+			set_variable = {
+				name = success_camp_purpose
+				value = task_contract_success_gold_gain_crime_value
+			}
+			# Make sure critical values are a bit higher.
+			save_scope_value_as = { name = gold_safety_margin value = flag:yes }
+			set_variable = {
+				name = gold_success_critical
+				value = task_contract_taker.task_contract_success_gold_gain_critical_crime_value
+			}
+			set_variable = {
+				name = success_sacked_settlement
+				value = task_contract_success_gold_gain_critical_crime_value
+			}
+		}
+	}
+
+	# Rewards
+	task_contract_reward = {
+		success_standard = {
+			effect = {
+				task_contract_taker = { play_sound_effect = "event:/DLC/EP3/SFX/UI/Contracts/ep3_ui_contracts_success_on_contract" }
+				# Camp building extra Stewardship Rewards: +50%.
+				if = {
+					limit = {
+						task_contract_taker.domicile ?= { has_domicile_parameter = camp_improved_stewardship_contract_rewards }
+					}
+					save_scope_value_as = { name = extra_reward value = flag:yes }
+				}
+				# Standard Reward.
+				else = {
+					save_scope_value_as = { name = extra_reward value = flag:no }
+				}
+				laamp_rewards_disburse_ordinary_currency_effect = {
+					GOLD = scope:task_contract.var:gold_success_standard
+					PRESTIGE = 0
+					PIETY = 0
+					PROVISIONS = task_contract_success_provisions_gain_major_value
+					OPINION = task_contract_opinion_crime_success_value
+					OPINION_TYPE = succeeded_criminal_contract_against_me_opinion
+					CONTACT = no
+					CONTACT_HOOK = no
+					EXTRA_REWARD = scope:extra_reward
+				}
+			}
+		}
+		success_critical = {
+			effect = {
+				task_contract_taker = { play_sound_effect = "event:/DLC/EP3/SFX/UI/Contracts/ep3_ui_contracts_success_on_contract" }
+				# Camp building extra Stewardship Rewards: +50%.
+				if = {
+					limit = {
+						task_contract_taker.domicile ?= { has_domicile_parameter = camp_improved_stewardship_contract_rewards }
+					}
+					save_scope_value_as = { name = extra_reward value = flag:yes }
+				}
+				# Critical Reward.
+				else = {
+					save_scope_value_as = { name = extra_reward value = flag:no }
+				}
+				laamp_rewards_disburse_ordinary_currency_effect = {
+					GOLD = scope:task_contract.var:gold_success_critical
+					PRESTIGE = task_contract_success_prestige_gain_half_value
+					PIETY = 0
+					PROVISIONS = task_contract_success_provisions_gain_major_value
+					OPINION = task_contract_opinion_crime_success_value
+					OPINION_TYPE = succeeded_criminal_contract_against_me_opinion
+					CONTACT = no
+					CONTACT_HOOK = no
+					EXTRA_REWARD = scope:extra_reward
+				}
+			}
+		}
+		failure_standard = {
+			positive = no
+			effect = {
+				task_contract_taker = { play_sound_effect = "event:/DLC/EP3/SFX/UI/Contracts/ep3_ui_contracts_failure_on_contract" }
+				save_scope_value_as = { name = extra_reward value = flag:no }
+				# Standard Penalties.
+				laamp_rewards_disburse_ordinary_currency_effect = {
+					GOLD = 0
+					PRESTIGE = task_contract_failure_prestige_loss_full_value
+					PIETY = 0
+					PROVISIONS = 0
+					OPINION = task_contract_opinion_crime_failure_value
+					OPINION_TYPE = attempted_criminal_contract_against_me_opinion
+					CONTACT = no
+					CONTACT_HOOK = no
+					EXTRA_REWARD = scope:extra_reward
+				}
+			}
+		}
+	}
+}
 
 ##################################################
 # DEPRECATED CONTRACTS
