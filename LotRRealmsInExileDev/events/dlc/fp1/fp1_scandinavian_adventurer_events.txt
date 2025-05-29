@@ -80,6 +80,9 @@ scripted_trigger significant_north_germanic_presence_trigger = {
 					culture = { has_cultural_tradition = tradition_corsairs_of_umbar }
 			}
 			
+			trigger_if = {culture = { has_cultural_pillar = heritage_undead }}#LotR- Nazgul count
+			trigger_if = {culture = { has_cultural_pillar = heritage_fallen_ainur }} #LotR- Evil Maiar count
+			
 			has_character_modifier = embraced_local_traditions_modifier
 			AND = {
 				exists = dynasty
@@ -174,6 +177,9 @@ scripted_trigger scattered_north_germanic_presence_trigger = {
 					culture = { has_cultural_tradition = tradition_corsairs_of_umbar }
 			}
 			
+			trigger_if = {culture = { has_cultural_pillar = heritage_undead }}#LotR- Nazgul count
+			trigger_if = {culture = { has_cultural_pillar = heritage_fallen_ainur }} #LotR- Evil Maiar count
+			
 			has_character_modifier = embraced_local_traditions_modifier
 			AND = {
 				exists = dynasty
@@ -252,6 +258,8 @@ scripted_trigger valid_adventurer_target_trigger = {
 					limit = {has_game_rule = southern_orcs_no_invade}
 					culture = { has_cultural_tradition = tradition_corsairs_of_umbar }
 			}
+			trigger_if = {culture = { has_cultural_pillar = heritage_undead }}#LotR- Don't attack Nazgul
+			trigger_if = {culture = { has_cultural_pillar = heritage_fallen_ainur }} #LotR- Don't attack Evil Maiar
 			
 			has_character_modifier = embraced_local_traditions_modifier
 			AND = {
@@ -372,7 +380,7 @@ scripted_trigger valid_scandinavian_county_trigger = {							#OrcAdventure Probl
 }
 
 scripted_trigger valid_scandinavian_county_for_embark_trigger = {
-	is_coastal_county = yes
+	#is_coastal_county = yes
 	holder = {
 		OR = {
 			trigger_if = {	#Orcs
@@ -519,6 +527,7 @@ scripted_effect scandinavian_adventurer_start_war_effect = {
 	# Setup event troops.
 	#OrcAdventure spawn area for orcs
 	scope:scandi_adventurer = {	
+	# Set a random spawn location FOR NORTHERN ORCS (Attacking Mordor)
 	if = {	
 		limit = {
 			scope:scandi_adventurer = { 
@@ -531,11 +540,92 @@ scripted_effect scandinavian_adventurer_start_war_effect = {
 
 				}
 			}
+			scope:adventurer_target.title_province = {
+				geographical_region = middleearth_mordor
+			}
+			 #any_county_in_region = {
+			#	 region = middleearth_mordor
+			#	 this = adventurer_target
+				# holder = { is_in_list = western_scandi_targets_list }
+				# valid_adventurer_target_trigger = yes
+			 #}
 		}
-		# Set a random spawn location FOR ORCS
+				
+		## Try to pick a good spot in Mordor
+		if = {
+			limit = {
+				any_county_in_region = {
+					region = middleearth_mordor #LotR
+					# region = world_europe_north
+					valid_scandinavian_county_for_embark_trigger = yes
+				}
+			}
+			random_county_in_region = {
+				region = middleearth_mordor #LotR
+				# region = world_europe_north
+				limit = { valid_scandinavian_county_for_embark_trigger = yes }
+				# Weight up according to development, so armies tend to spawn in places where more randos would congregate.
+				weight = {
+					modifier = {
+						add = {
+							value = development_level
+							multiply = 10
+						}
+					}
+				}
+				save_temporary_scope_as = selected_county
+				scope:scandi_adventurer = {
+					set_variable = {
+						name = random_location
+						value = scope:selected_county.title_province
+						days = 365
+					}
+				}
+			}
+		}
+		## Otherwise, we used our backup of Barad-Dur.
+		else = {
+			set_variable = {
+				name = random_location
+				value = title:b_barad_dur.title_province #LotR
+				# value = title:b_lister.title_province
+				days = 365
+			}
+		}
+	}	
+	
+	
+	# Set a random spawn location FOR NORTHERN ORCS (Not attacking Mordor)
+	else_if = {	
+		limit = {
+			scope:scandi_adventurer = { 
+				is_orc = yes 
+				NOR = {				
+					culture = culture:rukhashai
+					culture = { any_parent_culture_or_above = { this = culture:rukhashai } }
+					culture = culture:echomaker_goblin
+					culture = { any_parent_culture_or_above = { this = culture:echomaker_goblin } }
+
+				}
+			}
+			# every_county_in_region = {
+				# region = middleearth_mordor
+				# NOT = {
+					# holder = { is_in_list = western_scandi_targets_list }
+				# }
+			# }
+		}
+				
 		## Try to pick a good spot in the Misty Mountains
 		if = {
 			limit = {
+				any_county_in_region = {
+					region = middleearth_mountains_misty
+					NOT = {
+						holder = { is_in_list = western_scandi_targets_list }
+					}	
+					valid_adventurer_target_trigger = yes
+				}
 				any_county_in_region = {
 					region = middleearth_mountains_misty #LotR
 					# region = world_europe_north
@@ -565,7 +655,7 @@ scripted_effect scandinavian_adventurer_start_war_effect = {
 				}
 			}
 		}
-		## Otherwise, we used our backup of Lister, the last Scandinavian province left alive, three million miles into deep space.
+		## Otherwise, we used our backup of Front Porch, by the High Pass
 		else = {
 			set_variable = {
 				name = random_location
@@ -575,6 +665,7 @@ scripted_effect scandinavian_adventurer_start_war_effect = {
 			}
 		}
 	}
+	
 	else_if = {		#Is Southern Orc
 		limit = {
 			scope:scandi_adventurer = { 
@@ -621,11 +712,11 @@ scripted_effect scandinavian_adventurer_start_war_effect = {
 				}
 			}
 		}
-		## Otherwise, we use Shalamagar
+		## Otherwise, we use Tul Askar, gateway into the Yellow Mountains
 		else = {
 			set_variable = {
 				name = random_location
-				value = title:b_shalamagar.title_province #LotR
+				value = title:b_tul_askar.title_province #LotR
 				# value = title:b_lister.title_province
 				days = 365
 			}
@@ -1929,7 +2020,7 @@ fp1_scandinavian_adventurers.00022 = {
 		}
 		##Check through the ordered western targets to see if a region needs a few more Norsemen.
 		
-		###Secure Gorgoroth
+		###Secure Gorgoroth			
 		if = {
 			limit = {
 				NOR = {
