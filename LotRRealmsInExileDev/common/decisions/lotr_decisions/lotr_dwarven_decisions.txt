@@ -2043,3 +2043,329 @@ decision_venerate_the_ancestors = { # Trigger a random dwarven ancestor flavor e
 	}
 	
 }
+
+decision_appeal_for_dwarven_aid = {
+	ai_check_interval = 0
+	# picture = {
+	# 	trigger = {
+	# 		NOR = {
+	# 			government_has_flag = government_is_tribal
+	# 			government_has_flag = government_is_theocracy
+	# 			top_liege ?= { government_has_flag = government_is_tribal }
+	# 			top_liege ?= { government_has_flag = government_is_theocracy }
+	# 		}
+	# 		OR = {
+	# 			culture = { has_cultural_pillar = heritage_byzantine }
+	# 			top_liege ?= {
+	# 				OR = {
+	# 					culture = { has_cultural_pillar = heritage_byzantine }
+	# 					capital_barony ?= title:b_constantinople
+	# 					primary_title ?= title:e_byzantium
+	# 					primary_title ?= title:e_roman_empire
+	# 				}
+	# 			}
+	# 		}
+	# 	}
+	# 	reference = "gfx/interface/illustrations/decisions/ep3_cerimonial_decision.dds"
+	# }
+	picture = {
+		reference = "gfx/interface/illustrations/decisions/decision_knight_kneeling.dds"
+	}
+	decision_group_type = major
+
+	cost = {
+		prestige = {
+			value = 0
+			if = {
+				limit = { petition_liege_admin_valid_trigger = no }
+				add = standard_activity_cost
+			}
+		}
+		influence = {
+			value = 0
+			if = {
+				limit = { petition_liege_admin_valid_trigger = yes }
+				add = standard_activity_cost
+			}
+		}
+	}
+
+	cooldown = {
+		days = standard_petition_liege_cooldown_time
+	}
+
+	is_shown = {
+		is_playable_character = yes
+		is_dwarf = yes
+		is_independent_ruler = no
+		liege ?= { has_royal_court = yes }
+		has_dlc_feature = royal_court
+		is_in_valinor = no #LotR
+	}
+
+	is_valid = {
+		exists = liege
+		OR = {
+			has_trait = ambitious
+			has_trait = brave
+			has_trait = greedy
+			has_trait = vengeful
+
+		}
+	}
+
+	is_valid_showing_failures_only = {
+		is_available_adult = yes
+		liege ?= { is_available_adult = yes }
+		is_at_war_with_liege = no
+		trigger_if = {
+			limit = {
+				is_ai = no
+				has_royal_court = yes
+			}
+			has_spawned_court_events = no # should only be used for human players
+		}
+		trigger_if = { # Gold
+			limit = { scope:petition_liege_gold = yes }
+		}
+		trigger_if = { # Pay Debt
+			limit = { scope:petition_liege_pay_debt = yes }
+			custom_tooltip = {
+				text = petition_liege_pay_debt_me_tt
+				gold <= -100
+			}
+			custom_tooltip = {
+				text = petition_liege_pay_debt_liege_tt
+				liege.gold >= petitioner_debt_positivization_root_value
+			}
+		}
+		trigger_if = { # War Aid
+			limit = { scope:petition_liege_war_aid = yes }
+			custom_tooltip = { # Must not be in any war involving liege
+				text = petition_liege_war_aid_liege_tt
+				petition_liege_war_aid_share_trigger = yes
+			}
+			custom_tooltip = { # Losing an external war
+				text = petition_liege_war_aid_tt
+				petition_liege_war_aid_trigger = yes
+			}
+			custom_tooltip = { # Liege not at war themselves
+				text = petition_liege_internal_war_aid_tt
+				petition_war_aid_liege_ally_value >= petition_war_aid_rebels_value
+			}
+			custom_tooltip = { # Liege not at war themselves
+				text = petition_liege_external_war_aid_tt
+				petition_liege_war_liege_involvement_trigger = yes
+			}
+		}
+		trigger_if = { # Faction War
+			limit = { scope:petition_liege_faction_war = yes }
+			custom_tooltip = {
+				text = petition_liege_faction_war_tt
+				any_targeting_faction = { target_of_powerful_faction_trigger = yes }
+			}
+		}
+		trigger_if = { # Fortify
+			limit = { scope:petition_liege_fortify_border = yes }
+			custom_tooltip = {
+				text = petition_liege_fortify_border_tt
+				any_held_title = { petition_liege_fortify_border_trigger = yes }
+			}
+			custom_tooltip = {
+				text = petition_liege_debt_tt
+				NOT = { liege.gold < 0 }
+			}
+		}
+		trigger_if = { # Development
+			limit = { scope:petition_liege_development = yes }
+			custom_tooltip = {
+				text = petition_liege_development_tt
+				exists = liege
+				liege.capital_province.county.development_level >= petitioner_development_difference_decision_value
+			}
+		}
+	}
+
+	widget = {
+		gui = "decision_view_widget_petition_liege"
+		controller = decision_option_list_controller
+		decision_to_second_step_button = "CHOOSE_PETITION_DECISION_NEXT_STEP_BUTTON"
+
+		item = { # Gold
+			value = petition_liege_gold
+			is_shown = {
+				petition_liege_admin_valid_trigger = yes
+			}
+			is_valid = {}
+			current_description = petition_liege_gold_desc
+			localization = petition_liege_decision_option_gold
+			icon = "gfx/interface/icons/message_feed/money.dds"
+			ai_chance = { value = 0 } # Currently unused
+		}
+		item = { # Debt
+			value = petition_liege_pay_debt
+			is_shown = {
+				petition_liege_admin_valid_trigger = no
+			}
+			is_valid = {
+				custom_tooltip = { # In debt
+					text = petition_liege_pay_debt_me_tt
+					gold <= -100
+				}
+				custom_tooltip = { # Liege can afford your debt
+					text = petition_liege_pay_debt_liege_tt
+					liege.gold >= petitioner_debt_positivization_root_value
+				}
+			}
+			current_description = petition_liege_pay_debt_desc
+			localization = petition_liege_decision_option_pay_debt
+			icon = "gfx/interface/icons/message_feed/steward_job.dds"
+			ai_chance = { value = 0 } # Currently unused
+		}
+		### Wars
+		item = { # Faction War
+			value = petition_liege_faction_war
+			is_shown = {
+				petition_liege_admin_valid_trigger = no
+			}
+			is_valid = {
+				custom_tooltip = {
+					text = petition_liege_faction_war_tt
+					any_targeting_faction = { target_of_powerful_faction_trigger = yes }
+				}
+				NAND = {
+					government_has_flag = government_is_administrative
+					liege = { government_has_flag = government_is_administrative }
+				}
+			}
+			current_description = petition_liege_faction_war_desc
+			localization = petition_liege_decision_option_faction_war
+			icon = "gfx/interface/icons/message_feed/faction.dds"
+			ai_chance = { value = 0 } # Currently unused
+		}
+		item = { # War Aid
+			value = petition_liege_war_aid
+			is_shown = {
+				petition_liege_admin_valid_trigger = no
+			}
+			is_valid = {
+				custom_tooltip = { # Must not be in any war involving liege
+					text = petition_liege_war_aid_liege_tt
+					petition_liege_war_aid_share_trigger = yes
+				}
+				custom_tooltip = { # Losing an external war
+					text = petition_liege_war_aid_tt
+					petition_liege_war_aid_trigger = yes
+				}
+				custom_tooltip = { # Liege not at war themselves
+					text = petition_liege_internal_war_aid_tt
+					petition_war_aid_liege_ally_value >= petition_war_aid_rebels_value
+				}
+				custom_tooltip = { # Liege not at war themselves
+					text = petition_liege_external_war_aid_tt
+					petition_liege_war_liege_involvement_trigger = yes
+				}
+				NAND = {
+					government_has_flag = government_is_administrative
+					liege = { government_has_flag = government_is_administrative }
+				}
+			}
+			current_description = petition_liege_war_aid_desc
+			localization = petition_liege_decision_option_war_aid
+			icon = "gfx/interface/icons/message_feed/war.dds"
+			ai_chance = { value = 0 } # Currently unused
+		}
+		### Construction/Development
+		item = { # Fortify
+			value = petition_liege_fortify_border
+			is_shown = {
+				petition_liege_admin_valid_trigger = no
+			}
+			is_valid = {
+				custom_tooltip = {
+					text = petition_liege_fortify_border_tt
+					any_held_title = { petition_liege_fortify_border_trigger = yes }
+				}
+			}
+			current_description = petition_liege_fortify_border_desc
+			localization = petition_liege_decision_option_fortify_border
+			icon = "gfx/interface/icons/icon_garrison.dds"
+			ai_chance = { value = 0 } # Currently unused
+		}
+		item = { # Development
+			value = petition_liege_development
+			is_valid = {
+				custom_tooltip = {
+					text = petition_liege_development_tt
+					exists = liege
+					liege.capital_province.county.development_level >= petitioner_development_difference_decision_value
+				}
+			}
+			current_description = petition_liege_development_desc
+			localization = petition_liege_decision_option_development
+			icon = "gfx/interface/icons/message_feed/guest.dds"
+			ai_chance = { value = 0 } # Currently unused
+		}
+	}
+
+	effect = {
+		custom_tooltip = petition_liege_decision_effects
+		if = {
+			limit = {
+				liege = { is_ai = yes }
+			}
+			custom_description_no_bullet = { text = petition_liege_warning_effect }
+		}
+		show_as_tooltip = {
+			switch = {
+				trigger = has_trait 
+				shy = { add_stress = medium_stress_impact_gain }
+				arrogant = { add_stress = medium_stress_impact_gain }
+			}
+		}
+		switch = {
+			trigger = yes
+			scope:petition_liege_gold = { # Gold
+				set_variable = { name = petition_type value = flag:gold }
+			}
+			scope:petition_liege_pay_debt = { # Debt
+				set_variable = { name = petition_type value = flag:pay_debt }
+			}
+			scope:petition_liege_war_aid = { # War Aid
+				set_variable = { name = petition_type value = flag:war_aid }
+			}
+			scope:petition_liege_faction_war = { # Faction War
+				set_variable = { name = petition_type value = flag:faction_war }
+			}
+			scope:petition_liege_fortify_border = { # Fortify Border
+				set_variable = { name = petition_type value = flag:fortify_border }
+			}
+			scope:petition_liege_development = { # Development
+				set_variable = { name = petition_type value = flag:development }
+			}
+		}
+		if = {
+			limit = {
+				location = liege.capital_province
+			}
+			trigger_event = {
+				on_action = petition_liege_start
+			}
+			
+			trigger_event = petition_liege.9000
+		}
+		else = {
+			start_travel_plan = {
+				destination = liege.capital_province
+				on_start_on_action = petition_liege_start
+				on_travel_planner_cancel_on_action = petition_liege_travel_planner_exit 
+				on_arrival_event = petition_liege.9000
+				on_arrival_destinations = all_but_last
+			}
+		}
+	}
+	
+	ai_potential = {
+		always = no # Only players can do this. AI vassals go through the normal court events/hold court activity.
+	}
+}
