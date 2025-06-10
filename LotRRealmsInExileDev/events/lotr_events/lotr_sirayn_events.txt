@@ -293,12 +293,18 @@ sirayn.1600 = { # Lore dump event about Radyani
 	type = character_event
 	title = sirayn.1600.t
 	desc = sirayn.1600.desc
-	theme = crown 
+	theme = intrigue 
+	override_background = { reference = bedchamber}
 	left_portrait = {
 		character = root
-		animation = personality_bold
+		animation = sword_coup_degrace
 	}
-	
+	lower_right_portrait = {
+		character = scope:tayb_uncle 
+	}
+	immediate = {
+		character:lineoflavrajyatante22 = { save_scope_as = uncle_tayb }
+	}
 	option = { # I'll see Arien destroyed
 		name = sirayn.1600.a
 	}
@@ -328,6 +334,8 @@ sirayn.1601 = { # Arienists join the holy war
 					holder ?= {
 						has_faith = faith:faith_arienism
 						is_independent_ruler = yes
+						NOT = { is_at_war_with = title:k_isra.holder }
+						NOT = { is_defender_in_war = scope:radyani_religious_war }
 					}
 					
 				}
@@ -347,6 +355,7 @@ sirayn.1601 = { # Arienists join the holy war
 					is_independent_ruler = no
 				}
 			}
+			trigger_event = sirayn.1604 
 			scope:radyani_religious_war = {
 				add_defender = prev
 			}
@@ -356,6 +365,7 @@ sirayn.1601 = { # Arienists join the holy war
 	option = { # Let them come!
 		name = sirayn.1601.a
 		add_piety = minor_piety_gain
+		add_dread = medium_dread_gain
 	}
 }
 
@@ -372,9 +382,178 @@ sirayn.1602 = { # Radyani wins her war
 		character = root
 		animation = celebrate_sword
 	}
+	immediate = {
+		title:e_sirayn = {
+			every_in_de_jure_hierarchy = {
+				limit = {
+					holder ?= {
+						has_faith = faith:faith_arienism
+					}
+					
+				}
+				this.holder = {
+					add_to_list = radyani_ultimatum_rulers
+				}
+			}
+		}
+		every_sub_realm_county = {
+			limit = {
+				this.faith = faith:faith_arienism
+			}
+			set_county_faith = faith:faith_yom 
+		}
+	}
 	
 	option = { # Let's kick Arien out 
 		name = sirayn.1602.a
 		add_legitimacy = major_legitimacy_gain
+		custom_tooltip = sirayn.1602.a.tt
+		every_in_list = {
+			list = radyani_ultimatum_rulers
+			trigger_event = sirayn.1603
+		}
 	}
 }
+
+sirayn.1603 = { # Receive the order to submit
+	type = letter_event
+	sender = scope:sender
+	opening = sirayn.1603.opening
+	desc = sirayn.1603.desc
+
+	trigger = {
+		NOT = { is_vassal_or_below_of = title:k_isra.holder }
+		NOT = { root = title:k_isra.holder }
+	}
+
+	on_trigger_fail = { #Trigger invitation again if it was blocked because the character was handling another invitation
+		trigger_event = {
+			id = sirayn.1603
+			days = 1
+		}
+	}
+
+	immediate = {
+		title:k_isra.holder = {
+			save_scope_as = sender
+		}
+		ROOT = {
+			save_scope_as = recipient
+		}
+		scope:sender.religion = {
+			random_faith = { save_scope_as = radyani_new_faith }
+		}
+	}
+
+	option = { 
+		name = sirayn.1603.a # It would be best to convert...
+		set_character_faith = scope:radyani_new_faith
+		if = {
+			limit = { exists = root.player_heir }
+			root.player_heir = { set_character_faith = scope:radyani_new_faith }
+		}
+		if = {
+			limit = { exists = root.spouse }
+			root.spouse = { set_character_faith = scope:radyani_new_faith }
+		}
+		every_held_title = {
+			limit = {
+				tier = tier_county
+				faith = faith:faith_arienism
+			}
+			set_county_faith = scope:radyani_new_faith
+		}
+	}
+
+	option = {
+		name = sirayn.1603.b # I will not swear off Arien. Into exile I will go
+		create_title_and_vassal_change = {
+			type = revoked
+			save_scope_as = change
+			add_claim_on_loss = no
+		}
+		every_held_title = {
+			limit = {
+				tier >= tier_county
+			}
+			add_to_list = targeted_titles
+		}
+	
+		every_in_list = {
+			list = targeted_titles
+			change_title_holder = {
+				holder = scope:sender
+				change = scope:change
+			}
+		}
+		
+		every_in_list = {
+			list = targeted_titles
+			limit = {
+				tier = tier_county
+				faith = faith:faith_arienism
+			}
+			set_county_faith = scope:radyani_new_faith
+		}
+		
+		resolve_title_and_vassal_change = scope:change
+	}
+}
+
+sirayn.1604 = { # Radyani is attacking us! An affront to the Goddess!
+	content_source = realms_dlc
+	type = character_event
+	title = sirayn.1604.t
+	desc = sirayn.1604.desc
+	theme = faith 
+	left_portrait = {
+		character = scope:radyani
+		animation = marshal_shield
+	}
+	right_portrait = {
+		character = root 
+		animation = anger 
+	}
+	immediate = {
+		title:k_isra.holder = { save_scope_as = radyani }
+		show_as_tooltip = {
+			every_character_war = {
+				limit = {
+					using_cb = religious_war
+				}
+				save_scope_as = radyani_religious_war 
+			}
+		}
+		scope:radyani_religious_war = {
+			add_defender = root 
+		}
+		scope:radyani.religion = {
+			random_faith = { save_scope_as = scope:radyani_new_faith }
+		}
+	}
+	
+	option = { # This cannot stand! To arms!
+		name = sirayn.1604.a
+	}
+
+	# option = { 
+		# name = sirayn.1604.b # It would be best to convert...
+		# set_character_faith = scope:radyani_new_faith
+		# if = {
+			# limit = { exists = root.player_heir }
+			# root.player_heir = { set_character_faith = scope:radyani_new_faith }
+		# }
+		# if = {
+			# limit = { exists = root.spouse }
+			# root.spouse = { set_character_faith = scope:radyani_new_faith }
+		# }
+		# every_held_title = {
+			# limit = {
+				# tier = tier_county
+				# faith = faith:faith_arienism
+			# }
+			# set_county_faith = radyani_new_faith
+		# }
+	# }
+}
+			
