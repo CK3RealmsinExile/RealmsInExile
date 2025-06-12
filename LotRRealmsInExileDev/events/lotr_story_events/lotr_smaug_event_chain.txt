@@ -3889,6 +3889,7 @@ smaug_event_chain.0311 = {
                 }    
 		    }
         }
+		trigger_event = smaug_event_chain.0403
 	}
 }
 
@@ -4269,5 +4270,340 @@ smaug_event_chain.0402 = {
 				set_employer = scope:esgaroth_holder
 			}	
 		}	
+	}
+}
+
+scripted_effect return_lands = {
+	create_title_and_vassal_change = {
+		type = returned
+		save_scope_as = change
+		add_claim_on_loss = no
+	}
+	$TITLE$ = {
+		every_in_de_jure_hierarchy = {
+		limit = { holder = root }
+			change_title_holder = {
+				holder = $KING$
+				change = scope:change
+			}
+			hidden_effect = {
+				if = {
+					limit = { NOT = { county.culture = $KING$.culture } } 
+					county = { set_county_culture = $KING$.culture }
+				}
+				if = {
+					limit = { NOT = { county.faith = $KING$.faith } } 
+					county = { set_county_faith = $KING$.faith }
+				}
+			}
+		}
+	}
+	resolve_title_and_vassal_change = scope:change
+}
+
+scripted_trigger has_lands = {
+	any_held_title = {
+		$TITLE$ = {
+			any_in_de_jure_hierarchy = {
+				NOT = { this = $TITLE$ }
+				holder = root
+			}
+		}
+	}
+}
+
+smaug_event_chain.0403 = {
+	content_source = realms_dlc
+    type = character_event
+    title = smaug_event_chain.0403.title
+	desc = smaug_event_chain.0403.desc
+
+    theme = realm
+
+	override_background = { reference = throne_room_dwarf }
+
+	right_portrait = {
+		character = root
+		animation = steward
+	}
+
+	left_portrait = {
+		character = scope:courtier
+		animation = martial
+	}
+	
+	lower_left_portrait = scope:belegost_king
+	lower_right_portrait = scope:buzra_king
+	lower_center_portrait = scope:my_liege
+
+	trigger = { has_lands = { TITLE = title:e_blue_mountains } }
+
+	immediate = {
+		if = {
+			limit = { has_lands = { TITLE = title:k_belegost } }
+			title:k_broadbeams.holder ?= { save_scope_as = belegost_king }
+		}
+		if = {
+			limit = { has_lands = { TITLE = title:k_buzra_dum } }
+			title:k_firebeards.holder ?= { save_scope_as = buzra_king }
+		}
+		if = {
+			limit = { is_independent_ruler = no }
+			liege = { save_scope_as = my_liege }
+		}
+
+		if = {
+			limit = { NOT = { exists = scope:courtier } }
+			random_courtier = {
+				limit = {
+					NOT = { 
+						dynasty = root.dynasty 
+						is_close_family_of = root
+					}
+					is_dwarf = yes
+					is_lotr_adult = yes
+				}
+				save_scope_as = courtier
+			}
+		}
+	}
+
+	# Turn all lands over to your liege
+	option = {
+		trigger = { is_independent_ruler = no }
+		name = smaug_event_chain.0403.a
+		return_lands = { KING = root.liege TITLE = title:e_blue_mountains }
+		custom_tooltip = smaug_event_chain.0403.a.tt # these_lands_are_my_lieges
+		# Makes them independent if their liege isn't their rightful liege anymore
+		if = {
+			limit = {
+				scope:my_liege = {
+					NOR = {
+						has_title = title:e_misty_mountains
+						has_title = title:e_iron_mountains
+					}
+				}
+			}
+			create_title_and_vassal_change = {
+				type = independency
+				save_scope_as = change
+				add_claim_on_loss = no
+			}
+			becomes_independent = { change = scope:change }
+			resolve_title_and_vassal_change = scope:change
+		}
+		ai_chance = {
+			base = 50
+			modifier = {	# 0 if lore friendly
+				add = -50
+				has_game_rule = default_ai_behavior
+			}
+		}
+	}
+
+	# Return Belegost lands to Belegost
+	option = {
+		trigger = { 
+			exists = scope:belegost_king 
+			is_independent_ruler = yes 
+			has_lands = { TITLE = title:k_belegost } 
+		}
+		name = smaug_event_chain.0403.b
+		return_lands = { KING = scope:belegost_king TITLE = title:k_belegost }
+		trigger_event = smaug_event_chain.0403
+		custom_tooltip = smaug_event_chain.0403.b.tt # these_lands_are_broady
+		ai_chance = {
+			base = 50
+			modifier = {	# 0 if lore friendly
+				add = -50
+				has_game_rule = default_ai_behavior
+			}
+		}
+	}
+
+	# Return Buzra-Dum lands to Buzra-Dum
+	option = {
+		trigger = { 
+			exists = scope:buzra_king 
+			is_independent_ruler = yes 
+			has_lands = { TITLE = title:k_buzra_dum } 
+		}
+		name = smaug_event_chain.0403.c
+		return_lands = { KING = scope:buzra_king TITLE = title:k_buzra_dum }
+		trigger_event = smaug_event_chain.0403
+		custom_tooltip = smaug_event_chain.0403.c.tt # these_lands_are_firey
+		ai_chance = {
+			base = 50
+			modifier = {	# 0 if lore friendly
+				add = -50
+				has_game_rule = default_ai_behavior
+			}
+		}
+	}
+
+	# Refuse to return the lands
+	option = {
+		trigger = {
+			OR = {
+				exists = scope:buzra_king
+				exists = scope:belegost_king
+			}
+			OR = {
+				has_lands = { TITLE = title:k_buzra_dum } 
+				has_lands = { TITLE = title:k_belegost } 
+			}
+		}
+		name = smaug_event_chain.0403.d
+		custom_tooltip = smaug_event_chain.0403.d.tt # these_lands_are_mine
+
+		if = {
+			limit = { exists = scope:buzra_king }
+			scope:buzra_king = {
+				add_opinion = {
+					modifier = refused_to_return_lands
+					target = root
+				}
+			}
+		}
+		if = {
+			limit = { exists = scope:belegost_king }
+			scope:belegost_king = {
+				add_opinion = {
+					modifier = refused_to_return_lands
+					target = root
+				}
+			}
+		}
+		ai_chance = {
+			base = 50
+			modifier = {	# 0 if lore friendly
+				add = -50
+				has_game_rule = default_ai_behavior
+			}
+		}
+	}
+
+	# Give them to a courtier
+	option = {
+		name = smaug_event_chain.0403.e
+		return_lands = { KING = scope:courtier TITLE = title:e_blue_mountains }
+		custom_tooltip = smaug_event_chain.0403.e.tt # will_be_vassalised_if_possible
+
+		scope:courtier = {
+			if = {
+				limit = { exists = scope:belegost_king capital_province.county.duchy.kingdom = title:k_belegost }
+				add_character_flag = belegost
+			}
+			else_if = {
+				limit = { exists = scope:buzra_king capital_province.county.duchy.kingdom = title:k_buzra_dum }
+				add_character_flag = buzra
+			}
+
+			if = {
+				limit = {
+					OR = {
+						has_character_flag = belegost
+						has_character_flag = buzra
+					}
+				}
+
+				create_title_and_vassal_change = {
+					type = swear_fealty
+					save_scope_as = change
+				}
+				if = {
+					limit = { has_character_flag = belegost }
+					change_liege = {
+						liege = scope:belegost_king
+						change = scope:change
+					}
+				}
+				else_if = {
+					limit = { has_character_flag = buzra }
+					change_liege = {
+						liege = scope:buzra_king
+						change = scope:change
+					}
+				}
+				resolve_title_and_vassal_change = scope:change
+			}
+			else = {
+				create_title_and_vassal_change = {
+					type = independency
+					save_scope_as = change
+					add_claim_on_loss = no
+				}
+				becomes_independent = { change = scope:change }
+				resolve_title_and_vassal_change = scope:change
+			}
+		}
+		ai_chance = {
+			base = 50
+			modifier = {	# 100 if lore friendly
+				add = 50
+				has_game_rule = default_ai_behavior
+			}
+		}
+	}
+
+	# No one to return them too/returned them all
+	option = {
+		trigger = {
+			OR = {
+				NOR = {
+					exists = scope:buzra_king
+					exists = scope:belegost_king
+				}
+				NOT = {
+					has_lands = { TITLE = title:k_buzra_dum } 
+					has_lands = { TITLE = title:k_belegost } 
+				}
+			}
+		}
+		name = smaug_event_chain.0403.f
+
+		if = {
+			limit = {
+				exists = scope:buzra_king
+				exists = scope:belegost_king
+				NOT = {
+					has_lands = { TITLE = title:k_buzra_dum } 
+					has_lands = { TITLE = title:k_belegost } 
+				}
+			}
+			custom_tooltip = returned_lands
+		}
+		else_if = {
+			limit = {
+				exists = scope:buzra_king
+				NOT = { exists = scope:belegost_king }
+				NOT = { has_lands = { TITLE = title:k_buzra_dum } }
+			}
+			custom_tooltip = returned_lands_to_uri
+		}
+		else_if = {
+			limit = {
+				exists = scope:belegost_king
+				NOT = { exists = scope:buzra_king }
+				NOT = { has_lands = { TITLE = title:k_belegost } }
+			}
+			custom_tooltip = returned_lands_to_belegost
+		}
+		else_if = {
+			limit = {
+				NOT = { 
+					exists = scope:buzra_king 
+					exists = scope:belegost_king
+				}
+			}
+			custom_tooltip = the_kings_are_gone
+		}
+		ai_chance = {
+			base = 50
+			modifier = {	# 0 if lore friendly
+				add = -50
+				has_game_rule = default_ai_behavior
+			}
+		}
 	}
 }
