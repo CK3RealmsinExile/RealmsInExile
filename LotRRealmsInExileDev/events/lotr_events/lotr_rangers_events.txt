@@ -5651,6 +5651,17 @@ rangers.0461 = { # Grey Mountains: Nordinbad is already under siege!
 			players_use_planner = no
 			on_arrival_event = rangers.0462
 		}
+		create_alliance = {
+			target = scope:nordinbadholder
+			allied_through_owner = root
+			allied_through_target = scope:nordinbadholder
+		}
+		scope:nordinbadholder = {
+			add_opinion = {
+				modifier = perk_negotiated_alliance_opinion
+				target = root
+			}
+		}
 	}
 }
 
@@ -5764,6 +5775,7 @@ rangers.0462 = { # Nordinbad: The Siege
 						custom_tooltip = rangers.0462.a.defeat
 					}
 				}
+				add_courtier = scope:nordinbadholder.player_heir
 				scope:nordinbadholder = { death = { death_reason = death_battle killer = scope:gundabadholder } }
 				make_settlement_county_wilderness = { COUNTY = scope:targeted_county } 
 			}
@@ -5834,7 +5846,6 @@ rangers.0463 = { # Nordinbad: Victory!
 				save_scope_as = war_for_nordinbad
 			}
 		}
-		custom_tooltip = eradan_end_of_content
 		hidden_effect = { current_travel_plan ?= { abort_travel_plan = yes } }
 	}
 	option = { # Reinforcements are here!
@@ -5881,6 +5892,20 @@ rangers.0463 = { # Nordinbad: Victory!
 				SPAWN_CONTRACTS = 5
 			}
 		}
+	}
+	after = { # We must end the threat of Gundabad
+		hidden_effect = { # Create the final contract
+			root = {
+				create_task_contract = {
+					task_contract_type = lotr_eradan_contract_final
+					task_contract_employer = title:c_nordinbad.holder
+					location = title:c_gundabad.title_province
+					task_contract_tier = 4
+					save_scope_as = created_contract
+				}
+			}
+		}
+		add_character_flag = eradan_ready_for_final
 	}
 }
 
@@ -5947,7 +5972,7 @@ rangers.0464 = { # Nordinbad: Defeat!
 	}
 }
 
-rangers.0465 = { # Avenging Nordinbad
+rangers.0465 = { # Nordinbad: Avenging Nordinbad
 	content_source = realms_dlc
 	type = character_event
 	title = rangers.0465.t
@@ -5994,7 +6019,7 @@ rangers.0465 = { # Avenging Nordinbad
 	}
 }
 
-rangers.0466 = { # Win the war
+rangers.0466 = { # Nordinbad: Vengeance
 	content_source = realms_dlc
 	type = character_event
 	title = rangers.0466.t
@@ -6024,6 +6049,13 @@ rangers.0466 = { # Win the war
 		add_prestige = massive_prestige_gain
 		title:c_mattugard = { add_to_list = avenged_titles_taken }
 		title:c_gundabad = { add_to_list = avenged_titles_taken }
+		if = {
+			limit = { character:linegorin9 = { is_alive = yes } }
+			character:linegorin9 = { save_scope_as = nordinbadrestorer }
+		}
+		else = {
+			scope:thorin = { save_scope_as = nordinbadrestorer }
+		}
 		custom_tooltip = eradan_end_of_content
 	}
 	option = { # We shall restore Nordinbad
@@ -6054,7 +6086,7 @@ rangers.0466 = { # Win the war
 		}
 		title:c_nordinbad = {
 			change_title_holder = {
-				holder = scope:thorin
+				holder = scope:nordinbadrestorer
 				change = scope:change
 			}			
 		}
@@ -6076,12 +6108,399 @@ rangers.0466 = { # Win the war
 		}
 		every_in_list = {
 			list = avenged_titles_taken
-			set_county_culture = root.culture
-			set_county_faith = root.faith
+			set_county_culture = scope:thorin.culture
+			set_county_faith = scope:thorin.faith
 			change_title_holder = {
-				holder = scope:attacker
+				holder = scope:thorin
 				change = scope:change
 				take_baronies = yes
+			}
+		}
+		resolve_title_and_vassal_change = scope:change
+	}
+}
+
+rangers.0467 = { # Gundabd: March on Gundabad
+	content_source = realms_dlc
+	type = character_event
+	title = rangers.0467.t
+	desc = rangers.0467.desc
+	theme = war
+	window = visit_settlement_window
+	override_background = { reference = dwarven_gate }
+	left_portrait = {
+		character = root
+		animation = marshal
+	}
+	center_portrait = {
+		character = scope:farin 
+		animation = aggressive_axe
+	}
+	right_portrait = {
+		character = scope:gundabadholder
+		animation = rage
+	}
+	lower_left_portrait = { 
+		character = scope:thorin 
+	}
+	lower_center_portrait = {
+		character = scope:nordri 
+	}
+	lower_right_portrait = {
+		character = scope:andriel 
+	}
+	immediate = {
+		title:c_mattugard.holder.top_liege = { save_scope_as = gundabadholder }
+		character:lineofandriel = { save_scope_as = andriel } 
+		character:lineofnorin2 = { save_scope_as = farin }
+		title:c_throne_of_erebor.holder.top_liege.player_heir = { save_scope_as = thorin }
+		remove_character_flag = eradan_ready_for_final 
+		character:linegorin9 = { save_scope_as = nordri }
+	}
+	option = { # He shall pay for what he did!
+		name = rangers.0467.a
+		show_as_tooltip = {
+			random_list = {
+				67 = { # Jebait: You die
+					custom_tooltip = rangers.0467.a.failure 
+					death = { death_reason = death_battle killer = scope:gundabadholder }
+				}
+				33 =  { # Jebait: You win 
+					custom_tooltip = rangers.0467.a.success 
+					scope:gundabadholder = { death = { death_reason = death_duel killer = scope:farin } }
+				}
+			}
+		}
+		hidden_effect = { # What actually happens 
+			if = { # If the Agandaur orc is alive
+				limit = {
+					title:d_vengeful_horde.holder ?= { is_alive = yes } # Change to d_encroaching_shadows later
+				}
+				trigger_event = rangers.0468
+			}
+			else = { # If not, Thorin just kicks in the door
+				trigger_event = rangers.0470
+			}
+		}
+	}
+}
+
+rangers.0468 = { # Gundabad: Return of Agandaur
+	content_source = realms_dlc
+	type = character_event
+	title = rangers.0468.t
+	desc = rangers.0468.desc
+	theme = dread
+	window = visit_settlement_window
+	override_background = { reference = battlefield }
+	left_portrait = {
+		character = root
+		animation = shock
+	}
+	center_portrait = {
+		character = scope:agandaur 
+		animation = random_weapon_coup_degrace
+		camera = camera_event_scheme_vs_center_look_left
+		outfit_tags = { military_outfit }
+	}
+	right_portrait = {
+		character = scope:gundabad_troll_new
+		animation = menacing
+	}
+	lower_left_portrait = { 
+		character = scope:farin 
+	}
+	lower_center_portrait = {
+		character = scope:thorin 
+	}
+	lower_right_portrait = {
+		character = scope:andriel 
+	}
+	immediate = {
+		title:d_enroaching_shadows.holder = { save_scope_as = agandaur }
+		title:c_mattugard.holder.top_liege = { save_scope_as = gundabadholder }
+		scope:gundabadholder = {
+			every_held_title = {
+				add_to_list = titles_to_transfer 
+			}
+		}
+		title:k_gundabad = {
+			if = {
+				limit = {
+					holder.top_liege = scope:gundabadholder
+					holder.primary_title.tier < tier_kingdom
+				}
+				holder = {
+					add_to_list = rulers_transferred
+				}
+			}
+		}
+		character:lineofandriel = { save_scope_as = andriel } 
+		character:lineofnorin2 = { save_scope_as = farin }
+		title:c_throne_of_erebor.holder.top_liege.player_heir = { save_scope_as = thorin }
+		character:linegorin9 = { save_scope_as = nordri }
+		create_character = { # Create a new troll
+			culture = culture:cave_troll
+			faith = faith:way_of_strength
+			prowess = 65
+			gender_female_chance = 0
+			location = root.location
+			save_scope_as = gundabad_troll_new
+		}
+		create_title_and_vassal_change = {
+			type = swear_fealty
+			add_claim_on_loss = yes
+			save_scope_as = change
+		}
+		every_in_list = {
+			list = titles_to_transfer
+			change_title_holder = {
+				holder = scope:agandaur
+				change = scope:change
+			}
+		}
+		every_in_list = {
+			list = rulers_transferred
+			change_liege = {
+				liege = scope:agandaur
+				change = scope:change
+			}
+		}
+		resolve_title_and_vassal_change = scope:change 
+		if = {
+			limit = { scope:agandaur = { NOT = { has_title = title:k_gundabad } } }
+			scope:agandaur = { get_title = title:k_gundabad } 
+		}
+		scope:gundabadholder = { death = { death_reason = death_assassination killer = scope:agandaur } }
+	}
+	option = { # Weesa in biiig trouble now
+		duel = {
+ 			skill = prowess
+ 			target = scope:gundabad_troll_new
+ 			50 = {
+				# You're successful
+ 				desc = rangers.0468.a.success
+ 				compare_modifier = {
+ 					value = scope:duel_value
+ 					multiplier = 3.5
+ 					min = -49
+ 				}
+ 				send_interface_toast = {
+ 					title = rangers.0468.a.success
+ 					left_icon = root
+ 					right_icon = scope:gundabad_troll_new
+					custom_tooltip = rangers.0468.a.success
+ 				}
+				add_martial_lifestyle_xp = medium_lifestyle_xp
+				scope:gundabad_troll_new = { death = { death_reason = death_duel killer = root } }
+				trigger_event = rangers.0469
+ 			}
+ 			50 = {
+ 				# You failed
+ 				desc = rangers.0468.a.failure
+ 				compare_modifier = {
+ 					value = scope:duel_value
+ 					multiplier = -3.5
+ 					min = -49
+ 				}
+ 				send_interface_toast = {
+ 					title = rangers.0468.a.failure
+ 					left_icon = root
+ 					right_icon = scope:gundabad_troll_new
+					custom_tooltip = rangers.0468.a.failure
+ 				}
+				death = { death_reason = death_duel killer = scope:gundabad_troll_new }
+ 			}
+		}
+	}
+}
+
+rangers.0469 = { # Gundabad: Time for an actual war
+	content_source = realms_dlc
+	type = character_event
+	title = rangers.0469.t
+	desc = rangers.0469.desc
+	theme = war
+	#window = visit_settlement_window
+	override_background = { reference = wilderness_mountains }
+	left_portrait = {
+		character = root
+		animation = war_attacker
+	}
+	right_portrait = {
+		character = scope:gundabadholder
+		animation = personality_callous
+	}
+	lower_left_portrait = { 
+		character = scope:thorin 
+	}
+	lower_center_portrait = {
+		character = scope:farin 
+	}
+	lower_right_portrait = {
+		character = scope:andriel 
+	}
+	immediate = {
+		title:c_mattugard.holder.top_liege = { save_scope_as = gundabadholder }
+		character:lineofandriel = { save_scope_as = andriel } 
+		character:lineofnorin2 = { save_scope_as = farin }
+		title:c_throne_of_erebor.holder.top_liege.player_heir = { save_scope_as = thorin } 
+		character:linegorin9 = { save_scope_as = nordri }
+	}	
+	option = { # Time to bring out the big guns 
+		name = rangers.0469.a 
+		add_character_flag = eradan_final_war
+		start_war = {
+			casus_belli = avenge_nordinbad_cb
+			target = title:c_mattugard.holder.top_liege
+		}
+	}
+	after = {
+		every_character_war = {
+			limit = { using_cb = avenge_nordinbad_cb }
+			add_attacker = title:k_erebor.holder 
+			add_attacker = title:c_nordinbad.holder 
+		}
+	}
+}
+
+rangers.0470 = { # Gundabad: Thorin kicks in the door
+	content_source = realms_dlc
+	type = character_event
+	title = rangers.0470.t
+	desc = rangers.0470.desc
+	theme = war
+	#window = visit_settlement_window
+	override_background = { reference = wilderness_mountains }
+	left_portrait = {
+		character = scope:thorin
+		animation = war_attacker
+	}
+	right_portrait = {
+		character = scope:gundabadholder
+		animation = personality_callous
+	}
+	lower_left_portrait = { 
+		character = root 
+	}
+	lower_center_portrait = {
+		character = scope:farin 
+	}
+	lower_right_portrait = {
+		character = scope:andriel 
+	}
+	immediate = {
+		title:c_mattugard.holder.top_liege = { save_scope_as = gundabadholder }
+		character:lineofandriel = { save_scope_as = andriel } 
+		character:lineofnorin2 = { save_scope_as = farin }
+		title:c_throne_of_erebor.holder.top_liege.player_heir = { save_scope_as = thorin } 
+		character:linegorin9 = { save_scope_as = nordri }
+	}	
+	option = { # Time to bring out the big guns 
+		name = rangers.0470.a 
+		add_character_flag = eradan_final_war
+		start_war = {
+			casus_belli = avenge_nordinbad_cb
+			target = title:c_mattugard.holder.top_liege
+		}
+	}
+	after = {
+		every_character_war = {
+			limit = { using_cb = avenge_nordinbad_cb }
+			add_attacker = title:k_erebor.holder 
+			add_attacker = title:c_nordinbad.holder 
+		}
+	}
+}
+
+rangers.0471 = { # Gundabad: Win the final war
+	content_source = realms_dlc
+	type = character_event
+	title = rangers.0471.t
+	desc = rangers.0471.desc
+	theme = legend
+	window = visit_settlement_window
+	override_background = { reference = wilderness_mountains }
+	left_portrait = {
+		character = root
+		animation = celebrate_sword
+	}
+	right_portrait = {
+		character = scope:gundabadholder
+		animation = shock
+		animate_if_dead = yes
+	}
+	lower_left_portrait = { 
+		character = scope:thorin 
+	}
+	lower_center_portrait = {
+		character = scope:farin 
+	}
+	lower_right_portrait = {
+		character = scope:andriel 
+	}
+	immediate = {
+		title:c_mattugard.holder.top_liege = { save_scope_as = gundabadholder }
+		character:lineofandriel = { save_scope_as = andriel } 
+		character:lineofnorin2 = { save_scope_as = farin }
+		title:c_throne_of_erebor.holder.top_liege = { save_scope_as = ereborholder }
+		title:c_throne_of_erebor.holder.top_liege.player_heir = { save_scope_as = thorin } 
+		character:linegorin9 = { save_scope_as = nordri }
+		scope:gundabadholder = { death = { death_reason = death_execution killer = scope:farin } }
+		add_prestige = massive_prestige_gain
+		title:c_mattugard = { add_to_list = avenged_titles_taken }
+		title:c_gundabad = { add_to_list = avenged_titles_taken }
+		custom_tooltip = eradan_end_of_content
+	}
+	option = { # Gundabad is restored
+		name = rangers.0471.a
+		custom_tooltip = rangers.0471.a.tt
+		random_character_active_contract = {
+			limit = { has_task_contract_type = lotr_eradan_contract_final }
+			complete_task_contract = success_standard
+		}
+		create_title_and_vassal_change = {
+			type = returned
+			save_scope_as = change
+			add_claim_on_loss = no
+		}
+		every_in_list = {
+			list = avenged_titles_taken
+			set_county_culture = scope:thorin.culture
+			set_county_faith = scope:thorin.faith
+			change_title_holder = {
+				holder = scope:thorin
+				change = scope:change
+				take_baronies = yes
+			}
+		}
+		resolve_title_and_vassal_change = scope:change
+	}
+	after = {
+		create_alliance = {
+			target = scope:thorin
+			allied_through_owner = root
+			allied_through_target = scope:thorin
+		}
+		scope:thorin = {
+			add_opinion = {
+				modifier = perk_negotiated_alliance_opinion
+				target = root
+			}
+		}
+		create_title_and_vassal_change = {
+			type = swear_fealty
+			save_scope_as = fealty_change
+		}
+		scope:thorin = {
+			change_liege = {
+				liege = scope:ereborholder
+				change = scope:change
+			}
+			add_opinion = {
+				modifier = became_vassal
+				target = scope:ereborholder
+				opinion = 10
 			}
 		}
 		resolve_title_and_vassal_change = scope:change
@@ -7297,7 +7716,9 @@ rangers.0753 = { # Erebor: Thorin Stonehelm
 	}
 }
 
-# Warden Thorondor of Rhudaur
+###############################
+# Warden Thorondor of Rhudaur #
+###############################
 
 rangers.1000 = { # Orders from chieftain
 	content_source = realms_dlc
