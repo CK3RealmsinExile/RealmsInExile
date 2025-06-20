@@ -359,7 +359,10 @@ sirayn.1601 = { # Arienists join the holy war
 					is_independent_ruler = no
 				}
 			}
-			trigger_event = sirayn.1604 
+			trigger_event = {
+				id = sirayn.1604 
+				days = 1 
+			}
 			scope:radyani_religious_war = {
 				add_defender = prev
 			}
@@ -522,17 +525,23 @@ sirayn.1604 = { # Radyani is attacking us! An affront to the Goddess!
 	}
 	immediate = {
 		title:k_isra.holder = { save_scope_as = radyani }
-		show_as_tooltip = {
-			every_character_war = {
-				limit = {
-					using_cb = religious_war
-				}
-				save_scope_as = radyani_religious_war 
+		every_character_war = {
+			limit = {
+				using_cb = religious_war
+			}
+			save_scope_as = radyani_religious_war 
+		}
+		if = {
+			limit = { NOT = { is_participant_in_war = scope:radyani_religious_war } }
+			scope:radyani_religious_war = {
+				add_defender = root 
 			}
 		}
-		scope:radyani_religious_war = {
-			add_defender = root 
-		}
+		show_as_tooltip = {
+			scope:radyani_religious_war = {
+				add_defender = root 
+			}
+		}	
 		scope:radyani.religion = {
 			random_faith = { 
 				save_scope_as = radyani_new_faith
@@ -542,29 +551,139 @@ sirayn.1604 = { # Radyani is attacking us! An affront to the Goddess!
 	
 	option = { # This cannot stand! To arms!
 		name = sirayn.1604.a
+		add_piety = major_piety_gain
+		ai_chance = { base = 100 }
 	}
 
-	# option = { # Not possible atm
-		# name = sirayn.1604.b # It would be best to convert...
-		# set_character_faith = scope:radyani_new_faith
-		# if = {
-			# limit = { exists = root.player_heir }
-			# root.player_heir = { set_character_faith = scope:radyani_new_faith }
-		# }
-		# if = {
-			# limit = { exists = root.spouse }
-			# root.spouse = { set_character_faith = scope:radyani_new_faith }
-		# }
-		# every_held_title = {
-			# limit = {
-				# tier = tier_county
-				# faith = faith:faith_arienism
-			# }
-			# set_county_faith = radyani_new_faith
-		# }
-	# }
+	option = { # It would be best to convert...
+		name = sirayn.1604.b 
+		set_character_faith = scope:radyani_new_faith
+		custom_tooltip = sirayn.1604.b.tt
+		hidden_effect = { scope:radyani_religious_war = { remove_participant = root } }
+		if = {
+			limit = { exists = root.player_heir }
+			player_heir = { set_character_faith = scope:radyani_new_faith }
+		}
+		if = {
+			limit = { exists = root.primary_spouse }
+			primary_spouse ?= { set_character_faith = scope:radyani_new_faith }
+		}
+		every_held_title = {
+			limit = {
+				tier = tier_county
+				faith = faith:faith_arienism
+			}
+			set_county_faith = scope:radyani_new_faith
+		}
+	}
 }
 
+sirayn.1605 = { # Radyani HoF Event
+	content_source = realms_dlc
+	type = character_event
+	title = sirayn.1605.t
+	desc = sirayn.1605.desc
+	theme = faith 
+	left_portrait = {
+		character = root
+		animation = prayer
+	}
+	override_background = { reference = throne_room }
+	immediate = {
+		show_as_tooltip = {
+			faith:faith_yom = {
+				change_fervor = {
+					value = 10
+					desc = fervor_gain_holy_order_founded
+				}
+				hidden_effect = {
+					remove_doctrine = doctrine_no_head
+					add_doctrine = doctrine_temporal_head
+				}
+				set_religious_head_title = title:k_avatar_of_yom
+			}
+			create_title_and_vassal_change = {
+				type = created
+				save_scope_as = change
+				add_claim_on_loss = no
+			}
+			title:k_avatar_of_yom = {
+				change_title_holder = {
+					holder = root
+					change = scope:change
+				}
+			}
+			resolve_title_and_vassal_change = scope:change
+			
+			hidden_effect = {
+				if = { limit = { has_title = title:k_isra } }
+				set_primary_title_to = title:k_isra 
+			}
+
+			#	Create Holy Order for Yóm
+			#custom_tooltip = create_holy_order_decision_effect_message
+			title:c_carnesra = { save_scope_as = designated_county }
+			# Select an appropriate barony. If there's an empty space in the capital, we create a castle.
+			# Otherwise, grab an existing non-capital castle/city.
+			if = {
+				limit = { scope:designated_county = { any_county_province = { has_holding = no } } }
+				scope:designated_county = {
+					random_county_province = {
+						limit = { has_holding = no }
+						set_holding_type = castle_holding
+						barony = { save_scope_as = leased_barony }
+					}
+				}
+			}
+			else = {
+				scope:designated_county = {
+					random_county_province = {
+						limit = {
+							is_county_capital = no
+							OR = {
+								has_holding_type = castle_holding
+								has_holding_type = city_holding
+							}
+						}
+						barony = { save_scope_as = leased_barony }
+					}
+				}
+			}
+			# Create a suitable leader for the Holy Order.
+			create_character = {
+				template = new_warrior_character
+				gender_female_chance = 100
+				culture = root.capital_county.culture
+				faith = root.capital_county.faith
+				location = scope:leased_barony.title_province
+				save_scope_as = leader
+			}
+			# Create the actual Holy Order.
+			create_holy_order = {
+				leader = scope:leader
+				capital = scope:leased_barony
+				save_scope_as = new_holy_order
+			}
+			
+			title:d_arien.holder ?= {
+				add_opinion = {
+					modifier = annoyed_opinion
+					target = root
+					opinion = -50
+				}
+			}
+		}
+	}
+	option = { # I am the embodiment of Yóm.
+		name = sirayn.1605.a
+		custom_tooltip = sirayn.1605.a.tt
+		create_artifact_weapon_effect = {
+			OWNER = root
+			CREATOR = root
+			SET_WEAPON_TYPE = flag:artifact_weapon_type_sword
+		}
+	}
+}
 
 sirayn.1650 = { # The Fall of Arienism
 	type = character_event

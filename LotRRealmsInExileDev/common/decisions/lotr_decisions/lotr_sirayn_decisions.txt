@@ -287,7 +287,7 @@ decision_radyani_vengeance = {
 	picture = {
 		reference = "gfx/interface/illustrations/decisions/decision_radyani.dds"
 	}
-	sort_order = 600
+	sort_order = 1000
 	
 	ai_goal = yes
 	ai_potential = {
@@ -396,6 +396,232 @@ decision_radyani_vengeance = {
 		add_to_global_variable_list = {
 			name = unavailable_unique_decisions
 			target = flag:decision_radyani_vengeance
+		}
+	}
+}
+
+decision_radyani_avatar = {
+	title = decision_radyani_avatar
+	picture = {
+		reference = "gfx/interface/illustrations/decisions/decision_mardruak_01.dds"
+	}
+	sort_order = 500
+	
+	ai_goal = yes
+	ai_potential = {
+		always = yes
+	}
+	ai_will_do = {
+		base = 100
+	}
+	
+	selection_tooltip = decision_radyani_avatar_tooltip
+	desc = decision_radyani_avatar_desc
+	confirm_text = decision_radyani_avatar_confirm
+	
+	decision_group_type = realms_in_exile_major
+	
+	is_shown = {
+		is_landed = yes
+		has_faith = faith:faith_yom
+		has_trait = possessed
+		has_title = title:k_isra
+		
+		NOT = {
+			is_target_in_global_variable_list = {
+				name = unavailable_unique_decisions
+				target = flag:decision_radyani_avatar
+			}
+		}
+	}
+	
+	is_valid = {
+		highest_held_title_tier >= tier_kingdom
+		has_faith = faith:faith_yom
+		has_trait = possessed
+		piety_level >= 4
+	}
+	
+	is_valid_showing_failures_only = {
+		is_at_war = no
+		is_imprisoned = no
+		is_available_adult = yes
+	}
+	
+	cost = { 
+		piety = 1000 
+	}
+	
+	effect = {
+		faith:faith_yom = {
+			change_fervor = {
+				value = 10
+				desc = fervor_gain_holy_order_founded
+			}
+			hidden_effect = {
+				remove_doctrine = doctrine_no_head
+				add_doctrine = doctrine_temporal_head
+			}
+			set_religious_head_title = title:k_avatar_of_yom
+		}
+		create_title_and_vassal_change = {
+			type = created
+			save_scope_as = change
+			add_claim_on_loss = no
+		}
+		title:k_avatar_of_yom = {
+			change_title_holder = {
+				holder = root
+				change = scope:change
+			}
+		}
+		resolve_title_and_vassal_change = scope:change
+		
+		hidden_effect = {
+			if = { limit = { has_title = title:k_isra } }
+			set_primary_title_to = title:k_isra 
+		}
+
+		#	Create Holy Order for Yóm
+	 	#custom_tooltip = create_holy_order_decision_effect_message
+	 	title:c_carnesra = { save_scope_as = designated_county }
+	 	# Select an appropriate barony. If there's an empty space in the capital, we create a castle.
+	 	# Otherwise, grab an existing non-capital castle/city.
+	 	if = {
+	 		limit = { scope:designated_county = { any_county_province = { has_holding = no } } }
+	 		scope:designated_county = {
+	 			random_county_province = {
+	 				limit = { has_holding = no }
+	 				set_holding_type = castle_holding
+	 				barony = { save_scope_as = leased_barony }
+				}
+	 		}
+	 	}
+	 	else = {
+	 		scope:designated_county = {
+	 			random_county_province = {
+	 				limit = {
+	 					is_county_capital = no
+	 					OR = {
+	 						has_holding_type = castle_holding
+	 						has_holding_type = city_holding
+	 					}
+	 				}
+	 				barony = { save_scope_as = leased_barony }
+	 			}
+	 		}
+	 	}
+	 	# Create a suitable leader for the Holy Order.
+	 	create_character = {
+	 		template = new_warrior_character
+			gender_female_chance = 100
+			culture = root.capital_county.culture
+			faith = root.capital_county.faith
+	 		location = scope:leased_barony.title_province
+	 		save_scope_as = leader
+	 	}
+	 	# Create the actual Holy Order.
+	 	create_holy_order = {
+	 		leader = scope:leader
+	 		capital = scope:leased_barony
+	 		save_scope_as = new_holy_order
+	 	}
+	 	hidden_effect = {
+	 		scope:leader = {
+	 			add_trait = order_member
+	 			add_piety_level = 3
+	 			add_gold = holy_order_starting_gold
+	 			every_courtier = {
+	 				add_trait = order_member
+ 					set_culture = root.culture
+	 				set_character_faith = root.faith
+	 			}
+	 		}
+	 	}
+	 	# Give it some buildings.
+		hidden_effect = {
+			scope:leased_barony.title_province = {
+				if = {
+					limit = { NOT = { has_building_or_higher = watermills_01 } }
+					if = {
+						limit = { free_building_slots > 0 }
+					}
+					add_building = watermills_02
+				}
+				if = {
+					limit = { NOT = { has_building_or_higher = caravanserai_01 } }
+					if = {
+						limit = { free_building_slots > 0 }
+					}
+					add_building = caravanserai_02
+				}
+				if = {
+					limit = { NOT = { has_building_or_higher = hunting_grounds_01 } }
+					if = {
+						limit = { free_building_slots > 0 }
+					}
+					add_building = hunting_grounds_01
+				}
+			}
+		}
+
+		send_interface_toast = {
+			type = holy_order_founded_message
+			desc = i_created_holy_order_message
+			left_icon = scope:leader
+			right_icon = scope:new_holy_order.title
+		}
+		save_scope_as = holy_order_creator
+		every_ruler = {
+			limit = {
+				faith = scope:holy_order_creator.faith
+				NOT = { this = scope:holy_order_creator }
+			}
+			send_interface_message = {
+				type = holy_order_founded_message
+				desc = someone_created_holy_order_message
+				left_icon = scope:holy_order_creator
+				right_icon = scope:new_holy_order.title
+			}
+		}
+		every_neighboring_top_liege_realm_owner = {
+			limit = { NOT = { faith = scope:holy_order_creator.faith } }
+			send_interface_message = {
+				type = enemy_holy_order_founded_message
+				desc = other_faith_neighbor_created_holy_order_message
+				left_icon = scope:holy_order_creator
+				right_icon = scope:new_holy_order.title
+			}
+		}
+		
+		if = {
+			limit = { exists = title:d_arien.holder }
+			title:d_arien.holder ?= {
+				add_opinion = {
+					modifier = annoyed_opinion
+					target = root
+					opinion = -50
+				}
+			}
+		}
+		if = {
+			limit = { exists = title:d_nhazadh.holder }
+			title:d_nhazadh.holder ?= {
+				add_opinion = {
+					modifier = annoyed_opinion
+					target = root
+					opinion = -50
+				}
+			}
+		}
+
+		trigger_event = {
+			id = sirayn.1605
+		}
+		
+		add_to_global_variable_list = {
+			name = unavailable_unique_decisions
+			target = flag:decision_radyani_avatar
 		}
 	}
 }
