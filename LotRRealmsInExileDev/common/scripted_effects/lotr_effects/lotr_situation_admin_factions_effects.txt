@@ -17,10 +17,10 @@ set_faction_leader_effect = {
 
 # Updates the Total Faction Power saved on a given Faction - Scope: situation_participant_group
 update_faction_power_effect = {
-	scope:situation_participant_group = {
+	scope:situation = {
 		set_variable = {
 			name = faction_power
-			value = faction_power_value
+			value = participant_group_faction_power_value
 		}
 	}
 }
@@ -49,21 +49,252 @@ update_character_faction_power_effect = {
 # Updates Faction Power and Leader - Scope: character (requires saved situation_participant_group)
 set_faction_leader_and_power_effect = {
 	save_scope_as = char
-	scope:situation_participant_group = {
-		# set root as leader if leader doesn't exist yet
-		if = {
-			limit = {
-				NOT = { exists = var:faction_leader }
+	scope:situation = {
+		#Grab the most powerful member to be faction leader
+		ordered_in_list = { 
+			variable = $PARTICIPANT_GROUP_NAME$_top_four
+			max = 1
+			order_by = {
+				value = 0
+				add = var:faction_power_individual
 			}
-			set_variable = {
-				name = faction_leader
-				value = scope:char
+			save_scope_as = faction_leader
+		}
+		set_variable = {
+			name = $PARTICIPANT_GROUP_NAME$_faction_leader
+			value = scope:faction_leader
+		}
+
+		#Set variable on situation of specific factions total power
+		set_variable = {
+			name = $PARTICIPANT_GROUP_NAME$_faction_power
+			value = participant_group_faction_power_value
+		}
+	}
+}
+
+# Updates Faction Power and Leader - Scope: character (requires saved situation_participant_group)
+set_top_four_faction_members_effect = {
+	save_scope_as = char
+	# Clear variable list on situation keeping track of the faction groups 
+	scope:situation = { clear_variable_list = $PARTICIPANT_GROUP_NAME$_top_four }
+
+	scope:situation_participant_group = {
+		ordered_situation_group_participant = {
+			limit = { #Block faction leader from getting added twice
+				trigger_if = {
+					limit = { scope:situation = { has_variable = $PARTICIPANT_GROUP_NAME$_faction_leader } }
+					NOT = { this = scope:situation.var:$PARTICIPANT_GROUP_NAME$_faction_leader }
+				}
+			} 
+			order_by = {
+				value = 0
+				add = admin_factions_character_power_value
+			}
+			max = 3
+			check_range_bounds = no
+			save_scope_as = char
+			if = {
+				limit = {
+					scope:situation = { 
+						trigger_if = {
+							limit = { 
+								any_in_list = {
+									variable = $PARTICIPANT_GROUP_NAME$_top_four
+									exists = this
+								}
+							}
+							variable_list_size = { name = $PARTICIPANT_GROUP_NAME$_top_four value < 5 }
+						}
+					}
+				}
+				if = { #Check if faction leader needs to get added to the list
+					limit = { 
+						scope:situation = { 
+							has_variable = $PARTICIPANT_GROUP_NAME$_faction_leader
+							trigger_if = {
+								limit = { 
+									any_in_list = {
+										variable = $PARTICIPANT_GROUP_NAME$_top_four
+										exists = this
+									}
+								}
+								NOT = {
+									any_in_list = {
+										variable = $PARTICIPANT_GROUP_NAME$_top_four
+										exists = var:$PARTICIPANT_GROUP_NAME$_faction_leader
+									}
+								}
+							}
+						}
+					}
+					scope:situation = {
+						add_to_variable_list = {
+							name = $PARTICIPANT_GROUP_NAME$_top_four
+							target = var:$PARTICIPANT_GROUP_NAME$_faction_leader
+						}
+					}
+				}
+
+				scope:situation = { #Add top 3 members that are _NOT_ faction leader
+					add_to_variable_list = {
+						name = $PARTICIPANT_GROUP_NAME$_top_four
+						target = scope:char
+					}
+				}
 			}
 		}
-		# update faction power
-		set_variable = {
-			name = faction_power
-			value = faction_power_value
+	}
+	lotr_sort_faction_members_effect = { PARTICIPANT_GROUP_NAME = $PARTICIPANT_GROUP_NAME$ }
+}
+
+# Sorts the top four members according to their individual power
+lotr_sort_faction_members_effect = {
+	scope:situation = {
+		if = {
+			limit = { 
+				trigger_if = {
+					limit = { 
+						any_in_list = {
+							variable = $PARTICIPANT_GROUP_NAME$_top_four
+							exists = this
+						}
+					}
+					variable_list_size = { name = $PARTICIPANT_GROUP_NAME$_top_four value > 0 }
+				}
+			}
+			ordered_in_list = {
+				variable = $PARTICIPANT_GROUP_NAME$_top_four
+				max = 1
+				order_by = {
+					value = 0
+					add = var:faction_power_individual
+				}
+				save_scope_as = char_1
+			}
+			if = {
+				limit = { exists = scope:char_1 }
+				remove_list_variable = {
+					name = $PARTICIPANT_GROUP_NAME$_top_four
+					target = scope:char_1
+				}
+			}
+		}
+		if = {
+			limit = { 
+				trigger_if = {
+					limit = { 
+						any_in_list = {
+							variable = $PARTICIPANT_GROUP_NAME$_top_four
+							exists = this
+						}
+					}
+					variable_list_size = { name = $PARTICIPANT_GROUP_NAME$_top_four value > 0 }
+				}
+			}
+			ordered_in_list = {
+				variable = $PARTICIPANT_GROUP_NAME$_top_four
+				max = 1
+				order_by = {
+					value = 0
+					add = var:faction_power_individual
+				}
+				save_scope_as = char_2
+			}
+			if = {
+				limit = { exists = scope:char_2 }
+				remove_list_variable = {
+					name = $PARTICIPANT_GROUP_NAME$_top_four
+					target = scope:char_2
+				}
+			}
+		}
+		if = {
+			limit = { 
+				trigger_if = {
+					limit = { 
+						any_in_list = {
+							variable = $PARTICIPANT_GROUP_NAME$_top_four
+							exists = this
+						}
+					}
+					variable_list_size = { name = $PARTICIPANT_GROUP_NAME$_top_four value > 0 }
+				}
+			}
+			ordered_in_list = {
+				variable = $PARTICIPANT_GROUP_NAME$_top_four
+				max = 1
+				order_by = {
+					value = 0
+					add = var:faction_power_individual
+				}
+				save_scope_as = char_3
+			}
+			if = {
+				limit = { exists = scope:char_3 }
+				remove_list_variable = {
+					name = $PARTICIPANT_GROUP_NAME$_top_four
+					target = scope:char_3
+				}
+			}
+		}
+		if = {
+			limit = { 
+				trigger_if = {
+					limit = { 
+						any_in_list = {
+							variable = $PARTICIPANT_GROUP_NAME$_top_four
+							exists = this
+						}
+					}
+					variable_list_size = { name = $PARTICIPANT_GROUP_NAME$_top_four value > 0 }
+				}
+			}
+			ordered_in_list = {
+				variable = $PARTICIPANT_GROUP_NAME$_top_four
+				max = 1
+				order_by = {
+					value = 0
+					add = var:faction_power_individual
+				}
+				save_scope_as = char_4
+			}
+			if = {
+				limit = { exists = scope:char_4 }
+				remove_list_variable = {
+					name = $PARTICIPANT_GROUP_NAME$_top_four
+					target = scope:char_4
+				}
+			}
+		}
+
+		if = {
+			limit = { exists = scope:char_1 }
+			add_to_variable_list = {
+				name = $PARTICIPANT_GROUP_NAME$_top_four
+				target = scope:char_1
+			}
+		}
+		if = {
+			limit = { exists = scope:char_2 }
+			add_to_variable_list = {
+				name = $PARTICIPANT_GROUP_NAME$_top_four
+				target = scope:char_2
+			}
+		}
+		if = {
+			limit = { exists = scope:char_3 }
+			add_to_variable_list = {
+				name = $PARTICIPANT_GROUP_NAME$_top_four
+				target = scope:char_3
+			}
+		}
+		if = {
+			limit = { exists = scope:char_4 }
+			add_to_variable_list = {
+				name = $PARTICIPANT_GROUP_NAME$_top_four
+				target = scope:char_4
+			}
 		}
 	}
 }
