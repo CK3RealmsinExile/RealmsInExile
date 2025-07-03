@@ -1828,9 +1828,9 @@ slave_expedition_cb = {
 		}
 		scope:defender = {
 			pay_short_term_gold = {
-				gold = 5
+				gold = major_gold_value
 				target = scope:attacker
-				yearly_income = yes
+				# yearly_income = yes
 			}
 			capital_county = {
 				change_development_progress_with_overflow = -2
@@ -2881,6 +2881,10 @@ elven_homelands_duchy_conquest_cb = {
 	combine_into_one = yes
 	should_show_war_goal_subview = yes
 	mutually_exclusive_titles = { always = yes }
+	
+	attacker_score_from_occupation_scale = 150
+	attacker_score_from_battles_scale = 150
+	defender_score_from_battles_scale = 150
 
 	allowed_for_character = {
 		is_elf = yes
@@ -3153,9 +3157,9 @@ elven_homelands_duchy_conquest_cb = {
 			every_in_list = {
 				list = target_titles
 				custom_tooltip = CONQUEST_CB_TITLE
-	
+
 				save_scope_as = target_title # For the vassalization trigger.
-	
+
 				# Compile a list of all counties in the kingdom we will take from the defender.
 				every_in_de_jure_hierarchy = {
 					continue = {
@@ -3163,7 +3167,9 @@ elven_homelands_duchy_conquest_cb = {
 					}
 					limit = {
 						tier = tier_county
+						
 						has_county_modifier = elven_homeland_county_modifier
+
 						# Current holder must be a (sub)vassal of the defender (no poaching titles from 3rd parties!)
 						exists = holder
 						holder = {
@@ -3173,11 +3179,9 @@ elven_homelands_duchy_conquest_cb = {
 							}
 						}
 						title_province ?= { 
-							NOR = { 
-								has_holding_type = elven_holding
+							NOR = {
 								has_holding_type = settlement_holding
 								has_holding_type = wastelands_holding
-								has_holding_type = ruined_holding
 							}
 						}
 					}
@@ -3453,6 +3457,9 @@ elven_homelands_duchy_conquest_cb = {
 	use_de_jure_wargoal_only = yes
 
 	attacker_wargoal_percentage = 0.8
+	
+	max_defender_score_from_occupation = 150
+	max_attacker_score_from_occupation = 150
 }
 
 vanquish_darkness_county_cb = {
@@ -3465,13 +3472,16 @@ vanquish_darkness_county_cb = {
 	mutually_exclusive_titles = { always = yes }
 
 	allowed_for_character = {
-		is_elf = yes
+		OR = {
+			is_elf = yes
+			AND = {
+				ep3_adventurer_invasion_allowed_for_character_trigger = yes
+				faith_is_good = yes 
+			}
+		}
 		NOR = {
 			has_culture = culture:wastelands
-			AND = {
-			    exists = primary_title.empire
-			    primary_title.empire = title:e_valinor
-		    }
+			is_in_valinor = yes
 			faith_is_evil = yes
 		}
 	}
@@ -3488,6 +3498,10 @@ vanquish_darkness_county_cb = {
 		trigger_else = {
 			piety_level >= 1
 		}
+		trigger_if = {
+			limit = { is_landless_adventurer = yes }
+			ep3_adventurer_invasion_allowed_for_character_display_regardless_trigger = yes
+		}
 	}
 
 	allowed_against_character = {
@@ -3500,15 +3514,19 @@ vanquish_darkness_county_cb = {
 		}
 		scope:defender = {
 			NOT = { has_culture = culture:wastelands }
+			NOT = { has_character_flag = unknown_sauron_flag }
 			faith_is_evil = yes
 		}
-		# The Necromancer is hidden
-		NOT = { has_character_flag = unknown_sauron_flag } # LOTR
+		
+		trigger_if = {
+			limit = { scope:attacker = { is_landless_adventurer = yes } }
+			ep3_adventurer_landless_allowed_against_character_trigger = yes
+		}
 	}
 	
 	allowed_against_character_display_regardless = {}
 	
-	target_titles = neighbor_land_or_water
+	target_titles = all
 	target_title_tier = all
 	target_de_jure_regions_above = yes
 	ignore_effect = change_title_holder
@@ -3648,8 +3666,14 @@ vanquish_darkness_county_cb = {
 
 	on_declaration = {
 		on_declared_war = yes
-		scope:defender = { # Event offering defender to convert
-			trigger_event = { id = elven_racial.0200 days = 1 }
+		if = {
+			limit = { scope:attacker = { is_elf = yes } }
+			scope:defender = { # Event offering defender to convert
+				trigger_event = { id = elven_racial.0200 days = 1 }
+			}
+		}
+		else = {
+			scope:defender = { trigger_event = elven_racial.0201 }
 		}
 	}
 
@@ -3724,7 +3748,7 @@ vanquish_darkness_county_cb = {
 			#Give them some gold and control to help them out
 			hidden_effect = {
 				change_county_control = 60
-				scope:new_holder = {
+				scope:new_holder ?= {
 					add_gold = 200
 					lotr_character_template_age_traits_effect = { #LOTR trait/lifespan fixes
 						MAX = middle_age
@@ -3741,6 +3765,17 @@ vanquish_darkness_county_cb = {
 						days = standard_truce_duration_days
 						war = root.war
 						result = victory
+					}
+				}
+				if = {
+					limit = { 
+						scope:attacker = { government_has_flag = government_is_elven }
+					}
+					scope:new_holder ?= {
+						start_tributary_interaction_effect = {
+							TRIBUTARY = scope:new_holder
+							SUZERAIN = scope:attacker
+						}
 					}
 				}
 			}
@@ -3994,13 +4029,16 @@ vanquish_darkness_duchy_cb = {
 	#ticking_war_score_targets_entire_realm = yes
 
 	allowed_for_character = {
-		is_elf = yes
+		OR = {
+			is_elf = yes
+			AND = {
+				ep3_adventurer_invasion_allowed_for_character_trigger = yes
+				faith_is_good = yes 
+			}
+		}
 		NOR = {
 			has_culture = culture:wastelands
-			AND = {
-			        exists = primary_title.empire
-			        primary_title.empire = title:e_valinor
-		        }
+			is_in_valinor = yes
 			faith_is_evil = yes
 		}
 	}
@@ -4029,15 +4067,19 @@ vanquish_darkness_duchy_cb = {
 		}
 		scope:defender = {
 			NOT = { has_culture = culture:wastelands }
+			NOT = { has_character_flag = unknown_sauron_flag }
 			faith_is_evil = yes
 		}
-		# The Necromancer is hidden
-		NOT = { has_character_flag = unknown_sauron_flag } # LOTR
+		
+		trigger_if = {
+			limit = { scope:attacker = { is_landless_adventurer = yes } }
+			ep3_adventurer_landless_allowed_against_character_trigger = yes
+		}
 	}
 	
 	allowed_against_character_display_regardless = {}
 	
-	target_titles = neighbor_land_or_water
+	target_titles = all
 	target_title_tier = all
 	target_de_jure_regions_above = yes
 	ignore_effect = change_title_holder
@@ -4177,8 +4219,14 @@ vanquish_darkness_duchy_cb = {
 
 	on_declaration = {
 		on_declared_war = yes
-		scope:defender = { # Event offering defender to convert
-			trigger_event = { id = elven_racial.0200 days = 1 }
+		if = {
+			limit = { scope:attacker = { is_elf = yes } }
+			scope:defender = { # Event offering defender to convert
+				trigger_event = { id = elven_racial.0200 days = 1 }
+			}
+		}
+		else = {
+			scope:defender = { trigger_event = elven_racial.0201 }
 		}
 	}
 
@@ -4248,11 +4296,13 @@ vanquish_darkness_duchy_cb = {
 				change = scope:change
 			}
 
-			scope:new_holder = {
-				add_gold = 200
-				lotr_character_template_age_traits_effect = { #LOTR trait/lifespan fixes
-					MAX = middle_age
-					MIN = young_age
+			hidden_effect = {
+				scope:new_holder = {
+					add_gold = 500
+					lotr_character_template_age_traits_effect = { #LOTR trait/lifespan fixes
+						MAX = middle_age
+						MIN = young_age
+					}
 				}
 			}
 
@@ -4297,6 +4347,17 @@ vanquish_darkness_duchy_cb = {
 						days = standard_truce_duration_days
 						war = root.war
 						result = victory
+					}
+				}
+				if = {
+					limit = { 
+						scope:attacker = { government_has_flag = government_is_elven }
+					}
+					scope:new_holder ?= {
+						start_tributary_interaction_effect = {
+							TRIBUTARY = scope:new_holder
+							SUZERAIN = scope:attacker
+						}
 					}
 				}
 			}
@@ -5328,6 +5389,7 @@ reduce_subterranean_county_development_cb = {
 		}
 		scope:defender = {
 			NOT = { has_culture = culture:wastelands }
+			NOT = { has_character_modifier = lotr_recently_invited_dwarves } # Don't just immediately kick them out again
 			OR =  {
 				any_held_title ?= {
 					trigger_if = {
