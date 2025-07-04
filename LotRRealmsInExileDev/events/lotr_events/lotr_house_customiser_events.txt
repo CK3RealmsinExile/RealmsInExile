@@ -1,0 +1,576 @@
+﻿namespace = lotr_house_customizer
+
+# Event that fires on game start to tell you the instructions
+lotr_house_customizer.0001 = {
+	type = character_event
+	title = lotr_house_customizer.0001.t
+	desc = lotr_house_customizer.0001.desc
+
+	theme = family
+
+	override_background = {
+		reference = physicians_study
+	}
+
+	right_portrait = {
+		character = root
+		animation = throne_room_writer
+	}
+
+	immediate = {
+		play_music_cue = "mx_cue_succession"
+	}
+
+	#I want to select an extinct house to play as.
+#	option = {
+#		name = lotr_house_customizer.0001.a
+#		# Fire the Extinct House List Selection
+#		trigger_event = {
+#			id = lotr_house_customizer.0002
+#		}
+#	}
+
+	#I want to select a living house to play as.
+	option = {
+		name = lotr_house_customizer.0001.b
+	}
+}
+
+# This event handles the LIVING HOUSE conversion (specifically, from the interaction)
+lotr_house_customizer.0021 = {
+	type = character_event
+	title = lotr_house_customizer.0020.t
+	desc = lotr_house_customizer.0020.desc
+
+	theme = family
+
+	override_background = {
+		reference = study
+	}
+
+	left_portrait = {
+		character = root
+		animation = throne_room_writer
+	}
+
+	right_portrait = {
+		character = scope:hc_selection
+		animation = throne_room_writer
+	}
+
+	immediate = {
+		play_music_cue = "mx_cue_succession"
+		scope:recipient = { save_scope_as = hc_selection }
+		# Mother may be needed, so generate one if one doesn't exist
+		if = {
+			limit = { NOT = { exists = scope:hc_random_mother } }
+			create_character = {
+				template = generic_female_peasant_character
+				culture = root.culture
+				employer = root
+				age = root.appropriate_parent_age
+				gender = female
+				save_scope_as = hc_random_mother
+				after_creation = { copy_inheritable_appearance_from = root }
+			}
+		}
+		# Father may be needed, so generate one if one doesn't exist
+		if = {
+			limit = { NOT = { exists = scope:hc_random_father } }
+			create_character = {
+				template = generic_peasant_character
+				culture = root.culture
+				employer = root
+				age = root.appropriate_parent_age
+				gender = male
+				save_scope_as = hc_random_father
+				after_creation = { copy_inheritable_appearance_from = root }
+			}
+		}
+		if = { # Scope for localization
+			limit = { scope:hc_selection = { is_male = yes } }
+			scope:hc_random_mother = { save_scope_as = second_parent }
+		}
+		if = { # Scope for localization
+			limit = { scope:hc_selection = { is_female = yes } }
+			scope:hc_random_father = { save_scope_as = second_parent }
+		}
+	}
+
+	#I want to play as their sibling
+	option = {
+		name = lotr_house_customizer.0020.a
+		trigger = {
+			OR = {
+				exists = scope:hc_selection.mother
+				exists = scope:hc_selection.father
+			}
+			OR = {
+				scope:hc_selection.mother ?= {
+					OR = {
+						can_be_parent_of = root
+						#For some reason can_be_parent_of doesn't work with female characters?
+						16 <= {
+							value = scope:hc_selection.mother.age
+							subtract = root.age
+						}
+					}
+				}
+				scope:hc_selection.father ?= { can_be_parent_of = root }
+			}
+		}
+		if = { # You have the bastard trait
+			limit = {
+				scope:hc_selection.father.primary_title.tier >= scope:hc_selection.mother.primary_title.tier
+				has_trait = bastard
+			}
+			set_house = scope:hc_selection.father.house
+			set_father = scope:hc_selection.father
+			set_mother = scope:hc_random_mother
+			# Other random parent no longer needed
+			hidden_effect = { scope:hc_random_father = { death = { death_reason = death_disappearance } } }
+		}
+		else_if = { # You selected a father
+			limit = { scope:hc_selection.father.primary_title.tier >= scope:hc_selection.mother.primary_title.tier }
+			set_house = scope:hc_selection.father.house
+			set_father = scope:hc_selection.father
+			if = { # Check for and set valid mother
+				limit = {
+					scope:hc_selection.mother ?= {
+						OR = {
+							can_be_parent_of = root
+							#For some reason can_be_parent_of doesn't work with female characters?
+							16 <= {
+								value = scope:hc_selection.mother.age
+								subtract = root.age
+							}
+						}
+					}
+				}
+				set_mother = scope:hc_selection.mother
+			}
+			hidden_effect = { # Random parents no longer needed
+				scope:hc_random_mother = { death = { death_reason = death_disappearance } }
+				scope:hc_random_father = { death = { death_reason = death_disappearance } }
+			}
+		}
+		else = { # You selected a mother
+			set_house = scope:hc_selection.mother.house
+			set_mother = scope:hc_selection.mother
+			if = { # Check for and set valid father
+				limit = { scope:hc_selection.father ?= { can_be_parent_of = root } }
+				set_father = scope:hc_selection.father
+			}
+			hidden_effect = { # Random parents no longer needed
+				scope:hc_random_father = { death = { death_reason = death_disappearance } }
+				scope:hc_random_mother = { death = { death_reason = death_disappearance } }
+			}
+		}
+
+		if = { #If any child is not the same house
+			limit = { any_child = { NOT = { house = root.house } } }
+			every_child = { #Then we scope to every possible child and set their house as YOUR house.
+				limit = { NOT = { house = root.house } }
+				set_house = root.house
+			}
+		}
+
+		hidden_effect = { remove_trait = house_customizer }
+
+		# Remind them of the option
+		show_as_unavailable = { always = yes }
+	}
+
+	#I want to play as their child
+	option = {
+		name = lotr_house_customizer.0020.b
+		trigger = {
+			scope:hc_selection = {
+				OR = {
+					can_be_parent_of = root
+					#For some reason can_be_parent_of doesn't work with female characters?
+					16 <= {
+						value = scope:hc_selection.age
+						subtract = root.age
+					}
+				}
+			}
+		}
+		if = { # You selected a father
+			limit = { scope:hc_selection = { is_male = yes } }
+			set_house = scope:hc_selection.house
+			set_father = scope:hc_selection
+
+			hidden_effect = { # Random parents no longer needed
+				scope:hc_random_mother = { death = { death_reason = death_disappearance } }
+				scope:hc_random_father = { death = { death_reason = death_disappearance } }
+			}
+		}
+		else = { # You selected a mother
+			set_house = scope:hc_selection.house
+			set_mother = scope:hc_selection
+
+			hidden_effect = { # Random parents no longer needed
+				scope:hc_random_mother = { death = { death_reason = death_disappearance } }
+				scope:hc_random_father = { death = { death_reason = death_disappearance } }
+			}
+		}
+
+		if = { #If any child is not the same house
+			limit = { any_child = { NOT = { house = root.house } } }
+			every_child = { #Then we scope to every possible child and set their house as YOUR house.
+				limit = { NOT = { house = root.house } }
+				set_house = root.house
+			}
+		}
+		hidden_effect = { remove_trait = house_customizer }
+
+		# Remind them of the option
+		show_as_unavailable = { always = yes }
+	}
+
+	#I want to play as their child but have a parent assigned to me
+	option = {
+		name = lotr_house_customizer.0020.bb
+		trigger = {
+			scope:hc_selection = {
+				OR = {
+					can_be_parent_of = root
+					#For some reason can_be_parent_of doesn't work with female characters?
+					16 <= {
+						value = scope:hc_selection.age
+						subtract = root.age
+					}
+				}
+			}
+		}
+		if = { # You have the bastard trait
+			limit = {
+				scope:hc_selection = { is_male = yes }
+				has_trait = bastard
+			}
+			set_house = scope:hc_selection.house
+			set_father = scope:hc_selection
+			set_mother = scope:hc_random_mother
+			# Other random parent no longer needed
+			hidden_effect = { scope:hc_random_father = { death = { death_reason = death_disappearance } } }
+		}
+		else_if = { # You selected a father
+			limit = { scope:hc_selection = { is_male = yes } }
+			set_house = scope:hc_selection.house
+			set_father = scope:hc_selection
+			if = {
+				limit = { # Check for and set valid mother
+					scope:hc_selection.primary_spouse ?= {
+						is_female = yes
+						OR = {
+							can_be_parent_of = root
+							#For some reason can_be_parent_of doesn't work with female characters?
+							16 <= {
+								value = scope:hc_selection.primary_spouse.age
+								subtract = root.age
+							}
+						}
+					}
+				}
+				set_mother = scope:hc_selection.primary_spouse
+
+				hidden_effect = { # Random parents no longer needed
+					scope:hc_random_mother = { death = { death_reason = death_disappearance } }
+					scope:hc_random_father = { death = { death_reason = death_disappearance } }
+				}
+			}
+			else_if = { # Otherwise set random mother
+				limit = {
+					scope:hc_selection = {
+						OR = {
+							is_married = no
+							primary_spouse = { NOT = { can_be_parent_of = root } }
+						}
+					}
+				}
+				set_mother = scope:hc_random_mother
+				# Other random parent no longer needed
+				hidden_effect = { scope:hc_random_father = { death = { death_reason = death_disappearance } } }
+			}
+		}
+		else = { # You selected a mother
+			set_house = scope:hc_selection.house
+			set_mother = scope:hc_selection
+			if = {
+				limit = { # Check for and set valid father
+					scope:hc_selection.primary_spouse ?= {
+						is_male = yes
+						can_be_parent_of = root
+					}
+				}
+				set_father = scope:hc_selection.primary_spouse
+
+				hidden_effect = { # Random parents no longer needed
+					scope:hc_random_father = { death = { death_reason = death_disappearance } }
+					scope:hc_random_mother = { death = { death_reason = death_disappearance } }
+				}
+			}
+			else_if = { # Otherwise set random father
+				limit = {
+					scope:hc_selection = {
+						OR = {
+							is_married = no
+							primary_spouse = { NOT = { can_be_parent_of = root } }
+						}
+					}
+				}
+				set_father = scope:hc_random_father
+				# Other random parent no longer needed
+				hidden_effect = { scope:hc_random_mother = { death = { death_reason = death_disappearance } } }
+			}
+		}
+
+		if = { #If any child is not the same house
+			limit = { any_child = { NOT = { house = root.house } } }
+			every_child = { #Then we scope to every possible child and set their house as YOUR house.
+				limit = { NOT = { house = root.house } }
+				set_house = root.house
+			}
+		}
+		hidden_effect = { remove_trait = house_customizer }
+
+		# Remind them of the option
+		show_as_unavailable = { always = yes }
+	}
+
+	#I want to play as their relative
+	option = {
+		name = lotr_house_customizer.0020.c
+		trigger = {
+			scope:hc_selection = {
+				any_close_or_extended_family_member = {
+					even_if_dead = yes
+					is_lotr_adult = yes
+					house = scope:hc_selection.house
+				}
+			}
+		}
+		add_character_flag = relative_pop_living
+		trigger_event = lotr_house_customizer.0200
+
+		hidden_effect = { # Random parents no longer needed
+			scope:hc_random_mother = { death = { death_reason = death_disappearance } }
+			scope:hc_random_father = { death = { death_reason = death_disappearance } }
+		}
+	}
+
+	# I want to choose a different house
+	option = {
+		name = lotr_house_customizer.0020.back
+		custom_tooltip = lotr_house_customizer.0021.back.tt
+		trigger_event = lotr_house_customizer.0001
+		hidden_effect = { # Random parents no longer needed
+			scope:hc_random_mother = { death = { death_reason = death_disappearance } }
+			scope:hc_random_father = { death = { death_reason = death_disappearance } }
+		}
+	}
+}
+
+lotr_house_customizer.0200 = {
+	type = character_event
+	title = lotr_house_customizer.0200.t
+	desc = lotr_house_customizer.0200.desc
+	theme = family
+	override_background = {
+		reference = study
+	}
+	left_portrait = {
+		character = root
+		animation = throne_room_writer
+	}
+	right_portrait = scope:hc_selection
+
+	widget = {
+		is_shown = { is_ai = no }
+		gui = "agot_character_selection_two_options"
+		container = "custom_widgets_container"
+	}
+
+	immediate = {
+		# Populate List
+	#	if = { # You chose extinct
+	#		limit = { has_character_flag = relative_pop_extinct }
+	#		scope:hc_selection = {
+	#			every_close_or_extended_family_member = {
+	#				even_if_dead = yes
+	#				limit = {
+	#					is_lotr_adult = yes
+	#					house = scope:hc_selection.house
+	#				}
+	#				root = {
+	#					add_to_variable_list = {
+	#						name = possible_characters
+	#						target = prev
+	#					}
+	#				}
+	#			}
+	#		}
+	#	}
+	#	else_if = { # You chose living
+		if = { # You chose living
+			limit = { has_character_flag = relative_pop_living }
+			scope:hc_selection = {
+				every_close_or_extended_family_member = {
+					even_if_dead = yes
+					limit = {
+						OR = {
+							can_be_parent_of = root
+							#For some reason can_be_parent_of doesn't work with female characters?
+							16 <= {
+								value = root.age
+								subtract = age
+							}
+						}
+						is_lotr_adult = yes
+						house = scope:hc_selection.house
+					}
+					root = {
+						add_to_variable_list = {
+							name = possible_characters
+							target = prev
+						}
+					}
+				}
+			}
+		}
+		# Order List
+		ordered_in_list = {
+			variable = possible_characters
+			order_by = age
+			root = { set_variable = { name = si_selected_character value = prev } }
+			save_scope_as = hc_random_relative_selection
+		}
+	}
+
+#	option = {
+#		name = "lotr_house_customizer.0200.ex"
+#		trigger = { has_character_flag = relative_pop_extinct }
+#		# Ordered List Maintenance
+#		var:si_selected_character = { save_scope_as = hc_random_relative_selection }
+#		clear_variable_list = possible_characters
+#		# House Customizer Maintenance
+#		set_house = scope:hc_random_relative_selection.house
+#
+#		if = { # You selected a father
+#			limit = { scope:hc_random_relative_selection = { is_male = yes } }
+#			set_father = scope:hc_random_relative_selection
+#			if = {
+#				limit = { # Check for and set valid mother
+#					scope:hc_random_relative_selection.primary_spouse ?= {
+#						is_female = yes
+#						is_lotr_adult = yes
+#					}
+#				}
+#				set_mother = scope:hc_random_relative_selection.primary_spouse
+#			}
+#		}
+#		else = { # You selected a mother
+#			set_mother = scope:hc_random_relative_selection
+#			if = {
+#				limit = { # Check for and set valid father
+#					scope:hc_random_relative_selection.primary_spouse ?= {
+#						is_male = yes
+#						is_lotr_adult = yes
+#					}
+#				}
+#				set_father = scope:hc_random_relative_selection.primary_spouse
+#			}
+#		}
+#
+#		if = { #If any child is not the same house
+#			limit = { any_child = { NOT = { house = root.house } } }
+#			every_child = { #Then we scope to every possible child and set their house as YOUR house.
+#				limit = { NOT = { house = root.house } }
+#				set_house = root.house
+#			}
+#		}
+#		remove_character_flag = relative_pop_extinct
+#		hidden_effect = { remove_trait = house_customizer }
+#	}
+
+	option = {
+		name = "lotr_house_customizer.0200.li"
+		trigger = { has_character_flag = relative_pop_living }
+		# Ordered List Maintenance
+		var:si_selected_character = { save_scope_as = hc_random_relative_selection }
+		clear_variable_list = possible_characters
+		# House Customizer Maintenance
+		set_house = scope:hc_random_relative_selection.house #Set's the player's house to the selection's house
+
+		if = { # You have the bastard trait
+			limit = {
+				scope:hc_random_relative_selection = { is_male = yes }
+				has_trait = bastard
+			}
+			set_father = scope:hc_random_relative_selection
+		}
+		else_if = { # You selected a father
+			limit = { scope:hc_random_relative_selection = { is_male = yes } }
+			set_father = scope:hc_random_relative_selection
+			if = {
+				limit = { # Check for and set valid mother
+					scope:hc_random_relative_selection.primary_spouse ?= {
+						is_female = yes
+						OR = {
+							can_be_parent_of = root
+							#For some reason can_be_parent_of doesn't work with female characters?
+							16 <= {
+								value = scope:hc_random_relative_selection.primary_spouse.age
+								subtract = root.age
+							}
+						}
+					}
+				}
+				set_mother = scope:hc_random_relative_selection.primary_spouse
+			}
+		}
+		else = { # You selected a mother
+			set_mother = scope:hc_random_relative_selection
+			if = {
+				limit = { # Check for and set valid father
+					scope:hc_random_relative_selection.primary_spouse ?= {
+						is_male = yes
+						can_be_parent_of = root
+					}
+				}
+				set_father = scope:hc_random_relative_selection.primary_spouse
+			}
+		}
+
+		if = { #If any child is not the same house
+			limit = { any_child = { NOT = { house = root.house } } }
+			every_child = { #Then we scope to every possible child and set their house as YOUR house.
+				limit = { NOT = { house = root.house } }
+				set_house = root.house
+			}
+		}
+		remove_character_flag = relative_pop_living
+		hidden_effect = { remove_trait = house_customizer }
+	}
+
+	# On second thought - extinct
+#	option = {
+#		name = lotr_house_customizer.0200.back
+#		custom_tooltip = lotr_house_customizer.0200.back.tt
+#		trigger = { has_character_flag = relative_pop_extinct }
+#		clear_variable_list = possible_characters
+#		remove_character_flag = relative_pop_extinct
+#		trigger_event = lotr_house_customizer.0020
+#	}
+
+	# On second thought - living
+	option = {
+		name = lotr_house_customizer.0200.back
+		custom_tooltip = lotr_house_customizer.0200.back.tt
+		trigger = { has_character_flag = relative_pop_living }
+		clear_variable_list = possible_characters
+		remove_character_flag = relative_pop_living
+		trigger_event = lotr_house_customizer.0021
+	}
+}
