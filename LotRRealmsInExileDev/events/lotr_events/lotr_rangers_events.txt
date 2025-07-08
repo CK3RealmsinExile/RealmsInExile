@@ -98,6 +98,11 @@
 #		rangers.1003	Cameth Brin: Goblins
 #		rangers.1004	Cameth Brin: Storages
 
+# Ranger Laamp mechanics
+#		rangers.9100	Hidden event regularly checking whether the Ranger returned home
+#		rangers.9101	Ranger has been gone 5 years - receives a summons
+#		rangers.9102	Ranger hasn't returned after 6 years, banned from their liege's realm 
+
 ### Aragorn Events ###
 
 rangers.0101 = { # Dunedain Encampments - chance to swear fealty
@@ -8490,3 +8495,89 @@ rangers.9001 = {
 		}
 	}
 }
+
+#########################################
+## 9100 - 9199 Ranger Laamp maitenance ##
+#########################################
+
+rangers.9100 = { #Tracking time away - 18 ùonths limit
+	hidden = yes
+	immediate = {
+		if = {
+			limit = {
+				trigger_if = {
+					limit = { exists = root.liege }
+					OR = {
+						root.location.county.holder.top_suzerain ?= root.top_liege #Own territory
+						root.location.county.holder.top_liege ?= { is_at_war_with = root.liege } #Enemy lands
+					}
+				}
+				trigger_else = { always = yes }
+			}
+			remove_character_flag = wayward_ranger
+		}
+		else = {
+			if = {
+				limit = { NOT = { has_variable = months_away } }
+				set_variable = {
+					name = months_away
+					value = 2
+				}
+				trigger_event = {
+					id = rangers.9100
+					months = 2
+				}
+			}
+			else_if = {
+				limit = { root.var:months_away < 18 }
+				change_variable = {
+					name = months_away
+					add = 2
+				}
+				trigger_event = {
+					id = rangers.9100
+					months = 2
+				}
+			}
+			else = {
+				trigger_event = rangers.9102
+			}
+		}
+	}
+}
+
+rangers.9101 = { # Ultimatum
+	content_source = realms_dlc
+	type = character_event
+	title = rangers.9101.t
+	desc = rangers.9101.desc
+	theme = diplomacy
+
+	left_portrait = {
+		character = scope:elrond
+		animation = personality_compassionate 
+	}
+	lower_right_portrait = {
+		character = root.liege
+	}
+
+	option = {#I'm on my way home, don't worry
+		name = rangers.1009.a
+		domicile ?= { 
+			move_domicile = root.liege.capital_province
+		}
+		hidden_effect = {
+			current_travel_plan ?= { abort_travel_plan = yes }
+		}
+	}
+
+	option = {#Do I know you ? Don't bother me again
+		name = rangers.1009.b
+		change_liege_or_become_independent = {
+			CHANGE = scope:change
+			VASSAL = this
+		}
+
+	}
+}
+
