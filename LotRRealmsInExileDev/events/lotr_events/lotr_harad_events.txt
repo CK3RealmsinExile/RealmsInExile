@@ -2589,7 +2589,19 @@ scripted_effect attempt_to_calm_merchants_effect = {
 									value = { 1 5 }
 								}
 							}
-							else = {
+							else_if = {
+								limit = {
+									OR = {
+										NOT = { }
+										AND = {
+											exists = var:trans_haradric_merchant_success_count
+											var:trans_haradric_merchant_success_count >= 10
+										}
+										dynasty ?= {
+											has_dynasty_perk = lotr_haradrim_legacy_5
+										}
+									}
+								}
 								random = {
 									chance = 20
 									add_trait = lifestyle_trans_haradric_merchant
@@ -5162,15 +5174,80 @@ harad.0600 = {
 	content_source = realms_dlc
 	type = character_event
 	title = harad.0600.t
-	desc = harad.0600.desc
-	theme = travel
-	
-	left_portrait = root
-	center_portrait = {
-		character = scope:merchant
-		animation = steward
+	desc = {
+		desc = harad.0600.desc.intro
+		first_valid = {
+			triggered_desc = {
+				trigger = { scope:trade_flavor ?= flag:flavor_fellow_merchant }
+				desc = harad.0600.desc.fellow_merchant
+			}
+			triggered_desc = {
+				trigger = { scope:trade_flavor ?= flag:flavor_village_leader }
+				desc = harad.0600.desc.village_leader
+			}
+			triggered_desc = {
+				trigger = { scope:trade_flavor ?= flag:flavor_local_trader }
+				desc = harad.0600.desc.local_trader
+			}
+			triggered_desc = {
+				trigger = { scope:trade_flavor ?= flag:flavor_back_alley_deal }
+				desc = harad.0600.desc.back_alley_deal
+			}
+			triggered_desc = {
+				trigger = { scope:trade_flavor ?= flag:flavor_barony_holder }
+				desc = harad.0600.desc.barony_holder
+			}
+			desc = harad.0600.desc.fallback
+		}
 	}
-	right_portrait = scope:local_trader
+	theme = travel
+	override_background = {
+		trigger = { scope:trade_flavor ?= flag:flavor_fellow_merchant }
+		reference = terrain_travel
+	}
+	override_background = {
+		trigger = { scope:trade_flavor ?= flag:flavor_village_leader }
+		reference = village_festival
+	}
+	override_background = {
+		trigger = {
+			OR = {
+				scope:trade_flavor ?= flag:flavor_local_trader
+				scope:trade_flavor ?= flag:flavor_barony_holder
+			}
+		}
+		reference = market
+	}
+	override_background = {
+		trigger = { scope:trade_flavor ?= flag:flavor_back_alley_deal }
+		reference = alley_day
+	}
+	
+	left_portrait = {
+		character = root
+		animation = thinking
+	}
+	lower_left_portrait = {
+		character = scope:merchant
+	}
+	right_portrait = {
+		character = scope:local_trader
+
+		triggered_animation = {
+			trigger = {
+				scope:trade_flavor ?= flag:flavor_back_alley_deal
+			}
+			animation = personality_cynical
+		}
+		animation = debating
+
+		triggered_outfit = {
+			trigger = {
+				scope:trade_flavor ?= flag:flavor_back_alley_deal
+			}
+			outfit_tags = { western_stealth_hood }
+		}
+	}
 
 	trigger = {
 		current_travel_plan = {
@@ -5294,8 +5371,15 @@ harad.0600 = {
 					culture = scope:home_county.culture
 					faith = scope:home_county.faith
 				}
+				save_scope_value_as = { # Save for loc flavorization
+					name = trade_flavor
+					value = flag:flavor_fellow_merchant
+				}
 			}
 			50 = { # Local Merchant
+				trigger = {
+					location ?= { NOT = { terrain = dune_sea } } #Not many people live here
+				}
 				create_character = {
 					location = root.location
 					template = merchant_template
@@ -5303,26 +5387,123 @@ harad.0600 = {
 					faith = location.faith
 					save_scope_as = local_trader
 				}
+				save_scope_value_as = { # Save for loc flavorization
+					name = trade_flavor
+					value = flag:flavor_local_trader
+				}
 			}
 			50 = { # Village Leader
+				trigger = {
+					location ?= { NOT = { terrain = dune_sea } } #Not many people live here
+				}
 				create_character = {
 					location = root.location
 					template = generic_peasant_character
 					gender_female_chance = root_faith_dominant_gender_adjusted_female_chance
+					dynasty = none
 					culture = location.culture
 					faith = location.faith
 					save_scope_as = local_trader
+					trait = peasant_leader
+				}
+				save_scope_value_as = { # Save for loc flavorization
+					name = trade_flavor
+					value = flag:flavor_village_leader
 				}
 			}
-			
+			30 = { # Back Alley Deal
+				trigger = {
+					location = { has_holding = yes }
+					location ?= { NOT = { terrain = dune_sea } } #Not many people live here
+					OR = {
+						has_trait = education_intrigue
+						has_trait = schemer
+						has_trait = gallowsbait
+						has_trait = deceitful
+						has_trait = callous
+						has_trait = greedy
+					}
+					NOT = { has_trait = just }
+				}
+				create_character = {
+					location = root.location
+					template = generic_peasant_character
+					gender_female_chance = root_faith_dominant_gender_adjusted_female_chance
+					dynasty = none
+					culture = location.culture
+					faith = location.faith
+					save_scope_as = local_trader
+					trait = deceitful
+					trait = gallowsbait
+				}
+				save_scope_value_as = { # Save for loc flavorization
+					name = trade_flavor
+					value = flag:flavor_back_alley_deal
+				}
+			}
+			70 = { # Local Baron / Mayor
+				trigger = {
+					location = {
+						has_holding = yes
+						OR = {
+							has_holding_type = castle_holding
+							has_holding_type = city_holding
+							has_holding_type = church_holding
+						}
+					}
+					location.barony.holder ?= {
+						highest_held_title_tier = tier_barony
+						is_available_ai_adult = yes
+						OR = { # Just to be sure
+							is_human = yes
+							is_dwarf = yes
+						}
+					}
+				}
+				location.barony.holder = {
+					save_scope_as = local_trader
+				}
+				save_scope_value_as = { # Save for loc flavorization
+					name = trade_flavor
+					value = flag:flavor_barony_holder
+				}
+			}
 		}
 	}
 
 	option = { # OK
-		name = harad.0600.a
+		name = {
+			text = {
+				first_valid = {
+					triggered_desc ={
+						trigger =  { scope:trade_flavor ?= flag:flavor_fellow_merchant }
+						desc = harad.0600.a.fellow_merchant
+					}
+					triggered_desc ={
+						trigger =  { scope:trade_flavor ?= flag:flavor_village_leader }
+						desc = harad.0600.a.village_leader
+					}
+					triggered_desc ={
+						trigger =  { scope:trade_flavor ?= flag:flavor_local_trader }
+						desc = harad.0600.a.local_trader
+					}
+					triggered_desc ={
+						trigger =  { scope:trade_flavor ?= flag:flavor_back_alley_deal }
+						desc = harad.0600.a.back_alley_deal
+					}
+					triggered_desc ={
+						trigger =  { scope:trade_flavor ?= flag:flavor_barony_holder }
+						desc = harad.0600.a.barony_holder
+					}
+					desc = harad.0600.a
+				}
+			}
+		}
+		flavor = harad.0600.a.flavor
+
 		add_gold = { 10 50 }
 		stress_impact = {
-			greedy = minor_stress_impact_gain
+			greedy = miniscule_stress_impact_gain
 		}
 
 		if = {
@@ -5383,7 +5564,34 @@ harad.0600 = {
 	}
 
 	option = { # OK
-		name = harad.0600.b
+		name = {
+			text = {
+				first_valid = {
+					triggered_desc ={
+						trigger =  { scope:trade_flavor ?= flag:flavor_fellow_merchant }
+						desc = harad.0600.b.fellow_merchant
+					}
+					triggered_desc ={
+						trigger =  { scope:trade_flavor ?= flag:flavor_village_leader }
+						desc = harad.0600.b.village_leader
+					}
+					triggered_desc ={
+						trigger =  { scope:trade_flavor ?= flag:flavor_local_trader }
+						desc = harad.0600.b.local_trader
+					}
+					triggered_desc ={
+						trigger =  { scope:trade_flavor ?= flag:flavor_back_alley_deal }
+						desc = harad.0600.b.back_alley_deal
+					}
+					triggered_desc ={
+						trigger =  { scope:trade_flavor ?= flag:flavor_barony_holder }
+						desc = harad.0600.b.barony_holder
+					}
+					desc = harad.0600.b
+				}
+			}
+		}
+		flavor = harad.0600.b.flavor
 		if = {
 			limit = { has_character_modifier = harad_merchant_tongue }
 			custom_description_no_bullet = { # Haggling is easier with flavor modifier
@@ -5481,6 +5689,16 @@ harad.0600 = {
 					add = 15
 					has_character_modifier = harad_merchant_tongue
 				}
+				# Our Opponent is greedy
+				modifier = {
+					add = -5
+					scope:local_trader = { has_trait = greedy }
+				}
+				# Our Opponent is generous
+				modifier = {
+					add = 3
+					scope:local_trader = { has_trait = generous }
+				}
 			}
 			# Failure.
 			70 = {
@@ -5502,6 +5720,16 @@ harad.0600 = {
 				modifier = {
 					add = -15
 					has_character_modifier = harad_merchant_tongue
+				}
+				# Our Opponent is greedy
+				modifier = {
+					add = 5
+					scope:local_trader = { has_trait = greedy }
+				}
+				# Our Opponent is generous
+				modifier = {
+					add = -3
+					scope:local_trader = { has_trait = generous }
 				}
 			}
 		}
