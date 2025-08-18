@@ -415,9 +415,15 @@ lotr_on_title_gain = {
 			if = { # The Old, the True | Achievement
 				limit = { 
 					NOT = { exists = global_var:lotr_achievement_71 }
-					scope:title = title:e_harad
+					any_held_title = {
+						tier = tier_empire
+						this = title:e_harad
+					}
 					dynasty = dynasty:dynasty_khadnom
-					is_tributary = no
+					trigger_if = {
+						limit = { is_tributary = yes }
+						NOT = { suzerain = character:lineofsauron }
+					} trigger_else = { is_tributary = no }
 				}
 				set_global_variable = lotr_achievement_71
 			}
@@ -429,7 +435,7 @@ lotr_on_title_gain = {
 					scope:title ?= title:d_amon_lanc
 					scope:title ?= title:k_amon_lanc
 				}
-				root = character:linefinwe11
+				root = character:lineoffeanor2
 				NOT = {
 					is_target_in_global_variable_list = {
 						name = unavailable_unique_decisions
@@ -478,7 +484,6 @@ lotr_on_title_gain = {
 		}
 		
 		### Wilderness fallback: turn illegal wilderness to Tribal if non-Tom characters somehow get ahold of it
-		
 		if = {
 			limit = {
 				scope:previous_holder ?= { is_alive = yes }
@@ -493,8 +498,31 @@ lotr_on_title_gain = {
 					scope:transfer_type = flag:revoked
 					scope:transfer_type = flag:faction_demand
 				}
+				is_landless_adventurer = no
 			}
-			root = { change_government = tribal_government }
+			if = {
+				limit = { is_elf = yes }
+				root = { change_government = elven_government }
+			} else_if = {
+				limit = {
+					OR = {
+						is_orc = yes
+						is_human = yes
+					}
+				}
+				root = { change_government = tribal_government }
+			} else_if = {
+				limit = { is_hobbit = yes }
+				root = { change_government = hobbit_government }
+			} else_if = {
+				limit = {
+					OR = {
+						is_istari = yes
+						is_dwarf = yes
+					}
+				}
+				root = { change_government = feudal_government }
+			}
 			scope:title ?= {
 				set_county_culture = root.culture
 				set_county_faith = root.faith
@@ -502,7 +530,29 @@ lotr_on_title_gain = {
 					limit = { 
 						has_holding_type = wastelands_holding
 					}
-					set_holding_type = tribal_holding
+					if = {
+						limit = { is_elf = yes }
+						set_holding_type = elven_holding
+					} else_if = {
+						limit = {
+							OR = {
+								is_orc = yes
+								is_human = yes
+							}
+						}
+						set_holding_type = tribal_holding
+					} else_if = {
+						limit = { is_hobbit = yes }
+						set_holding_type = city_holding
+					} else_if = {
+						limit = {
+							OR = {
+								is_istari = yes
+								is_dwarf = yes
+							}
+						}
+						set_holding_type = castle_holding
+					}
 				}
 			}
 			debug_log = "Wilderness: Illegal Wilderness turned to Tribal"
@@ -818,35 +868,6 @@ lotr_on_title_gain = {
 					remove_duchy_building_any_level = { BUILDING = snaga_warrens }
 				}
 			}
-		}
-
-		#LotR - make sure hobbits remain with the hobbit government type
-		if = {
-			limit = {
-				is_hobbit = yes
-				government_has_flag = government_is_settled
-				NOR = {
-					government_has_flag = government_is_administrative
-					government_has_flag = government_is_tribal
-					government_has_flag = government_is_landless_adventurer
-				}
-			}
-			trigger_event = {
-				id = hobbit.0001
-				days = 1
-			}
-		}
-
-		#LotR Abrakhan - Retain decision reward modifiers
-		if = {
-			limit = {
-				scope:title ?= {
-					this = title:k_abrakhan
-				}
-				# Check if character is considered "Saurons Abrakhan Guy"
-				# character_is_valid_for_abrakhan_subjugation_mission_trigger = yes
-			}
-			# abrakhan_transfer_rewards_effect = yes
 		}
 		
 		#Event to give Stewards Ithilien
@@ -1536,6 +1557,34 @@ lotr_on_title_gain = {
 				}
 			}
 		}
+		trigger_event = { #So that it doesn't fire simultaneously with lotr_artifact.0040
+			id = lotr_artifact.0042 # Reforging Narsil
+			days = 1
+		}
+
+		## Hobbits can be laamps 
+		if = {
+			limit = {
+				is_hobbit = yes
+				is_landless_adventurer = no
+				NOT = { government_has_flag = government_is_administrative }
+			}
+			trigger_event = {
+				id = hobbit.0001
+				days = 1
+			}
+		}
+		
+		## Remove Oligarchy laws if not oligarchic 
+		if = {
+			limit = {
+				scope:title ?= { has_title_law = oligarchic_elective_succession_law }
+				NOT = { government_has_flag = government_is_oligarchy }
+			}
+			scope:title ?= {
+				remove_title_law = oligarchic_elective_succession_law
+			}
+		}
 	}
 	events = {
 		orcs.0010
@@ -1547,7 +1596,6 @@ lotr_on_title_gain = {
 		enedwaith.0302
 		wraith.001 # Corruption of Minas Ithil
 		lotr_artifact.0040 # Arnor regalia
-		lotr_artifact.0042 # Reforging Narsil
 	}
 }
 
@@ -1784,6 +1832,26 @@ lotr_on_title_gain_inheritance = {
 			}
 			resolve_title_and_vassal_change = scope:title_change
 		}
+		
+		# If Azog ignore his Moria decision and forms the title manually
+		if = {
+			limit = {
+				scope:title = title:k_khazad_dum
+				root = { has_character_modifier = rise_of_azog_modifier }
+			}
+			title:k_khazad_dum.holder = {
+				trigger_event = {
+					id = orcs.7003
+					days = 2 
+				}
+				remove_character_flag = azog_solidify_moria
+				add_to_global_variable_list = {
+					name = unavailable_unique_decisions
+					target = flag:decision_solidify_moria
+				}
+			}
+		}
+		
 		#LotR - Tracking Imperial Khand Time Held
 		if = {
 			limit = {
@@ -1897,6 +1965,14 @@ lotr_on_title_gain_inheritance = {
 			clear_dwarven_kingdom_claims_post_game_start = yes
 		}
 
+		if = {
+			limit = {
+				scope:title = { is_dwarven_dynasty_title = yes }
+				NOT = { house ?= { house_head = root } }
+			}
+			house ?= { set_house_head = root }
+		}
+
 		#Clearing inappropriate inherited MaA
 		if = {
 			limit = { NOT = { same_race = { TARGET = scope:previous_holder } } }
@@ -1925,6 +2001,30 @@ lotr_on_title_gain_inheritance = {
 				}
 			}
 			destroy_title = title:d_nhazadh
+		}
+		if = {
+			limit = {
+				has_trait = dwarf_father
+				scope:title = { is_dwarven_dynasty_title = yes }
+				NOT = { has_character_flag = been_named_king }
+				any_owned_story = { story_type = story_dorfdad_reincarnation }
+			}
+			save_scope_as = my_dorfdad
+			every_player = {
+				trigger_event = {
+					id = news_event.0026
+					days = 1
+				}
+			}
+			if = {
+				limit = { scope:my_dorfdad = { is_ai = yes } }
+				scope:my_dorfdad = {
+					trigger_event = {
+						id = news_event.0026
+						days = 1
+					}
+				}
+			}
 		}
 		
 		correct_wastelands_tracker = yes
@@ -2239,6 +2339,9 @@ lotr_on_title_lost = {
 					has_title = title:e_uris_folk
 					has_title = title:e_dwalins_folk
 					has_title = title:e_thrars_folk
+					has_title = title:e_thulins_folk
+					has_title = title:e_bavors_folk
+					has_title = title:e_sindris_folk
 				}
 			}
 			trigger_event = dwarven.9802
@@ -2247,7 +2350,7 @@ lotr_on_title_lost = {
 		if = {
 			limit = { #Aragorn loses his betrothal to Arwen if he loses the RK or either of its kingdoms
 				has_character_flag = is_aragorn
-				betrothed ?= character:linefinwe30 #Arwen
+				betrothed ?= character:lineofelrond4 #Arwen
 				trigger_if = { #If you destroy either title but you still hold the RK, it's fine
 					limit = {
 						OR = {
@@ -2262,7 +2365,7 @@ lotr_on_title_lost = {
 				}
 			}
 			show_as_tooltip = {
-				break_betrothal = character:linefinwe30
+				break_betrothal = character:lineofelrond4
 			}
 		}
 
