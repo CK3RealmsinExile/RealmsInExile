@@ -1,10 +1,11 @@
 ﻿namespace = tributary
 
 tributary.0001 = { # Call Protector to Defensive War
+	orphan = yes #Currently unused
 	content_source = realms_dlc
 	type = character_event
 	title = tributary.0001.t
-	desc = tributary.0001.desc
+	desc = tributary.0001.desc	
 	theme = stewardship_duty_focus
 	left_portrait = {
 		character = root
@@ -16,16 +17,11 @@ tributary.0001 = { # Call Protector to Defensive War
 	}
 
 	trigger = {
+		always = no #Juke note: Currently broken, please update for new CB if we still want this
 		scope:attacker = { #Do not call when primary attacker is also your tributary / protectorate
-			NOT = {
-				exists = var:my_suzerain
-				is_target_in_variable_list = { name = non_permanent_tributaries target = prev }
-			}
-			NOT = {
-				exists = var:my_suzerain
-				is_target_in_variable_list = { name = permanent_tributaries target = prev }
-			}		
+			is_tributary = no		
 		}
+		scope:defender != root # Don't call yourself
 		trigger_if = { # If Protectorate / Permanent Tributary is AI...
 			limit = {
 				scope:defender = { is_ai = yes }
@@ -62,7 +58,7 @@ tributary.0001 = { # Call Protector to Defensive War
 						if = {
 							limit = {
 								scope:defender = {
-									has_variable = overlord_protector
+									any_tributary = { has_subject_contract_group = tributary_protectorate }
 								}
 							}
 							custom_tooltip = tributary.0001.a.toast.protectorate.tt
@@ -95,7 +91,7 @@ tributary.0001 = { # Call Protector to Defensive War
 		if = {
 			limit = {
 				scope:defender = {
-					has_variable = overlord_protector
+					any_tributary = { has_subject_contract_group = tributary_protectorate }
 				}
 			}
 			custom_tooltip = loss_of_protectorate.tt
@@ -109,7 +105,7 @@ tributary.0001 = { # Call Protector to Defensive War
 						title = tributary.0001.b.toast
 				}
 			}
-			free_tributary = yes
+			end_tributary = yes
 			add_opinion = {
 				modifier = rejected_call_to_defensive_war
 				target = root
@@ -123,11 +119,13 @@ tributary.0001 = { # Call Protector to Defensive War
 }
 
 tributary.0002 = { # Tributary independence war invitation
+	orphan = yes #Currently unused
 	content_source = realms_dlc
 	type = character_event
 	title = tributary.0002.t
 	desc = tributary.0002.desc
 	theme = war
+	orphan = yes #Not used anymore, as PDX provided this for us. Keeping it in for now in-case we want to use it somewhere
 	left_portrait = {
 		character = scope:attacker
 		animation = war_attacker
@@ -141,7 +139,7 @@ tributary.0002 = { # Tributary independence war invitation
 		name = tributary.0002.a
 		trigger = {
 			can_declare_war = {
-				casus_belli = independence_tributary_war_cb
+				casus_belli = tributary_independence_war
 				defender = scope:defender
 			}
 		}
@@ -155,7 +153,6 @@ tributary.0002 = { # Tributary independence war invitation
 			craven = minor_stress_impact_gain
 			content = minor_stress_impact_gain
 		}
-		add_character_flag = tributary_should_become_free
 
 		ai_chance = {
 			
@@ -193,16 +190,14 @@ tributary.0002 = { # Tributary independence war invitation
 			# More likely if large number of potential allies in other tributaries
 			modifier = {
 				scope:defender = {
-					has_variable_list = all_tributaries
-					variable_list_size = { name = all_tributaries value > 5 }
+					any_tributary = { count > 5 }
 				}
 				add = 0.5
 			}
 			# Even more likely if there's a very large number of potential allies in other tributaries
 			modifier = {
 				scope:defender = {
-					has_variable_list = all_tributaries
-					variable_list_size = { name = all_tributaries value > 10 }
+					any_tributary = { count > 10 }
 				}
 				add = 0.5
 			}
@@ -257,204 +252,6 @@ tributary.0002 = { # Tributary independence war invitation
 	}
 }
 
-tributary.0004 = { # Check if Suzerain has any tributaries left and manage if not
-	content_source = realms_dlc
-	type = character_event
-	hidden = yes
-	
-	immediate = {
-		if = {
-			limit = {
-				has_permanent_tributaries = no
-				has_non_permanent_tributaries = no
-			}
-			clear_variable_list = all_tributaries
-			remove_variable = suzerain
-		}
-		if = {
-			limit = {
-				has_permanent_tributaries = no
-			}
-			clear_variable_list = permanent_tributaries
-		}
-		if = {
-			limit = {
-				has_non_permanent_tributaries = no
-			}
-			clear_variable_list = non_permanent_tributaries
-		}
-	}
-}
-
-tributary.0005 = { # Regular tribute amounts
-	content_source = realms_dlc
-	type = character_event
-	hidden = yes
-	trigger = { is_alive = yes }
-	immediate = {
-		if = {
-			limit = {
-				has_non_permanent_tributaries = yes
-			}
-			every_in_list = {
-				variable = non_permanent_tributaries
-				
-				set_variable = { 
-					name = tribute_gold_amount 
-					value = monthly_character_income
-				}
-				if = {
-					limit = {
-						is_alive = yes
-						has_variable = tribute_gold_percent
-					}
-					change_variable = {
-						name = tribute_gold_amount
-						multiply = var:tribute_gold_percent
-					}
-				} else = {
-					set_variable = {
-						name = tribute_gold_percent
-						value = 0.3
-					}
-				}
-				
-				if = {
-					limit = { 
-						is_alive = yes
-						has_variable = tribute_gold_percent
-					}
-					pay_long_term_gold = { target = prev gold = { value = monthly_character_income multiply = var:tribute_gold_percent } }
-				} else = {
-					if = {
-						limit = { is_alive = yes }
-						set_variable = {
-							name = tribute_gold_percent
-							value = 0.3
-						}
-					}
-				}
-			}
-		}
-		if = {
-			limit = {
-				has_permanent_tributaries = yes
-			}
-			every_in_list = {
-				variable = permanent_tributaries
-				
-				set_variable = { 
-					name = tribute_gold_amount 
-					value = monthly_character_income
-				}
-				if = {
-					limit = {
-						is_alive = yes
-						has_variable = tribute_gold_percent
-					}
-					change_variable = {
-						name = tribute_gold_amount
-						multiply = var:tribute_gold_percent
-					}
-				} else = {
-					set_variable = {
-						name = tribute_gold_percent
-						value = 0.2
-					}
-				}
-				
-				
-				if = {
-					limit = { exists = var:tribute_gold_percent }
-					pay_long_term_gold = { target = prev gold = { value = monthly_character_income multiply = var:tribute_gold_percent } }
-				} else = {
-					if = {
-						limit = { is_alive = yes }
-						set_variable = {
-							name = tribute_gold_percent
-							value = 0.2
-						}
-					}
-				}	
-			}
-		}
-	}
-}
-
-tributary.0006 = { # Initialise tribute amounts
-	content_source = realms_dlc
-	type = character_event
-	hidden = yes
-	trigger = { is_alive = yes }
-
-	immediate = {
-		if = {
-			limit = {
-				has_non_permanent_tributaries = yes
-			}
-			every_in_list = {
-				variable = non_permanent_tributaries
-				if = {
-					limit = { 
-						is_alive = yes
-						NOT = { has_variable = tribute_gold_percent }
-					}
-					set_variable = {
-						name = tribute_gold_percent
-						value = 0.3
-					}
-				}
-				
-				set_variable = { 
-					name = tribute_gold_amount 
-					value = monthly_character_income 
-				}
-				change_variable = {
-					name = tribute_gold_amount
-					multiply = var:tribute_gold_percent
-				}		
-			}
-		}
-		if = {
-			limit = {
-				has_permanent_tributaries = yes
-			}
-			if = {
-				limit = {
-					is_alive = yes
-					NOT = { has_variable = tribute_gold_percent }
-				}
-				set_variable = {
-					name = tribute_gold_percent
-					value = 0.2
-				}
-			}
-			every_in_list = {
-				variable = permanent_tributaries
-				
-				set_variable = { 
-					name = tribute_gold_amount 
-					value = monthly_character_income 
-				}
-				change_variable = {
-					name = tribute_gold_amount
-					multiply = var:tribute_gold_percent
-				}
-			}
-		}
-	
-		hidden_effect = {
-			every_in_list = {
-				variable = all_tributaries
-				limit = { this = root }
-				remove_list_variable = { name = non_permanent_tributaries target = this }
-				remove_list_variable = { name = permanent_tributaries target = this }
-				remove_list_variable = { name = all_tributaries target = this }
-			}
-		}
-	}
-}
-
 tributary.0008 = { # Call Non-Permanent Tributaries to War - defender
 	content_source = realms_dlc
 	type = character_event
@@ -468,7 +265,7 @@ tributary.0008 = { # Call Non-Permanent Tributaries to War - defender
 	trigger = {
 		scope:war = {
 			NOT = {
-				using_cb = independence_tributary_war_cb
+				using_cb = tributary_independence_war
 			}
 		}
 	}
@@ -487,8 +284,8 @@ tributary.0008 = { # Call Non-Permanent Tributaries to War - defender
 				}
 			}
 		}
-		every_in_list = {
-			variable = non_permanent_tributaries
+		every_tributary = {
+			limit = { vassal_contract_has_flag = tributary_contract_tributary_forced_war_override }
 			scope:war = {
 				add_defender = prev
 			}

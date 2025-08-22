@@ -11,6 +11,7 @@
 #		gondor.6003 Reconquest of Minas Tirith
 #		gondor.6003 Conquest of Umbar
 #		gondor.6500 Restore Gondor CB events
+#		gondor.7000 Restore Gondor from Castamir Gondor
 
 # Gondor Succession events 
 #		gondor.7000 
@@ -179,7 +180,13 @@ gondor.4001 = { # Recreate the Watch on Mordor
 			}
 			save_scope_as = candidate1 
 		}
-		random_close_family_member = { save_scope_as = candidate2 }
+		random_close_family_member = { 
+		    limit = { 
+			    is_landed = no 
+				is_in_valinor = no
+		    }
+		    save_scope_as = candidate2
+		}
 		random_courtier_or_guest = { save_scope_as = candidate3 }
 		if = {
 			limit =  {
@@ -695,31 +702,14 @@ gondor.5002 = { # Royal Road is finished
 				modifier = royal_road_rebuilt_province_modifier
 			}
 		}
-		title:c_tharbad = {
+		every_county_in_region = {
+			region = special_royal_road
 			add_county_modifier = {
 				modifier = royal_road_rebuilt_county_modifier
-			}
+			}	
 		}
-		title:c_fornost = {
-			add_county_modifier = {
-				modifier = royal_road_rebuilt_county_modifier
-			}
-		}
-		title:c_riverwatch = {
-			add_county_modifier = {
-				modifier = royal_road_rebuilt_county_modifier
-			}
-		}
-		title:c_bree = {
-			add_county_modifier = {
-				modifier = royal_road_rebuilt_county_modifier
-			}
-		}
-		title:c_galtrev = {
-			add_county_modifier = {
-				modifier = royal_road_rebuilt_county_modifier
-			}
-		}
+		
+		
 	}
 }
 
@@ -740,23 +730,36 @@ gondor.5003 = { # The Hobbits acknowledge the King
 	}
 	immediate = { 
 		title:k_shire.holder = { save_scope_as = shire_thain } 
-		show_as_tooltip = {
-			title:k_shire.holder = {
-				create_title_and_vassal_change = {
-					type = swear_fealty
-					save_scope_as = change
-					add_claim_on_loss = no
-				}
-				change_liege = {
-					liege = title:e_arnor.holder
-					change = scope:change
-				}
-				resolve_title_and_vassal_change = scope:change
+	}
+	option = { # The King is back
+		name = gondor.5003.a
+		title:k_shire.holder = {
+			create_title_and_vassal_change = {
+				type = swear_fealty
+				save_scope_as = change
+				add_claim_on_loss = no
 			}
+			change_liege = {
+				liege = title:e_arnor.holder
+				change = scope:change
+			}
+			resolve_title_and_vassal_change = scope:change
 		}
 	}
-	option = { #The King is back
-		name = gondor.5003.a
+	option = { # Make them a protectorate
+		name = gondor.5003.b
+		custom_tooltip = gondor.5003.b.tt
+		hidden_effect = {
+			scope:shire_thain = {
+				start_tributary = {
+					contract_group = tributary_protectorate
+					suzerain = title:e_arnor.holder
+				}
+			}
+		}
+		ai_chance = {
+			base = 100 
+		}
 	}
 }
 
@@ -811,7 +814,7 @@ gondor.6003 = { # Minas Tirith reclaimed
 	type = character_event
 	title = gondor.6003.t
 	desc = gondor.6003.desc
-	theme = war
+	theme = gondor
 	trigger = { culture = { has_cultural_pillar = heritage_dunedain } } #Should only trigger for Dúnedain
 	cooldown = { days = 3 }
 	override_background = {
@@ -898,10 +901,19 @@ gondor.6500 = { # The War for Gondor begins
 		title:c_minas_tirith.empire = { # Gondorian king-tier lords get a chance to join the war
 			every_de_jure_county_holder = {
 				limit = {
-					is_independent_ruler = yes
+					OR = { # Either still independent or vassalized by Sauron, in that case they rise in revolt
+						is_independent_ruler = yes
+						top_liege ?= scope:sauron 
+					}
 					faith_is_good = yes
 					is_human = yes
-					highest_held_title_tier = tier_kingdom
+					OR = {
+						AND = { # Only dukes with an evil liege 
+							highest_held_title_tier = tier_duchy
+							liege = { faith_is_evil = yes }
+						}
+						highest_held_title_tier = tier_kingdom 
+					}
 					capital_county = { # If capital is in Gondor
 						title_province = { geographical_region = middleearth_west_gondor }
 					}
@@ -936,6 +948,29 @@ gondor.6500 = { # The War for Gondor begins
 				}
 			}
 		}
+		every_tributary = { # Your tributaries join you
+			limit = {
+				NOT = { has_title = title:k_rohan }
+				NOT = { has_title = title:e_arnor }
+				NOT = { faith_is_evil = yes }
+				is_at_war = no
+				suzerain = root
+			}
+			trigger_event = {
+				id = gondor.6505
+				days = 5
+			}
+		}
+		every_player = { # Any good faith player gets a chance to join
+			limit = {
+				NOT = { faith_is_evil = yes }
+				NOT = { is_ai = yes }
+			}
+			trigger_event = {
+				id = gondor.6505
+				days = 5
+			}
+		}
 	}
 }
 
@@ -957,6 +992,7 @@ gondor.6501 = { # The War for Gondor begins - Sauron perspective
 	option = { #The fools! I will scatter their armies like leaves in the wind.
 		name = gondor.6501.a
 		add_prestige = minor_prestige_gain
+		add_character_flag = attacked_in_gondor_liberation
 	}
 }
 
@@ -983,6 +1019,12 @@ scripted_effect set_gondor_ruler_to_chosen_candidate = {
 			get_title = title:c_malridh
 			get_title = title:d_minas_tirith
 		}
+		if = { # If the candidate is a tributary, free him
+			limit = {
+				is_tributary = yes
+			}
+			end_tributary = yes
+		}
 	}
 	hidden_effect = { #Transfering of de jure gondorian vassals
 		create_title_and_vassal_change = {
@@ -996,9 +1038,15 @@ scripted_effect set_gondor_ruler_to_chosen_candidate = {
 					OR = {
 						culture = culture:gondorian
 						culture = culture:belfalathrim
+						culture = culture:orodbedhrim
 						AND = {
 							has_title = title:k_pinnath_gelin
 							faith_is_good = yes 
+						}
+						AND = {
+							has_title = title:k_andrast
+							faith_is_good = yes 
+							culture = culture:gondorian
 						}
 					}
 				}
@@ -1116,7 +1164,7 @@ gondor.6502 = { # After the War - choosing a new ruler for Gondor
 	type = character_event
 	title = gondor.6502.t
 	desc = gondor.6502.desc
-	theme = war
+	theme = gondor
 	window = visit_settlement_window
 	override_background = { reference = minas_tirith }
 	left_portrait = {
@@ -1140,7 +1188,8 @@ gondor.6502 = { # After the War - choosing a new ruler for Gondor
 		character = scope:candidate3
 	}
 	immediate = {
-		character:lineofsauron = { save_scope_as = sauron }
+		title:e_mordor.holder = { save_scope_as = sauron }
+		scope:sauron = { remove_character_flag = attacked_in_gondor_liberation }
 		if = { 
 			limit = {
 				exists = title:e_gondor_steward.holder
@@ -1267,6 +1316,13 @@ gondor.6502 = { # After the War - choosing a new ruler for Gondor
 					}
 				}
 				character:linesteward40 = { save_scope_as = candidate3 }
+			}
+			else_if = { 
+				limit = {
+					exists = scope:gondorsteward
+					scope:gondorsteward ?= { faith_is_good = yes }
+				}
+				scope:gondorsteward = { save_scope_as = candidate3 }
 			}
 			else = { # Create a fallback character
 				title:c_minas_tirith.empire = { #First check for any existing title holders which are gondorian
@@ -1486,7 +1542,7 @@ gondor.6502 = { # After the War - choosing a new ruler for Gondor
 		if = { 
 			limit = {
 				exists = scope:gondorsteward
-				scope:gondorsteward = { faith_is_good = yes }
+				scope:gondorsteward ?= { faith_is_good = yes }
 			}
 			scope:gondorsteward = {
 				get_title = title:k_gondor_steward
@@ -1568,7 +1624,7 @@ gondor.6502 = { # After the War - choosing a new ruler for Gondor
 		if = { 
 			limit = {
 				exists = scope:gondorsteward
-				scope:gondorsteward = { faith_is_good = yes }
+				scope:gondorsteward ?= { faith_is_good = yes }
 			}
 			scope:gondorsteward = {
 				get_title = title:k_gondor_steward
@@ -1614,6 +1670,12 @@ gondor.6502 = { # After the War - choosing a new ruler for Gondor
 			}
 			destroy_title = title:d_northern_dunedain
 		}
+		scope:candidate2 = {
+			if = {
+				limit = { faith_is_evil = yes }
+				set_character_faith = faith:faith_edain
+			}
+		}
 		ai_chance = {
 			base = 0 # LotR: This should be tied to WotR mode.
 			modifier = { # Game Rule
@@ -1645,6 +1707,12 @@ gondor.6502 = { # After the War - choosing a new ruler for Gondor
 		}
 
 		set_gondor_ruler_to_chosen_candidate = { CANDIDATE = scope:candidate3 }
+		scope:candidate3 = {
+			if = {
+				limit = { faith_is_evil = yes }
+				set_character_faith = faith:faith_edain
+			}
+		}
 	}
 	option = { # Imrahil, his sons, or a random Belfalathrim
 		name = gondor.6502.d
@@ -1661,10 +1729,17 @@ gondor.6502 = { # After the War - choosing a new ruler for Gondor
 		}
 
 		set_gondor_ruler_to_chosen_candidate = { CANDIDATE = scope:candidate4 }
+		scope:candidate4 = {
+			if = {
+				limit = { faith_is_evil = yes }
+				set_character_faith = faith:faith_edain
+			}
+		}
 	}
 	option = { # I claim Gondor for myself.
 		trigger = { 
 			is_human = yes 
+			faith_is_evil = no
 			NOT = { this = scope:candidate2 }
 		}
 		name = gondor.6502.e
@@ -1674,7 +1749,7 @@ gondor.6502 = { # After the War - choosing a new ruler for Gondor
 			title:c_minas_tirith.empire = {
 				every_in_de_jure_hierarchy = {
 					limit = { tier = tier_kingdom }
-					set_de_jure_liege_title = title:e_gondor_steward
+					set_de_jure_liege_title = title:e_gondor
 				}
 			}
 		}
@@ -1698,7 +1773,7 @@ gondor.6502 = { # After the War - choosing a new ruler for Gondor
 		
 		hidden_effect = {
 			title:c_minas_tirith.empire.holder = {
-				add_gold = 200 
+				add_gold = 500 
 				add_legitimacy = medium_legitimacy_gain
 				create_maa_regiment = {
 					type = guard_of_the_citadel
@@ -1767,8 +1842,14 @@ gondor.6503 = { # Choose if you want to get a nickname out of the whole thing or
 	type = character_event
 	title = gondor.6503.t
 	desc = gondor.6503.desc
-	theme = realm
+	theme = gondor
 	override_background = { reference = minas_tirith }
+	trigger = { 
+		NOR = {
+			has_title = title:e_gondor 
+			has_title = title:e_gondor_steward 
+		}
+	}
 	left_portrait = {
 		character = root
 		animation = personality_rational
@@ -1807,7 +1888,7 @@ gondor.6503 = { # Choose if you want to get a nickname out of the whole thing or
 				}
 				men_at_arms = {
 					type = trebuchet
-					stacks = 3
+					stacks = 4
 				}
 				location = scope:gondorruler.location
 			}
@@ -1877,27 +1958,39 @@ gondor.6504 = { # Get a small force of gondorian rebels to join you
 	type = character_event
 	title = gondor.6504.t
 	desc = gondor.6504.desc
-	theme = war
+	theme = gondor
 	override_background = { reference = plains }
-	trigger = { has_character_flag = liberating_gondor }
+	trigger = { 
+		AND = {
+			has_character_flag = liberating_gondor 
+			is_at_war = yes 
+		}
+	}
 	left_portrait = {
 		character = root
 		animation = marshal_shield
 	}
 	immediate = {
+		every_character_war = {
+			limit = {
+				using_cb = restore_gondor_cb
+			}
+			save_scope_as = liberation_war
+		}
 		spawn_army = {		  
 			uses_supply = no
 			inheritable = no
 			name = gondorian_volunteers
-			levies = 400
+			levies = 500
 			men_at_arms = {
 				type = gondorian_bowmen
-				stacks = 2
+				stacks = 3
 			}
 			men_at_arms = {
 				type = gondorian_footmen
-				stacks = 2
+				stacks = 3
 			}
+			war = scope:liberation_war
 			location = capital_province
 		}
 	}
@@ -1910,7 +2003,7 @@ gondor.6504 = { # Get a small force of gondorian rebels to join you
 	}
 }
 
-gondor.6505 = { # Gondorian king-tier rulers get an offer to join
+gondor.6505 = { # Gondorian good faith rulers get an offer to join
 	content_source = realms_dlc
 	type = character_event
 	title = gondor.6505.t
@@ -1935,7 +2028,7 @@ gondor.6505 = { # Gondorian king-tier rulers get an offer to join
 			save_scope_as = gondorian_liberator
 		}
 	}
-	option = { #I will join!
+	option = { # I will join!
 		name = gondor.6505.a
 		scope:gondorian_liberator = {
 			every_character_war = {
@@ -1945,11 +2038,74 @@ gondor.6505 = { # Gondorian king-tier rulers get an offer to join
 				add_attacker = root
 			}
 		}
+		add_prestige = medium_prestige_gain
+		add_legitimacy = minor_legitimacy_gain
 		ai_chance = {
 			base = 100 
 		}
 	}
-	option = { #I will not join
+	option = { # I will not join
 		name = gondor.6505.b 
+		trigger = { is_ai = no }
+		custom_tooltip = gondor.6505.b.tt # Unlocks a decision to join later
+		add_character_flag = can_join_gondor_liberation
+	}
+}
+
+gondor.7000 = {
+	content_source = realms_dlc
+	type = character_event
+	title = gondor.7000.t
+	desc = gondor.7000.desc
+	theme = gondor
+	override_background = { reference = minas_tirith }
+	cooldown = { days = 3 }
+	right_portrait = {
+		character = root
+		animation = interested
+	}
+	
+	left_portrait = {
+		character = scope:eldacar
+		animation = interested
+	}
+
+	immediate = {
+		character:lineofanarion27 = { save_scope_as = eldacar }
+		character:lineofanarion25 = { save_scope_as = castamir }
+	}
+
+	option = {
+		name = gondor.7000.a
+		title:e_castamir = {
+			every_in_de_jure_hierarchy = {
+				limit = { tier = tier_kingdom }
+				set_de_jure_liege_title = title:e_gondor
+			}
+		}
+		create_title_and_vassal_change = {
+			type = returned
+			save_scope_as = change
+			add_claim_on_loss = yes
+		}
+		title:e_gondor = {
+			change_title_holder = {
+				holder = root
+				change = scope:change
+			}
+			set_variable = founded_mundburgian_eored #The Eored is transferred to the King once more
+		}
+		resolve_title_and_vassal_change = scope:change
+		set_primary_title_to = title:e_gondor
+		destroy_title = title:e_castamir
+	}
+
+	option = {
+		name = gondor.7000.b
+
+		add_character_flag = {
+			flag = accepted_castamir
+			years = 50
+		}
 	}
 }
