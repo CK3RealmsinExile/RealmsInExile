@@ -96,6 +96,7 @@ decision_continue_adventure_eradan = {
 			has_character_flag = eradan_ready_for_mirkwood
 			has_character_flag = eradan_ready_for_erebor
 			has_character_flag = eradan_ready_for_mountains
+			has_character_flag = eradan_ready_for_final
 		}
 		NOR = { # Should only show when the camp is not in the intended location
 			root.domicile.domicile_location = province:4775 # Sarn Ford
@@ -233,6 +234,20 @@ decision_continue_adventure_eradan = {
 				}
 			}
 		}
+		else_if = {
+			limit = { has_character_flag = eradan_ready_for_final }
+			hidden_effect = {
+				root = {
+					create_task_contract = {
+						task_contract_type = lotr_eradan_contract_final
+						task_contract_employer = title:c_nordinbad.holder
+						location = title:c_gundabad.title_province
+						task_contract_tier = 4
+						save_scope_as = created_contract
+					}
+				}
+			}
+		}
 	}
 
 	# AI value
@@ -290,7 +305,6 @@ decision_avenge_nordinbad = {
 	ai_potential = { always = yes }
 	ai_will_do = { base = 100 }
 }
-
 
 ### Talk to Locals: Sarn Ford ###
 decision_talk_to_locals_sarnford = {
@@ -560,11 +574,11 @@ decision_claim_gondor_arassuil = {
 		#has_title = title:d_northern_dunedain
 		NOT = { exists = title:e_gondor.holder }
 
-		OR = {
-			dynasty = dynasty:dynasty_elros
+		# OR = {
+		# 	dynasty = dynasty:dynasty_elros
 			dynasty = dynasty:dynasty_elendil
-			dynasty = dynasty:dynasty_anarion
-		}
+		# 	dynasty = dynasty:dynasty_anarion
+		# }
 		
 		NOT = { is_ai = yes }
 		NOT = { has_character_flag = is_aragorn }
@@ -755,6 +769,7 @@ decision_deal_with_azog_arassuil = {
 			current_description = arassuil_lay_a_trap_desc
 			localization = arassuil_lay_a_trap
 			icon = "gfx/interface/icons/regimenttypes/blighted_trappers.dds"
+			is_valid = { intrigue >= 20 }
 			ai_chance = { value = 40 }
 		}
 		item = { # Face him in his caves
@@ -762,6 +777,7 @@ decision_deal_with_azog_arassuil = {
 			current_description = arassuil_face_the_long_dark_desc
 			localization = arassuil_face_the_long_dark
 			icon = "gfx/interface/icons/regimenttypes/orc_rabble.dds"
+			is_valid = { prowess >= 30 }
 			ai_chance = { value = 30 }
 		}
 		item = { # Strike his realm
@@ -769,6 +785,7 @@ decision_deal_with_azog_arassuil = {
 			current_description = arassuil_start_war_desc
 			localization = arassuil_start_war
 			icon = "gfx/interface/icons/regimenttypes/dunedain_sword.dds"
+			is_valid = { martial >= 20 }
 			ai_chance = { value = 30 }
 		} 
 	}
@@ -786,7 +803,11 @@ decision_deal_with_azog_arassuil = {
 	}
 	is_valid = {
 		has_title = title:d_northern_dunedain
-		prowess >= 30
+		OR = {
+			intrigue >= 20
+			prowess >= 30
+			martial >= 20
+		}
 		custom_tooltip = {
 			text = moria_has_orcs
 			title:c_durins_hall.holder = { is_orc = yes }
@@ -1399,11 +1420,12 @@ decision_reintegrate_shire = {
 	is_shown = {
 		current_year >= 6008 #Fall of Arnor
 		is_independent_ruler = yes
-		title:k_shire.holder = { 
+		title:k_shire.holder ?= { 
 			is_independent_ruler = yes 
 			is_hobbit = yes 
 			is_ai = yes
 		}
+		culture ?= { has_cultural_pillar = heritage_dunedain } # No smelly hillmen, sorry Elenaer
 		faith_is_good = yes 
 		OR = {
 			has_title = title:k_arthedain 
@@ -1834,6 +1856,7 @@ decision_establish_amon_raen_city = {
 		OR = {
 			has_title = title:k_rhudaur
 			has_title = title:e_arnor
+			has_title = title:e_numenor_in_exile
 		}
 		lotr_has_numenorean_culture_trigger = yes
 		NOT = {
@@ -1856,10 +1879,14 @@ decision_establish_amon_raen_city = {
 			}
 			development_level >= 20
 		}
-		any_county_in_region = {
-			region = middleearth_west_arnor_rhudaur
-			count = all
-			development_level >= 5
+		custom_tooltip = {
+			text = rhudaur_urbanization_03 
+			title:k_rhudaur = {
+				any_de_jure_county = {
+					count = all
+					development_level >= 5
+				}
+			}	
 		}
 		
     }
@@ -1940,7 +1967,6 @@ decision_rhudaur_urbanization = {
 			text = rhudaur_urbanization_03 
 			title:k_rhudaur = {
 				any_de_jure_county = {
-			
 					count = all
 					development_level >= 5
 				}
@@ -1950,7 +1976,6 @@ decision_rhudaur_urbanization = {
 			text = rhudaur_urbanization_04 
 			title:k_rhudaur = {
 				any_de_jure_county = {
-			
 					count >= 3
 					development_level >= 10
 				}
@@ -2066,14 +2091,20 @@ decision_raze_carn_dum = {
 			has_title = title:k_rhudaur
 			has_title = title:k_arthedain
 			has_title = title:k_cardolan
+			has_title = title:k_angmar
 			has_title = title:e_arnor
+			completely_controls_region = custom_lowlands_angmar
 		}
-		lotr_has_numenorean_culture_trigger = yes
-		NOT = {
-			is_target_in_global_variable_list = {
-				name = unavailable_unique_decisions
-				target = flag:decision_raze_carn_dum
+		
+		faith_is_good = yes
+		title:c_carn_dum = {
+			title_province = {
+				OR = {
+					has_building = wonder_carn_dum_01
+					has_building = wonder_carn_dum_ruin_03
+				}
 			}
+			
 		}
 	}
 	
@@ -2084,7 +2115,7 @@ decision_raze_carn_dum = {
 			title_province = {
 				OR = {
 					has_building = wonder_carn_dum_01
-					
+					has_building = wonder_carn_dum_ruin_03
 				}
 			}
 			
@@ -2106,7 +2137,20 @@ decision_raze_carn_dum = {
 		
 			title:c_carn_dum = {
 				title_province = {
-					remove_building = wonder_carn_dum_01
+					if = {
+						limit = {
+							has_building = wonder_carn_dum_01
+						}
+						remove_building = wonder_carn_dum_01
+					}
+					
+					if = {
+						limit = {
+							has_building = wonder_carn_dum_ruin_03
+						}
+						remove_building = wonder_carn_dum_ruin_03
+					}
+					add_special_building = wonder_carn_dum_ruin_02
 				}
 			}
 			title:c_fasach_falroid = {
@@ -2114,14 +2158,12 @@ decision_raze_carn_dum = {
 					add_special_building = wonder_minas_formen_01
 				}
 			}
-		
-		
-		hidden_effect = {
-			add_to_global_variable_list = {
-				name = unavailable_unique_decisions
-				target = flag:decision_raze_carn_dum
+			title:k_angmar = {
+				set_capital_county = title:c_fasach_falroid
 			}
-		}
+		
+		
+		
 	}
 	
 	cost = {
@@ -2163,6 +2205,18 @@ decision_solidify_amon_sul = {
 		}
 		NOT = {
 			has_title = title:e_arnor
+			AND = {
+				has_title = title:k_arthedain
+				has_title = title:k_cardolan
+			}
+			AND = {
+				has_title = title:k_rhudaur
+				has_title = title:k_cardolan
+			}
+			AND = {
+				has_title = title:k_arthedain
+				has_title = title:k_rhudaur
+			}
 			title:d_emyn_sul = { 
 				any_this_title_or_de_jure_above = {
 					THIS = root.primary_title
@@ -2227,7 +2281,10 @@ decision_conquer_dyr_maenason = {
 			
 		}
 		NOT = {
-			
+			AND = {
+				has_title = title:k_rhudaur
+				has_title = title:k_cardolan
+			}
 			title:d_dyr_maenason = { 
 				any_this_title_or_de_jure_above = {
 					THIS = root.primary_title
@@ -2292,7 +2349,10 @@ decision_conquer_south_downs = {
 			
 		}
 		NOT = {
-			
+			AND = {
+				has_title = title:k_arthedain
+				has_title = title:k_cardolan
+			}
 			title:d_tyrn_hodhath = { 
 				any_this_title_or_de_jure_above = {
 					THIS = root.primary_title
@@ -2396,24 +2456,20 @@ decision_soldify_tharbad_city = {
 	desc = decision_soldify_tharbad_city_desc
 	confirm_text = decision_soldify_tharbad_city_confirm
 	
-	decision_group_type = realms_in_exile_minor
+	decision_group_type = realms_in_exile_major
 	
-	cost = { prestige = 250 }
+	cost = { 
+		prestige = 250 
+	}
 
 	is_shown = {
-		OR = {
-			has_title = title:c_tharbad
-			has_title = title:c_harabad
-			has_title = title:c_seabhagtir
-			has_title = title:d_tharbad_titular
-		}
+		has_title = title:d_tharbad_titular
 		NOT = {
 			is_target_in_global_variable_list = {
 				name = unavailable_unique_decisions
 				target = flag:tharbad_solidify
 			}
 		}
-
 	}
 
 	is_valid = {
@@ -2456,7 +2512,7 @@ decision_soldify_tharbad_city = {
 		is_available_adult = yes
 	}
 
-	 effect = {
+	effect = {
 		title:c_tharbad = {
 			set_de_jure_liege_title = title:d_tharbad_titular
 			change_development_level = 3
@@ -2481,19 +2537,17 @@ decision_soldify_tharbad_city = {
 		}
 		hidden_effect = {
 			title:d_swanfell = {
-				set_capital_county = title:c_swanfleet
+				lotr_move_dejure_capital_effect = { COUNTY = c_swanfleet }
 			}
 		}
 		
-		
-		trigger_event = { id = tharbad_story.1000 }
+		trigger_event = tharbad_story.1000
 
 		add_to_global_variable_list = {
 			name = unavailable_unique_decisions
 			target = flag:tharbad_solidify
 		}		
-	 }
-
+	}
 
 	ai_will_do = {
 		base = 100
@@ -2523,7 +2577,10 @@ decision_invite_settlers = {
 		
 		exists = global_var:long_winter_occurred
 		
-		
+		title:c_tharbad = {
+			development_level <= 5
+				
+		}
 		
 		NOT = {
 			is_target_in_global_variable_list = {
@@ -2576,95 +2633,102 @@ decision_invite_settlers = {
 	ai_potential = { always = yes }
 }
 
-decision_restore_dunedain_beliefs = {
-	title = decision_restore_dunedain_beliefs
-	picture = {
-		reference = "gfx/interface/illustrations/decisions/decision_minas_tirith_02.dds"
-	}
-	
-	selection_tooltip = decision_restore_dunedain_beliefs_tooltip
-	desc = decision_restore_dunedain_beliefs_desc
-	confirm_text = decision_restore_dunedain_beliefs_confirm
-	
-	decision_group_type = realms_in_exile_minor
-	
-	cost = { piety = major_piety_value }
-
-	is_shown = {
-		has_title = title:d_tharbad_titular
-		
-		exists = global_var:long_winter_occurred
-		
-		lotr_has_numenorean_culture_trigger = yes
-		faith_is_good = yes 
-		
-		NOT = {
-			is_target_in_global_variable_list = {
-				name = unavailable_unique_decisions
-				target = flag:decision_restore_dunedain_beliefs
-			}
-		}
-	}
-
-	is_valid = {
-		
-		faith_is_good = yes 
-		lotr_has_numenorean_culture_trigger = yes
-		
-		custom_tooltip = {
-			text = decision_restore_dunedain_beliefs_trigger
-			any_sub_realm_county = {
-				percent >= 0.5
-				this.faith = {
-					NOT = { religion_tag = dunedain_religion }
-				}
-			}
-		}
-		
-			
-		
-	}
-
-	is_valid_showing_failures_only = {
-		is_at_war = no
-		is_imprisoned = no
-		is_available_adult = yes
-	}
-
-	 effect = {
-		every_sub_realm_county = {
-			limit = {
-				this.faith = {
-					NOT = { religion_tag = dunedain_religion }
-				}
-				
-			}
-			random_list = {
-				70 = {
-					set_county_faith = root.faith
-				
-				}
-				30 = {
-					
-				}
-				
-			}
-		}
-
-		add_to_global_variable_list = {
-			name = unavailable_unique_decisions
-			target = flag:decision_restore_dunedain_beliefs
-		}		
-	 }
-
-
-	ai_will_do = {
-		base = 100
-	}
-	# AI value
-	ai_goal = yes
-	ai_potential = { always = yes }
-}
+#decision_restore_dunedain_beliefs = {
+#	title = decision_restore_dunedain_beliefs
+#	picture = {
+#		reference = "gfx/interface/illustrations/decisions/decision_minas_tirith_02.dds"
+#	}
+#	
+#	selection_tooltip = decision_restore_dunedain_beliefs_tooltip
+#	desc = decision_restore_dunedain_beliefs_desc
+#	confirm_text = decision_restore_dunedain_beliefs_confirm
+#	
+#	decision_group_type = realms_in_exile_minor
+#	
+#	cost = { piety = major_piety_value }
+#
+#	is_shown = {
+#		has_title = title:d_tharbad_titular
+#		
+#		exists = global_var:long_winter_occurred
+#		
+#		lotr_has_numenorean_culture_trigger = yes
+#		faith_is_good = yes 
+#		
+#		any_sub_realm_county = {
+#				percent >= 0.5
+#				this.faith = {
+#					NOT = { religion_tag = dunedain_religion }
+#				}
+#			}
+#		
+#		NOT = {
+#			is_target_in_global_variable_list = {
+#				name = unavailable_unique_decisions
+#				target = flag:decision_restore_dunedain_beliefs
+#			}
+#		}
+#	}
+#
+#	is_valid = {
+#		
+#		faith_is_good = yes 
+#		
+#		
+#		custom_tooltip = {
+#			text = decision_restore_dunedain_beliefs_trigger
+#			any_sub_realm_county = {
+#				percent >= 0.5
+#				this.faith = {
+#					NOT = { religion_tag = dunedain_religion }
+#				}
+#			}
+#		}
+#		
+#			
+#		
+#	}
+#
+#	is_valid_showing_failures_only = {
+#		is_at_war = no
+#		is_imprisoned = no
+#		is_available_adult = yes
+#	}
+#
+#	 effect = {
+#		every_sub_realm_county = {
+#			limit = {
+#				this.faith = {
+#					NOT = { religion_tag = dunedain_religion }
+#				}
+#				
+#			}
+#			random_list = {
+#				70 = {
+#					set_county_faith = root.faith
+#				
+#				}
+#				30 = {
+#					
+#				}
+#				
+#			}
+#		}
+#
+#		add_to_global_variable_list = {
+#			name = unavailable_unique_decisions
+#			target = flag:decision_restore_dunedain_beliefs
+#		}		
+#	 }
+#
+#
+#	ai_will_do = {
+#		base = 100
+#	}
+#	# AI value
+#	ai_goal = yes
+#	ai_potential = { always = yes }
+#}
 
 # decision_invade_saralain = {
 #	title = decision_invade_saralain
@@ -2763,19 +2827,18 @@ decision_tharbad_foreign_aid = {
 	}
 	ai_will_do = {
 		base = 0 # LotR: This should be tied to WotR mode.
-			modifier = { # Game Rule
-				has_game_rule = default_ai_behavior
-				add = 0
-			}
-			modifier = { # Game Rule
-				has_game_rule = weighted_ai_behavior
-				add = 30
-			}
-			modifier = { # Game Rule
-				has_game_rule = random_ai_behavior
-				add = 50
-			}
-		
+		modifier = { # Game Rule
+			has_game_rule = default_ai_behavior
+			add = 0
+		}
+		modifier = { # Game Rule
+			has_game_rule = weighted_ai_behavior
+			add = 30
+		}
+		modifier = { # Game Rule
+			has_game_rule = random_ai_behavior
+			add = 50
+		}
 	}
 	selection_tooltip = decision_tharbad_foreign_aid_tooltip
 	desc = decision_tharbad_foreign_aid_desc
@@ -2791,6 +2854,8 @@ decision_tharbad_foreign_aid = {
 		is_independent_ruler = yes
 		
 		exists = global_var:tharbad_coup
+		
+		highest_held_title_tier <= tier_duchy
 		
 		NOT = {
 			is_target_in_global_variable_list = {
@@ -2814,13 +2879,46 @@ decision_tharbad_foreign_aid = {
 		
 		
 	}
-	effect = {
-		
-		custom_tooltip = {
-			text = tharbad_foreign_aid_effect
+	widget = {
+		gui = "decision_view_widget_option_list_generic"
+		controller = decision_option_list_controller
+		decision_to_second_step_button = "SELECT_ACTION"
+		show_from_start = yes
+
+		item = { # Dunedain help
+			value = dunedain_help
+			current_description = dunedain_help_desc
+			localization = dunedain_help
+			icon = "gfx/interface/icons/regimenttypes/arnorian_soldiers.dds"
+			ai_chance = { value = 100 }
+		}
+		item = { # Gondor Help
+			value = gondor_help
+			current_description = gondor_help_desc
+			localization = gondor_help
+			icon = "gfx/interface/icons/regimenttypes/gondor_infantry.dds"
+			ai_chance = { value = 10 }
 		}
 		
-		trigger_event = { id = tharbad_story.0101 }
+	}
+	effect = {
+		
+		
+		
+		if = {		# Gondor
+			limit = { scope:gondor_help = yes }
+			custom_tooltip = gondor_help_effect
+			title:e_gondor_steward.holder = {
+				trigger_event = { id = tharbad_story.0110 days = 1 }
+			}
+		}
+		if = {		# Dunedain
+			limit = { scope:dunedain_help = yes }
+			custom_tooltip = dunedain_help_effect
+			title:d_northern_dunedain.holder = {
+				trigger_event = { id = tharbad_story.0121 days = 1 }
+			}
+		}
 		
 		add_to_global_variable_list = {
 			name = unavailable_unique_decisions
@@ -2894,7 +2992,6 @@ decision_tharbad_survey_ruins = {
 		
 	}
 	effect = {
-		
 		custom_tooltip = {
 			text = tharbad_survey_ruins_effect
 		}
@@ -2907,7 +3004,6 @@ decision_tharbad_survey_ruins = {
 			name = unavailable_unique_decisions
 			target = flag:decision_tharbad_survey_ruins
 		}
-		
 	}
 }
 
@@ -2921,37 +3017,26 @@ decision_reintegrate_mistalonde = {
 	ai_potential = {
 		always = yes
 	}
-	ai_will_do = {
-		base = 0 # LotR: This should be tied to WotR mode.
-			modifier = { # Game Rule
-				has_game_rule = default_ai_behavior
-				add = 0
-			}
-			modifier = { # Game Rule
-				has_game_rule = weighted_ai_behavior
-				add = 30
-			}
-			modifier = { # Game Rule
-				has_game_rule = random_ai_behavior
-				add = 50
-			}
-		
-	}
+	
 	selection_tooltip = decision_reintegrate_mistalonde_tooltip
 	desc = decision_reintegrate_mistalonde_desc
 	confirm_text = decision_reintegrate_mistalonde_confirm
 
-	cost = { prestige = minor_prestige_value }
+	cost = { 
+		prestige = minor_prestige_value 
+	}
 
 	decision_group_type = realms_in_exile_minor
 	
 	is_shown = {
 		has_title = title:k_gwathlo
-			
 		is_independent_ruler = yes
-		
-		completely_controls = title:c_tharbad
-		
+		NOT = {
+			is_target_in_global_variable_list = {
+				name = unavailable_unique_decisions
+				target = flag:decision_reintegrate_mistalonde
+			}
+		}
 	}
 	is_valid = {
 		is_independent_ruler = yes
@@ -2965,20 +3050,34 @@ decision_reintegrate_mistalonde = {
 		is_imprisoned = no
 		is_available_adult = yes
 		is_at_war = no
-		
-		
 	}
 	effect = {
-		
 		title:c_tharbad = {
 			add_county_modifier = { modifier = tharbad_econ_boom_modifier years = 25 }
 		}
 		title:c_mistalonde = {
 			add_county_modifier = { modifier = tharbad_econ_boom_modifier years = 25 }
 		}
-		
-		
-		
+		add_to_global_variable_list = {
+			name = unavailable_unique_decisions
+			target = flag:decision_reintegrate_mistalonde
+		}
+	}
+
+	ai_will_do = {
+		base = 0 # LotR: This should be tied to WotR mode.
+		modifier = { # Game Rule
+			has_game_rule = default_ai_behavior
+			add = 0
+		}
+		modifier = { # Game Rule
+			has_game_rule = weighted_ai_behavior
+			add = 30
+		}
+		modifier = { # Game Rule
+			has_game_rule = random_ai_behavior
+			add = 50
+		}
 	}
 }
 
@@ -2992,61 +3091,61 @@ decision_reintegrate_lond_daer = {
 	ai_potential = {
 		always = yes
 	}
-	ai_will_do = {
-		base = 0 # LotR: This should be tied to WotR mode.
-			modifier = { # Game Rule
-				has_game_rule = default_ai_behavior
-				add = 0
-			}
-			modifier = { # Game Rule
-				has_game_rule = weighted_ai_behavior
-				add = 30
-			}
-			modifier = { # Game Rule
-				has_game_rule = random_ai_behavior
-				add = 50
-			}
-		
-	}
+
 	selection_tooltip = decision_reintegrate_lond_daer_tooltip
 	desc = decision_reintegrate_lond_daer_desc
 	confirm_text = decision_reintegrate_lond_daer_confirm
 
-	cost = { gold = medium_gold_value }
+	cost = { 
+		gold = medium_gold_value 
+	}
 
 	decision_group_type = realms_in_exile_minor
 	
 	is_shown = {
 		has_title = title:k_gwathlo
-			
 		is_independent_ruler = yes
-		
-		completely_controls = title:c_tharbad
-		
+		NOT = {
+			is_target_in_global_variable_list = {
+				name = unavailable_unique_decisions
+				target = flag:decision_reintegrate_lond_daer
+			}
+		}
 	}
 	is_valid = {
 		is_independent_ruler = yes
-		
 		completely_controls = title:c_lond_daer
 		prestige_level >= 2
-		
 	}
 	is_valid_showing_failures_only = {
 		is_imprisoned = no
 		is_available_adult = yes
 		is_at_war = no
-		
-		
 	}
 	effect = {
-		
-		
 		title:c_lond_daer = {
 			add_county_modifier = { modifier = tharbad_rebuilding_effort_modifier years = 10 }
 		}
-		
-		
-		
+		add_to_global_variable_list = {
+			name = unavailable_unique_decisions
+			target = flag:decision_reintegrate_lond_daer
+		}
+	}
+
+	ai_will_do = {
+		base = 0 # LotR: This should be tied to WotR mode.
+		modifier = { # Game Rule
+			has_game_rule = default_ai_behavior
+			add = 0
+		}
+		modifier = { # Game Rule
+			has_game_rule = weighted_ai_behavior
+			add = 30
+		}
+		modifier = { # Game Rule
+			has_game_rule = random_ai_behavior
+			add = 50
+		}
 	}
 }
 
@@ -3060,22 +3159,7 @@ decision_kingdom_gwathlo = {
 	ai_potential = {
 		always = yes
 	}
-	ai_will_do = {
-		base = 0 # LotR: This should be tied to WotR mode.
-			modifier = { # Game Rule
-				has_game_rule = default_ai_behavior
-				add = 0
-			}
-			modifier = { # Game Rule
-				has_game_rule = weighted_ai_behavior
-				add = 30
-			}
-			modifier = { # Game Rule
-				has_game_rule = random_ai_behavior
-				add = 50
-			}
-		
-	}
+
 	selection_tooltip = decision_kingdom_gwathlo_tooltip
 	desc = decision_kingdom_gwathlo_desc
 	confirm_text = decision_kingdom_gwathlo_confirm
@@ -3085,25 +3169,15 @@ decision_kingdom_gwathlo = {
 	decision_group_type = realms_in_exile_major
 	
 	is_shown = {
-		
-		OR = {
-			has_title = title:d_tharbad_titular
-			has_title = title:d_ethir_gwathlo
-			has_title = title:d_nen_gwathlo
-			
-			has_title = title:c_tharbad
-			has_title = title:c_mistalonde
-			has_title = title:c_lond_daer
-			}
-		
+		has_title = title:d_tharbad_titular
+
 		is_independent_ruler = yes
-		lotr_has_numenorean_culture_trigger = no
-		NOT = {
-			any_ruler = {
-				has_title = title:k_gwathlo
-			}
+		culture = {
+			has_cultural_pillar = heritage_daen_lintis
 		}
-		
+		NOT = {
+			exists = title:k_gwathlo.holder
+		}
 	}
 	is_valid = {
 		is_independent_ruler = yes
@@ -3112,27 +3186,22 @@ decision_kingdom_gwathlo = {
 		
 		completely_controls = title:d_ethir_gwathlo
 		completely_controls = title:d_nen_gwathlo
-		OR = {
-			has_title = title:d_tharbad_titular
-			AND = { 
-				completely_controls = title:c_tharbad
-				completely_controls = title:c_harabad
-				completely_controls = title:c_seabhagtir
-			}
-		}	
-		
+		AND = { 
+			completely_controls = title:c_tharbad
+			completely_controls = title:c_harabad
+			completely_controls = title:c_seabhagtir
+		}
 	}
 	is_valid_showing_failures_only = {
 		is_imprisoned = no
 		is_available_adult = yes
 		is_at_war = no
-		
-		
 	}
 	effect = {
-		
 		get_title = title:k_gwathlo
-		dynasty = { add_dynasty_prestige = 500 }
+		dynasty = { 
+			add_dynasty_prestige = 500 
+		}
 		
 		title:c_tharbad = {
 			change_development_level = 3
@@ -3144,7 +3213,7 @@ decision_kingdom_gwathlo = {
 			change_development_level = 3
 		}
 		
-		trigger_event = { id = tharbad_story.1001 }
+		trigger_event = tharbad_story.1001
 		
 		hidden_effect = {
 			title:k_gwathlo = {
@@ -3153,4 +3222,89 @@ decision_kingdom_gwathlo = {
 		}
 		
 	}
+
+	ai_will_do = {
+		base = 0 # LotR: This should be tied to WotR mode.
+		modifier = { # Game Rule
+			has_game_rule = default_ai_behavior
+			add = 0
+		}
+		modifier = { # Game Rule
+			has_game_rule = weighted_ai_behavior
+			add = 30
+		}
+		modifier = { # Game Rule
+			has_game_rule = random_ai_behavior
+			add = 50
+		}
+	}
 }
+
+decision_crown_king = {
+	title = decision_crown_king
+	picture = {
+		reference = "gfx/interface/illustrations/decisions/decision_minas_tirith_02.dds"
+	}
+	
+	selection_tooltip = decision_crown_king_tooltip
+	desc = decision_crown_king_desc
+	confirm_text = decision_crown_king_confirm
+	
+	decision_group_type = realms_in_exile_major
+	
+	cost = { prestige = massive_prestige_value }
+
+	is_shown = {
+		has_title = title:d_tharbad_titular
+		
+		exists = global_var:long_winter_occurred
+		
+		lotr_has_numenorean_culture_trigger = yes
+		faith_is_good = yes 
+		
+		has_government = oligarchy_government
+		
+		root = character:lineofgwilleth1
+		
+		NOT = {
+			is_target_in_global_variable_list = {
+				name = unavailable_unique_decisions
+				target = flag:decision_crown_king
+			}
+		}
+	}
+
+	is_valid = {
+		faith_is_good = yes 
+		lotr_has_numenorean_culture_trigger = yes
+		
+		prestige_level >= 3
+		
+		has_title = title:k_cardolan
+	}
+
+	is_valid_showing_failures_only = {
+		is_at_war = no
+		is_imprisoned = no
+		is_available_adult = yes
+	}
+
+	effect = {
+		custom_tooltip = {
+			text = decision_crown_king_effect
+			trigger_event = tharbad_story.0300
+		}
+		add_to_global_variable_list = {
+			name = unavailable_unique_decisions
+			target = flag:decision_crown_king
+		}
+	}
+
+	ai_will_do = {
+		base = 100
+	}
+	# AI value
+	ai_goal = yes
+	ai_potential = { always = yes }
+}
+
