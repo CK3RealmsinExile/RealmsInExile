@@ -484,7 +484,6 @@ lotr_on_title_gain = {
 		}
 		
 		### Wilderness fallback: turn illegal wilderness to Tribal if non-Tom characters somehow get ahold of it
-		
 		if = {
 			limit = {
 				scope:previous_holder ?= { is_alive = yes }
@@ -499,6 +498,7 @@ lotr_on_title_gain = {
 					scope:transfer_type = flag:revoked
 					scope:transfer_type = flag:faction_demand
 				}
+				is_landless_adventurer = no
 			}
 			if = {
 				limit = { is_elf = yes }
@@ -579,20 +579,21 @@ lotr_on_title_gain = {
 			debug_log = "Wilderness: Tom tried to give away Wilderness - Vanquished Version"
 		}
 
-		### Clean up culture, faith, and holding type of Tom's counties
-		character:k_wastelands_holder = {
-			every_sub_realm_county = {
-				limit = {
-					NAND = {
-						culture = culture:wastelands
-						faith = faith:faith_wastelands_pagan
-						title_province = { has_holding_type = wastelands_holding }
-					}
-				}
-				save_scope_as = wilderness_county
-				make_settlement_county_wilderness = { COUNTY = scope:wilderness_county }
-			}
-		}
+		# Trig Note - Commented out for history purposes, as it makes all Tom's counties wilderness on game start, making it dificult to test history code. Reenable before releasing beta. 
+		## Clean up culture, faith, and holding type of Tom's counties
+		# character:k_wastelands_holder = { 
+		# 	every_sub_realm_county = {
+		# 		limit = {
+		# 			NAND = {
+		# 				culture = culture:wastelands
+		# 				faith = faith:faith_wastelands_pagan
+		# 				title_province = { has_holding_type = wastelands_holding }
+		# 			}
+		# 		}
+		# 		save_scope_as = wilderness_county
+		# 		make_settlement_county_wilderness = { COUNTY = scope:wilderness_county }
+		# 	}
+		# }
 
 		### Underground | Both AI & Player ###
 		# If surface dwellers **somehow** manage to get underground terrain, make it wilderness ( and give them a bit of gold in return )
@@ -869,23 +870,6 @@ lotr_on_title_gain = {
 				}
 			}
 		}
-
-		#LotR - make sure hobbits remain with the hobbit government type
-		if = {
-			limit = {
-				is_hobbit = yes
-				government_has_flag = government_is_settled
-				NOR = {
-					government_has_flag = government_is_administrative
-					government_has_flag = government_is_tribal
-					government_has_flag = government_is_landless_adventurer
-				}
-			}
-			trigger_event = {
-				id = hobbit.0001
-				days = 1
-			}
-		}
 		
 		#Event to give Stewards Ithilien
 		if = {
@@ -934,7 +918,7 @@ lotr_on_title_gain = {
 				title:e_gondor.holder ?= { faith_is_good = yes }
 				title:e_bellakar.holder.dynasty = dynasty:dynasty_tumakveh
 				OR = {
-					title:e_gondor.holder.dynasty = dynasty:dynasty_elros
+					# title:e_gondor.holder.dynasty = dynasty:dynasty_elros
 					title:e_gondor.holder.dynasty = dynasty:dynasty_elendil
 					title:e_gondor.holder.dynasty = dynasty:dynasty_anarion
 				}
@@ -978,7 +962,7 @@ lotr_on_title_gain = {
 				title:e_gondor.holder ?= { faith_is_good = yes }
 				title:e_bellakar.holder.dynasty = dynasty:dynasty_tumakveh
 				OR = {
-					title:e_gondor.holder.dynasty = dynasty:dynasty_elros
+					# title:e_gondor.holder.dynasty = dynasty:dynasty_elros
 					title:e_gondor.holder.dynasty = dynasty:dynasty_elendil
 					title:e_gondor.holder.dynasty = dynasty:dynasty_anarion
 				}
@@ -1566,6 +1550,7 @@ lotr_on_title_gain = {
 				scope:title ?= {
 					tier = tier_duchy
 				}
+				is_orc = yes
 			}
 			root = {
 				trigger_event = {
@@ -1577,6 +1562,30 @@ lotr_on_title_gain = {
 		trigger_event = { #So that it doesn't fire simultaneously with lotr_artifact.0040
 			id = lotr_artifact.0042 # Reforging Narsil
 			days = 1
+		}
+
+		## Hobbits can be laamps 
+		if = {
+			limit = {
+				is_hobbit = yes
+				is_landless_adventurer = no
+				NOT = { government_has_flag = government_is_administrative }
+			}
+			trigger_event = {
+				id = hobbit.0001
+				days = 1
+			}
+		}
+		
+		## Remove Oligarchy laws if not oligarchic 
+		if = {
+			limit = {
+				scope:title ?= { has_title_law = oligarchic_elective_succession_law }
+				NOT = { government_has_flag = government_is_oligarchy }
+			}
+			scope:title ?= {
+				remove_title_law = oligarchic_elective_succession_law
+			}
 		}
 	}
 	events = {
@@ -1825,6 +1834,26 @@ lotr_on_title_gain_inheritance = {
 			}
 			resolve_title_and_vassal_change = scope:title_change
 		}
+		
+		# If Azog ignore his Moria decision and forms the title manually
+		if = {
+			limit = {
+				scope:title = title:k_khazad_dum
+				root = { has_character_modifier = rise_of_azog_modifier }
+			}
+			title:k_khazad_dum.holder = {
+				trigger_event = {
+					id = orcs.7003
+					days = 2 
+				}
+				remove_character_flag = azog_solidify_moria
+				add_to_global_variable_list = {
+					name = unavailable_unique_decisions
+					target = flag:decision_solidify_moria
+				}
+			}
+		}
+		
 		#LotR - Tracking Imperial Khand Time Held
 		if = {
 			limit = {
@@ -1938,6 +1967,14 @@ lotr_on_title_gain_inheritance = {
 			clear_dwarven_kingdom_claims_post_game_start = yes
 		}
 
+		if = {
+			limit = {
+				scope:title = { is_dwarven_dynasty_title = yes }
+				NOT = { house ?= { house_head = root } }
+			}
+			house ?= { set_house_head = root }
+		}
+
 		#Clearing inappropriate inherited MaA
 		if = {
 			limit = { NOT = { same_race = { TARGET = scope:previous_holder } } }
@@ -1966,6 +2003,30 @@ lotr_on_title_gain_inheritance = {
 				}
 			}
 			destroy_title = title:d_nhazadh
+		}
+		if = {
+			limit = {
+				has_trait = dwarf_father
+				scope:title = { is_dwarven_dynasty_title = yes }
+				NOT = { has_character_flag = been_named_king }
+				any_owned_story = { story_type = story_dorfdad_reincarnation }
+			}
+			save_scope_as = my_dorfdad
+			every_player = {
+				trigger_event = {
+					id = news_event.0026
+					days = 1
+				}
+			}
+			if = {
+				limit = { scope:my_dorfdad = { is_ai = yes } }
+				scope:my_dorfdad = {
+					trigger_event = {
+						id = news_event.0026
+						days = 1
+					}
+				}
+			}
 		}
 		
 		correct_wastelands_tracker = yes
@@ -2280,6 +2341,9 @@ lotr_on_title_lost = {
 					has_title = title:e_uris_folk
 					has_title = title:e_dwalins_folk
 					has_title = title:e_thrars_folk
+					has_title = title:e_thulins_folk
+					has_title = title:e_bavors_folk
+					has_title = title:e_sindris_folk
 				}
 			}
 			trigger_event = dwarven.9802
