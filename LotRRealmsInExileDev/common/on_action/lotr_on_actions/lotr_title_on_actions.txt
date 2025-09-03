@@ -82,6 +82,16 @@ lotr_on_title_destroyed = {
 			id = wastelands.0007
 			days = 1
 		}
+
+		if = {
+			limit = { # The Nhazadh must rule e_harshandatt
+				has_title = title:d_nhazadh
+				NOT = {
+					has_title = title:e_harshandatt
+				}
+			}
+			destroy_title = title:d_nhazadh
+		}
 	}
 }
 
@@ -222,7 +232,7 @@ lotr_on_title_gain = {
 				limit = { 
 					NOT = { exists = global_var:lotr_achievement_29 }
 					scope:title = title:e_rhovanion
-					dynasty = dynasty:dynasty_avon
+					dynasty = dynasty:dynasty_jauffring
 				}
 				set_global_variable = lotr_achievement_29
 			}
@@ -405,9 +415,15 @@ lotr_on_title_gain = {
 			if = { # The Old, the True | Achievement
 				limit = { 
 					NOT = { exists = global_var:lotr_achievement_71 }
-					scope:title = title:e_harad
+					any_held_title = {
+						tier = tier_empire
+						this = title:e_harad
+					}
 					dynasty = dynasty:dynasty_khadnom
-					is_tributary = no
+					trigger_if = {
+						limit = { is_tributary = yes }
+						NOT = { suzerain = character:lineofsauron }
+					} trigger_else = { is_tributary = no }
 				}
 				set_global_variable = lotr_achievement_71
 			}
@@ -419,7 +435,7 @@ lotr_on_title_gain = {
 					scope:title ?= title:d_amon_lanc
 					scope:title ?= title:k_amon_lanc
 				}
-				root = character:linefinwe11
+				root = character:lineoffeanor2
 				NOT = {
 					is_target_in_global_variable_list = {
 						name = unavailable_unique_decisions
@@ -468,7 +484,6 @@ lotr_on_title_gain = {
 		}
 		
 		### Wilderness fallback: turn illegal wilderness to Tribal if non-Tom characters somehow get ahold of it
-		
 		if = {
 			limit = {
 				scope:previous_holder ?= { is_alive = yes }
@@ -483,8 +498,31 @@ lotr_on_title_gain = {
 					scope:transfer_type = flag:revoked
 					scope:transfer_type = flag:faction_demand
 				}
+				is_landless_adventurer = no
 			}
-			root = { change_government = tribal_government }
+			if = {
+				limit = { is_elf = yes }
+				root = { change_government = elven_government }
+			} else_if = {
+				limit = {
+					OR = {
+						is_orc = yes
+						is_human = yes
+					}
+				}
+				root = { change_government = tribal_government }
+			} else_if = {
+				limit = { is_hobbit = yes }
+				root = { change_government = hobbit_government }
+			} else_if = {
+				limit = {
+					OR = {
+						is_istari = yes
+						is_dwarf = yes
+					}
+				}
+				root = { change_government = feudal_government }
+			}
 			scope:title ?= {
 				set_county_culture = root.culture
 				set_county_faith = root.faith
@@ -492,12 +530,34 @@ lotr_on_title_gain = {
 					limit = { 
 						has_holding_type = wastelands_holding
 					}
-					set_holding_type = tribal_holding
+					if = {
+						limit = { is_elf = yes }
+						set_holding_type = elven_holding
+					} else_if = {
+						limit = {
+							OR = {
+								is_orc = yes
+								is_human = yes
+							}
+						}
+						set_holding_type = tribal_holding
+					} else_if = {
+						limit = { is_hobbit = yes }
+						set_holding_type = city_holding
+					} else_if = {
+						limit = {
+							OR = {
+								is_istari = yes
+								is_dwarf = yes
+							}
+						}
+						set_holding_type = castle_holding
+					}
 				}
 			}
+			debug_log = "Wilderness: Illegal Wilderness turned to Tribal"
 		}
-
-		
+	
 		### Give title back to Tom if Tom tried to give a wastelands title away
 		if = {
 			limit = { 
@@ -508,6 +568,7 @@ lotr_on_title_gain = {
 				is_vassal_or_below_of = character:k_wastelands_holder
 			} 
 			make_settlement_county_wilderness = { COUNTY = scope:title }
+			debug_log = "Wilderness: Tom tried to give away Wilderness"
 		}
 		if = {
 			limit = {
@@ -515,26 +576,33 @@ lotr_on_title_gain = {
 				scope:previous_holder ?= character:k_wastelands_holder
 			}
 			make_settlement_county_wilderness = { COUNTY = scope:title }
+			debug_log = "Wilderness: Tom tried to give away Wilderness - Vanquished Version"
 		}
-		### Clean up culture, faith, and holding type of Tom's counties
-		character:k_wastelands_holder = {
-			every_sub_realm_county = {
-				limit = {
-					NAND = {
-						culture = culture:wastelands
-						faith = faith:faith_wastelands_pagan
-						title_province = { has_holding_type = wastelands_holding }
-					}
-				}
-				save_scope_as = wilderness_county
-				make_settlement_county_wilderness = { COUNTY = scope:wilderness_county }
-			}
-		}
+
+		# Trig Note - Commented out for history purposes, as it makes all Tom's counties wilderness on game start, making it dificult to test history code. Reenable before releasing beta. 
+		## Clean up culture, faith, and holding type of Tom's counties
+		# character:k_wastelands_holder = { 
+		# 	every_sub_realm_county = {
+		# 		limit = {
+		# 			NAND = {
+		# 				culture = culture:wastelands
+		# 				faith = faith:faith_wastelands_pagan
+		# 				title_province = { has_holding_type = wastelands_holding }
+		# 			}
+		# 		}
+		# 		save_scope_as = wilderness_county
+		# 		make_settlement_county_wilderness = { COUNTY = scope:wilderness_county }
+		# 	}
+		# }
+
 		### Underground | Both AI & Player ###
 		# If surface dwellers **somehow** manage to get underground terrain, make it wilderness ( and give them a bit of gold in return )
 		if = {
 			limit = {
-				scope:title ?= { title_province ?= { terrain = halls } }
+				scope:title ?= { 
+					tier = tier_county
+					title_province ?= { terrain = halls }
+				}
 				NOR = {
 					is_dwarf = yes
 					is_orc = yes
@@ -545,6 +613,7 @@ lotr_on_title_gain = {
 			}
 			make_settlement_county_wilderness = { COUNTY = scope:title }
 			add_gold = 125
+			debug_log = "Wilderness: Surface Race got Underground - Making Wasteland"
 		}
 
 		### WILDERNESS | Player Side ###
@@ -581,42 +650,50 @@ lotr_on_title_gain = {
 			if = {
 				limit = {
 					highest_held_title_tier = tier_county
+					is_landless_adventurer = no
 					any_held_county = {
 						title_province = { has_holding_type = settlement_holding }
 						count > 1
 					}
 				}
 				scope:title ?= { make_settlement_county_wilderness = { COUNTY = this } }
+				debug_log = "Wilderness: AI over county settlement limit - making it wasteland"
 			}
 			else_if = {
 				limit = {
 					highest_held_title_tier = tier_duchy
+					is_landless_adventurer = no
 					any_held_county = {
 						title_province = { has_holding_type = settlement_holding }
 						count > 2
 					}
 				}
 				scope:title ?= { make_settlement_county_wilderness = { COUNTY = this } }
+				debug_log = "Wilderness: AI over duchy settlement limit - making it wasteland"
 			}
 			else_if = {
 				limit = {
 					highest_held_title_tier = tier_kingdom
+					is_landless_adventurer = no
 					any_held_county = {
 						title_province = { has_holding_type = settlement_holding }
 						count > 3
 					}
 				}
 				scope:title ?= { make_settlement_county_wilderness = { COUNTY = this } }
+				debug_log = "Wilderness: AI over kingdom settlement limit - making it wasteland"
 			}
 			else_if = {
 				limit = {
 					highest_held_title_tier = tier_empire
+					is_landless_adventurer = no
 					any_held_county = {
 						title_province = { has_holding_type = settlement_holding }
 						count > 4
 					}
 				}
 				scope:title ?= { make_settlement_county_wilderness = { COUNTY = this } }
+				debug_log = "Wilderness: AI over empire settlement limit - making it wasteland"
 			}
 			else = {
 				increase_variable = {
@@ -793,18 +870,6 @@ lotr_on_title_gain = {
 				}
 			}
 		}
-
-		#LotR Abrakhan - Retain decision reward modifiers
-		if = {
-			limit = {
-				scope:title ?= {
-					this = title:k_abrakhan
-				}
-				# Check if character is considered "Saurons Abrakhan Guy"
-				# character_is_valid_for_abrakhan_subjugation_mission_trigger = yes
-			}
-			# abrakhan_transfer_rewards_effect = yes
-		}
 		
 		#Event to give Stewards Ithilien
 		if = {
@@ -853,7 +918,7 @@ lotr_on_title_gain = {
 				title:e_gondor.holder ?= { faith_is_good = yes }
 				title:e_bellakar.holder.dynasty = dynasty:dynasty_tumakveh
 				OR = {
-					title:e_gondor.holder.dynasty = dynasty:dynasty_elros
+					# title:e_gondor.holder.dynasty = dynasty:dynasty_elros
 					title:e_gondor.holder.dynasty = dynasty:dynasty_elendil
 					title:e_gondor.holder.dynasty = dynasty:dynasty_anarion
 				}
@@ -897,7 +962,7 @@ lotr_on_title_gain = {
 				title:e_gondor.holder ?= { faith_is_good = yes }
 				title:e_bellakar.holder.dynasty = dynasty:dynasty_tumakveh
 				OR = {
-					title:e_gondor.holder.dynasty = dynasty:dynasty_elros
+					# title:e_gondor.holder.dynasty = dynasty:dynasty_elros
 					title:e_gondor.holder.dynasty = dynasty:dynasty_elendil
 					title:e_gondor.holder.dynasty = dynasty:dynasty_anarion
 				}
@@ -1018,10 +1083,7 @@ lotr_on_title_gain = {
 							limit = { 
 								NOT = {
 									OR = { # If the barony has a settlement or no holding... don't change them
-										OR = {
-											has_holding_type = settlement_holding 
-											has_holding_type = ruined_holding 
-										}
+										has_holding_type = settlement_holding
 										province_has_no_holding_trigger = yes
 									}
 								}
@@ -1152,6 +1214,7 @@ lotr_on_title_gain = {
 								set_holding_type = church_holding
 							}
 							else = { set_holding_type = castle_holding }
+							scope:title ?= { generate_coa = yes }
 						}
 					}
 				}
@@ -1197,9 +1260,36 @@ lotr_on_title_gain = {
 					every_county_province = {
 						limit = { has_holding = yes }
 						set_holding_type = elven_holding
+						barony = { generate_coa = yes }
 					}
 				}
 			}
+			
+		}
+		if = {
+			limit = {
+				is_elf = yes
+			}
+			create_title_and_vassal_change = {
+					type = conquest_claim
+					save_scope_as = change
+					add_claim_on_loss = no
+				}
+			every_vassal = {
+				limit = {
+					is_orc = yes
+					
+				}
+				
+				every_sub_realm_county = {
+					change_title_holder = {
+						holder = root
+						change = scope:change
+					}
+				}
+				
+			}
+			resolve_title_and_vassal_change = scope:change
 		}
 
 		# Orcs culture and faith converted when conquered by good aligned-characters
@@ -1255,6 +1345,7 @@ lotr_on_title_gain = {
 					remove_county_modifier = orc_anarchy_county_modifier
 				}
 			}
+			scope:title ?= { generate_coa = yes }
 		}
 
 		if = {
@@ -1269,7 +1360,6 @@ lotr_on_title_gain = {
 							has_holding_type = elven_holding
 							has_holding_type = settlement_holding
 							has_holding_type = wastelands_holding
-							has_holding_type = ruined_holding
 						}
 					}
 				}
@@ -1299,6 +1389,7 @@ lotr_on_title_gain = {
 				}
 			}
 			resolve_title_and_vassal_change = scope:title_change
+			scope:title ?= { generate_coa = yes }
 		}
 		else_if = {
 			limit = {
@@ -1335,6 +1426,7 @@ lotr_on_title_gain = {
 				}
 			}
 			resolve_title_and_vassal_change = scope:title_change
+			scope:title ?= { generate_coa = yes }
 		}
 		#Tamska Inheritance
 		if = {
@@ -1384,13 +1476,13 @@ lotr_on_title_gain = {
 					culture = culture:variag
 					culture = { any_parent_culture_or_above = { this = culture:variag } }
     			}
+				has_primary_title = title:e_khand
 			}
 			trigger_event = {
 				id = khand.0001
 				days = 7
 			}
 		}
-
 		if = {
 			limit = {
 				scope:title.tier = tier_empire
@@ -1422,6 +1514,79 @@ lotr_on_title_gain = {
 
 		correct_wastelands_tracker = yes
 		scope:previous_holder ?= { correct_wastelands_tracker = yes }
+
+		if = { # Nhazadh handling
+			limit = { # The Nhazadh must rule e_harshandatt
+				has_title = title:e_harshandatt
+				faith = { has_doctrine = special_doctrine_not_allowed_to_nhazadh }
+				NOT = {
+					has_title = title:d_nhazadh
+					faith = { has_doctrine = doctrine_theocracy_temporal }
+				}
+			}
+			get_title = title:d_nhazadh
+		}
+		if = {
+			limit = { # Destroy HoF title if incorrect faith
+				has_title = title:d_nhazadh
+				NOT = {
+					faith = { has_doctrine = special_doctrine_not_allowed_to_nhazadh }
+				}
+			}
+			destroy_title = title:d_nhazadh
+		}
+
+		## Watch on Mordor stuff
+		if = {
+			limit = {
+				NOR = {
+					exists = title:k_gorgoroth.holder
+					exists = title:e_mordor.holder
+				}
+				exists = title:d_watch_on_mordor.holder
+				scope:title ?= {
+					kingdom = title:k_gorgoroth
+				}
+				scope:title ?= {
+					tier = tier_duchy
+				}
+				is_orc = yes
+			}
+			root = {
+				trigger_event = {
+					id = mordor.2000
+					days = 1
+				}
+			}
+		}
+		trigger_event = { #So that it doesn't fire simultaneously with lotr_artifact.0040
+			id = lotr_artifact.0042 # Reforging Narsil
+			days = 1
+		}
+
+		## Hobbits can be laamps 
+		if = {
+			limit = {
+				is_hobbit = yes
+				is_landless_adventurer = no
+				NOT = { government_has_flag = government_is_administrative }
+			}
+			trigger_event = {
+				id = hobbit.0001
+				days = 1
+			}
+		}
+		
+		## Remove Oligarchy laws if not oligarchic 
+		if = {
+			limit = {
+				scope:title ?= { has_title_law = oligarchic_elective_succession_law }
+				NOT = { government_has_flag = government_is_oligarchy }
+			}
+			scope:title ?= {
+				remove_title_law = oligarchic_elective_succession_law
+			}
+		}
 	}
 	events = {
 		orcs.0010
@@ -1432,8 +1597,7 @@ lotr_on_title_gain = {
 		nordinbad.0400
 		enedwaith.0302
 		wraith.001 # Corruption of Minas Ithil
-		lotr_artifact.0005 # Arnor regalia
-		lotr_artifact.0016 # Reforging Narsil
+		lotr_artifact.0040 # Arnor regalia
 	}
 }
 
@@ -1604,7 +1768,6 @@ lotr_on_title_gain_inheritance = {
 							has_holding_type = elven_holding
 							has_holding_type = settlement_holding
 							has_holding_type = wastelands_holding
-							has_holding_type = ruined_holding
 						}
 					}
 				}
@@ -1671,6 +1834,26 @@ lotr_on_title_gain_inheritance = {
 			}
 			resolve_title_and_vassal_change = scope:title_change
 		}
+		
+		# If Azog ignore his Moria decision and forms the title manually
+		if = {
+			limit = {
+				scope:title = title:k_khazad_dum
+				root = { has_character_modifier = rise_of_azog_modifier }
+			}
+			title:k_khazad_dum.holder = {
+				trigger_event = {
+					id = orcs.7003
+					days = 2 
+				}
+				remove_character_flag = azog_solidify_moria
+				add_to_global_variable_list = {
+					name = unavailable_unique_decisions
+					target = flag:decision_solidify_moria
+				}
+			}
+		}
+		
 		#LotR - Tracking Imperial Khand Time Held
 		if = {
 			limit = {
@@ -1772,16 +1955,24 @@ lotr_on_title_gain_inheritance = {
 			limit = {
 				OR = {
 					scope:title = title:e_durins_folk
-					scope:title = title:k_longbeards
-					scope:title = title:e_firebeards
-					scope:title = title:k_firebeards
-					scope:title = title:e_broadbeams
-					scope:title = title:k_broadbeams
-					scope:title = title:e_blacklocks
-					scope:title = title:k_blacklocks
+					scope:title = title:k_durins_folk
+					scope:title = title:e_uris_folk
+					scope:title = title:k_uris_folk
+					scope:title = title:e_dwalins_folk
+					scope:title = title:k_dwalins_folk
+					scope:title = title:e_thrars_folk
+					scope:title = title:k_thrars_folk
 				}
 			}
 			clear_dwarven_kingdom_claims_post_game_start = yes
+		}
+
+		if = {
+			limit = {
+				scope:title = { is_dwarven_dynasty_title = yes }
+				NOT = { house ?= { house_head = root } }
+			}
+			house ?= { set_house_head = root }
 		}
 
 		#Clearing inappropriate inherited MaA
@@ -1790,6 +1981,54 @@ lotr_on_title_gain_inheritance = {
 			trigger_event = {
 				id = race.0006
 				days = 1
+			}
+		}
+
+		if = { # Nhazadh handling
+			limit = { # The Nhazadh must rule e_harshandatt
+				has_title = title:e_harshandatt
+				faith = { has_doctrine = special_doctrine_not_allowed_to_nhazadh }
+				NOT = {
+					has_title = title:d_nhazadh
+					faith = { has_doctrine = doctrine_theocracy_temporal }
+				}
+			}
+			get_title = title:d_nhazadh
+		}
+		if = {
+			limit = { # Destroy HoF title if incorrect faith
+				has_title = title:d_nhazadh
+				NOT = {
+					faith = { has_doctrine = special_doctrine_not_allowed_to_nhazadh }
+				}
+			}
+			destroy_title = title:d_nhazadh
+		}
+		if = {
+			limit = {
+				has_trait = dwarf_father
+				scope:title = { is_dwarven_dynasty_title = yes }
+				NOT = { has_character_flag = been_named_king }
+				OR = {
+					any_owned_story = { story_type = story_dorfdad_reincarnation }
+					is_canon_dorfdad = yes
+				}
+			}
+			save_scope_as = my_dorfdad
+			every_player = {
+				trigger_event = {
+					id = news_event.0026
+					days = 1
+				}
+			}
+			if = {
+				limit = { scope:my_dorfdad = { is_ai = yes } }
+				scope:my_dorfdad = {
+					trigger_event = {
+						id = news_event.0026
+						days = 1
+					}
+				}
 			}
 		}
 		
@@ -1905,7 +2144,6 @@ lotr_on_title_gain_usurpation = {
 							has_holding_type = elven_holding
 							has_holding_type = settlement_holding
 							has_holding_type = wastelands_holding
-							has_holding_type = ruined_holding
 						}
 					}
 				}
@@ -1972,6 +2210,27 @@ lotr_on_title_gain_usurpation = {
 			}
 			resolve_title_and_vassal_change = scope:title_change
 		}
+
+		if = { # Nhazadh handling
+			limit = { # The Nhazadh must rule e_harshandatt
+				has_title = title:e_harshandatt
+				faith = { has_doctrine = special_doctrine_not_allowed_to_nhazadh }
+				NOT = {
+					has_title = title:d_nhazadh
+					faith = { has_doctrine = doctrine_theocracy_temporal }
+				}
+			}
+			get_title = title:d_nhazadh
+		}
+		if = {
+			limit = { # Destroy HoF title if incorrect faith
+				has_title = title:d_nhazadh
+				NOT = {
+					faith = { has_doctrine = special_doctrine_not_allowed_to_nhazadh }
+				}
+			}
+			destroy_title = title:d_nhazadh
+		}
 		
 		correct_wastelands_tracker = yes
 		scope:previous_holder ?= { correct_wastelands_tracker = yes }
@@ -2009,6 +2268,10 @@ lotr_on_title_lost = {
 			every_held_title = {
 				limit = {
 					tier > tier_county
+					NOR = {  #Don't destroy noble/landless families
+						is_landless_type_title = yes
+						is_noble_family_title = yes
+					}
 				}
 				root = { destroy_title = prev }
 			}
@@ -2078,9 +2341,12 @@ lotr_on_title_lost = {
 				}
 				OR = {
 					has_title = title:e_durins_folk
-					has_title = title:e_firebeards
-					has_title = title:e_broadbeams
-					has_title = title:e_blacklocks
+					has_title = title:e_uris_folk
+					has_title = title:e_dwalins_folk
+					has_title = title:e_thrars_folk
+					has_title = title:e_thulins_folk
+					has_title = title:e_bavors_folk
+					has_title = title:e_sindris_folk
 				}
 			}
 			trigger_event = dwarven.9802
@@ -2089,7 +2355,7 @@ lotr_on_title_lost = {
 		if = {
 			limit = { #Aragorn loses his betrothal to Arwen if he loses the RK or either of its kingdoms
 				has_character_flag = is_aragorn
-				betrothed ?= character:linefinwe30 #Arwen
+				betrothed ?= character:lineofelrond4 #Arwen
 				trigger_if = { #If you destroy either title but you still hold the RK, it's fine
 					limit = {
 						OR = {
@@ -2104,8 +2370,18 @@ lotr_on_title_lost = {
 				}
 			}
 			show_as_tooltip = {
-				break_betrothal = character:linefinwe30
+				break_betrothal = character:lineofelrond4
 			}
+		}
+
+		if = {
+			limit = { # The Nhazadh must rule e_harshandatt
+				has_title = title:d_nhazadh
+				NOT = {
+					has_title = title:e_harshandatt
+				}
+			}
+			destroy_title = title:d_nhazadh
 		}
 	}
 }
@@ -2156,31 +2432,6 @@ lotr_on_rank_up = {# Will not fire during history execution or for dying charact
 			}
 			set_global_variable = lotr_achievement_72
 		}
-		# LotR - if protectorate and same title tier as protector, break protectorate
-		if = {
-			limit = {
-				has_variable = overlord_protector
-				tier_difference = {
-					target = var:my_suzerain
-					value >= 0
-				}
-			}
-			send_interface_toast = {
-					left_icon = root
-					right_icon = var:my_suzerain
-					title = rank_up_protectorate.toast
-					custom_tooltip = rank_up_protectorate.tt
-			}
-			var:my_suzerain = {
-				send_interface_toast = {
-					left_icon = prev
-					right_icon = root
-					title = rank_up_protector.toast
-					custom_tooltip = rank_up_protector.tt
-				}
-			}
-			free_tributary = yes
-		}
 		### Wastelands Management ###
 		if = {
 			limit = {
@@ -2225,7 +2476,7 @@ lotr_on_rank_down = {# Will not fire during history execution or for dying chara
 						custom_tooltip = rank_down_protector.tt
 				}
 			}
-			free_tributary_rank_down = yes
+			end_tributary = yes
 		}
 
 		### Wastelands Management ###
@@ -2252,9 +2503,9 @@ lotr_on_rank_down = {# Will not fire during history execution or for dying chara
 lotr_on_vassal_gained = {
 	effect = {
 		scope:vassal ?= {
-			# LotR - if vassalised character is a protector, break protectorates
-			every_relation = {
-				type = tributary_protectorate
+			every_tributary = {
+				limit = { has_subject_contract_group = tributary_protectorate }
+				end_tributary = yes
 				send_interface_toast = {
 					left_icon = scope:vassal
 					title = protector_vassalised_protectorate.toast
@@ -2267,86 +2518,6 @@ lotr_on_vassal_gained = {
 						custom_tooltip = protector_vassalised_protector.tt
 					}
 				}
-				free_tributary = yes
-			}
-			every_in_list = {
-				variable = all_tributaries
-				free_tributary = yes
-				if = {
-					limit = {
-						has_variable = overlord_protector
-					}
-					send_interface_toast = {
-						left_icon = scope:vassal
-						title = protector_vassalised_protectorate.toast
-						custom_tooltip = protector_vassalised_protectorate.tt
-					}
-					scope:vassal ?= {
-						send_interface_toast = {
-							left_icon = scope:vassal
-							title = protector_vassalised_protector.toast
-							custom_tooltip = protector_vassalised_protector.tt
-						}
-					}
-				}
-				else_if = {
-					limit = {
-						has_variable = overlord_suzerain
-					}
-					send_interface_toast = {
-						left_icon = scope:vassal
-						title = suzerain_vassalised_tributary.toast
-						custom_tooltip = suzerain_vassalised_tributary.tt
-					}
-					scope:vassal ?= {
-						send_interface_toast = {
-							left_icon = scope:vassal
-							title = suzerain_vassalised_suzerain.toast
-							custom_tooltip = suzerain_vassalised_suzerain.tt
-						}
-					}
-				}
-			}
-			# LotR - if vassalised character is a protectorate, break protectorate
-			if = {
-				limit = {
-					has_variable = overlord_protector
-				}
-				send_interface_toast = {
-					left_icon = root
-					right_icon = var:my_suzerain
-					title = protectorate_vassalised_protectorate.toast
-					custom_tooltip = protectorate_vassalised_protectorate.tt
-				}
-				var:my_suzerain = {
-					send_interface_toast = {
-						left_icon = prev
-						right_icon = root
-						title = protectorate_vassalised_protector.toast
-						custom_tooltip = protectorate_vassalised_protector.tt
-					}
-				}
-				free_tributary = yes
-			}
-			else_if = {
-				limit = {
-					has_variable = overlord_suzerain
-				}
-				send_interface_toast = {
-					left_icon = root
-					right_icon = var:my_suzerain
-					title = tributary_vassalised_tributary.toast
-					custom_tooltip = tributary_vassalised_tributary.tt
-				}
-				var:my_suzerain = {
-					send_interface_toast = {
-						left_icon = prev
-						right_icon = root
-						title = tributary_vassalised_suzerain.toast
-						custom_tooltip = tributary_vassalised_suzerain.tt
-					}
-				}
-				free_tributary = yes
 			}
 		}
 		# LotR Struggle Catalyst
