@@ -47,29 +47,38 @@ should_be_topless_portrait_trigger = {
 
 portrait_wear_no_headgear_trigger = {
 	OR = {
-		scope:age < 16 # No headgear for children under 16 #
-
+		AND = {
+			trigger_if = { # No headgear for children under 16
+				limit = {
+					portrait_wear_no_crown_trigger = yes
+				}
+				scope:age < 16
+			}
+			trigger_else = { # Unless it's a crown
+				# scope:age <= coronation_minimum_age_value
+				scope:age <= lotr_coronation_minimum_age_value
+			}
+			NOR = {
+				portrait_sami_clothing_trigger = yes
+				portrait_ugro_permian_clothing_trigger = yes
+			}
+		}
+		has_character_flag = no_hat
+		portrait_prisoner_trigger = yes
 		has_character_modifier = hajj_halq_modifier # To show shaved hair
-		
+
 		has_character_flag = roaming_character
 
-		AND = { # No headgear for characters who sold their crown
+		AND = { # No headgear for characters without crowns
 			exists = this
-			has_character_flag = sold_crown_charmod
+			portrait_wear_no_crown_trigger = yes
 			# Should still wear armor when going to war
-			NOT = { portrait_wear_armor_trigger = yes }
+			portrait_wear_armor_trigger = no
 		}
 
-		AND = { # No headgear for characters with an active Vow of Poverty
-			exists = this
-			has_character_modifier = vow_of_poverty_modifier
-			# Should still wear armor when going to war
-			NOT = { portrait_wear_armor_trigger = yes }		
-		}
-
-		AND = { 
+		AND = {
 			OR = {
-				has_character_flag = no_hat
+				has_character_flag = no_hat #LotR
 				
 				should_be_naked_trigger = yes # Deliberately not the "fully naked" one since dropping your crown's intended even if nudity is disabled
 
@@ -79,11 +88,6 @@ portrait_wear_no_headgear_trigger = {
 						has_short_disease_trigger = yes # Affliction that would plausibly leave them bedridden for treatment
 						has_character_flag = use_sickness_clothes
 					}
-				}
-
-				AND = {
-					exists = this
-					has_character_modifier = fp1_abased_before_highgod_modifier	# Refuses to wear a crown due to HighGod	
 				}
 
 				activity_tournament_shirtless_trigger = yes
@@ -282,9 +286,143 @@ portrait_wear_helmet_trigger = { # Different from Armor, as Counts+ should show 
 	is_pregnant = no
 	is_istari = no #LotR
 	is_maiar = no #LotR
+	trigger_if = {
+		limit = { exists = involved_activity }
+		involved_activity = {
+			NOR = {
+				has_activity_type = activity_hunt
+				has_activity_type = activity_pilgrimage
+				has_activity_type = activity_roaming
+			}
+		}
+	}
+	is_incapable = no
+	is_imprisoned = no
+	NOT = { has_court_position = court_astrologer_court_position }
+	trigger_if = {
+		limit = { portrait_sickness_trigger = yes }
+		is_in_army = yes
+	}
 	OR = {
-		is_commanding_army = yes
+		# Adventurers
+		AND = {
+			is_ruler = yes
+			government_has_flag = government_is_landless_adventurer
+			has_realm_law = camp_purpose_mercenaries
+		}
+		# Holy Orders
+		AND = {
+			is_ruler = yes
+			government_has_flag = government_is_holy_order
+		}
+		has_trait = order_member
+		# Commanding and lower than a King or uncrowned
+		AND = {
+			is_commanding_army = yes
+			OR = {
+				is_landed_or_landless_administrative = no
+				AND = {
+					exists = primary_title
+					OR = {
+						primary_title.tier < tier_kingdom
+						portrait_wear_no_crown_trigger = yes
+					}
+				}
+			}
+		}
+		# Knight in an army
 		exists = knight_army
+		# Non-Council Knight lower than King and liege is at war
+		AND = {
+			is_knight = yes
+			is_councillor = no
+			OR = {
+				is_landed_or_landless_administrative = no
+				AND = {
+					exists = primary_title
+					primary_title.tier < tier_kingdom
+					liege = { is_at_war = yes }
+				}
+			}
+			NAND = {
+				is_ruler = no
+				government_has_flag = government_is_landless_adventurer
+				liege ?= {
+					is_at_war = no
+					NOT = { has_realm_law = camp_purpose_mercenaries }
+				}
+			}
+		}
+		# Marshal lower than Duke
+		AND = {
+			has_council_position = councillor_marshal
+			OR = {
+				is_landed_or_landless_administrative = no
+				primary_title.tier < tier_duchy
+			}
+		}
+		has_character_flag = wear_armor
+		# Serving Varangian
+		has_character_flag = is_currently_varangian
+		# In a Duel
+		has_character_flag = single_combat_duel_armor
+		# In a Tournament
+		activity_tournament_armor_trigger = yes
+		AND = { # In case these characters become landed they should stop wearing armor
+			has_character_flag = military_outfit
+			is_ruler = no
+		}
+	}
+	NOR = {
+		activity_tournament_shirtless_trigger = yes
+		has_character_flag = no_hat
+	}
+	# Not peasants leading revolts
+	NAND = {
+		has_trait = peasant_leader
+		OR = {
+			is_ruler = no
+			is_leading_faction_type = peasant_faction
+			AND = {
+				is_ruler = yes
+				is_landed_or_landless_administrative = no
+				OR = {
+					government_has_flag = government_is_feudal
+					government_has_flag = government_is_clan
+				}
+			}
+		}
+	}
+}
+
+portrait_wear_no_crown_trigger = { # Rulers should be coronated to wear a crown barring exceptions
+	exists = this
+	OR = {
+		trigger_if = { # No crowns for uncoronated characters
+			limit = { has_ach_dlc_trigger = yes }
+			has_realm_law = uncrowned
+			NOT = { coronation_proper_artifact_regalia_trigger = yes } #don't take off your fancy hat if you care about regalia. But do take it off if you care about crowns AND regalia	
+		}
+
+		trigger_if = { # Unlanded spouses of uncoronated ruler's shouldn't have crowns
+			limit = {
+				is_married = yes
+				has_ach_dlc_trigger = yes
+				NOT = { coronation_proper_artifact_regalia_trigger = yes }
+			}
+			is_landed = no
+			primary_spouse ?= {
+				is_landed = yes
+				has_realm_law = uncrowned
+				NOT = { coronation_proper_artifact_regalia_trigger = yes }
+			}
+		}
+
+		has_character_flag = sold_crown_charmod # No crowns for characters who sold theirs
+
+		has_character_modifier = vow_of_poverty_modifier # Or for characters with an active Vow of Poverty
+
+		has_character_modifier = fp1_abased_before_highgod_modifier	# Refuses to wear a crown due to HighGod
 	}
 }
 
@@ -2144,23 +2282,21 @@ portrait_religious_high_headgear_trigger = {
 
 portrait_religious_head_trigger = {
 	exists = this
-    exists = primary_title
-    primary_title = {
-        is_head_of_faith = yes
-    }
-    NOT = {
-        faith = {
-            has_doctrine_parameter = vows_of_poverty_active
-        }
-    }
+	primary_title ?= {
+		is_head_of_faith = yes
+	}
+	NOT = {
+		faith = {
+			has_doctrine_parameter = vows_of_poverty_active
+		}
+	}
 }
 
 portrait_religious_head_no_poverty_trigger = {
 	exists = this
-	exists = primary_title
-	primary_title = {
+	primary_title ?= {
 		is_head_of_faith = yes
-	}	
+	}
 }
 
 portrait_religious_head_popes_trigger = {
