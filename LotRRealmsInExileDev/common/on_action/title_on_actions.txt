@@ -1635,6 +1635,108 @@ on_title_gain = {
 		# 	}
 		# 	destroy_title = scope:title
 		# }
+		#Confederation titles being re-created... get confederation law bb
+		if = {
+			limit = {
+				scope:transfer_type = flag:created
+				scope:title = {
+					has_variable = confederation_culture
+					NOT = {
+						has_title_law = confederation_elective_succession_law
+					}
+				}
+			}
+			scope:title = {
+				add_title_law = confederation_elective_succession_law
+			}
+		}
+		#Coronation modifier is lost
+		if = {
+			limit = {
+				scope:title = {
+					tier = tier_county
+					OR = {
+						has_county_modifier = major_coronation_approval_unsettled_modifier
+						has_county_modifier = medium_coronation_approval_unsettled_modifier
+						has_county_modifier = minor_coronation_approval_unsettled_modifier
+						has_county_modifier = major_coronation_approval_modifier
+						has_county_modifier = medium_coronation_approval_modifier
+						has_county_modifier = minor_coronation_approval_modifier
+					}
+				}
+				NOR = {
+					scope:transfer_type = flag:inheritance
+					scope:transfer_type = flag:leased_out
+					scope:transfer_type = flag:abdication
+					scope:transfer_type = flag:granted
+					scope:transfer_type = flag:election
+					scope:transfer_type = flag:abdication
+					scope:transfer_type = flag:stepped_down
+					scope:transfer_type = flag:swear_fealty
+					scope:transfer_type = flag:created
+				}
+			}
+			#Add negative modifiers if stolen
+			scope:title = {
+				switch = {
+					trigger = has_county_modifier
+					major_coronation_approval_modifier = {
+						scope:title = {
+							remove_county_modifier = major_coronation_approval_modifier
+							add_county_modifier = {
+								modifier = major_coronation_approval_malus_modifier
+								years = 5
+							}
+						}
+					}
+					major_coronation_approval_unsettled_modifier = {
+						scope:title = {
+							remove_county_modifier = major_coronation_approval_unsettled_modifier
+							add_county_modifier = {
+								modifier = major_coronation_approval_malus_unsettled_modifier
+								years = 5
+							}
+						}
+					}
+					medium_coronation_approval_modifier = {
+						scope:title = {
+							remove_county_modifier = medium_coronation_approval_modifier
+							add_county_modifier = {
+								modifier = medium_coronation_approval_malus_modifier
+								years = 5
+							}
+						}
+					}
+					medium_coronation_approval_unsettled_modifier = {
+						scope:title = {
+							remove_county_modifier = medium_coronation_approval_unsettled_modifier
+							add_county_modifier = {
+								modifier = medium_coronation_approval_malus_unsettled_modifier
+								years = 5
+							}
+						}
+					}
+					minor_coronation_approval_modifier = {
+						scope:title = {
+							remove_county_modifier = minor_coronation_approval_modifier
+							add_county_modifier = {
+								modifier = minor_coronation_approval_malus_modifier
+								years = 5
+							}
+						}
+					}
+					minor_coronation_approval_unsettled_modifier = {
+						scope:title = {
+							remove_county_modifier = minor_coronation_approval_unsettled_modifier
+							add_county_modifier = {
+								modifier = minor_coronation_approval_malus_unsettled_modifier
+								years = 5
+							}
+						}
+					}
+				}
+			}
+		}
 	}
 	events = {
 		# roman_restoration.0005		#New Roman Emperor gets Augustus trait. (old holder, if still alive, loses it)
@@ -2452,6 +2554,27 @@ on_title_lost = {
 				remove_character_modifier = the_great_khan_modifier
 			}
 		}
+		#Coronation loyalty modifier
+		if = {
+			limit = {
+				scope:title = {
+					has_variable = coronation_loyal_to_title
+					var:coronation_loyal_to_title = {
+						NOT = {
+							this = scope:new_holder.primary_title
+						}
+					}
+				}
+			}
+			scope:title = {
+				remove_county_modifier = coronation_loyal_to_the_crown_modifier
+				remove_variable = coronation_loyal_to_title
+				add_county_modifier = {
+					modifier = coronation_still_loyal_modifier
+					years = 5
+				}
+			}
+		}
 	}
 }
 
@@ -2556,6 +2679,66 @@ on_rank_up = { # Will not fire during history execution or for dying characters
 	events = {
 	}
 	effect = {
+		if = { # ACH call to coronation reminder
+			limit = {
+				has_ach_dlc_trigger = yes
+				NOT = {
+					has_game_rule = coronation_laws_off
+				}
+				is_ai = no
+				primary_title.tier >= tier_kingdom
+				has_realm_law = uncrowned
+				NOR = {
+					has_variable = crowned_king_var
+					has_variable = crowned_emperor_var
+				}
+				NOR = {
+					has_character_flag = had_coronation_reminder
+					any_sponsored_inspiration = { has_inspiration_type = smith_inspiration }
+				}
+				is_available_adult = yes	
+			}
+			trigger_event = {
+				id = ach_yearly_events.1005
+				months = 4
+			}
+		}
+		#ACH new emperors losing their crowned status
+		else_if = {
+			limit = {
+				NOR = {
+					has_game_rule = coronation_laws_no_imperial_uncrowned
+					has_game_rule = coronation_laws_off
+				}
+				highest_held_title_tier >= tier_empire
+				exists = scope:title
+				scope:title = {
+					tier >= tier_kingdom
+					#Just double checking
+					tier < root.highest_held_title_tier
+				}
+				OR = {
+					has_realm_law = crowned_king
+					has_realm_law = crowned_emperor
+					has_variable = crowned_king_var
+					has_variable = crowned_emperor_var
+				}
+			}
+			if = {
+				limit = {
+					has_variable = crowned_emperor_var
+				}
+				remove_variable = crowned_emperor_var
+			}
+			if = {
+				limit = {
+					has_variable = crowned_king_var
+				}
+				remove_variable = crowned_king_var
+			}
+			add_realm_law_skip_effects = uncrowned
+			trigger_event = ach_yearly_events.1010
+		}
 		if = {
 			limit = { is_landed = yes }
 			add_achievement_flag_effect = { FLAG = achievement_moving_up_in_the_world_flag }
