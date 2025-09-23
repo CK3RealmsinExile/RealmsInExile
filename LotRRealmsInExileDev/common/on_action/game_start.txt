@@ -1,6 +1,6 @@
 ﻿# Empty scope
 on_game_start = {
-	on_actions = { lotr_on_game_start }
+	on_actions = { lotr_on_game_start } #LotR
 	events = {
 		fp1_scandinavian_adventurers.0004	# FP1 - Organise Norse adventurers.
 		fp1_scandinavian_adventurers.0011	# FP1 - Corral famous Norse adventurers that haven't done much yet.
@@ -17,7 +17,16 @@ on_game_start = {
 			value = yes
 			months = 3
 		}
-
+		#Set Cumania name if there is no MPO DLC
+		#if = { #LotR
+		#	limit = {
+		#		has_mpo_dlc_trigger = no
+		#		current_date >= 1000.1.1
+		#	}
+		#	title:e_caspian-pontic_steppe = {
+		#		set_title_name = cn_cumania
+		#	}
+		#}
 		#Rabbene Gershom outlaws polygamy
 		# if = { #LotR
 		# 	limit = {
@@ -223,14 +232,19 @@ on_game_start = {
 					}
 				}
 				set_holding_type = tribal_holding
-				county.holder ?= {
-					if = {
-						limit = {
-							NOT = {
-								has_government = tribal_government
+				if = {
+					limit = {
+						county.holder.capital_province ?= this
+					}
+					county.holder ?= {
+						if = {
+							limit = {
+								NOT = {
+									has_government = tribal_government
+								}
 							}
+							change_government = tribal_government
 						}
-						change_government = tribal_government
 					}
 				}
 			}
@@ -819,9 +833,19 @@ on_game_start = {
 			if = {
 				limit = {
 					has_mpo_dlc_trigger = no
-					has_government = nomad_government
 				}
-				change_government = tribal_government
+				if = {
+					limit = {
+						has_government = nomad_government
+					}
+					change_government = tribal_government
+				}
+				else_if = {
+					limit = {
+						has_government = herder_government
+					}
+					change_government = tribal_government
+				}
 			}
 		}
 		# Sort custom regencies.
@@ -1574,12 +1598,87 @@ on_game_start = {
 				}
 			}
 		}
+
+		# Remove Coronation Doctrine if you don't have the DLC
+		if = {
+			limit = {
+				has_ach_dlc_trigger = no
+			}
+			every_religion_global = {
+				every_faith = {
+					switch = {
+						trigger = has_doctrine
+						doctrine_no_anointment = { remove_doctrine = doctrine_no_anointment }
+						doctrine_anointment_permitted = { remove_doctrine = doctrine_anointment_permitted }
+						doctrine_imperial_anointment = { remove_doctrine = doctrine_imperial_anointment }
+					}
+				}
+			}
+		}
+
+		# Set Coronation laws for everyone
+		if = {
+			limit = {
+				has_ach_dlc_trigger = yes
+			}
+			every_ruler = {
+				limit = {
+					coronation_trigger = yes
+					age >= 12
+					NOT = { this = character:1316 } # Heinrich IV was coronated in 1084
+				}
+				save_temporary_scope_as = ruler
+				if = {
+					limit = {
+						highest_held_title_tier > tier_kingdom
+						NOT = {
+							has_any_shunned_or_criminal_trait_in_faith_trigger = {
+								CHARACTER = scope:ruler
+								FAITH = scope:ruler.faith
+							}
+							faith = { has_doctrine = doctrine_no_anointment }
+						}	
+					}
+					if = {
+						limit = {
+							NOT = {
+								has_game_rule = coronation_laws_off
+							}
+						}
+						add_realm_law_skip_effects = crowned_emperor
+					}
+					set_variable = crowned_emperor_var
+				}
+				else = {
+					if = {
+						limit = {
+							NOT = {
+								has_game_rule = coronation_laws_off
+							}
+						}
+						add_realm_law_skip_effects = crowned_king
+					}
+					set_variable = crowned_king_var
+				}
+			}
+		}
+		
+		if = {
+			limit = {
+				title:k_magyar = {
+					exists = holder
+				}
+			}
+			title:k_magyar = {
+				add_title_law = confederation_elective_succession_law
+			}
+		}
 	}
 }
 
 # Like on_game_start, except it is called once the host (or player, in single player) exits the lobby. Good for anything where you need to know who the players are, or what the game rules are
 on_game_start_after_lobby = {
-	on_actions = { lotr_on_game_start_after_lobby }
+	on_actions = { lotr_on_game_start_after_lobby } #LotR
 	effect = {
 		# To prevent the Season Changes event from triggering on game start
 		situation:the_great_steppe ?= {
@@ -2154,6 +2253,121 @@ on_game_start_after_lobby = {
 					}
 					change_government = nomad_government
 				}
+			}
+			# Make sure that Realm Priests are landed theocrats where it makes sense
+			else_if = {
+				limit = {
+					highest_held_title_tier >= tier_duchy
+				}
+				if = {
+					limit = {
+						exists = cp:councillor_court_chaplain
+						cp:councillor_court_chaplain = {
+							is_ruler = no
+						}
+						faith = { has_doctrine = doctrine_clerical_succession_spiritual_fixed_appointment }
+						any_vassal = {
+							is_physically_able_adult = yes
+							is_councillor = no
+							government_has_flag = government_is_theocracy
+							can_be_court_chaplain_trigger = { COURT_OWNER = liege }
+							faith = liege.faith
+						}
+					}
+					random_vassal = {
+						limit = {
+							is_physically_able_adult = yes
+							is_councillor = no
+							government_has_flag = government_is_theocracy
+							can_be_court_chaplain_trigger = { COURT_OWNER = liege }
+							faith = liege.faith
+						}
+						weight = {
+							base = 1
+							modifier = {
+								add = 1000
+								faith.religious_head ?= this
+							}
+							modifier = {
+								add = learning
+							}
+							modifier = {
+								add = primary_title.tier
+							}
+						}
+						liege = {
+							assign_councillor_type = {
+								type = councillor_court_chaplain
+								remove_existing_councillor = yes
+								target = prev
+							}
+						}
+					}
+				}
+				if = {
+					limit = {
+						is_landless_adventurer = yes
+					}
+					if = { limit = { has_realm_law = crown_authority_0 } remove_realm_law = crown_authority_0 }
+				}
+			}
+			#Autopopulate families.
+			if = {
+				limit = {
+					trigger_if = {
+						limit = {
+							has_game_rule = on_generate_families_ai_only
+						}
+						is_ai = yes
+					}
+					trigger_else = {
+						has_game_rule = on_generate_families
+					}
+				}
+				trigger_event = game_rule.1001
+			}
+		}
+
+		if = {
+			limit = {
+				has_mpo_dlc_trigger = yes
+			}
+			#Fully Landlocked Nomad Cultures Setup
+			every_culture_global = {
+				limit = {
+					OR = {
+						has_cultural_pillar = heritage_mongolic
+						has_cultural_pillar = heritage_ugro_permian
+					}
+				}
+				add_to_global_variable_list = {
+					name = fully_landlocked_nomad_cultures
+					target = this
+				}
+			}
+			add_to_global_variable_list = {
+				name = fully_landlocked_nomad_cultures
+				target = culture:kipchak
+			}
+			add_to_global_variable_list = {
+				name = fully_landlocked_nomad_cultures
+				target = culture:uyghur
+			}
+			add_to_global_variable_list = {
+				name = fully_landlocked_nomad_cultures
+				target = culture:kirghiz
+			}
+			add_to_global_variable_list = {
+				name = fully_landlocked_nomad_cultures
+				target = culture:tangut
+			}
+			add_to_global_variable_list = {
+				name = fully_landlocked_nomad_cultures
+				target = culture:bashkir
+			}
+			add_to_global_variable_list = {
+				name = fully_landlocked_nomad_cultures
+				target = culture:laktan
 			}
 			recalculate_cultural_heads_of_type = herd
 		}
@@ -4695,3 +4909,4 @@ on_game_start_after_lobby = {
 #				desc = $DESC$
 #			}
 #		}
+
