@@ -435,7 +435,7 @@ lotr_on_title_gain = {
 					scope:title ?= title:d_amon_lanc
 					scope:title ?= title:k_amon_lanc
 				}
-				root = character:linefinwe11
+				root = character:lineoffeanor2
 				NOT = {
 					is_target_in_global_variable_list = {
 						name = unavailable_unique_decisions
@@ -484,7 +484,6 @@ lotr_on_title_gain = {
 		}
 		
 		### Wilderness fallback: turn illegal wilderness to Tribal if non-Tom characters somehow get ahold of it
-		
 		if = {
 			limit = {
 				scope:previous_holder ?= { is_alive = yes }
@@ -499,6 +498,7 @@ lotr_on_title_gain = {
 					scope:transfer_type = flag:revoked
 					scope:transfer_type = flag:faction_demand
 				}
+				is_landless_adventurer = no
 			}
 			if = {
 				limit = { is_elf = yes }
@@ -579,20 +579,21 @@ lotr_on_title_gain = {
 			debug_log = "Wilderness: Tom tried to give away Wilderness - Vanquished Version"
 		}
 
-		### Clean up culture, faith, and holding type of Tom's counties
-		character:k_wastelands_holder = {
-			every_sub_realm_county = {
-				limit = {
-					NAND = {
-						culture = culture:wastelands
-						faith = faith:faith_wastelands_pagan
-						title_province = { has_holding_type = wastelands_holding }
-					}
-				}
-				save_scope_as = wilderness_county
-				make_settlement_county_wilderness = { COUNTY = scope:wilderness_county }
-			}
-		}
+		# Trig Note - Commented out for history purposes, as it makes all Tom's counties wilderness on game start, making it dificult to test history code. Reenable before releasing beta. 
+		## Clean up culture, faith, and holding type of Tom's counties
+		# character:k_wastelands_holder = { 
+		# 	every_sub_realm_county = {
+		# 		limit = {
+		# 			NAND = {
+		# 				culture = culture:wastelands
+		# 				faith = faith:faith_wastelands_pagan
+		# 				title_province = { has_holding_type = wastelands_holding }
+		# 			}
+		# 		}
+		# 		save_scope_as = wilderness_county
+		# 		make_settlement_county_wilderness = { COUNTY = scope:wilderness_county }
+		# 	}
+		# }
 
 		### Underground | Both AI & Player ###
 		# If surface dwellers **somehow** manage to get underground terrain, make it wilderness ( and give them a bit of gold in return )
@@ -869,23 +870,6 @@ lotr_on_title_gain = {
 				}
 			}
 		}
-
-		#LotR - make sure hobbits remain with the hobbit government type
-		if = {
-			limit = {
-				is_hobbit = yes
-				government_has_flag = government_is_settled
-				NOR = {
-					government_has_flag = government_is_administrative
-					government_has_flag = government_is_tribal
-					government_has_flag = government_is_landless_adventurer
-				}
-			}
-			trigger_event = {
-				id = hobbit.0001
-				days = 1
-			}
-		}
 		
 		#Event to give Stewards Ithilien
 		if = {
@@ -934,7 +918,7 @@ lotr_on_title_gain = {
 				title:e_gondor.holder ?= { faith_is_good = yes }
 				title:e_bellakar.holder.dynasty = dynasty:dynasty_tumakveh
 				OR = {
-					title:e_gondor.holder.dynasty = dynasty:dynasty_elros
+					# title:e_gondor.holder.dynasty = dynasty:dynasty_elros
 					title:e_gondor.holder.dynasty = dynasty:dynasty_elendil
 					title:e_gondor.holder.dynasty = dynasty:dynasty_anarion
 				}
@@ -978,7 +962,7 @@ lotr_on_title_gain = {
 				title:e_gondor.holder ?= { faith_is_good = yes }
 				title:e_bellakar.holder.dynasty = dynasty:dynasty_tumakveh
 				OR = {
-					title:e_gondor.holder.dynasty = dynasty:dynasty_elros
+					# title:e_gondor.holder.dynasty = dynasty:dynasty_elros
 					title:e_gondor.holder.dynasty = dynasty:dynasty_elendil
 					title:e_gondor.holder.dynasty = dynasty:dynasty_anarion
 				}
@@ -1051,189 +1035,218 @@ lotr_on_title_gain = {
 			limit = {
 				OR = {
 					is_orc = yes
-					is_undead = yes
+					is_nazgul = yes
 					is_maiar_fallen = yes
 					is_evil_istari = yes
 					faith_is_evil = yes
 				}
+			}
+			if = {
+				limit = {
+					scope:title ?= {
+						tier = tier_county
+						is_elf = yes
+					}
+				}
+				send_interface_toast = {
+					left_icon = root
+					title = settlement_conquered_by_orcs.toast
 
-				scope:title ?= {
-					tier = tier_county
-					is_elf = yes
+					if = {
+						limit = {
+							scope:title ?= {
+								has_county_modifier = marauding_orc_drags_modifier
+							}
+						}
+						scope:title ?= {
+							remove_county_modifier = marauding_orc_drags_modifier
+						}
+					}
+
+					if = {
+						limit = { 
+							OR = {
+								is_nazgul = yes
+								is_maiar_fallen = yes
+							}
+						}
+						scope:title ?= {
+							set_county_culture = culture:kazgumhoth
+							set_county_faith = root.faith
+							if = {
+								limit = { county.development_level >= medium_development_level }
+								halve_development = yes
+							}
+							add_county_modifier = {
+								modifier = hidden_elven_refugees_modifier
+								years = 50
+							}
+							every_county_province = {
+								limit = { 
+									NOT = {
+										OR = { # If the barony has a settlement or no holding... don't change them
+											has_holding_type = settlement_holding
+											province_has_no_holding_trigger = yes
+										}
+									}
+								}
+								if = {
+									limit = {
+										root = { government_has_flag = government_is_tribal }
+									}
+									set_holding_type = tribal_holding
+								}
+								else_if = { 
+									limit = {
+										barony = { is_capital_barony = yes }
+									}
+									set_holding_type = castle_holding
+								}
+								else_if = { 
+									limit = {
+										county = { NOT = { any_county_province = { has_holding_type = city_holding } } }
+									}
+									set_holding_type = city_holding
+								}
+								else_if = { 
+									limit = {
+										county = { NOT = { any_county_province = { has_holding_type = church_holding } } }
+									}
+									set_holding_type = church_holding
+								}
+								else = { set_holding_type = castle_holding }
+							}
+						}
+					}
+					else_if = {
+						limit = { 
+							is_evil_istari = yes
+						}
+						scope:title ?= {
+							set_county_culture = culture:isengard_urukhai
+							set_county_faith = root.faith
+							if = {
+								limit = { county.development_level >= medium_development_level }
+								halve_development = yes
+							}
+							add_county_modifier = {
+								modifier = hidden_elven_refugees_modifier
+								years = 50
+							}
+							every_county_province = {
+								limit = { 
+									NOT = {
+										OR = { # If the barony has a settlement or no holding... don't change them
+											has_holding_type = settlement_holding 
+											province_has_no_holding_trigger = yes
+										}
+									}
+								}
+								if = {
+									limit = {
+										root = { government_has_flag = government_is_tribal }
+									}
+									set_holding_type = tribal_holding
+								}
+								else_if = { 
+									limit = {
+										barony = { is_capital_barony = yes }
+									}
+									set_holding_type = castle_holding
+								}
+								else_if = { 
+									limit = {
+										county = { NOT = { any_county_province = { has_holding_type = city_holding } } }
+									}
+									set_holding_type = city_holding
+								}
+								else_if = { 
+									limit = {
+										county = { NOT = { any_county_province = { has_holding_type = church_holding } } }
+									}
+									set_holding_type = church_holding
+								}
+								else = { set_holding_type = castle_holding }
+							}
+						}
+					}
+					else = {
+						scope:title ?= {
+							set_county_culture = root.culture
+							set_county_faith = root.faith
+							if = {
+								limit = { county.development_level >= medium_development_level }
+								halve_development = yes
+							}
+							add_county_modifier = {
+								modifier = hidden_elven_refugees_modifier
+								years = 50
+							} 
+							every_county_province = {
+								limit = { 
+									NOT = {
+										OR = { # If the barony has a settlement or no holding... don't change them
+											has_holding_type = settlement_holding 
+											province_has_no_holding_trigger = yes
+										}
+									}
+								}
+								if = {
+									limit = {
+										root = { government_has_flag = government_is_tribal }
+									}
+									set_holding_type = tribal_holding
+								}
+								else_if = { 
+									limit = {
+										barony = { is_capital_barony = yes }
+									}
+									set_holding_type = castle_holding
+								}
+								else_if = { 
+									limit = {
+										county = { NOT = { any_county_province = { has_holding_type = city_holding } } }
+									}
+									set_holding_type = city_holding
+								}
+								else_if = { 
+									limit = {
+										county = { NOT = { any_county_province = { has_holding_type = church_holding } } }
+									}
+									set_holding_type = church_holding
+								}
+								else = { set_holding_type = castle_holding }
+								scope:title ?= { generate_coa = yes }
+							}
+						}
+					}
 				}
 			}
-			send_interface_toast = {
-				left_icon = root
-				title = settlement_conquered_by_orcs.toast
-
-				if = {
-					limit = {
-						scope:title ?= {
-							has_county_modifier = marauding_orc_drags_modifier
-						}
-					}
-					scope:title ?= {
-						remove_county_modifier = marauding_orc_drags_modifier
+			if = {
+				limit = {
+					any_vassal_or_below = {	
+						is_elf = yes
+						highest_held_title_tier >= tier_county
 					}
 				}
-
-				if = {
+				create_title_and_vassal_change = {
+					type = conquest_claim
+					save_scope_as = change
+					add_claim_on_loss = no
+				}
+				every_vassal_or_below = {
 					limit = { 
-						OR = {
-							is_undead = yes
-							is_maiar_fallen = yes
-						}
+						is_elf = yes
+						highest_held_title_tier >= tier_county
 					}
-					scope:title ?= {
-						set_county_culture = culture:kazgumhoth
-						set_county_faith = root.faith
-						if = {
-							limit = { county.development_level >= medium_development_level }
-							halve_development = yes
-						}
-						add_county_modifier = {
-							modifier = hidden_elven_refugees_modifier
-							years = 50
-						}
-						every_county_province = {
-							limit = { 
-								NOT = {
-									OR = { # If the barony has a settlement or no holding... don't change them
-										has_holding_type = settlement_holding
-										province_has_no_holding_trigger = yes
-									}
-								}
-							}
-							if = {
-								limit = {
-									root = { government_has_flag = government_is_tribal }
-								}
-								set_holding_type = tribal_holding
-							}
-							else_if = { 
-								limit = {
-									barony = { is_capital_barony = yes }
-								}
-								set_holding_type = castle_holding
-							}
-							else_if = { 
-								limit = {
-									county = { NOT = { any_county_province = { has_holding_type = city_holding } } }
-								}
-								set_holding_type = city_holding
-							}
-							else_if = { 
-								limit = {
-									county = { NOT = { any_county_province = { has_holding_type = church_holding } } }
-								}
-								set_holding_type = church_holding
-							}
-							else = { set_holding_type = castle_holding }
+					every_sub_realm_county = {
+						change_title_holder = {
+							holder = root
+							change = scope:change
 						}
 					}
 				}
-				else_if = {
-					limit = { 
-						is_evil_istari = yes
-					}
-					scope:title ?= {
-						set_county_culture = culture:isengard_urukhai
-						set_county_faith = root.faith
-						if = {
-							limit = { county.development_level >= medium_development_level }
-							halve_development = yes
-						}
-						add_county_modifier = {
-							modifier = hidden_elven_refugees_modifier
-							years = 50
-						}
-						every_county_province = {
-							limit = { 
-								NOT = {
-									OR = { # If the barony has a settlement or no holding... don't change them
-										has_holding_type = settlement_holding 
-										province_has_no_holding_trigger = yes
-									}
-								}
-							}
-							if = {
-								limit = {
-									root = { government_has_flag = government_is_tribal }
-								}
-								set_holding_type = tribal_holding
-							}
-							else_if = { 
-								limit = {
-									barony = { is_capital_barony = yes }
-								}
-								set_holding_type = castle_holding
-							}
-							else_if = { 
-								limit = {
-									county = { NOT = { any_county_province = { has_holding_type = city_holding } } }
-								}
-								set_holding_type = city_holding
-							}
-							else_if = { 
-								limit = {
-									county = { NOT = { any_county_province = { has_holding_type = church_holding } } }
-								}
-								set_holding_type = church_holding
-							}
-							else = { set_holding_type = castle_holding }
-						}
-					}
-				}
-				else = {
-					scope:title ?= {
-						set_county_culture = root.culture
-						set_county_faith = root.faith
-						if = {
-							limit = { county.development_level >= medium_development_level }
-							halve_development = yes
-						}
-						add_county_modifier = {
-							modifier = hidden_elven_refugees_modifier
-							years = 50
-						} 
-						every_county_province = {
-							limit = { 
-								NOT = {
-									OR = { # If the barony has a settlement or no holding... don't change them
-										has_holding_type = settlement_holding 
-										province_has_no_holding_trigger = yes
-									}
-								}
-							}
-							if = {
-								limit = {
-									root = { government_has_flag = government_is_tribal }
-								}
-								set_holding_type = tribal_holding
-							}
-							else_if = { 
-								limit = {
-									barony = { is_capital_barony = yes }
-								}
-								set_holding_type = castle_holding
-							}
-							else_if = { 
-								limit = {
-									county = { NOT = { any_county_province = { has_holding_type = city_holding } } }
-								}
-								set_holding_type = city_holding
-							}
-							else_if = { 
-								limit = {
-									county = { NOT = { any_county_province = { has_holding_type = church_holding } } }
-								}
-								set_holding_type = church_holding
-							}
-							else = { set_holding_type = castle_holding }
-							scope:title ?= { generate_coa = yes }
-						}
-					}
-				}
+				resolve_title_and_vassal_change = scope:change
 			}
 		}
 
@@ -1246,7 +1259,7 @@ lotr_on_title_gain = {
 					tier = tier_county
 					OR = {
 						is_orc = yes
-						is_undead = yes
+						is_nazgul = yes
 						has_county_modifier = hidden_elven_refugees_modifier
 					}
 				}
@@ -1285,16 +1298,20 @@ lotr_on_title_gain = {
 		if = {
 			limit = {
 				is_elf = yes
+				any_vassal_or_below = {
+					is_orc = yes
+					highest_held_title_tier >= tier_county
+				}
 			}
 			create_title_and_vassal_change = {
-					type = conquest_claim
-					save_scope_as = change
-					add_claim_on_loss = no
-				}
-			every_vassal = {
+				type = conquest_claim
+				save_scope_as = change
+				add_claim_on_loss = no
+			}
+			every_vassal_or_below = {
 				limit = {
 					is_orc = yes
-					
+					highest_held_title_tier >= tier_county
 				}
 				
 				every_sub_realm_county = {
@@ -1317,7 +1334,7 @@ lotr_on_title_gain = {
 					tier = tier_county
 					OR = {
 						is_orc = yes
-						is_undead = yes
+						is_nazgul = yes
 						is_maiar_fallen = yes
 					}
 				}
@@ -1566,6 +1583,7 @@ lotr_on_title_gain = {
 				scope:title ?= {
 					tier = tier_duchy
 				}
+				is_orc = yes
 			}
 			root = {
 				trigger_event = {
@@ -1577,6 +1595,30 @@ lotr_on_title_gain = {
 		trigger_event = { #So that it doesn't fire simultaneously with lotr_artifact.0040
 			id = lotr_artifact.0042 # Reforging Narsil
 			days = 1
+		}
+
+		## Hobbits can be laamps 
+		if = {
+			limit = {
+				is_hobbit = yes
+				is_landless_adventurer = no
+				NOT = { government_has_flag = government_is_administrative }
+			}
+			trigger_event = {
+				id = hobbit.0001
+				days = 1
+			}
+		}
+		
+		## Remove Oligarchy laws if not oligarchic 
+		if = {
+			limit = {
+				scope:title ?= { has_title_law = oligarchic_elective_succession_law }
+				NOT = { government_has_flag = government_is_oligarchy }
+			}
+			scope:title ?= {
+				remove_title_law = oligarchic_elective_succession_law
+			}
 		}
 	}
 	events = {
@@ -1825,6 +1867,26 @@ lotr_on_title_gain_inheritance = {
 			}
 			resolve_title_and_vassal_change = scope:title_change
 		}
+		
+		# If Azog ignore his Moria decision and forms the title manually
+		if = {
+			limit = {
+				scope:title = title:k_khazad_dum
+				root = { has_character_modifier = rise_of_azog_modifier }
+			}
+			title:k_khazad_dum.holder = {
+				trigger_event = {
+					id = orcs.7003
+					days = 2 
+				}
+				remove_character_flag = azog_solidify_moria
+				add_to_global_variable_list = {
+					name = unavailable_unique_decisions
+					target = flag:decision_solidify_moria
+				}
+			}
+		}
+		
 		#LotR - Tracking Imperial Khand Time Held
 		if = {
 			limit = {
@@ -1933,9 +1995,23 @@ lotr_on_title_gain_inheritance = {
 					scope:title = title:k_dwalins_folk
 					scope:title = title:e_thrars_folk
 					scope:title = title:k_thrars_folk
+					scope:title = title:e_thulins_folk
+					scope:title = title:k_thulins_folk
+					scope:title = title:e_bavors_folk
+					scope:title = title:k_bavors_folk
+					scope:title = title:e_sindris_folk
+					scope:title = title:k_sindris_folk
 				}
 			}
 			clear_dwarven_kingdom_claims_post_game_start = yes
+		}
+
+		if = {
+			limit = {
+				scope:title = { is_dwarven_dynasty_title = yes }
+				NOT = { house ?= { house_head = root } }
+			}
+			house ?= { set_house_head = root }
 		}
 
 		#Clearing inappropriate inherited MaA
@@ -1966,6 +2042,33 @@ lotr_on_title_gain_inheritance = {
 				}
 			}
 			destroy_title = title:d_nhazadh
+		}
+		if = {
+			limit = {
+				has_trait = dwarf_father
+				scope:title = { is_dwarven_dynasty_title = yes }
+				NOT = { has_character_flag = been_named_king }
+				OR = {
+					any_owned_story = { story_type = story_dorfdad_reincarnation }
+					is_canon_dorfdad = yes
+				}
+			}
+			save_scope_as = my_dorfdad
+			every_player = {
+				trigger_event = {
+					id = news_event.0026
+					days = 1
+				}
+			}
+			if = {
+				limit = { scope:my_dorfdad = { is_ai = yes } }
+				scope:my_dorfdad = {
+					trigger_event = {
+						id = news_event.0026
+						days = 1
+					}
+				}
+			}
 		}
 		
 		correct_wastelands_tracker = yes
@@ -2280,6 +2383,9 @@ lotr_on_title_lost = {
 					has_title = title:e_uris_folk
 					has_title = title:e_dwalins_folk
 					has_title = title:e_thrars_folk
+					has_title = title:e_thulins_folk
+					has_title = title:e_bavors_folk
+					has_title = title:e_sindris_folk
 				}
 			}
 			trigger_event = dwarven.9802
@@ -2288,7 +2394,7 @@ lotr_on_title_lost = {
 		if = {
 			limit = { #Aragorn loses his betrothal to Arwen if he loses the RK or either of its kingdoms
 				has_character_flag = is_aragorn
-				betrothed ?= character:linefinwe30 #Arwen
+				betrothed ?= character:lineofelrond4 #Arwen
 				trigger_if = { #If you destroy either title but you still hold the RK, it's fine
 					limit = {
 						OR = {
@@ -2303,7 +2409,7 @@ lotr_on_title_lost = {
 				}
 			}
 			show_as_tooltip = {
-				break_betrothal = character:linefinwe30
+				break_betrothal = character:lineofelrond4
 			}
 		}
 
