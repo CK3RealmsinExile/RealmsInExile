@@ -17,7 +17,7 @@ PixelShader = {
 		MipFilter = "Linear"
 		SampleModeU = "Wrap"
 		SampleModeV = "Wrap"
-		File = "gfx/map/terrain/pattern.dds"
+		File = "gfx/map/textures/political_mapmode_pattern.dds"
 		srgb = yes
 	}
 	
@@ -41,7 +41,7 @@ PixelShader = {
 		void ApplyHighlightColor( inout float3 Diffuse, in float2 WorldSpacePosXZ, in float Lerp )
 		{
 			float4 HighlightColor = GetHighlightColor( WorldSpacePosXZ );
-			Diffuse = lerp( Diffuse, HighlightColor.rgb, saturate( HighlightColor.a * Lerp * MapHighlightIntensity * 2.0 ) );
+			Diffuse = lerp( Diffuse, HighlightColor.rgb, saturate( HighlightColor.a * Lerp * MapHighlightIntensity * 0.8 ) );
 		}
 
 		void ApplyHighlightColor( inout float3 Diffuse, in float2 WorldSpacePosXZ )
@@ -58,29 +58,43 @@ PixelShader = {
 			Diffuse = Add( Diffuse, HighlightColor.rgb * SnowHighlightIntensity, HighlightColor.a * ColorMask * MapHighlightIntensity );
 		}
 		
-		void GetBorderColorAndBlendGameLerp( float2 WorldSpacePosXZ, float3 Flatmap, out float3 BorderColor, out float BorderPreLightingBlend, out float BorderPostLightingBlend, float FlatmapLerp )
+		void GetBorderColorAndBlendGameLerp( float2 WorldSpacePosXZ, float3 Flatmap, 
+			out float3 BorderColor, out float BorderPreLightingBlend, 
+			out float BorderPostLightingBlend, float FlatmapLerp )
 		{
 			float4 HighlightColor = GetHighlightColor( WorldSpacePosXZ );
-			float PatternTiling = 40;		
+			float PatternTiling = 15;
 			float2 ColorMapCoords = WorldSpacePosXZ * WorldSpaceToTerrain0To1;
-			float3 PatternMap = PdxTex2D( PatternTexture, float2( ColorMapCoords.x * PatternTiling * 2.0, 1.0 - ( ColorMapCoords.y * PatternTiling ) ) ).rgb;
+			float3 PatternMap = PdxTex2D( PatternTexture, float2( ColorMapCoords.x * 
+				PatternTiling * 2.0f, 1.0f - ( ColorMapCoords.y * PatternTiling ) ) ).rgb;
 			
-			GetProvinceOverlayAndBlend( ColorMapCoords, BorderColor, BorderPreLightingBlend, BorderPostLightingBlend );
+			GetProvinceOverlayAndBlend( ColorMapCoords, BorderColor, 
+				BorderPreLightingBlend, BorderPostLightingBlend );
 			
-			PatternMap = lerp( float3( 0.5, 0.5, 0.5 ), vec3( PatternMap.g ), 1.0 ); // paper texture influence
+			float Luminance = dot (BorderColor, float3( 0.299f, 0.587f, 0.114f ) );
+			float3 Gray = float3( Luminance, Luminance, Luminance );
+			BorderColor = lerp( BorderColor, Gray, 0.1f ); // desaturation
 			
-			BorderColor = lerp( BorderColor, float3( 0.5, 0.5, 0.5 ), 0.175 ); // desaturate bordercolor
-			BorderColor = lerp( BorderColor, float3( 0.0, 0.0, 0.0 ), 0.55 ); // darken bordercolor
-			
-			BorderColor = GetOverlay( BorderColor, PatternMap, 1-FlatmapLerp); // get paper texture
+			float3 OverlayColor = Overlay( PatternMap, BorderColor, 1.0f );
+			BorderColor = lerp(BorderColor, OverlayColor, 1.0f - FlatmapLerp * 0.5f);
 					
 			float3 Desaturated = vec3( ( Flatmap.r + Flatmap.g + Flatmap.b ) / 3 );
-			BorderColor = GetOverlay( BorderColor, Desaturated, FlatmapLerp );
-			
+			BorderColor = HardLight( BorderColor, Desaturated, FlatmapLerp * 0.9f );
 		}
-		void GetBorderColorAndBlendGame( float2 WorldSpacePosXZ, float3 Flatmap, out float3 BorderColor, out float BorderPreLightingBlend, out float BorderPostLightingBlend )
+			
+		void GetBorderColorAndBlendGame( float2 WorldSpacePosXZ, float3 Flatmap, 
+			out float3 BorderColor, out float BorderPreLightingBlend, 
+			out float BorderPostLightingBlend )
 		{
-			GetBorderColorAndBlendGameLerp( WorldSpacePosXZ, Flatmap, BorderColor, BorderPreLightingBlend, BorderPostLightingBlend, 0.0f );
+			GetBorderColorAndBlendGameLerp( WorldSpacePosXZ, Flatmap, BorderColor, 
+				BorderPreLightingBlend, BorderPostLightingBlend, 0.0f );
+		}
+
+		void LerpBorderColorWithFogOfWar( inout float3 Diffuse, in float2 WorldSpacePosXZ, 
+			in float3 BorderColor, in float BorderPreLightingBlend )
+		{
+			float FogOfWarAlphaValue = PdxTex2D( FogOfWarAlpha, WorldSpacePosXZ * WorldSpaceToTerrain0To1 ).r;
+			Diffuse = lerp( Diffuse, BorderColor, BorderPreLightingBlend * FogOfWarAlphaValue );
 		}
 
 		#define GAME_SECONDARY_COLORS_INTENSITY 0.1
