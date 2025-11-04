@@ -1,0 +1,291 @@
+﻿namespace = tgp_silk_road_events
+
+# visit_silk_road_market_decision
+
+tgp_silk_road_events.0010 = {
+	orphan = yes #LotR
+	type = character_event
+	title = {
+		first_valid = {
+			# triggered_desc = { #LotR
+			# 	trigger = {
+			# 		OR = {
+			# 			scope:market_temp = title:c_jingzhao # Chang'an
+			# 			scope:market_temp = title:c_luobupo # Dunhuang
+			# 		}
+			# 	}
+			# 	desc = tgp_silk_road_events.0010.t.market
+			# }
+			# triggered_desc = {
+			# 	trigger = { scope:market_temp = title:c_lhasa } # Lhasa
+			# 	desc = tgp_silk_road_events.0010.t.khrom
+			# }
+			# triggered_desc = {
+			# 	trigger = { scope:market_temp = title:c_dvin } # Dvin
+			# 	desc = tgp_silk_road_events.0010.t.shuka
+			# }
+			desc = tgp_silk_road_events.0010.t
+		}
+	}
+	desc = tgp_silk_road_events.0010.desc
+	theme = silk_road
+	override_background = { reference = market }
+	
+	left_portrait = {
+		character = root
+		animation = steward
+	}
+
+	immediate = {
+		culture = { save_scope_as = culture_temp }
+		save_scope_as = new_trinket # Purely for error suppression
+	}
+
+	option = {
+		name = tgp_silk_road_events.0010.a
+		duel = {
+			skills = { learning stewardship }
+			value = average_skill_rating
+			50 = {
+				compare_modifier = {
+					value = scope:duel_value
+					multiplier = 3.5
+					min = -49
+				}
+				culture = {
+					add_to_variable_list = {
+						name = silk_road_unlocked_innovations
+						target = scope:innovation_temp
+					}
+				}
+				every_player = {
+					limit = { culture = root.culture }
+					send_interface_toast = {
+						type = msg_silk_road_innovation_spread
+						title = msg_silk_road_innovation_spread_title
+						desc = msg_silk_road_innovation_visit_desc
+						left_icon = root
+						right_icon = scope:market_temp
+						custom_tooltip = msg_silk_road_innovation_spread_tt
+					}
+				}
+			}
+			# 
+			50 = {
+				compare_modifier = {
+					value = scope:duel_value
+					multiplier = -3.5
+					min = -49
+				}
+				desc = SILK_ROAD_MARKET_EMPTY_HANDED
+				send_interface_toast = {
+					title = tgp_silk_road_events.0010.a_nada
+					type = event_toast_effect_bad
+					left_icon = root
+				}
+			}
+		}
+
+		ai_chance = {
+			base = 50
+
+			ai_value_modifier = {
+				ai_rationality = 1
+			}
+		}
+	}
+
+
+	option = {
+		name = tgp_silk_road_events.0010.b
+
+		random_list = {
+			desc = tgp_silk_road_events.0010.b_tt
+			# get a famed-quality or masterwork-quality item
+			10 = {
+				desc = tgp_silk_road_events.0010.b_trinket
+
+				hidden_effect = {
+					root = {
+						add_character_flag = { flag = used_in_feast_default.1016 } # uncommon, famed, masterwork items
+						generate_trinket_effect = {
+							TRINKET_RECEIVER = root
+							TRINKET_GIVER = root
+							GRAB_ALL_TRINKETS = yes
+							HISTORY_TYPE = given_unknown
+						}
+						remove_character_flag = used_in_feast_default.1016
+					}
+				}
+				send_interface_toast = {
+					title = tgp_silk_road_events.0010.b_trinket
+					type = event_toast_effect_good
+					left_icon = root
+					right_icon = scope:new_trinket
+					scope:new_trinket = {
+						set_owner = root
+					}
+				}
+				custom_tooltip = purchase_artifact_famed_tt
+			}
+			# make a profit
+			25 = {
+				desc = tgp_silk_road_events.0010.b_big_gold
+				send_interface_toast = {
+					title = tgp_silk_road_events.0010.b_big_gold
+					type = event_toast_effect_good
+					left_icon = root
+					add_short_term_gold = massive_gold_value
+				}
+			}
+			# break even
+			40 = {
+				desc = tgp_silk_road_events.0010.b_small_gold
+				send_interface_toast = {
+					title = tgp_silk_road_events.0010.b_small_gold
+					type = event_toast_effect_good
+					left_icon = root
+					add_short_term_gold = major_gold_value # should be the same as the cost of the decision to visit a market
+				}
+			}
+			# get nothing, and if you're greedy, get stressed because you got nothing
+			25 = {
+				desc = tgp_silk_road_events.0010.a_nada
+				send_interface_toast = {
+					title = tgp_silk_road_events.0010.a_nada
+					type = event_toast_effect_bad
+					left_icon = root
+				}
+				stress_impact = {
+					greedy = minor_stress_impact_gain
+				}
+			}
+		}
+
+		ai_chance = {
+			base = 10
+
+			ai_value_modifier = {
+				ai_boldness = 1
+				ai_greed = 1
+			}
+		}
+	}
+}
+
+# yearly event for spreading innovations from markets to holder's culture
+
+scripted_effect silk_road_market_spread_innovation_effect = {
+	# Find relevant innovation
+	scope:market_temp ?= {
+		random_county_situation_sub_region = {
+			limit = {
+				situation_sub_region_has_county = scope:market_temp
+				OR = {
+					sub_region_current_phase = phase_exceptional_bounty
+					sub_region_current_phase = phase_steady_trading
+					sub_region_current_phase = phase_hardship
+				}
+			}
+			save_temporary_scope_as = sub_region_temp
+			var:innovation ?= { save_temporary_scope_as = innovation_temp }
+		}
+	}
+	# Unlock for culture if relevant
+	if = {
+		limit = {
+			NOR = {
+				scope:culture_temp = {
+					any_in_list = {
+						variable = silk_road_unlocked_innovations
+						this = scope:innovation_temp
+					}
+				}
+				scope:innovation_temp = { is_known_by_culture = scope:culture_temp }
+			}
+		}
+		every_player = {
+			limit = { culture = scope:culture_temp }
+			send_interface_message = {
+				type = msg_silk_road_innovation_spread
+				title = msg_silk_road_innovation_spread_title
+				desc = msg_silk_road_innovation_spread_desc
+				left_icon = scope:market_temp.holder
+				right_icon = scope:market_temp
+				custom_tooltip = msg_silk_road_innovation_spread_tt
+			}
+		}
+		scope:culture_temp = {
+			add_to_variable_list = {
+				name = silk_road_unlocked_innovations
+				target = scope:innovation_temp
+			}
+		}
+	}
+}
+
+tgp_silk_road_events.0100 = {
+	hidden = yes
+	type = character_event
+
+	trigger = {
+		# OR = { #LotR
+		# 	has_title = title:c_jingzhao # Chang'an
+		# 	has_title = title:c_lhasa # Lhasa
+		# 	has_title = title:c_lahur # Lahur
+		# 	has_title = title:c_luobupo # Dunhuang
+		# 	has_title = title:c_khiva # Khiva
+		# 	has_title = title:c_dvin # Dvin
+		# }
+		always = no #LotR
+	}
+
+	# immediate = {
+	# 	culture = { save_temporary_scope_as = culture_temp }
+	# 	# Find market for yearly if relevant
+	# 	if = {
+	# 		limit = { NOT = { exists = scope:title } }
+	# 		# title:c_jingzhao = { add_to_list = potential_markets } # Chang'an #LotR
+	# 		# title:c_lhasa = { add_to_list = potential_markets } # Lhasa
+	# 		# title:c_lahur = { add_to_list = potential_markets } # Lahur
+	# 		# title:c_luobupo = { add_to_list = potential_markets } # Dunhuang
+	# 		# title:c_khiva = { add_to_list = potential_markets } # Khiva
+	# 		# title:c_dvin = { add_to_list = potential_markets } # Dvin
+	# 		every_in_list = {
+	# 			list = potential_markets
+	# 			limit = {
+	# 				save_temporary_scope_as = county_temp
+	# 				holder = root
+	# 				any_county_situation_sub_region = {
+	# 					situation_sub_region_has_county = scope:county_temp
+	# 					OR = {
+	# 						sub_region_current_phase = phase_exceptional_bounty
+	# 						sub_region_current_phase = phase_steady_trading
+	# 						sub_region_current_phase = phase_hardship
+	# 					}
+	# 					# Has not spread to this culture before or is known by this culture
+	# 					var:innovation ?= {
+	# 						save_temporary_scope_as = innovation_temp
+	# 						NOR = {
+	# 							scope:culture_temp = {
+	# 								any_in_list = {
+	# 									variable = silk_road_unlocked_innovations
+	# 									this = scope:innovation_temp
+	# 								}
+	# 							}
+	# 							is_known_by_culture = scope:culture_temp
+	# 						}
+	# 					}
+	# 				}
+	# 			}
+	# 			save_temporary_scope_as = market_temp
+	# 			silk_road_market_spread_innovation_effect = yes
+	# 		}
+	# 	}
+	# 	# Use gained market otherwise
+	# 	else = {
+	# 		scope:title = { save_temporary_scope_as = market_temp }
+	# 		silk_road_market_spread_innovation_effect = yes
+	# 	}
+	# }
+}

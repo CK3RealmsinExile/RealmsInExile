@@ -38,6 +38,7 @@ remove_camp_purpose_flavourisation_variables_effect = {
 	remove_variable = flavourise_camp_purpose_explorers
 	remove_variable = flavourise_camp_purpose_brigands
 	remove_variable = flavourise_camp_purpose_legitimists
+	remove_variable = flavourise_camp_purpose_rangers #LotR
 }
 
 ##################################################
@@ -48,7 +49,7 @@ populate_location_with_contracts_effect = {
 		limit = {
 			# The AI have their own system for getting contracts.
 			trigger_if = {
-				limit = { is_landless_adventurer = yes }
+				limit = { has_government = landless_adventurer_government }
 				is_ai = no
 			}
 			lock_contracts_from_spawning_in_sahara_trigger = yes
@@ -73,7 +74,7 @@ populate_location_with_contracts_effect = {
 				laamp_contracts_martial_group
 				laamp_contracts_stewardship_group
 				laamp_contracts_justicar_group
-				laamp_contracts_ranger_group
+				laamp_contracts_ranger_group #LotR
 			}
 		}
 		# Then flag our new contracts (again, if necessary).
@@ -97,7 +98,7 @@ populate_location_with_special_contracts_effect = {
 		limit = {
 			# The AI have their own system for getting contracts.
 			trigger_if = {
-				limit = { is_landless_adventurer = yes }
+				limit = { has_government = landless_adventurer_government }
 				is_ai = no
 			}
 			lock_contracts_from_spawning_in_sahara_trigger = yes
@@ -152,7 +153,7 @@ populate_location_with_ranger_contracts_effect = { #LotR
 		populate_task_contracts_for_area = {
 			location = $AREA_CHAR$.capital_province
 			amount = $AMOUNT$
-			group = laamp_contracts_ranger_group
+			group = { laamp_contracts_ranger_group }
 		}
 		# Then flag our new contracts (again, if necessary).
 		if = {
@@ -463,17 +464,43 @@ laamp_rewards_disburse_ordinary_currency_effect = {
 				limit = {
 					scope:taker = { is_ai = no }
 				}
-				pay_short_term_gold = {
-					target = scope:taker
-					gold = scope:gold
+				if = {
+					limit = {
+						scope:task_contract = {
+							is_criminal = yes
+						}
+					}
+					pay_short_term_gold = {
+						target = scope:taker
+						gold = scope:gold
+					}
+				}
+				else = {
+					pay_treasury_or_gold = {
+						target = scope:taker
+						value = scope:gold
+					}
 				}
 			}
 			# Otherwise only deduct gold if the AI can afford it.
 			else_if = {
-				limit = { short_term_gold >= $GOLD$ }
-				pay_short_term_gold = {
-					target = scope:taker
-					gold = scope:gold
+				limit = { short_term_treasury_or_gold >= $GOLD$ }
+				if = {
+					limit = {
+						scope:task_contract = {
+							is_criminal = yes
+						}
+					}
+					pay_short_term_gold = {
+						target = scope:taker
+						gold = scope:gold
+					}
+				}
+				else = {
+					pay_treasury_or_gold = {
+						target = scope:taker
+						value = scope:gold
+					}
 				}
 			}
 			# Else we magic the gold up so we don't bankrupt people foolishly.
@@ -758,6 +785,7 @@ laamp_clear_inappropriate_buildings_effect = {
 					has_domicile_building = supply_tent_reserve_water
 					has_domicile_building = supply_tent_climbing_gear
 					has_domicile_building = supply_tent_subdued_gear
+					has_domicile_building = supply_tent_ranger_gear
 					has_domicile_building = barber_tent_reference_corpus
 					has_domicile_building = barber_tent_morticians_tools
 					has_domicile_building = baggage_train_siege_engineers
@@ -839,6 +867,10 @@ laamp_clear_domicile_buildings_effect = {
 		if = {
 			limit = { has_domicile_building = supply_tent_subdued_gear }
 			remove_domicile_building = supply_tent_subdued_gear
+		}
+		if = {
+			limit = { has_domicile_building = supply_tent_ranger_gear }
+			remove_domicile_building = supply_tent_ranger_gear
 		}
 		if = {
 			limit = { has_domicile_building = supply_tent_06 }
@@ -1219,8 +1251,7 @@ remove_laamp_from_exiled_county_automatically_effect = {
 	$LAAMP$ = { save_scope_as = laamp_effect }
 	if = {
 		limit = {
-			exists = $LAAMP$ #LotR
-			exists = $PROVINCE$ #LotR
+			exists = domicile.domicile_location.county.holder # Safety check
 			is_laamp_exiled_from_province_trigger = {
 				PROVINCE = scope:province_effect
 				LAAMP = scope:laamp_effect
@@ -1232,7 +1263,7 @@ remove_laamp_from_exiled_county_automatically_effect = {
 			domicile.domicile_location.county.holder = { # (is_laamp_exiled_from_province_trigger actually checks county holder)
 				every_neighboring_and_across_water_top_liege_realm_owner = {
 					limit = {
-						NOT = { this = scope:laamp_effect }
+						this != scope:laamp_effect
 					}
 					every_realm_border_county = {
 						limit = {
@@ -1351,7 +1382,11 @@ laamp_contract_grab_suitable_rival_for_disposal_effect = {
 	# First, try to grab suitable rivals.
 	ordered_relation = {
 		type = rival
-		limit = { valid_laamp_contract_foe_trigger = yes }
+		limit = { 
+			valid_laamp_contract_foe_trigger = yes 
+			lotr_canon_safe_from_harm_trigger = no # LotR - don't kill or abduct story characters on lore-friendly
+			cannot_be_killed = no #LotR - don't kill or abduct Nazgûl and Maiar
+		}
 		order_by = "opinion(scope:employer_ref)"
 		save_scope_as = target
 	}
@@ -1373,7 +1408,7 @@ laamp_contract_grab_suitable_rival_for_disposal_effect = {
 	if = {
 		limit = {
 			NOT = { exists = scope:target }
-			is_independent_ruler = no
+			top_liege != this
 		}
 		liege = {
 			ordered_vassal = {
@@ -1398,6 +1433,24 @@ laamp_contract_grab_suitable_rival_for_disposal_effect = {
 				}
 			}
 			order_by = "opinion(scope:employer_ref)"
+			save_scope_as = target
+		}
+	}
+	# For the AI we grab a pool character
+	if = {
+		limit = {
+			NOT = { exists = scope:target }
+			any_pool_character = {
+				province = location
+				is_physically_able_ai_adult = yes
+			}
+		}
+		save_scope_as = value_target
+		random_pool_character = {
+			province = location
+			limit = {
+				is_physically_able_ai_adult = yes
+			}
 			save_scope_as = target
 		}
 	}
