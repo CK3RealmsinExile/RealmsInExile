@@ -13,6 +13,7 @@ Includes = {
 	"jomini/portrait_user_data.fxh"
 	"jomini/hair_lighting.fxh"
 	"jomini/translucency.fxh"
+	"jomini/shader_utility.fxh"
 	"constants.fxh"
 	"standardfuncsgfx.fxh"
 	"parallax.fxh"
@@ -801,13 +802,27 @@ PixelShader =
 			Color += HOVER_COLOR * HOVER_INTENSITY * FresnelFactor * HoverMult;
 		}
 
-		// MOD(godherja)
-		//float3 CommonPixelShader( float4 Diffuse, float4 Properties, float3 NormalSample, in VS_OUTPUT_PDXMESHPORTRAIT Input, float HoverMult )
-		float3 CommonPixelShader( float4 Diffuse, float4 Properties, float3 NormalSample, inout float3 Emissive, in VS_OUTPUT_PDXMESHPORTRAIT Input, float HoverMult )
-		// END MOD
+		float3 TangentSpaceToWorldNormal( in VS_OUTPUT_PDXMESHPORTRAIT Input, float3 NormalSample )
 		{
 			float3x3 TBN = Create3x3( normalize( Input.Tangent ), normalize( Input.Bitangent ), normalize( Input.Normal ) );
-			float3 Normal = normalize( mul( NormalSample, TBN ) );
+			return normalize( mul( NormalSample, TBN ) );
+		}
+
+		float3 TangentSpaceToWorldNormalWithTwoNormal( in VS_OUTPUT_PDXMESHPORTRAIT Input, float3 FirstNormalSample, float3 SecondNormalSample, float NormalUVChannel )
+		{
+			float3x3 TBN = Create3x3( normalize( Input.Tangent ), normalize( Input.Bitangent ), normalize( Input.Normal ) );
+			float3 BaseWorldNormal  = normalize( mul( FirstNormalSample, TBN ) );
+			float3x3 TBN2 = BuildTangentFrame( BaseWorldNormal , Input.WorldSpacePos, Input.UV1 );
+			float3 LayeredNormal = normalize( mul( SecondNormalSample, TBN2 ) );
+			return lerp( BaseWorldNormal , LayeredNormal, NormalUVChannel );
+		}
+
+		// MOD(godherja)
+		//float3 CommonPixelShaderColor( float4 Diffuse, float4 Properties, float3 Normal, in VS_OUTPUT_PDXMESHPORTRAIT Input, float HoverMult )
+		float3 CommonPixelShaderColor( float4 Diffuse, float4 Properties, float3 Normal, inout float3 Emissive, in VS_OUTPUT_PDXMESHPORTRAIT Input, float HoverMult )
+		// END MOD
+		{
+			GetSpecularAA( Normal, 1.0f, 1.0f, Properties.a );
 			
 			SMaterialProperties MaterialProps = GetMaterialProperties( Diffuse.rgb, Normal, saturate( Properties.a ), Properties.g, Properties.b );
 			SLightingProperties LightingProps = GetSunLightingProperties( Input.WorldSpacePos, ShadowTexture );
@@ -883,6 +898,18 @@ PixelShader =
 
 			AddHoverHighlight( Color, Normal, LightingProps._ToCameraDir, HoverMult );
 			return Color;
+		}
+
+		float3 CommonPixelShader( float4 Diffuse, float4 Properties, float3 NormalSample, inout float3 Emissive, in VS_OUTPUT_PDXMESHPORTRAIT Input, float HoverMult )
+		{
+			float3 Normal = TangentSpaceToWorldNormal( Input, NormalSample );
+			return CommonPixelShaderColor( Diffuse, Properties, Normal, Emissive, Input, HoverMult );
+		}
+
+		float3 CommonPixelShaderWithTwoNormal( float4 Diffuse, float4 Properties, float3 FirstNormalSample, float3 SecondNormalSample, float NormalUVChannel, inout float3 Emissive, in VS_OUTPUT_PDXMESHPORTRAIT Input, float HoverMult )
+		{
+			float3 Normal = TangentSpaceToWorldNormalWithTwoNormal( Input, FirstNormalSample, SecondNormalSample, NormalUVChannel );
+			return CommonPixelShaderColor( Diffuse, Properties, Normal, Emissive, Input, HoverMult );
 		}
 
 		// MOD(godherja)
@@ -1261,7 +1288,9 @@ PixelShader =
 					float4 SecondColorMask = vec4( 0.0f );
 					SecondColorMask.r = Properties.r;
 					SecondColorMask.g =  NormalSampleRaw.b;
-					ApplyVariationPatterns( Input, Diffuse, Properties, NormalSample, SecondColorMask );
+					float3 PatternNormal = NormalSample;
+					float NormalUVChannel = 0.0f;
+					ApplyVariationPatterns( Input, Diffuse, Properties, PatternNormal, SecondColorMask, NormalUVChannel );
 				#endif
 				
 				#ifdef COA_ENABLED
@@ -1290,7 +1319,11 @@ PixelShader =
 					#endif
 				#endif
 
-				float3 Color = CommonPixelShader( Diffuse, Properties, NormalSample, Emissive, Input, AppliedHover );
+				#ifdef VARIATIONS_ENABLED
+					float3 Color = CommonPixelShaderWithTwoNormal( Diffuse, Properties, NormalSample, PatternNormal, NormalUVChannel, Emissive, Input, AppliedHover );
+				#else 
+					float3 Color = CommonPixelShader( Diffuse, Properties, NormalSample, Emissive, Input, AppliedHover );
+				#endif
 
 				Out.Color = float4( Color, Diffuse.a );
 				Out.SSAOColor = float4( vec3( 0.0f ), 1.0f );
@@ -1329,6 +1362,7 @@ PixelShader =
 
 				float2 UV0 = Input.UV0;
 				float4 Diffuse = PdxTex2D( DiffuseMap, UV0 );
+				clip( Diffuse.a - 1e-5 );
 				float4 Properties = PdxTex2D( PropertiesMap, UV0 );
 				Properties *= vHairPropertyMult;
 				float4 NormalSampleRaw = PdxTex2D( NormalMap, UV0 );
@@ -2391,6 +2425,13 @@ Effect court_usercolor_coa
 	# END MOD
 }
 
+Effect court_parallax
+{
+	VertexShader = "VS_standard"
+	PixelShader = "PS_court"	
+	Defines = { "PARALLAX" }
+}
+
 Effect courtShadow
 {
 	VertexShader = "VertexPdxMeshStandardShadow"
@@ -2406,6 +2447,13 @@ Effect court_usercolorShadow
 }
 
 Effect court_usercolor_coaShadow
+{
+	VertexShader = "VertexPdxMeshStandardShadow"
+	PixelShader = "PixelPdxMeshStandardShadow"
+	RasterizerState = ShadowRasterizerState
+}
+
+Effect court_parallaxShadow
 {
 	VertexShader = "VertexPdxMeshStandardShadow"
 	PixelShader = "PixelPdxMeshStandardShadow"
@@ -2452,6 +2500,13 @@ Effect court_usercolor_coa_selection
 {
 	VertexShader = "VS_standard"
 	PixelShader = "PS_court_selection"
+}
+
+Effect court_parallax_selection
+{
+	VertexShader = "VS_standard"
+	PixelShader = "PS_court_selection"	
+	Defines = { "PARALLAX" }
 }
 
 Effect portrait_artifact_pattern
@@ -2560,6 +2615,18 @@ Effect snap_to_terrain_selection
 }
 
 Effect standard_atlas_selection
+{
+	VertexShader = "VS_standard"
+	PixelShader = "PS_noop"
+}
+
+Effect snap_to_terrain_mapobject
+{
+	VertexShader = "VS_standard"
+	PixelShader = "PS_noop"
+}
+
+Effect snap_to_terrain_selection_mapobject
 {
 	VertexShader = "VS_standard"
 	PixelShader = "PS_noop"
@@ -2852,14 +2919,6 @@ Effect snap_to_terrain
 	PixelShader = "PS_noop"
 }
 
-# MOD(lotr)
-Effect snap_to_terrain_mapobject
-{
-	VertexShader = "VS_standard"
-	PixelShader = "PS_noop"
-}
-# END MOD
-
 Effect snap_to_terrain_atlas
 {
 	VertexShader = "VS_standard"
@@ -2885,6 +2944,18 @@ Effect snap_to_terrain_atlas_usercolor_selection
 }
 
 Effect snap_to_terrain_alpha_to_coverage
+{
+	VertexShader = "VS_standard"
+	PixelShader = "PS_noop"
+}
+
+Effect snap_to_terrain_alpha_to_coverage_mapobject
+{
+	VertexShader = "VS_standard"
+	PixelShader = "PS_noop"
+}
+
+Effect snap_to_terrain_alpha_to_coverage_selection_mapobject
 {
 	VertexShader = "VS_standard"
 	PixelShader = "PS_noop"
@@ -3028,6 +3099,18 @@ Effect court_rgb_mask_blend_alpha_to_coverage_selection
 {
 	VertexShader = "VS_standard"
 	PixelShader = "PS_court_selection"
+}
+
+Effect tabletop_standard
+{
+	VertexShader = "VS_standard"
+	PixelShader = "PS_noop"
+}
+
+Effect tabletop_standard_selection
+{
+	VertexShader = "VS_standard"
+	PixelShader = "PS_noop"
 }
 
 # MOD(court-skybox)
