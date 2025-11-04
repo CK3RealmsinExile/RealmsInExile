@@ -126,10 +126,7 @@ can_be_combatant_based_on_gender_trigger = {
 		# Priests only fight if faith has war priests
 		trigger_if = {
 			limit = {
-				OR = {
-					has_trait = devoted
-					is_clergy = yes
-				}
+				is_clergy = yes
 			}
 			OR = {
 				faith = { has_doctrine_parameter = clergy_can_fight }
@@ -147,38 +144,39 @@ can_be_combatant_based_on_gender_trigger = {
 				limit = {
 					has_dlc_feature = diverge_culture # Can modify pillars
 				}
-				OR = {
-					$ARMY_OWNER$ = { culture = { has_cultural_parameter = martial_custom_equal_combatant } }
-					AND = {
-						$ARMY_OWNER$ = { culture = { has_cultural_parameter = martial_custom_male_only_combatant } }
-						is_male = yes
+				trigger_if = {
+					limit = {
+						$ARMY_OWNER$.culture = { has_cultural_parameter = martial_custom_male_only_combatant }
 					}
-					AND = {
-						$ARMY_OWNER$ = { culture = { has_cultural_parameter = martial_custom_female_only_combatant } }
-						is_female = yes
-					}
+					is_male = yes
 				}
-				
+				trigger_else_if = {
+					limit = {
+						$ARMY_OWNER$.culture = { has_cultural_parameter = martial_custom_female_only_combatant }
+					}
+					is_female = yes
+				}
+				trigger_else = {}
 			}
 			trigger_else = { # Does not have the Royal Court and thus combatant is governed by faith
 				OR = {
-					$ARMY_OWNER$ = { faith = { has_doctrine_parameter = combatant_can_be_either_gender_if_no_roco } }
+					$ARMY_OWNER$.faith = { has_doctrine_parameter = combatant_can_be_either_gender_if_no_roco }
 					AND = {
-						$ARMY_OWNER$ = { faith = { has_doctrine_parameter = combatant_must_be_male_if_no_roco } }
+						$ARMY_OWNER$.faith = { has_doctrine_parameter = combatant_must_be_male_if_no_roco }
 						is_male = yes
 					}
 					AND = {
-						$ARMY_OWNER$ = { faith = { has_doctrine_parameter = combatant_must_be_female_if_no_roco } }
+						$ARMY_OWNER$.faith = { has_doctrine_parameter = combatant_must_be_female_if_no_roco }
 						is_female = yes
 					}
 				}
 			}
 			AND = {
+				# No need to gender diversify this: if they're a right-gender shieldperson of the culture, then they've already got permission to fight from the previous AND conditions.
+				has_trait = shieldmaiden
 				$ARMY_OWNER$ = {
 					culture = { has_cultural_parameter = has_access_to_shieldmaidens }
 				}
-				# No need to gender diversify this: if they're a right-gender shieldperson of the culture, then they've already got permission to fight from the previous AND conditions.
-				has_trait = shieldmaiden
 			}
 			# Event-based special exceptions
 			OR = {
@@ -186,18 +184,16 @@ can_be_combatant_based_on_gender_trigger = {
 				has_character_modifier = mpo_destined_leader_modifier
 			}
 			AND = {
-				$ARMY_OWNER$ = { culture = { has_cultural_parameter = high_prowess_ignores_knight_restrictions } }
-				NOT = { $ARMY_OWNER$ = { culture = { has_cultural_parameter = minimum_prowess_for_knights } } }
 				prowess >= 10
+				$ARMY_OWNER$.culture = { has_cultural_parameter = high_prowess_ignores_knight_restrictions }
+				NOT = { $ARMY_OWNER$.culture = { has_cultural_parameter = minimum_prowess_for_knights } }
 			}
 			AND = {
-				$ARMY_OWNER$ = {
-					culture = {
-						has_cultural_parameter = high_prowess_ignores_knight_restrictions
-						has_cultural_parameter = minimum_prowess_for_knights
-					}
-				}
 				prowess >= 12
+				$ARMY_OWNER$.culture = {
+					has_cultural_parameter = high_prowess_ignores_knight_restrictions
+					has_cultural_parameter = minimum_prowess_for_knights
+				}
 			}
 		}
 	}
@@ -232,8 +228,8 @@ is_wrong_gender_in_faith_trigger = {
 
 faith_is_aniconic_trigger = {
 	faith = {
-		OR = {	
-			#religion = religion:islam_religion
+		OR = {
+			#religion = religion:islam_religion #LotR
 			has_doctrine = tenet_aniconism
 		}
 	}
@@ -242,7 +238,15 @@ faith_is_aniconic_trigger = {
 #Needs CHARACTER and FAITH
 relation_with_character_is_incestuous_in_faith_trigger = {
 	OR = {
-		#doctrine_consanguinity_restricted; absolutely no family business 
+		# doctrine_consanguinity_dynastic; not within the same descent group
+		AND = {
+			$FAITH$ = { has_doctrine = doctrine_consanguinity_dynastic }
+			OR = {
+				is_close_or_extended_family_of = $CHARACTER$
+				dynasty = $CHARACTER$.dynasty
+			}
+		}	
+		#doctrine_consanguinity_restricted; absolutely no family business
 		AND = {
 			$FAITH$ = { has_doctrine = doctrine_consanguinity_restricted }
 			is_close_or_extended_family_of = $CHARACTER$ #[parents, children, siblings, grandparents, grandchildren, cousins, uncles, aunts, nephews, nieces]
@@ -258,11 +262,11 @@ relation_with_character_is_incestuous_in_faith_trigger = {
 		}
 		#doctrine_consanguinity_aunt_nephew_and_uncle_niece; extended family is ok
 		AND = {
-			$FAITH$ = { has_doctrine = doctrine_consanguinity_aunt_nephew_and_uncle_niece }	
+			$FAITH$ = { has_doctrine = doctrine_consanguinity_aunt_nephew_and_uncle_niece }
 			is_close_family_of = $CHARACTER$
 		}
 		#doctrine_consanguinity_unrestricted; all forms of incest is acceptable
-	}	
+	}
 }
 
 #Note: only checks from the viewpoint of current scope. Needs CHARACTER
@@ -280,8 +284,7 @@ relation_with_character_is_incestuous_in_my_or_lieges_faith_trigger = {
 			relation_with_character_is_incestuous_in_faith_trigger = { CHARACTER = $CHARACTER$ FAITH = scope:check_faith }
 		}
 		AND = { #Liege's faith doesn't approve
-			exists = liege
-			liege = {
+			liege ?= {
 				faith = {
 					save_temporary_scope_as = check_faith
 				}
@@ -307,9 +310,9 @@ faith_allows_marriage_consanguinity_trigger = {
 relation_between_characters_is_sodomy_in_my_faith_trigger = {
 	$CHARACTER_1$ = { is_male = yes }
 	$CHARACTER_2$ = { is_male = yes }
-	faith = { 
+	faith = {
 		OR = {
-			has_doctrine_parameter = homosexuality_shunned 
+			has_doctrine_parameter = homosexuality_shunned
 			has_doctrine_parameter = homosexuality_illegal
 		}
 	}
@@ -344,8 +347,7 @@ relation_with_character_is_sodomy_in_my_or_lieges_faith_trigger = {
 			relation_with_character_is_sodomy_in_faith_trigger = { CHARACTER = $CHARACTER$ FAITH = scope:check_faith }
 		}
 		AND = { #Liege's faith doesn't approve
-			exists = liege
-			liege = {
+			liege ?= {
 				faith = {
 					save_temporary_scope_as = check_faith
 				}
@@ -370,8 +372,7 @@ murdering_character_is_kinslaying_in_my_or_same_dynasty_lieges_faith_trigger = {
 	}
 	trigger_if = {
 		limit = {
-			exists = liege
-			liege = { dynasty = scope:kinslayer_me.dynasty }
+			liege ?= { dynasty = scope:kinslayer_me.dynasty }
 		}
 		liege = {
 			faith = {
@@ -382,8 +383,7 @@ murdering_character_is_kinslaying_in_my_or_same_dynasty_lieges_faith_trigger = {
 	OR = {
 		murdering_character_is_kinslaying_in_faith_trigger = { CHARACTER = $CHARACTER$ FAITH = scope:check_faith } #My faith doesn't approve
 		AND = { #Liege's faith doesn't approve
-			exists = liege
-			liege = { dynasty = scope:kinslayer_me.dynasty }
+			liege ?= { dynasty = scope:kinslayer_me.dynasty }
 			murdering_character_is_kinslaying_in_faith_trigger = { CHARACTER = $CHARACTER$ FAITH = scope:check_faith_liege }
 		}
 	}
@@ -404,7 +404,7 @@ trait_is_shunned_in_faith_trigger = {
 		}
 		#WITCH
 		AND = {
-			scope:shunned_trait_check = flag:witch	
+			scope:shunned_trait_check = flag:witch
 			$FAITH$ = { has_doctrine_parameter = witchcraft_shunned }
 		}
 		#SODOMITE
@@ -422,6 +422,12 @@ trait_is_shunned_in_faith_trigger = {
 			OR = {
 				scope:shunned_trait_check = flag:adulterer
 				scope:shunned_trait_check = flag:fornicator
+			}
+			$GENDER_CHARACTER$ = {
+				trigger_if = {
+					limit = { exists = faith }
+					accepts_adultery_without_penalty_trigger = no
+				}
 			}
 			OR = {
 				AND = {
@@ -516,7 +522,7 @@ trait_is_criminal_in_faith_trigger = {
 				}
 			}
 		}
-	}	
+	}
 }
 
 scoped_trait_is_criminal_in_faith_trigger = {
@@ -585,7 +591,7 @@ scoped_trait_is_criminal_in_faith_trigger = {
 				}
 			}
 		}
-	}	
+	}
 }
 
 trait_is_shunned_or_criminal_in_faith_trigger = {
@@ -604,8 +610,7 @@ trait_is_shunned_or_criminal_in_my_or_lieges_faith_trigger = {
 			trait_is_shunned_or_criminal_in_faith_trigger = { TRAIT = $TRAIT$ FAITH = scope:check_faith GENDER_CHARACTER = $GENDER_CHARACTER$ }
 		}
 		AND = { #Liege's faith doesn't approve
-			exists = liege
-			liege = {
+			liege ?= {
 				faith = {
 					save_temporary_scope_as = check_faith
 				}
@@ -786,17 +791,17 @@ has_negative_attitude_towards_trait_trigger = {
 		#INCESTUOUS
 		AND = {
 			scope:negative_status_check = flag:incestuous
-			any_secret = { secret_type = secret_incest }
+			any_secret = { type = secret_incest }
 		}
 		#WITCH
 		AND = {
 			scope:negative_status_check = flag:witch
-			any_secret = { secret_type = secret_witch }
+			any_secret = { type = secret_witch }
 		}
 		#CANNIBAL
 		AND = {
 			scope:negative_status_check = flag:cannibal
-			any_secret = { secret_type = secret_cannibal }
+			any_secret = { type = secret_cannibal }
 		}
 		#SODOMITE
 		AND = {
@@ -806,7 +811,7 @@ has_negative_attitude_towards_trait_trigger = {
 				has_sexuality = bisexual
 			}
 			any_secret = {
-				secret_type = secret_homosexual
+				type = secret_homosexual
 			}
 		}
 		#ADULTERER
@@ -888,7 +893,7 @@ is_preferred_heresy = {
 		#	}
 		#}
 		AND = {
-			religion_tag = dunedain_religion
+			religion = religion:dunedain_religion
 			OR = {
 				faiths_are_in_dunedain_group_and_appropriate = {FAITH_1 = $ORIGIN_FAITH$ FAITH_2 = $HERETICAL_FAITH$ }
 			}
@@ -905,7 +910,7 @@ is_preferred_heresy = {
 			NOT = {
 				#religion_tag = islam_religion #LOTR
 				#religion_tag = christianity_religion #LOTR
-				religion_tag = dunedain_religion
+				religion = religion:dunedain_religion
 				#religion_tag = northmen_religion
 				this = faith:faith_corsair
 			}
@@ -991,7 +996,7 @@ no_heretical_hof_faith_trigger = { #Head of Faith shouldn't convert.
 		NOT = { exists = root.religious_head }
 		AND = {
 			exists = root.religious_head
-			NOT = { this = root.religious_head }
+			this != root.religious_head
 		}
 	}
 }
@@ -1130,7 +1135,7 @@ barony_is_valid_for_holy_order_lease_trigger = {
 		OR = {
 			has_holding_type = castle_holding
 			has_holding_type = city_holding
-			has_holding_type = elven_holding
+			has_holding_type = elven_holding #LotR
 		}
 	}
 	trigger_if = {
@@ -1143,7 +1148,7 @@ barony_is_valid_for_holy_order_lease_trigger = {
 		limit = {
 			NOT = { holder = $CHARACTER$ }
 		}
-		holder.primary_title.tier = tier_barony	
+		holder.primary_title.tier = tier_barony
 	}
 	NOT = {
 		is_leased_out = yes
@@ -1217,15 +1222,14 @@ is_infidel_trigger = {
 }
 
 valid_demand_conversion_conditions_trigger = {
-	scope:recipient = { is_busy_in_events_localised = yes }
-	scope:recipient = { NOT = { has_strong_hook = scope:actor } }
-	scope:recipient = { NOT = { has_trait = devoted } }
-	scope:recipient = { NOT = { has_trait = order_member } }
 	scope:recipient = {
-		NOT = { is_imprisoned_by = scope:actor }
-	}
-	scope:recipient = {
-		NOT = { is_at_war_with = scope:actor }
+		NOR = {
+			has_strong_hook = scope:actor
+			has_trait = devoted
+			has_trait = order_member
+			is_imprisoned_by = scope:actor
+			is_at_war_with = scope:actor
+		}
 	}
 	scope:actor = {
 		trigger_if = {
@@ -1238,14 +1242,12 @@ valid_demand_conversion_conditions_trigger = {
 				domicile = { has_domicile_parameter = camp_enable_conversion }
 			}
 		}
-	}
-	scope:actor = {
 		NAND = {
 			has_trait = nomadic_philosophy
 			has_trait = zealous
 		}
 	}
-	scope:recipient = {
+	scope:recipient = { #LotR
 		NOR = { 
 			has_trait = maiar
 			has_trait = istari
@@ -1255,13 +1257,13 @@ valid_demand_conversion_conditions_trigger = {
 	custom_description = {
 		text = "is_head_of_religion"
 		subject = scope:recipient
-		NOT = { scope:recipient.faith.religious_head = scope:recipient }
+		scope:recipient.faith.religious_head != scope:recipient
 	}
-
 	custom_description = {
 		text = "is_protected_via_contract"
 		subject = scope:recipient
-		NAND = { # Vassal Contract forbids meddling by liege
+		# Vassal Contract forbids meddling by liege
+		NAND = {
 			exists = scope:recipient.liege
 			scope:recipient.liege = scope:actor
 			scope:recipient = {
@@ -1270,19 +1272,18 @@ valid_demand_conversion_conditions_trigger = {
 			}
 		}
 	}
-	
 	trigger_if = {
 		limit = {
-			scope:recipient = {	
+			scope:recipient = {
 				AND = {
 					has_variable = cannot_be_converted_by_value
-					var:cannot_be_converted_by_value = scope:actor	
+					var:cannot_be_converted_by_value = scope:actor
 				}
 			}
 		}
 		custom_tooltip = {
 			text = promised_to_not_convert_character
-			scope:recipient = {	
+			scope:recipient = {
 				NOR = {
 					has_variable = cannot_be_converted_by_value
 					var:cannot_be_converted_by_value = scope:actor
@@ -1290,10 +1291,75 @@ valid_demand_conversion_conditions_trigger = {
 			}
 		}
 	}
-
 	custom_tooltip = {
 		text = cannot_take_overt_hostile_actions_against_diarch.tt
 		NOT = { scope:recipient ?= scope:actor.diarch }
+	}
+}
+
+valid_ask_for_conversion_conditions_trigger = { # Deliberate variant of the above, so you can ask your diarch nicely to convert if you made a new faith
+	scope:recipient = {
+		NOR = {
+			has_strong_hook = scope:actor
+			has_trait = devoted
+			has_trait = order_member
+			is_imprisoned_by = scope:actor
+			is_at_war_with = scope:actor
+		}
+	}
+	scope:actor = {
+		trigger_if = {
+			limit = {
+				government_has_flag = government_is_landless_adventurer
+				scope:recipient = { is_courtier_of = scope:actor }
+			}
+			custom_tooltip = {
+				text = valid_demand_conversion_conditions_trigger.tt.domicile_requires_shrine
+				domicile = { has_domicile_parameter = camp_enable_conversion }
+			}
+		}
+		NAND = {
+			has_trait = nomadic_philosophy
+			has_trait = zealous
+		}
+	}
+
+	custom_description = {
+		text = "is_head_of_religion"
+		subject = scope:recipient
+		scope:recipient.faith.religious_head != scope:recipient
+	}
+	custom_description = {
+		text = "is_protected_via_contract"
+		subject = scope:recipient
+		# Vassal Contract forbids meddling by liege
+		NAND = {
+			exists = scope:recipient.liege
+			scope:recipient.liege = scope:actor
+			scope:recipient = {
+				is_ruler = yes
+				vassal_contract_has_flag = religiously_protected
+			}
+		}
+	}
+	trigger_if = {
+		limit = {
+			scope:recipient = {
+				AND = {
+					has_variable = cannot_be_converted_by_value
+					var:cannot_be_converted_by_value = scope:actor
+				}
+			}
+		}
+		custom_tooltip = {
+			text = promised_to_not_convert_character
+			scope:recipient = {
+				NOR = {
+					has_variable = cannot_be_converted_by_value
+					var:cannot_be_converted_by_value = scope:actor
+				}
+			}
+		}
 	}
 }
 
@@ -1363,13 +1429,7 @@ can_reincarnate_trigger = {
 
 is_reincarnation_trigger = {
 	can_become_reincarnation_trigger = yes
-	OR = {
-		AND = {
-			has_variable = reincarnation_of
-
-		}
-
-	}
+	has_variable = reincarnation_of
 }
 
 # Used in faith scope, COUNT is number of faiths to at least have and CHARACTER is who must own them
@@ -1403,8 +1463,9 @@ num_realm_holy_sites_faithful_holders = {
 			county = {
 				save_temporary_scope_as = current_holy_site
 				OR = {
-				is_holy_site_controlled_by = $CHARACTER$
+					is_holy_site_controlled_by = $CHARACTER$
 					$CHARACTER$.confederation ?= {
+						is_house_based = no # any_confederation_member is not performant for house blocs
 						any_confederation_member = {
 							scope:current_holy_site = {
 								is_holy_site_controlled_by = prev
@@ -1427,7 +1488,7 @@ can_create_temporal_head_of_faith_title_trigger = {
 	root = { piety_level >= high_piety_level }
 	trigger_if = {
 		limit = {
-			root = { is_independent_ruler = no }
+			root = { top_liege != this }
 		}
 		custom_description = {
 			text = cannot_create_hof_title_at_or_above_liege_tier
@@ -1459,6 +1520,21 @@ can_create_spiritual_head_of_faith_title_trigger = {
 # this = Person trying to create the title
 can_afford_create_head_of_faith_title_cost_trigger = {
 	trigger_if = {
+		limit = {
+			faith = {
+				has_doctrine_parameter = temporal_head_of_faith
+				#OR = { #LotR
+				#	has_doctrine = muhammad_succession_sunni_doctrine
+				#	has_doctrine = muhammad_succession_shia_doctrine
+				#}
+			}
+		}
+		trigger_if = {
+			limit = { NOT = { has_trait = sayyid } }
+			piety >= massive_piety_value
+		}
+	}
+	trigger_else_if = {
 		limit = {
 			faith = {
 				has_doctrine_parameter = temporal_head_of_faith
@@ -1523,7 +1599,7 @@ shared_faith_or_hof_trigger = {
 #Triggers that applies to both Monastery or Holy Order requirements
 can_take_religious_vows_trigger = {
 	can_take_religious_vows_disregard_marriage_trigger = yes
-	
+
 	#Do they have the "wrong" marriage type?
 	NOR = {
 		custom_description = {
@@ -1545,8 +1621,7 @@ can_take_religious_vows_trigger = {
 		custom_description = {
 			text = matrilinear_betrothal
 			subject = scope:recipient
-			exists = betrothed
-			betrothed = {
+			betrothed ?= {
 				is_female = yes
 				matrilinear_betrothal = yes
 			}
@@ -1554,8 +1629,7 @@ can_take_religious_vows_trigger = {
 		custom_description = {
 			text = patrilinear_betrothal
 			subject = scope:recipient
-			exists = betrothed
-			betrothed = {
+			betrothed ?= {
 				is_male = yes
 				patrilinear_betrothal = yes
 			}
@@ -1706,7 +1780,7 @@ is_theological_character_trigger = {
 			government_has_flag = government_is_theocracy
 		}
 
-	}	
+	}
 }
 
 would_be_sinful_adulterer_trigger = {
@@ -1732,24 +1806,32 @@ has_tolerant_faith_or_culture_trigger = {
 	}
 }
 
-believes_in_pilgrimage_trigger = {
-	# NOR = {
-	# 	# These Faiths historically shunned going on pilgrimages, saying they were a waste of time & money.
-	# 	faith = faith:waldensian
-	# 	faith = faith:paulician
-	# 	faith = faith:lollard
-	# 	faith = faith:qarmatian
-	# }
-	# Also we must have an actual holy site we can visit.
-	faith = {	
-		any_holy_site = {
-			exists = this
-		}
+is_open_to_inviting_other_faiths_trigger = {
+	OR = {
+		faith = { has_doctrine = tenet_adaptive }
+		faith = { has_doctrine = unreformed_faith_doctrine }
+		faith = { has_doctrine = doctrine_pluralism_pluralistic }
+		culture = { has_cultural_tradition = tradition_religion_blending }
+		culture = { has_cultural_tradition = tradition_tgp_religious_hospitality }
+	}
+}
+
+faith_is_open_minded_trigger = {
+	OR = {
+		has_doctrine = tenet_adaptive
+		has_doctrine = doctrine_pluralism_pluralistic
 	}
 }
 
 is_mainstream_jewish_faith = {
 	always = no
+	#religion = religion:judaism_religion
+	#NOT = {
+	#	this = faith:samaritan
+	#	this = faith:haymanot
+	#	this = faith:malabarism
+	#	this = faith:kabarism
+	#}
 }
 
 is_unprotected_hostile_faith = { # Checks if the faith is at least hostile but not protected by a contract, used in a county scope
@@ -1849,5 +1931,121 @@ invalid_for_heresy_events = {
 			this = faith:lidless_eye
 			sauron_is_alive = no
 		}
+	}
+}
+
+is_faith_dominant_gender = {
+	OR = {
+		AND = {
+			is_male = yes
+			faith = {
+				OR = {
+					has_doctrine_parameter = male_dominated_law
+					has_doctrine_parameter = gender_equal_law
+				}
+			}
+		}
+		AND = {
+			is_female = yes
+			faith = {
+				OR = {
+					has_doctrine_parameter = female_dominated_law
+					has_doctrine_parameter = gender_equal_law
+				}
+			}
+		}
+	}
+}
+
+religion_is_broadly_asian_trigger = {
+	#OR = { #LotR
+	#	religion_is_east_asian_trigger = yes
+	#	broadly_dharmic_trigger = yes
+	#	broadly_chinese_religion_trigger = yes
+	#}
+}
+
+religion_is_east_asian_trigger = {
+	#OR = { #LotR
+	#	faith.religion = religion:buddhism_religion
+	#	faith.religion = religion:confucianism_religion
+	#	faith.religion = religion:taoism_religion
+	#	faith.religion = religion:shintoism_religion
+	#}
+}
+
+broadly_dharmic_trigger = {
+	#OR = { #LotR
+	#	faith.religion = religion:buddhism_religion
+	#	faith.religion = religion:hinduism_religion
+	#	faith.religion = religion:jainism_religion
+	#	faith.religion = religion:bon_religion
+	#	faith.religion = religion:dab_qhuas_religion
+	#	faith.religion = religion:aluk_religion
+	#	faith.religion = religion:dayawism_religion
+	#	faith.religion = religion:hantuism_religion
+	#	faith.religion = religion:kaharingan_religion
+	#	faith.religion = religion:satsana_phi_religion
+	#	faith.religion = religion:tolotang_religion
+	#	faith.religion = religion:utaki_religion
+	#	faith.religion = religion:bimoism_religion
+	#	faith.religion = religion:moism_religion
+	#	faith.religion = religion:muism_religion
+	#	faith.religion = religion:qiangic_religion
+	#}
+}
+
+south_east_asian_pagan_trigger = {
+	#OR = { #LotR
+	#	faith.religion = religion:aluk_religion
+	#	faith.religion = religion:dayawism_religion
+	#	faith.religion = religion:hantuism_religion
+	#	faith.religion = religion:kaharingan_religion
+	#	faith.religion = religion:tolotang_religion
+	#	faith.religion = religion:biliku_religion
+	#}
+}
+
+broadly_jungle_dwelling_trigger = {
+	culture = {
+		#OR = { #LotR
+		#	has_cultural_pillar = heritage_austronesian
+		#	has_cultural_pillar = heritage_burman
+		#	has_cultural_pillar = heritage_tai
+		#	has_cultural_pillar = heritage_hmongic
+		#	has_cultural_pillar = heritage_dravidian
+		#	has_cultural_pillar = heritage_malayic
+		#	has_cultural_pillar = heritage_mon_khmer
+		#	has_cultural_pillar = heritage_viet
+		#	has_cultural_pillar = heritage_indo_aryan
+		#}
+	}
+}
+
+broadly_chinese_religion_trigger = {
+	#OR = { #LotR
+	#	faith.religion = religion:taoism_religion
+	#	faith.religion = religion:confucianism_religion
+	#}
+}
+
+broadly_mainland_east_asian_heritage_trigger = {
+	culture = {
+		#OR = { #LotR
+		#	has_cultural_pillar = heritage_chinese
+		#	has_cultural_pillar = heritage_korean
+		#	has_cultural_pillar = heritage_buyeo
+		#	has_cultural_pillar = heritage_qiangic
+		#	has_cultural_pillar = heritage_viet
+		#}
+	}
+}
+
+broadly_japanese_island_heritage_trigger = {
+	culture = {
+		#OR = { #LotR
+		#	has_cultural_pillar = heritage_japonic
+		#	has_cultural_pillar = heritage_ainuic
+		#}
 	}
 }
