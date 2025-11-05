@@ -4,6 +4,7 @@ tags={
 	"Gameplay"
 	"Map"
 }
+replace_path="common/dynasties"
 replace_path="common/religion/religions"
 replace_path="common/culture/cultures"
 replace_path="common/culture/name_lists"
