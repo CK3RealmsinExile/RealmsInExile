@@ -1,0 +1,1800 @@
+﻿# Admin to Feudal
+tgp_japan_establish_house_fief_decision = {
+	decision_group_type = major
+	title = tgp_japan_establish_house_fief_decision
+	desc = tgp_japan_establish_house_fief_decision_desc
+	selection_tooltip = tgp_japan_establish_house_fief_decision_tooltip
+	picture = { reference = "gfx/interface/illustrations/decisions/tgp_house_fief.dds" }
+	sort_order = 80
+
+	cost = {
+		prestige = {
+			value = 500
+			add = {
+				value = 250
+				multiply = domain_size
+			}
+		}
+		gold = {
+			value = 0
+			add = {
+				value = 50
+				multiply = domain_size
+			}
+		}
+	}
+
+	is_shown = {
+		has_tgp_dlc_trigger = yes
+		has_government = japan_administrative_government
+		is_landed = yes
+		tgp_has_ceremonial_liege_title_trigger = no
+		is_independent_ruler = no
+	}
+
+	is_valid = {
+		# Is a Ritsuryo Governor
+		tgp_is_japanese_governor_trigger = yes
+		trigger_if = {
+			limit = { is_ai = no } # AI are an exception as they can continue to play despite not being House Heads
+			custom_tooltip = {
+				text = tgp_japan_establish_house_fief_aspiration_trigger
+				house = {
+					NOR = {
+						has_house_power_parameter = ceremony_cheaper_feasts
+						has_house_power_parameter = unlocks_japanese_manor_archive
+					}
+				}
+			}
+			# Domicile in current Governorship
+			custom_tooltip = {
+				text = tgp_japan_establish_house_fief_domicile_in_governorship_trigger
+				domicile.domicile_location.county.holder ?= this
+			}
+			# Domicile level
+			custom_tooltip = {
+				text = tgp_japan_establish_house_fief_domicile_building_trigger
+				domicile ?= { has_domicile_parameter = unlocks_establish_fief_decision }
+			}
+		}
+		trigger_else = { # AI heirs of players will never do this
+			trigger_if = {
+				limit = {
+					house.house_head ?= {
+						government_has_flag = government_is_japan_feudal
+					}
+				}
+				always = yes
+			}
+			trigger_else = {
+				NOT = {
+					house.house_head ?= {
+						is_ai = no
+						any_held_title = { is_noble_family_title = yes }
+						is_close_family_of = root
+						player_heir = root
+					}
+				}
+			}
+		}
+		# No direct descendant is currently Regent or Governor
+		custom_tooltip = {
+			text = tgp_japan_establish_house_fief_direct_descendent_position_trigger
+			any_descendants_are_governors = no
+		}
+		# No direct descendant is liege or above
+		custom_tooltip = {
+			text = create_cadet_branch_decision_liege_is_descendant
+			any_liege_or_above_is_descendant = no
+		}
+		# Crown Authority
+		trigger_if = {
+			limit = {
+				top_liege = { 
+					government_allows = administrative 
+					NOT = { government_has_flag = government_is_japan_feudal }
+				}
+			}
+			custom_tooltip = {
+				text = tgp_japan_establish_house_fief_centralization_trigger
+				NOT = { has_realm_law = japanese_bureaucracy_3 }
+			}
+		}
+		# Prevent ai flipflopping back after demand admin gov interaction
+		trigger_if = {
+			limit = { is_ai = yes }
+			NOR = {
+				var:demand_admin_accepted_ai_block ?= liege
+				var:demand_admin_accepted_ai_block ?= top_liege
+			}
+		}
+	}
+
+	is_valid_showing_failures_only = {
+		is_available_adult = yes
+		# Not Yamato
+		tgp_is_in_ceremonial_house_trigger = no
+		# Must be a Count or Higher
+		highest_held_title_tier >= tier_county
+		# Domicile not in capital
+		custom_tooltip = {
+			text = tgp_japan_establish_house_fief_capital_domicile_trigger
+			NOT = { domicile.domicile_location.county ?= top_liege.capital_county }
+		}
+		# Is not Regent
+		is_independent_ruler = no
+	}
+
+	# Used by Ruler Objective advice
+	# advice = { #LOTR
+	# 	region = world_asia_japan
+	# }
+
+	effect = {
+		# add_achievement_global_variable_effect = { # LOTR
+		# 	VARIABLE = achieved_ep4_18_yes_i_need_my_samurai_achievement
+		# 	VALUE = yes
+		# }
+		show_as_tooltip = {
+			# Change Dynasty
+			if = {
+				limit = { tgp_japan_cadet_creates_dynasty_trigger = yes }
+				custom_tooltip = tgp_japan_establish_house_fief_found_house_effect
+			}
+			else_if ={
+				limit = { is_house_head = no }
+				custom_tooltip = create_noble_family_tt
+			}
+			# Change from Ritsuryo (Admin) to Soryo (Feudal)
+			custom_tooltip = tgp_japan_establish_house_fief_change_government_type_effect
+			# Crime to Kampaku
+			if = {
+				limit = {
+					is_independent_ruler = no
+					top_liege = { government_allows = administrative }
+					NOR = { 
+						var:petition_liege_house_fief_allowed_flag ?= scope:new_head.top_liege
+						top_liege = {
+							government_has_flag = government_is_japan_feudal
+						}
+					}
+				}
+				custom_tooltip = tgp_japan_establish_house_fief_kampaku_crime_effect
+			}
+		}
+		hidden_effect = {
+			if = {
+				limit = { is_ai = yes }
+				if = { # Move AI domicile automatically
+					limit = {
+						exists = domicile
+						is_landed = yes
+						domicile.domicile_location.county != capital_county
+					}
+					domicile = { move_domicile = root.capital_province }
+				}
+				house = { # Help for AI to move to a Soryo aspiration
+					if = {
+						limit = {
+							OR = {
+								has_house_power_parameter = ceremony_cheaper_feasts
+								has_house_power_parameter = unlocks_japanese_manor_archive
+							}
+						}
+						random_list = {
+							1 = { set_house_aspiration = { type = determination } }
+							1 = { set_house_aspiration = { type = prosperity } }
+							1 = { set_house_aspiration = { type = strength } }
+						}
+					}
+				}
+			}
+		}
+		# Fire relevant event
+		if = {
+			limit = {
+				NOR = {
+					dynasty.dynast ?= this
+					house.house_head ?= this
+				}
+			}
+			add_character_flag = establish_house_fief
+			trigger_event = tgp_japan_decision.9001
+		}
+		#else = { trigger_event = tgp_japan_decision.9002 } #LotR
+	}
+	
+	ai_check_interval_by_tier = {
+		barony = 0
+		county = 6
+		duchy = 6
+		kingdom = 0
+		empire = 0
+		hegemony = 0
+	}
+	ai_potential = {
+		is_landed = yes
+		has_government = japan_administrative_government
+		NOT = { # Reluctance to forgo potential to become Kampaku
+			top_liege = {
+				has_realm_law = japanese_regency_succession_law
+				primary_title = { "place_in_line_of_succession(root)" <= 3 }
+			}
+		}
+	}
+	ai_will_do = {
+		base = -25
+		ai_value_modifier = { # Personality
+			ai_boldness = 0.25
+			ai_energy = 0.25
+			ai_honor = -0.25
+		}
+		modifier = {
+			has_trait = ambitious
+			add = 10
+		}
+		modifier = {
+			has_trait = content
+			add = -10
+		}
+		modifier = {
+			has_trait = brave
+			add = 10
+		}
+		modifier = {
+			has_trait = craven
+			add = -10
+		}
+		modifier = {
+			has_trait = vengeful
+			add = 10
+		}
+		modifier = {
+			has_trait = forgiving
+			add = -10
+		}
+		modifier = {
+			has_trait = impatient
+			add = 10
+		}
+		modifier = {
+			has_trait = patient
+			add = -10
+		}
+		modifier = {
+			has_trait = greedy
+			add = 10
+		}
+		modifier = {
+			has_trait = generous
+			add = -10
+		}
+		modifier = {
+			has_trait = arrogant
+			add = 10
+		}
+		modifier = {
+			has_trait = humble
+			add = -10
+		}
+		modifier = { # Prosperity
+			house ?= { has_house_power_parameter = unlocks_japanese_manor_brewery }
+			add = 25
+		}
+		modifier = { # Determination
+			house ?= { has_house_power_parameter = determination_spymaster_task_find_secrets_efficiency }
+			add = 50
+		}
+		modifier = { # Strength
+			house ?= { has_house_power_parameter = unlocks_japanese_manor_armory }
+			add = 100
+		}
+		modifier = { # Reluctance to turn against successful bloc
+			house.house_confederation ?= {
+				leading_house.house_head ?= { has_same_government = root }
+				cohesion >= 50
+			}
+			add = -100
+		}
+		modifier = { # Reluctance to turn against house head
+			is_house_head = no
+			house.house_confederation.leading_house.house_head ?= {
+				house = root.house
+				has_same_government = root
+			}
+			add = -15
+		}
+		modifier = { # Encouraged by nearby
+			any_neighboring_realm_same_rank_owner = { government_has_flag = government_is_japan_feudal }
+			add = 25
+		}
+		modifier = {
+			NOT = { exists = house.house_confederation }
+			add = 25
+		}
+		modifier = {
+			add = {
+				value = "root.capital_province.squared_distance(root.top_liege.capital_province)"
+				divide = 100000
+			}
+		}
+		modifier = {
+			add = {
+				value = maa_regiments_count
+				multiply = 5
+			}
+		}
+		modifier = {
+			add = {
+				value = gold
+				divide = 100
+			}
+		}
+		modifier = {
+			add = {
+				value = military_power
+				divide = 1000
+			}
+		}
+		modifier = {
+			add = {
+				value = 0
+				every_ally = {
+					limit = {
+						is_landed = yes
+						top_liege = root.top_liege
+						NOT = { government_allows = administrative }
+					}
+					add = 30
+				}
+			}
+		}
+		modifier = {
+			vassal_contract_has_flag = japan_administrative_province_military
+			add = 75
+		}
+		modifier = {
+			has_trait = education_martial
+			add = 20
+		}
+		modifier = {
+			has_realm_law = japanese_bureaucracy_1
+			add = 10
+		}
+		modifier = {
+			has_realm_law = japanese_bureaucracy_2
+			add = 20
+		}
+		modifier = {
+			has_realm_law = japanese_bureaucracy_3
+			add = 30
+		}
+		opinion_modifier = { # Opinion of liege
+			who = root
+			opinion_target = top_liege
+			multiplier = -0.5
+		}
+		opinion_modifier = { # Opinion of house head
+			trigger = { is_house_head = no }
+			who = root
+			opinion_target = house.house_head
+			multiplier = -0.5
+		}
+		opinion_modifier = { # Opinion of bloc leader
+			trigger = {
+				exists = house.house_confederation.leading_house.house_head
+				house.house_confederation.leading_house.house_head != root
+			}
+			who = root
+			opinion_target = house.house_confederation.leading_house.house_head
+			multiplier = -0.5
+		}
+	}
+}
+
+# tgp_japan_establish_soryo_manor_decision = {
+# 	decision_group_type = major
+# 	title = tgp_japan_establish_soryo_manor_decision
+# 	desc = tgp_japan_establish_soryo_manor_decision_desc
+# 	selection_tooltip = tgp_japan_establish_house_fief_decision_tooltip
+# 	picture = {
+# 		reference = "gfx/interface/illustrations/decisions/tgp_house_fief.dds"
+# 	}
+# 	sort_order = 80
+
+# 	cost = {
+# 		prestige = {
+# 			value = 500
+# 		}
+# 	}
+
+# 	is_shown = {
+# 		has_tgp_dlc_trigger = yes
+# 		has_government = japan_administrative_government
+# 		tgp_has_ceremonial_liege_title_trigger = no
+# 		is_landed = no
+# 		exists = domicile
+# 	}
+
+# 	is_valid = {
+# 		# Is a Ritsuryo Governor
+# 		has_government = japan_administrative_government
+# 		trigger_if = {
+# 			limit = { is_ai = no } # AI are an exception as they can continue to play despite not being House Heads
+# 			# Holds Noble Family title
+# 			custom_tooltip = {
+# 				text = is_house_head_of_noble_family_tt
+# 				house.house_head ?= this
+# 				any_held_title = { is_noble_family_title = yes }
+# 			}
+# 			custom_tooltip = {
+# 				text = tgp_japan_establish_house_fief_capital_domicile_trigger
+# 				NOT = { domicile.domicile_location.county ?= top_liege.capital_county }
+# 			}
+# 		}
+# 		# No direct descendant is currently Regent or Governor
+# 		custom_tooltip = {
+# 			text = tgp_japan_establish_house_fief_direct_descendent_position_trigger
+# 			any_descendants_are_governors = no
+# 		}
+# 		# No direct descendant is liege or above
+# 		custom_tooltip = {
+# 			text = create_cadet_branch_decision_liege_is_descendant
+# 			any_liege_or_above_is_descendant = no
+# 		}
+# 		# Domicile level
+# 		custom_tooltip = {
+# 			text = tgp_japan_establish_house_fief_domicile_building_trigger
+# 			domicile ?= { has_domicile_parameter = unlocks_establish_fief_decision }
+# 		}
+# 		# Crown Authority
+# 		trigger_if = {
+# 			limit = {
+# 				top_liege = { government_allows = administrative }
+# 			}
+# 			custom_tooltip = {
+# 				text = tgp_japan_establish_house_fief_centralization_trigger
+# 				NOT = { has_realm_law = japanese_bureaucracy_3 }
+# 			}
+# 		}
+# 	}
+
+# 	is_valid_showing_failures_only = {
+# 		is_available_adult = yes
+# 		# Not Yamato
+# 		tgp_is_in_ceremonial_house_trigger = no
+# 		# Must be a Count or Higher
+# 		highest_held_title_tier >= tier_county
+# 		# Is not Regent
+# 		is_independent_ruler = no
+# 	}
+
+# 	effect = {
+# 		add_achievement_global_variable_effect = {
+# 			VARIABLE = achieved_ep4_18_yes_i_need_my_samurai_achievement
+# 			VALUE = yes
+# 		}
+# 		show_as_tooltip = {
+# 			change_government = japan_feudal_government
+# 			# Change Dynasty
+# 			if = {
+# 				limit = {
+# 					NOT = { dynasty.dynast ?= this }
+# 				}
+# 				custom_tooltip = tgp_japan_establish_house_fief_found_house_effect
+# 			}
+# 		}
+# 		# Fire relevant event
+# 		if = {
+# 			limit = {
+# 				NOR = {
+# 					dynasty.dynast ?= this
+# 					house.house_head ?= this
+# 				}
+# 			}
+# 			add_character_flag = establish_house_fief
+# 			trigger_event = tgp_japan_decision.9001
+# 		}
+# 		else = { trigger_event = tgp_japan_decision.9002 }
+# 	}
+	
+# 	ai_check_interval_by_tier = {
+# 		barony = 0
+# 		county = 36
+# 		duchy = 36
+# 		kingdom = 0
+# 		empire = 0
+# 		hegemony = 0
+# 	}
+# 	ai_potential = {
+# 		is_landed = yes
+# 	}
+# 	ai_will_do = {
+# 		base = 100
+# 		ai_value_modifier = {
+# 			ai_boldness = 0.5
+# 			ai_honor = -0.5
+# 		}
+# 		modifier = {
+# 			house ?= { has_house_power_parameter = ceremony_cheaper_feasts }
+# 			add = -50
+# 		}
+# 		modifier = {
+# 			house ?= { has_house_power_parameter = service_house_improved_educator_outcome_chance }
+# 			add = -100
+# 		}
+# 		modifier = {
+# 			house ?= { has_house_power_parameter = determination_spymaster_task_find_secrets_efficiency }
+# 			add = 50
+# 		}
+# 		modifier = {
+# 			house ?= { has_house_power_parameter = unlocks_japanese_manor_armory }
+# 			add = 100
+# 		}
+# 	}
+# }
+
+# Become Soryo as Kampaku
+# tgp_japan_establish_soryo_administration_decision = {
+# 	decision_group_type = major
+# 	title = tgp_japan_establish_soryo_administration_decision
+# 	desc = tgp_japan_establish_soryo_administration_decision_desc
+# 	selection_tooltip = tgp_japan_establish_soryo_administration_decision_tooltip
+# 	picture = { reference = "gfx/interface/illustrations/event_story/tgp_japanese_shogunate.dds" }
+# 	sort_order = 80
+
+# 	cost = {
+# 		prestige = {
+# 			value = massive_prestige_gain
+# 		}
+# 		influence = {
+# 			value = {
+# 				value = monumental_influence_gain
+# 				multiply = 2
+# 			}
+# 		}
+# 	}
+
+# 	is_shown = {
+# 		has_tgp_dlc_trigger = yes
+# 		has_title = title:e_japan
+# 		is_independent_ruler = yes
+# 		government_is_japanese_trigger = yes
+# 		NOR = { 
+# 			government_has_flag = government_is_japan_feudal 
+# 			has_global_variable = shogunate_established
+# 		}
+# 	}
+
+# 	is_valid = {
+# 		# Is Regent
+# 		has_title = title:e_japan
+# 		is_independent_ruler = yes
+# 		has_government = japan_administrative_government
+# 		has_realm_law = japanese_regency_succession_law
+# 		has_realm_law = japanese_bureaucracy_3
+# 		custom_tooltip = {
+# 			text = house_head_create_faction_cohesion_tt
+# 			house.house_confederation ?= {
+# 				leading_house ?= root.house
+# 				has_cohesion_level_parameter = house_head_adopt_soryo_regency
+# 			}
+# 		}
+# 		custom_tooltip = {
+# 			text = house_head_adopt_soryo_regency_tt
+# 			house.house_confederation ?= {
+# 				leading_house ?= root.house
+# 				has_cohesion_level_parameter = house_head_adopt_soryo_regency
+# 			}
+# 		}
+# 		is_at_war = no
+# 	}
+
+# 	is_valid_showing_failures_only = {
+# 		is_available_adult = yes
+# 	}
+
+# 	effect = {
+# 		add_achievement_global_variable_effect = {
+# 			VARIABLE = achieved_ep4_18_yes_i_need_my_samurai_achievement
+# 			VALUE = yes
+# 		}
+# 		custom_tooltip = japanese_establish_soryo_administration_war_start_tt
+# 		custom_description_no_bullet = { text = if_you_win_effect }
+# 		show_as_tooltip = { japanese_establish_soryo_administration_reward_effect = yes }
+# 		trigger_event = {
+# 			id = tgp_japan_decision.9601
+# 			delayed = yes
+# 		}
+# 	}
+	
+# 	ai_check_interval_by_tier = {
+# 		barony = 0
+# 		county = 0
+# 		duchy = 0
+# 		kingdom = 0
+# 		empire = 36
+# 		hegemony = 0
+# 	}
+# 	ai_potential = { always = yes }
+# 	ai_will_do = { base = 100 }
+# }
+
+# Become Shogun
+tgp_japan_become_shogun_decision = {
+	decision_group_type = major
+	title = tgp_japan_become_shogun_decision
+	desc = tgp_japan_become_shogun_decision_desc
+	selection_tooltip = tgp_japan_become_shogun_decision_tooltip
+	picture = { reference = "gfx/interface/illustrations/event_story/tgp_japanese_shogunate.dds" }
+	sort_order = 80
+
+	cost = {
+		prestige = {
+			value = monumental_prestige_gain
+		}
+	}
+
+	is_shown = {
+		always = no # LotR - until we decide to adopt Soryô
+		# has_tgp_dlc_trigger = yes
+		# tgp_is_in_ceremonial_house_trigger = no
+		# government_has_flag = government_is_japan_feudal
+		# top_liege = { has_title = title:e_japan }
+		# NOR = {
+			# has_global_variable = shogunate_established
+			# has_global_variable = tenno_restored
+		# }
+	}
+
+	is_valid = { # Rework once we adopt Soryô
+		# Is Regent
+		# custom_tooltip = {
+			# text = tgp_japan_become_shogun_decision_top_liege_trigger
+			# has_title = title:e_japan
+		# }
+		# prestige_level >= 4
+		# legitimacy_level >= 4
+		# is_independent_ruler = yes
+		# has_government = japan_feudal_government
+		# custom_tooltip = {
+			# text = tgp_japan_become_shogun_decision_centralization_trigger
+			# OR = {
+				# has_realm_law = japanese_bureaucracy_2
+				# has_realm_law = japanese_bureaucracy_3
+			# }
+		# }
+		# is_at_war = no
+		# custom_tooltip = {
+			# text = tgp_japan_become_shogun_decision_land_trigger
+			# top_liege = {
+				# completely_controls = title:d_kinai
+				# completely_controls = title:d_nankaido
+				# completely_controls = title:d_hokurikudo
+				# completely_controls = title:d_west_bando
+				# completely_controls = title:d_north_saikaido
+			# }
+		# }
+	}
+
+	is_valid_showing_failures_only = {
+		is_available_adult = yes
+	}
+
+	effect = {
+		trigger_event = tgp_japan_decision.9101
+		show_as_tooltip = { japanese_become_shogun_reward_effect = yes }
+		# if = { #LotR
+		# 	limit = {
+		# 		is_ai = no
+		# 		this = character:japanese_minamoto_seiwa_10
+		# 	}
+		# 	add_achievement_global_variable_effect = {
+		# 		VARIABLE = finished_ep4_08_shogun_achievement
+		# 		VALUE = yes
+		# 	}
+		# }
+	}
+	
+	ai_check_interval_by_tier = {
+		barony = 0
+		county = 0
+		duchy = 0
+		kingdom = 0
+		empire = 36
+		hegemony = 0
+	}
+	ai_potential = { always = yes }
+	ai_will_do = { base = 100 }
+}
+
+# Emperor Restoration
+# tgp_japan_emperor_restoration_decision = {
+# 	decision_group_type = major
+# 	title = tgp_japan_emperor_restoration_decision
+# 	desc = tgp_japan_emperor_restoration_decision_desc
+# 	selection_tooltip = tgp_japan_emperor_restoration_decision_tooltip
+# 	picture = { reference = "gfx/interface/illustrations/decisions/tgp_kowtow.dds" }
+# 	sort_order = 80
+
+# 	cost = {
+# 		prestige = {
+# 			value = monumental_prestige_gain
+# 		}
+# 	}
+
+# 	is_shown = {
+# 		has_tgp_dlc_trigger = yes
+# 		top_liege = { has_title = title:e_japan }
+# 		tgp_realm_has_ceremonial_liege_trigger = yes
+# 		custom_tooltip = {
+# 			text = tgp_is_ceremonial_liege_tt
+# 			tgp_has_ceremonial_liege_title_trigger = yes
+# 		}
+# 		NOT = { has_global_variable = tenno_restored }
+# 	}
+
+# 	is_valid = {
+# 		is_independent_ruler = yes
+# 		has_title = title:e_japan
+# 		tgp_has_ceremonial_liege_title_trigger = yes
+# 		custom_tooltip = {
+# 			text = tgp_japan_become_shogun_decision_centralization_trigger
+# 			OR = {
+# 				has_realm_law = japanese_bureaucracy_2
+# 				has_realm_law = japanese_bureaucracy_3
+# 			}
+# 		}
+# 		is_at_war = no
+# 		completely_controls = title:d_kinai
+# 		completely_controls = title:d_nankaido
+# 		completely_controls = title:d_hokurikudo
+# 		completely_controls = title:d_west_bando
+# 		completely_controls = title:d_north_saikaido
+# 		custom_tooltip = {
+# 			text = tgp_japan_no_other_powerful_forces_trigger
+# 			NOT = {
+# 				title:e_japan.holder = {
+# 					any_vassal = {
+# 						NOR = {
+# 							this = root
+# 							is_allied_to = root
+# 							house = root.house
+# 						}
+# 						current_strength_with_allies_value > root.current_strength_with_allies_fifty_percent_value
+# 					}
+# 				}
+# 			}
+# 		}
+# 	}
+
+# 	is_valid_showing_failures_only = {
+# 		is_available_adult = yes
+# 	}
+
+# 	effect = {
+# 		if = {
+# 			limit = {
+# 				is_ai = no
+# 				has_title = title:k_chrysanthemum_throne
+# 			}
+# 			add_achievement_global_variable_effect = {
+# 				VARIABLE = finished_ep4_03_sword_of_japan_achievement
+# 				VALUE = yes
+# 			}
+# 		}
+# 		trigger_event = tgp_japan_decision.9301
+# 		show_as_tooltip = {
+# 			restore_ceremonial_liege_faction_reward_effect = yes
+# 		}
+# 	}
+	
+# 	ai_check_interval_by_tier = {
+# 		barony = 0
+# 		county = 0
+# 		duchy = 0
+# 		kingdom = 36
+# 		empire = 0
+# 		hegemony = 0
+# 	}
+# 	ai_potential = { always = yes }
+# 	ai_will_do = { base = 100 }
+# }
+
+# Yamato into Minamoto/Taira
+# tgp_japan_imperial_branch_decision = {
+# 	decision_group_type = major
+# 	title = tgp_japan_imperial_branch_decision
+# 	desc = tgp_japan_imperial_branch_decision_desc
+# 	selection_tooltip = tgp_japan_imperial_branch_decision_tooltip
+# 	picture = { reference = "gfx/interface/illustrations/decisions/tgp_kowtow.dds" }
+# 	sort_order = 80
+
+# 	cost = {
+# 		prestige = {
+# 			value = minor_prestige_gain
+# 		}
+# 		influence = {
+# 			value = minor_influence_gain
+# 		}
+# 	}
+
+# 	is_shown = {
+# 		has_tgp_dlc_trigger = yes
+# 		# Still Ritsuryo
+# 		government_is_japanese_trigger = yes
+# 		top_liege.primary_title.var:administrative_ui_special_title.holder ?= { government_is_japanese_trigger = yes }
+# 		# Must be Yamato
+# 		tgp_is_in_ceremonial_house_trigger = yes
+# 		# Monks need not apply
+# 		NOT = { has_trait = devoted }
+# 		# Must be within Japan
+# 		top_liege = { has_title = title:e_japan }
+# 	}
+
+# 	is_valid = {
+# 		custom_tooltip = {
+# 			text = is_faith_dominant_gender_tt
+# 			is_faith_dominant_gender = yes
+# 		}
+# 		# Descended from an Emperor
+# 		custom_tooltip = {
+# 			text = tgp_japan_imperial_branch_decision_emperor_ancestor_trigger
+# 			top_liege.primary_title.var:administrative_ui_special_title ?= {
+# 				any_past_holder = {
+# 					OR = {
+# 						is_parent_of = root
+# 						is_grandparent_of = root
+# 						is_great_grandparent_of = root
+# 					}
+# 				}
+# 			}
+# 		}
+# 		# Emperor and heirs cannot take this
+# 		custom_tooltip = {
+# 			text = tgp_japan_imperial_branch_decision_imperial_heir_trigger
+# 			top_liege.primary_title.var:administrative_ui_special_title ?= {
+# 				NOR = {
+# 					holder ?= root
+# 					any_title_heir = { this = root }
+# 				}
+# 			}
+# 		}
+# 	}
+
+# 	is_valid_showing_failures_only = {
+# 		is_available_adult = yes
+# 		top_liege.primary_title.var:administrative_ui_special_title.holder ?= { is_available = yes }
+# 		# No direct descendant is currently Governor
+# 		custom_tooltip = {
+# 			text = tgp_japan_establish_house_fief_direct_descendent_position_trigger
+# 			any_descendants_are_governors = no
+# 		}
+# 		# No direct descendant is liege or above
+# 		custom_tooltip = {
+# 			text = create_cadet_branch_decision_liege_is_descendant
+# 			any_liege_or_above_is_descendant = no
+# 		}
+# 		# Not Dynast
+# 		is_house_head = no
+# 	}
+
+# 	effect = {
+# 		# Find nearest Emperor
+# 		top_liege.primary_title.var:administrative_ui_special_title ?= {
+# 			random_past_holder = {
+# 				limit = { is_parent_of = root }
+# 				alternative_limit = { is_grandparent_of = root }
+# 				alternative_limit = { is_great_grandparent_of = root }
+# 				save_scope_as = nearest_emperor
+# 				random_close_or_extended_family_member = {
+# 					even_if_dead = yes
+# 					limit = {
+# 						OR = {
+# 							is_child_of = scope:nearest_emperor
+# 							is_grandchild_of = scope:nearest_emperor
+# 							is_great_grandchild_of = scope:nearest_emperor
+# 						}
+# 						dynasty ?= {
+# 							NOT = { this = dynasty:japanese_yamato }
+# 							exists = var:minamoto_flag
+# 						}
+# 						# Filter out dynasties of Emperors further away from you
+# 						target_shares_nearest_related_title_holder_trigger = {
+# 							COMPARE = scope:nearest_emperor
+# 							TITLE = root.top_liege.primary_title.var:administrative_ui_special_title
+# 						}
+# 						house.house_head.top_liege ?= root.top_liege
+# 					}
+# 					house ?= {
+# 						save_scope_as = minamoto_house
+# 						house_head = { save_scope_as = minamoto_head }
+# 					}
+# 				}
+# 				random_close_or_extended_family_member = {
+# 					even_if_dead = yes
+# 					limit = {
+# 						OR = {
+# 							is_child_of = scope:nearest_emperor
+# 							is_grandchild_of = scope:nearest_emperor
+# 							is_great_grandchild_of = scope:nearest_emperor
+# 						}
+# 						dynasty ?= {
+# 							NOT = { this = dynasty:japanese_yamato }
+# 							exists = var:taira_flag
+# 						}
+# 						# Filter out dynasties of Emperors further away from you
+# 						target_shares_nearest_related_title_holder_trigger = {
+# 							COMPARE = scope:nearest_emperor
+# 							TITLE = root.top_liege.primary_title.var:administrative_ui_special_title
+# 						}
+# 						house.house_head.top_liege ?= root.top_liege
+# 					}
+# 					house ?= {
+# 						save_scope_as = taira_house
+# 						house_head = { save_scope_as = taira_head }
+# 					}
+# 				}
+# 			}
+# 		}
+# 		if = {
+# 			limit = {
+# 				exists = scope:minamoto_house
+# 				exists = scope:taira_house
+# 			}
+# 			custom_tooltip = tgp_japan_imperial_branch_decision_existing_dynasty_effect
+# 		}
+# 		else_if = {
+# 			limit = { exists = scope:minamoto_house }
+# 			custom_tooltip = tgp_japan_imperial_branch_decision_existing_or_taira_effect
+# 		}
+# 		else_if = {
+# 			limit = { exists = scope:taira_house }
+# 			custom_tooltip = tgp_japan_imperial_branch_decision_existing_or_minamoto_effect
+# 		}
+# 		else = { custom_tooltip = tgp_japan_imperial_branch_decision_new_dynasty_effect }
+# 		custom_tooltip = tgp_japan_establish_house_fief_direct_descendents_effect
+# 		if = {
+# 			limit = { government_allows = noble_families }
+# 			if = {
+# 				limit = {
+# 					OR = {
+# 						exists = scope:minamoto_house
+# 						exists = scope:taira_house
+# 					}
+# 				}
+# 				custom_tooltip = may_found_noble_family_tt
+# 			}
+# 			else = { custom_tooltip = will_found_noble_family_tt }
+# 		}
+# 		trigger_event = tgp_japan_decision.9201
+# 	}
+	
+# 	ai_check_interval_by_tier = {
+# 		barony = 0
+# 		county = 36
+# 		duchy = 36
+# 		kingdom = 36
+# 		empire = 36
+# 		hegemony = 36
+# 	}
+# 	ai_potential = {
+# 		is_adult = yes
+# 		is_landed = yes
+# 		any_child = { count >= 1 }
+# 	}
+# 	ai_will_do = {
+# 		base = 150 #-25
+# 		modifier = {
+# 			has_trait = arrogant
+# 			add = -25
+# 		}
+# 		modifier = {
+# 			has_trait = humble
+# 			add = 25
+# 		}
+# 		modifier = {
+# 			has_trait = content
+# 			add = -25
+# 		}
+# 		modifier = {
+# 			has_trait = ambitious
+# 			add = 25
+# 		}
+# 		modifier = {
+# 			is_ruler = yes
+# 			add = 25
+# 		}
+# 		modifier = {
+# 			OR = {
+# 				has_trait = bastard
+# 				has_trait = wild_oat
+# 			}
+# 			add = 25
+# 		}
+# 		modifier = {
+# 			top_liege.primary_title.var:administrative_ui_special_title = {
+# 				any_past_holder = { is_parent_of = root }
+# 			}
+# 			add = -50
+# 		}
+# 		modifier = {
+# 			top_liege.primary_title.var:administrative_ui_special_title = {
+# 				any_past_holder = { is_grandparent_of = root }
+# 			}
+# 			add = -25
+# 		}
+# 	}
+# }
+
+#Become a Poet - Ceremony - House Aspiration
+tgp_japan_become_a_poet_decision = {
+	title = tgp_japan_become_a_poet_decision
+	desc = tgp_japan_become_a_poet_decision_desc
+	selection_tooltip = tgp_japan_become_a_poet_decision_tooltip
+	picture = {
+		trigger = {
+			OR = {
+				government_is_japanese_trigger = yes
+				government_has_flag = government_is_celestial
+				government_has_flag = government_is_meritocratic
+			}
+		}
+		reference = "gfx/interface/illustrations/decisions/tgp_poet.dds"
+	}
+	picture = {
+		reference = "gfx/interface/illustrations/decisions/decision_tale.dds"
+	}
+	cooldown = { years = 15 }
+	sort_order = 110
+
+	is_shown = {
+		has_tgp_dlc_trigger = yes
+		OR = {
+			AND = {
+				government_is_japanese_trigger = yes
+				house = { has_house_power_parameter = ceremony_become_a_poet_decision }
+			}
+			top_participant_group:dynastic_cycle ?= {
+				participant_group_type = advancement_movement
+			}
+		}
+	}
+
+	is_valid = {
+		NOT = { has_trait = lifestyle_poet }
+	}
+
+	is_valid_showing_failures_only = {
+		is_available_adult = yes
+	}
+
+	effect = {
+		custom_tooltip = tgp_japan_become_a_poet_decision_effects_tooltip_trait
+		custom_tooltip = tgp_japan_become_a_poet_decision_effects_tooltip_stress
+
+		# hidden_effect = { #LotR
+		# 	trigger_event = {
+		# 		id = tgp_japan_decision.9401
+		# 		days = { 40 60 }
+		# 	}
+		# }
+	}
+	
+	ai_check_interval_by_tier = {
+		barony = 0
+		county = 12
+		duchy = 12
+		kingdom = 12
+		empire = 12
+		hegemony = 12
+	}
+
+	ai_potential = {
+		is_adult = yes
+		is_at_war = no
+	}
+
+	ai_will_do = {
+		base = 10
+	}
+}
+
+#Inspire the Troops - Strength - House Aspiration
+tgp_japan_train_with_troops_decision = {
+	title = tgp_japan_train_with_troops_decision
+	desc = tgp_japan_train_with_troops_decision_desc
+	selection_tooltip = tgp_japan_train_with_troops_decision_tooltip
+	picture = {
+		reference = "gfx/interface/illustrations/decisions/fp2_decision_struggle_hostility.dds"
+	}
+	cooldown = { years = 20 }
+	sort_order = 0
+
+	cost = {
+		prestige = {
+			value = major_prestige_value
+		}
+	}
+
+	is_shown = {
+		has_tgp_dlc_trigger = yes
+		government_is_japanese_trigger = yes
+		house = { has_house_power_parameter = strength_train_with_troops_decision }
+	}
+
+	is_valid_showing_failures_only = {
+		is_imprisoned = no
+		is_incapable = no
+		has_contagious_deadly_disease_trigger = no
+		is_at_war = yes
+	}
+
+	effect = {
+		#Apply the Character Modifier
+		send_interface_toast = {
+			title = tgp_japan_train_with_troops_decision_effects_tooltip_modifier
+			type = event_toast_effect_good
+			left_icon = root
+			add_character_modifier = {
+				modifier = tgp_japan_train_with_troops_modifier
+				years = 10
+			}
+		}
+		#Chance to apply a Commander Trait
+		if = {
+			limit = {
+				number_of_commander_traits < 3
+			}
+			custom_tooltip = {
+				text = tgp_japan_train_with_troops_decision_effects_tooltip_trait
+				#The higher Martial, the better the odds of gaining a Commander Trait
+				random = {
+					chance = {
+						value = 20
+						if = {
+							limit = {
+								root.martial >= monumentally_high_skill_rating
+							}
+							add = 20
+						}
+						else_if = {
+							limit = {
+								root.martial >= extremely_high_skill_rating
+							}
+							add = 15
+						}
+						else_if = {
+							limit = {
+								root.martial >= very_high_skill_rating
+							}
+							add = 10
+						}
+						else_if = {
+							limit = {
+								root.martial >= high_skill_rating
+							}
+							add = 5
+						}
+					}
+					give_random_commander_trait_effect = yes
+				}
+			}
+		}
+	}
+	
+	ai_check_interval_by_tier = {
+		barony = 0
+		county = 12
+		duchy = 12
+		kingdom = 12
+		empire = 12
+		hegemony = 12
+	}
+
+	ai_potential = {
+		is_adult = yes
+		is_at_war = yes
+	}
+
+	ai_will_do = {
+		base = 10
+	}
+}
+
+# Becoming a Buddhist monk near the end of your life (or when you become seriously ill)
+tgp_japan_become_a_monk_decision = {
+	title = tgp_japan_become_a_monk_decision
+	desc = tgp_japan_become_a_monk_decision_desc
+	selection_tooltip = tgp_japan_become_a_monk_decision_tooltip
+	picture = {
+		reference = "gfx/interface/illustrations/event_scenes/tgp_temple_asia.dds"
+	}
+	sort_order = 80
+
+	ai_check_interval_by_tier = {
+		barony = 0
+		county = 60
+		duchy = 60
+		kingdom = 60
+		empire = 60
+		hegemony = 60
+	}
+
+	is_shown = {
+		religion = religion:womarin_religion # LotR
+		is_adult = yes
+		NOT = { government_has_flag = government_is_mandala }
+		NOT = { has_trait = devoted }
+	}
+
+	is_valid = {
+		religion = religion:womarin_religion # LotR
+		OR = {
+			age >= 60
+			custom_tooltip = {
+				text = tgp_japan_become_a_monk_decision_health_tt
+				health <= poor_health
+			}
+			has_contagious_deadly_disease_trigger = yes
+			has_trait = infirm
+			has_trait = depressed_1
+		}
+	}
+
+	is_valid_showing_failures_only = {
+		is_available_adult = yes
+		trigger_if = {
+			limit = { is_ai = no }
+			custom_tooltip = {
+				text = renounce_noble_family_title_decision_tt.title
+				any_held_title = { is_noble_family_title = yes }
+			}
+			custom_tooltip = {
+				text = renounce_noble_family_title_decision_tt.heir
+				any_held_title = {
+					is_noble_family_title = yes
+					current_heir = { is_available_ai_adult = yes }
+				}
+			}
+		}
+		is_at_war_with_liege = no
+		trigger_if = {
+			limit = {
+				has_realm_law_flag = celestial_retirement_law
+			}
+			tgp_is_above_retirement_age_trigger = { REALM_OWNER = root }
+		}
+		NOT = { has_trait = devoted }
+	}
+
+	effect = {
+		show_as_tooltip =  { tgp_japan_become_a_monk_decision_effect = yes }
+		trigger_event = {
+			id = tgp_japan_decision.9500
+		}
+	}
+
+	ai_potential = {
+		is_adult = yes
+		is_at_war = no
+		# Don't step down freely if you don't have any other house members holding a noble_family_title or inherit any held noble_family_title
+		OR = {
+			house ?= {
+				any_house_member = {
+					is_governor = yes
+					top_liege = root.top_liege
+				}
+			}
+			any_held_title = {
+				tier = root.highest_held_title_tier
+				is_noble_family_title = no
+				current_heir.house = root.house
+			}
+		}
+		tgp_is_above_retirement_age_trigger = { REALM_OWNER = root }
+	}
+
+	ai_will_do = {
+		base = -10
+		modifier = {
+			add = 10
+			health <= poor_health
+		}
+		modifier = {
+			add = 150
+			health <= dying_health
+		}
+		modifier = {
+			add = 10
+			has_trait = lazy
+		}
+		modifier = {
+			add = 10
+			has_trait = humble
+		}
+		modifier = {
+			add = 10
+			has_trait = content
+		}
+		modifier = {
+			add = -100
+			OR = {
+				has_trait = ambitious
+				has_trait = greedy
+				has_trait = arrogant
+			}
+		}
+	}
+}
+
+# Restore Chrysanthemum Throne
+# tgp_japan_restore_japanese_monarchy_decision = {
+# 	decision_group_type = major
+# 	title = tgp_japan_restore_japanese_monarchy_decision
+# 	desc = tgp_japan_restore_japanese_monarchy_decision_desc
+# 	selection_tooltip = tgp_japan_restore_japanese_monarchy_decision_tooltip
+# 	picture = { reference = "gfx/interface/illustrations/event_story/tgp_dynastic_cycle_stability.dds" }
+# 	sort_order = 80
+
+# 	is_shown = {
+# 		has_tgp_dlc_trigger = yes
+# 		government_is_japanese_trigger = yes
+# 		# Chrysanthemum no longer part of Japan or destroyed
+# 		trigger_if = {
+# 			limit = { exists = title:k_chrysanthemum_throne.holder }
+# 			NOT = { title:e_japan.holder ?= title:k_chrysanthemum_throne.holder.top_liege }
+# 		}
+# 		# Japanese culture
+# 		culture = {
+# 			OR = {
+# 				this = culture:japanese
+# 				any_parent_culture_or_above = { this = culture:japanese }
+# 			}
+# 		}
+# 	}
+
+# 	is_valid = {
+# 		is_independent_ruler = yes
+# 		has_title = title:e_japan
+# 		completely_controls = title:c_yamashiro # Kyoto
+# 		custom_tooltip = { # Chrysanthemum destroyed or no longer part of Japan
+# 			text = tgp_japan_restore_japanese_monarchy_decision_title_tt
+# 			trigger_if = {
+# 				limit = { exists = title:k_chrysanthemum_throne.holder.top_liege }
+# 				NOT = { title:e_japan.holder ?= title:k_chrysanthemum_throne.holder.top_liege }
+# 			}
+# 			trigger_else = { always = yes }
+# 		}
+# 	}
+
+# 	is_valid_showing_failures_only = {
+# 		is_available_adult = yes
+# 	}
+
+# 	effect = {
+# 		tgp_restore_japanese_monarchy_decision_effect = yes
+# 		trigger_event = tgp_japan_decision.9901
+# 	}
+	
+# 	ai_check_interval_by_tier = {
+# 		barony = 0
+# 		county = 0
+# 		duchy = 0
+# 		kingdom = 0
+# 		empire = 36
+# 		hegemony = 0
+# 	}
+# 	ai_potential = { always = yes }
+# 	ai_will_do = { base = 100 }
+# }
+
+# Restore Ritsuryo
+# tgp_japan_restore_japanese_government_decision = {
+# 	decision_group_type = major
+# 	title = tgp_japan_restore_japanese_government_decision
+# 	desc = tgp_japan_restore_japanese_government_decision_desc
+# 	selection_tooltip = tgp_japan_restore_japanese_government_decision_tooltip
+# 	picture = { reference = "gfx/interface/illustrations/event_story/tgp_dynastic_cycle_stability.dds" }
+# 	sort_order = 85
+
+# 	cost = {
+# 		prestige = {
+# 			value = massive_prestige_gain
+# 		}
+# 	}
+
+# 	is_shown = {
+# 		has_tgp_dlc_trigger = yes
+# 		government_is_japanese_trigger = yes
+# 		NOT = { government_has_flag = government_is_japan_administrative }
+# 		# Japan not governed Japanesely or destroyed
+# 		trigger_if = {
+# 			limit = { exists = title:e_japan.holder }
+# 			title:e_japan.holder = { government_is_japanese_trigger = no }
+# 		}
+# 		# Japanese culture
+# 		culture = {
+# 			OR = {
+# 				this = culture:japanese
+# 				any_parent_culture_or_above = { this = culture:japanese }
+# 			}
+# 		}
+# 	}
+
+# 	is_valid = {
+# 		is_independent_ruler = yes
+# 		has_title = title:e_japan
+# 		is_at_war = no
+# 		has_realm_law = japanese_bureaucracy_3
+# 		prestige_level >= 4
+# 		completely_controls = title:d_kinai
+# 		completely_controls = title:d_nankaido
+# 		completely_controls = title:d_hokurikudo
+# 		completely_controls = title:d_west_bando
+# 		completely_controls = title:d_north_saikaido
+# 		OR = {
+# 			government_allows = administrative
+# 			government_allows = create_cadet_branches
+# 		}
+# 	}
+
+# 	is_valid_showing_failures_only = {
+# 		is_available_adult = yes
+# 	}
+
+# 	effect = {
+# 		show_as_tooltip = { tgp_restore_japanese_government_decision_effect = yes }
+# 		trigger_event = tgp_japan_decision.9911
+# 	}
+	
+# 	ai_check_interval_by_tier = {
+# 		barony = 0
+# 		county = 0
+# 		duchy = 0
+# 		kingdom = 0
+# 		empire = 36
+# 		hegemony = 0
+# 	}
+# 	ai_potential = { always = yes }
+# 	ai_will_do = { base = 100 }
+# }
+
+# Assert Regional Dominion (Become Soryo Duke i.e. SuperSoryoTM) 
+tgp_japan_assert_regional_dominion_government_decision = {
+	decision_group_type = major
+	title = tgp_japan_assert_regional_dominion_government_decision
+
+	desc = {
+		first_valid = {
+			triggered_desc = {
+				trigger = {
+					has_global_variable = shogunate_established
+				}
+				desc = tgp_japan_assert_regional_dominion_government_decision_shogun_desc
+			}
+			desc = tgp_japan_assert_regional_dominion_government_decision_desc
+		}
+	}
+	selection_tooltip = tgp_japan_assert_regional_dominion_government_decision_tooltip
+	picture = { reference = "gfx/interface/illustrations/decisions/tgp_dominance.dds" }
+
+	sort_order = 85
+	cost = {
+		prestige = {
+			value = 1000
+		}
+	}
+	is_shown = {
+		always = no # LotR - until we decide to adopt Soryô
+		# has_tgp_dlc_trigger = yes
+		# is_landed = yes
+		# highest_held_title_tier = tier_county
+		# government_has_flag = government_is_japan_feudal
+	}
+	  
+	is_valid = {
+		is_at_war = no
+		has_government = japan_feudal_government
+		#must have sufficient prestige and legitimacy to even consider such a bold move.
+		prestige_level >= 3
+		legitimacy_level >= 3
+		OR = {
+			custom_tooltip = {
+				text = tgp_japan_assert_regional_dominion_government_decision_trigger_01
+				domicile ?= {
+					has_domicile_building_or_higher = japanese_manor_main_03
+				}
+			}
+			custom_tooltip = {
+				text = tgp_japan_assert_regional_dominion_government_decision_trigger_aspiration
+				house = {
+					AND = {
+						OR = {
+							has_house_power_parameter = unlocks_japanese_manor_armory
+							has_house_power_parameter = unlocks_japanese_manor_watch_house
+						}
+						has_house_power_parameter = aspiration_level_3
+					}
+				}
+			}
+			custom_tooltip = {
+				text = tgp_japan_assert_regional_dominion_government_decision_trigger_bloc
+				confederation ?= {
+					has_leading_house = yes
+					has_cohesion = yes
+					leading_house ?= root.house
+					cohesion >= 3
+				}
+				house = {
+					OR = {
+						has_house_power_parameter = unlocks_japanese_manor_armory
+						has_house_power_parameter = unlocks_japanese_manor_watch_house
+					}
+				}
+			}
+		}
+		trigger_if = {
+			limit = { 
+				is_ai = no # AI are an exception as they can continue to play despite not being House Heads
+			}
+			trigger_if = {
+				limit = {
+					house ?= {
+						OR = {
+							has_house_power_parameter = ceremony_cheaper_feasts
+							has_house_power_parameter = unlocks_japanese_manor_archive
+						}
+					}
+				}
+				custom_tooltip = {
+					text = tgp_japan_establish_house_fief_aspiration_trigger
+					house = {
+						NOR = {
+							has_house_power_parameter = ceremony_cheaper_feasts
+							has_house_power_parameter = unlocks_japanese_manor_archive
+						}
+					}
+				}
+			}
+			trigger_if = {
+				limit = {
+					NOT = {	domicile.domicile_location.county.holder ?= this }
+				}
+				# Domicile in current Governorship
+				custom_tooltip = {
+					text = tgp_japan_establish_house_fief_domicile_in_governorship_trigger
+					domicile.domicile_location.county.holder ?= this
+				}
+			}
+		}
+		# Kampaku or Shogun is weak. 
+		top_liege = {
+			trigger_if = {
+				limit = {
+					OR = {
+						AND = {
+							has_realm_law = japanese_bureaucracy_3
+							culture = { has_cultural_tradition = tradition_tgp_bushido }
+						}
+						has_realm_law = japanese_bureaucracy_2
+					}
+				}
+				trigger_if = {
+					limit = {
+						culture = { has_cultural_tradition = tradition_tgp_bushido }
+					}
+					NOT = { has_realm_law = japanese_bureaucracy_3 }
+				}
+				trigger_else = {
+					NOR = {
+						has_realm_law = japanese_bureaucracy_0
+						has_realm_law = japanese_bureaucracy_1
+					}
+				}
+			}
+		}
+	}
+
+	is_valid_showing_failures_only = {
+		is_available_adult = yes
+		is_at_war = no
+	}
+
+	effect = {
+		show_as_tooltip = { tgp_japan_assert_regional_dominion_government_decision_effect = yes }
+		trigger_event = tgp_japan_decision.9960
+	}
+	
+	ai_check_interval_by_tier = {
+		barony = 0
+		county = 24
+		duchy = 0
+		kingdom = 0
+		empire = 0
+		hegemony = 0
+	}
+	ai_potential = {
+		is_adult = yes
+	}
+	ai_will_do = { base = 25 }
+}
+
+# Establish New Shogunate Court Decision
+# move_shogunate_court_decision = {
+# 	decision_group_type = major
+# 	title = tgp_japan_move_shogunate_court_decision
+# 	desc = tgp_japan_move_shogunate_court_decision_desc
+# 	selection_tooltip = tgp_japan_move_shogunate_court_decision_tooltip
+# 	picture = { reference = "gfx/interface/illustrations/event_story/tgp_japanese_shogunate.dds" }
+
+# 	cost = {
+# 		gold = {
+# 			value = massive_gold_value
+# 		}
+# 		prestige = {
+# 			value = massive_prestige_gain
+# 		}
+# 	}
+
+# 	is_shown = {
+# 		has_tgp_dlc_trigger = yes
+# 		is_landed = yes
+# 		has_global_variable = shogunate_established
+# 		NOT = { has_variable = moved_shogunate_court }
+# 		domain_size > 1
+# 		capital_county = title:c_yamashiro
+# 	}
+
+# 	is_valid = {
+# 		has_title = title:e_japan
+# 	}
+
+# 	is_valid_showing_failures_only = {
+# 		is_available_adult = yes
+# 	}
+
+# 	effect = {
+# 		set_realm_capital = scope:barony.county
+# 		title:e_japan = { set_capital_county = scope:barony.county }
+# 		scope:barony.county = {
+# 			change_development_level = medium_development_level_gain
+# 			add_county_modifier = {
+# 				modifier = tgp_moved_shogun_court_modifier
+# 				years = 25
+# 			}
+# 		}
+# 		set_variable = moved_shogunate_court
+# 	}
+
+# 	widget = {
+# 		controller = create_holy_order
+#         barony_valid = {
+#             trigger_if = {
+#                 limit = { exists = this }
+# 				is_capital_barony = yes
+# 				holder = scope:ruler
+# 				county != title:c_yamashiro
+# 				is_leased_out = no
+#             }
+# 		}
+# 	}
+	
+# 	ai_potential = {
+# 		is_playable_character = yes
+# 		has_global_variable = shogunate_established
+# 	}
+
+# 	ai_check_interval_by_tier = {
+# 		barony = 0
+# 		county = 0
+# 		duchy = 0
+# 		kingdom = 0
+# 		empire = 36
+# 		hegemony = 0
+# 	}
+
+# 	ai_will_do = {
+# 		base = 200
+# 	}
+# }
+
+# Emperor Starting a Ceremonial Monarch War
+# tgp_japan_emperor_war_decision = {
+# 	decision_group_type = major
+# 	confirm_text = commit_suicide_decision_confirm
+# 	picture = { reference = "gfx/interface/illustrations/decisions/tgp_kowtow.dds" }
+# 	sort_order = 80
+
+# 	cost = {
+# 		prestige = {
+# 			value = massive_prestige_gain
+# 		}
+# 	}
+
+# 	is_shown = {
+# 		is_ai = no
+# 		has_tgp_dlc_trigger = yes
+# 		tgp_is_ceremonial_liege_trigger = yes
+# 		tgp_is_ceremonial_regent_trigger = no
+# 		joined_faction ?= {
+# 			OR = {
+# 				faction_leader ?= {
+# 					is_ai = yes
+# 					is_leading_faction_type = restore_ceremonial_liege_faction
+# 				}
+# 				any_faction_member = {
+# 					this != root
+# 					is_ai = yes
+# 					is_landed = yes
+# 				}
+# 			}
+# 		}
+# 		NOT = { is_at_war_with = root.top_liege }
+# 	}
+
+# 	is_valid = {
+# 		is_at_war = no
+# 	}
+
+# 	is_valid_showing_failures_only = {
+# 		is_available_adult = yes
+# 	}
+
+# 	effect = {
+# 		joined_faction ?= {
+# 			save_scope_as = ongoing_faction
+# 			if = {
+# 				limit = {
+# 					exists = faction_leader
+# 				}
+# 				faction_leader = {
+# 					save_scope_as = faction_leader_scope
+# 				}
+# 			}
+# 			else = {
+# 				ordered_faction_member = {
+# 					order_by = current_military_strength
+# 					limit = {
+# 						this != root	
+# 						is_ai = yes
+# 						is_landed = yes
+# 					}
+# 					save_scope_as = faction_leader_scope
+# 				}
+# 			}
+# 		}
+
+# 		show_as_tooltip = {
+# 			scope:faction_leader_scope = {
+# 				start_war = {
+# 					cb = restore_ceremonial_liege_faction_war
+# 					target = root.top_liege
+# 				}
+# 			}
+# 		}
+
+# 		hidden_effect = {
+# 			scope:ongoing_faction = {
+# 				faction_start_war = {}
+# 			}
+# 		}
+# 	}
+	
+# 	ai_potential = {
+# 		is_playable_character = yes
+# 	}
+
+# 	ai_check_interval_by_tier = {
+# 		barony = 0
+# 		county = 0
+# 		duchy = 0
+# 		kingdom = 0
+# 		empire = 0
+# 		hegemony = 0
+# 	}
+
+# 	ai_will_do = {
+# 		base = 200
+# 	}
+# }
