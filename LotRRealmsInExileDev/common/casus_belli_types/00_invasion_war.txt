@@ -19,24 +19,27 @@ invasion_war = {
 			has_character_flag = bp2_inspired_culture_for_conquest
 			has_variable = mpo_desperate_stance_invasion_cb_enable_var
 			ai_should_get_extreme_conqueror_bonuses = yes
+			AND = {
+				house ?= { has_house_head_parameter = has_unlimited_invasion_cb }
+				is_house_head = yes
+			}
 		}
 		trigger_if = {
-			limit = {
-				NOT = { ai_should_get_extreme_conqueror_bonuses = yes }
-			}
-			NOT = {
-				has_character_flag = used_lifetime_invasion
-			}
+			limit = { ai_should_get_extreme_conqueror_bonuses = no }
+			NOT = { has_character_flag = used_lifetime_invasion }
 		}
-		NOT = {
-			government_has_flag = government_is_landless_adventurer
-		}
+		NOT = { government_has_flag = government_is_landless_adventurer }
+		
+		#LotR
 		# Elven Expansion CB limitation in game rules
 		NAND = {
 			is_elf = yes
 			has_game_rule = limited_elven_expansion
-			NOT = { # Birthright of the Eldar enables conquest CBs again
-				faith = { has_doctrine = tenet_birthright_eldar }
+			NOT = { # Birthright of the Eldar and Makar tenet enable conquest CBs again
+				faith = { 
+					has_doctrine = tenet_birthright_eldar
+					has_doctrine = tenet_veneration_of_the_makarnea
+				}
 			}
 		}
 		scope:attacker = {
@@ -56,7 +59,7 @@ invasion_war = {
 		trigger_if = {
 			limit = {
 				has_character_flag =  bp2_inspired_culture_for_conquest
-				NOT = { ai_should_get_extreme_conqueror_bonuses = yes }
+				ai_should_get_extreme_conqueror_bonuses = no
 			}
 			prestige_level >= 0
 		}
@@ -69,7 +72,7 @@ invasion_war = {
 				culture = {
 					has_cultural_parameter = cb_lower_prestige_level_requirement
 				}
-				NOT = { ai_should_get_extreme_conqueror_bonuses = yes }
+				ai_should_get_extreme_conqueror_bonuses = no
 			}
 			prestige_level >= 2
 		}
@@ -86,14 +89,12 @@ invasion_war = {
 						has_cultural_parameter = cb_lower_prestige_level_requirement
 					}
 				}
-				NOT = { ai_should_get_extreme_conqueror_bonuses = yes }
+				ai_should_get_extreme_conqueror_bonuses = no
 			}
 			prestige_level >= 3
 		}
 		trigger_else_if = {
-			limit = {
-				ai_should_get_extreme_conqueror_bonuses = yes
-			}
+			limit = { ai_should_get_extreme_conqueror_bonuses = yes }
 		}
 		trigger_else = {
 			prestige_level >= 4
@@ -103,6 +104,7 @@ invasion_war = {
 			text = struggle_involvement_cb_check_failure
 			struggle_blocks_invasion_conquest_cb_trigger = yes
 		}
+		tgp_japan_offensive_wars_ban_trigger = yes
 	}
 	
 	allowed_against_character = {
@@ -110,7 +112,7 @@ invasion_war = {
 			ALL_FALSE = {
 				top_liege = scope:defender.top_liege
 				liege = scope:defender
-				AND = {
+				AND = { #LotR
 			        exists = primary_title.empire
 			        primary_title.empire = title:e_valinor
 		        }
@@ -118,11 +120,8 @@ invasion_war = {
 		}
 		
 		# The Necromancer is hidden
-		NOT = { has_character_flag = unknown_sauron_flag } # LOTR
+		NOT = { has_character_flag = unknown_sauron_flag } #LotR
 	}
-	
-	allowed_against_character_display_regardless = {}
-	
 	target_titles = all
 	target_title_tier = kingdom
 	target_de_jure_regions_above = yes
@@ -133,7 +132,8 @@ invasion_war = {
 	}
 	ai_score_mult = {
 		value = viking_conquest_ai_score_value
-
+		# HOUSE RELATIONS
+		add = house_relation_ai_score_value
 		# AI in struggles act insularly for wars that don't have a familial or legal basis.
 		multiply = struggle_wars_prioritise_struggle_targets_value
 		# Tell the Romans to stop going adventuring into the steppe for no gods-damned reason.
@@ -233,15 +233,13 @@ invasion_war = {
 	}
 
 	should_invalidate = {
-		OR = {
-			NOT = {
-				any_in_list = {
-					list = target_titles
-					any_in_de_jure_hierarchy = {
-						tier = tier_county
-						holder = {
-							target_is_same_character_or_above = scope:defender
-						}
+		NOR = { #LotR
+			any_in_list = {
+				list = target_titles
+				any_in_de_jure_hierarchy = {
+					tier = tier_county
+					holder = {
+						target_is_same_character_or_above = scope:defender
 					}
 				}
 			}
@@ -269,16 +267,44 @@ invasion_war = {
 
 	cost = {
 		piety = {
-			value = 0
-			add = common_cb_impious_piety_cost
+			if = {
+				limit = {
+					scope:attacker = {
+						NOT = {
+							government_has_flag = government_is_mandala
+							house ?= { has_house_head_parameter = has_unlimited_invasion_cb }
+							is_house_head = yes
+						}
+					}
+				}
+				value = common_cb_impious_piety_cost
+			}
+			else = {
+				value = {
+					value = 2000
+					desc = CB_BASE_COST
+				}
+				multiply = common_cb_prestige_cost_multiplier
+			}
 		}
 		prestige = {
-			add = {
-				value = 2000
-				desc = CB_BASE_COST
+			if = {
+				limit = {
+					scope:attacker = {
+						government_has_flag = government_is_mandala
+						house ?= { has_house_head_parameter = has_unlimited_invasion_cb }
+						is_house_head = yes
+					}
+				}
+				value = 0
 			}
-
-			multiply = common_cb_prestige_cost_multiplier
+			else = {
+				value = {
+					value = 2000
+					desc = CB_BASE_COST
+				}
+				multiply = common_cb_prestige_cost_multiplier
+			}
 		}
 	}
 	
@@ -378,6 +404,9 @@ invasion_war = {
 
 		# EP3: note gold gained from military assistance/join war contracts and their war contribution threshold
 		laamp_as_mercenary_payout_tooltip_effect = yes
+
+		#Mandalas gain or lose piety/devotion depending on Decree
+		mandala_war_victory_effects = yes
 	}
 
 	on_white_peace_desc = {
@@ -445,9 +474,12 @@ invasion_war = {
 
 		# Influence
 		add_influence_attacker_defeat_effect = yes
-
-		#EP2 accolade glory gain for winning against higher ranked enemy
-		scope:defender = { accolade_defender_war_end_glory_gain_high_effect = yes }
+		
+		scope:defender = { 
+			mandala_peacemaker_perk_serenity_effect = yes
+			#EP2 accolade glory gain for winning against higher ranked enemy
+			accolade_defender_war_end_glory_gain_high_effect = yes
+		}
 
 		# Prestige loss for the attacker
 		scope:attacker = {
@@ -489,6 +521,9 @@ invasion_war = {
 
 		# EP3: note gold gained from military assistance/join war contracts and their war contribution threshold
 		laamp_as_mercenary_payout_tooltip_effect = yes
+
+		#Mandalas gain or lose piety/devotion depending on Decree
+		mandala_war_defeat_effects = yes
 	}
 	
 	transfer_behavior = transfer
@@ -525,15 +560,13 @@ clan_invasion_war = {
 	allowed_for_character = {
 		government_has_flag = government_is_clan
 		NAND = {
-			exists = house
-			house = {
+			house ?= {
 				has_house_unity_parameter = unity_disable_invasions
 			}
 		}
 		trigger_if = {
 			limit = {
-				exists = house
-				house = {
+				house ?= {
 					has_house_unity_parameter = unity_multiple_invasions
 				}
 			}
@@ -541,8 +574,7 @@ clan_invasion_war = {
 		}
 		trigger_else_if = {
 			limit = {
-				exists = house
-				house = {
+				house ?= {
 					has_house_unity_parameter = unity_unlimited_invasions
 				}
 			}
@@ -611,6 +643,7 @@ clan_invasion_war = {
 			text = struggle_involvement_cb_check_failure
 			struggle_blocks_invasion_conquest_cb_trigger = yes
 		}
+		tgp_japan_offensive_wars_ban_trigger = yes
 	}
 	
 	allowed_against_character = {
@@ -644,7 +677,8 @@ clan_invasion_war = {
 
 	ai_score_mult = {
 		value = 1
-
+		# HOUSE RELATIONS
+		add = house_relation_ai_score_value
 		# AI in struggles act insularly for wars that don't have a familial or legal basis.
 		multiply = struggle_wars_prioritise_struggle_targets_value
 		# Tell the Romans to stop going adventuring into the steppe for no gods-damned reason.
@@ -741,17 +775,15 @@ clan_invasion_war = {
 	}
 
 	should_invalidate = {
-		OR ={
-			NOT = {
-				any_in_list = {
-					list = target_titles
-					any_in_de_jure_hierarchy = {
-						tier = tier_county
-						holder = {
-							OR = {
-								this = scope:defender
-								target_is_liege_or_above = scope:defender
-							}
+		NOR = { #LotR
+			any_in_list = {
+				list = target_titles
+				any_in_de_jure_hierarchy = {
+					tier = tier_county
+					holder = {
+						OR = {
+							this = scope:defender
+							target_is_liege_or_above = scope:defender
 						}
 					}
 				}
@@ -971,6 +1003,9 @@ clan_invasion_war = {
 
 		# EP3: note gold gained from military assistance/join war contracts and their war contribution threshold
 		laamp_as_mercenary_payout_tooltip_effect = yes
+
+		#Mandalas gain or lose piety/devotion depending on Decree
+		mandala_war_victory_effects = yes
 	}
 
 	on_white_peace_desc = {
@@ -1038,8 +1073,11 @@ clan_invasion_war = {
 		# Legitimacy
 		add_legitimacy_attacker_defeat_effect = yes
 
-		#EP2 accolade glory gain for winning against higher ranked enemy
-		scope:defender = { accolade_defender_war_end_glory_gain_high_effect = yes }
+		scope:defender = { 
+			mandala_peacemaker_perk_serenity_effect = yes
+			#EP2 accolade glory gain for winning against higher ranked enemy
+			accolade_defender_war_end_glory_gain_high_effect = yes
+		}
 
 		# Prestige loss for the attacker
 		scope:attacker = {
@@ -1083,6 +1121,9 @@ clan_invasion_war = {
 
 		# EP3: note gold gained from military assistance/join war contracts and their war contribution threshold
 		laamp_as_mercenary_payout_tooltip_effect = yes
+
+		#Mandalas gain or lose piety/devotion depending on Decree
+		mandala_war_defeat_effects = yes
 	}
 	
 	transfer_behavior = transfer

@@ -1,0 +1,189 @@
+﻿story_take_mandate_of_heaven = {
+	
+	on_setup = {
+	}
+	
+	on_end = {
+	}
+	
+	on_owner_death = {
+		story_owner = {
+			if = {
+				limit = {
+					primary_heir ?= {
+						is_ai = yes
+						is_physically_able_adult = yes
+					}
+				}
+				primary_heir ?= {
+					create_story = story_take_mandate_of_heaven
+				}
+			}
+			else = {
+				every_heir = {
+					limit = {
+						is_ai = yes
+						is_physically_able_adult = yes
+					}
+					create_story = story_take_mandate_of_heaven
+				}
+			}
+		}
+		end_story = yes
+	}
+
+	effect_group = { # Handles the AI behavior
+		days = { 30 60 }
+
+		triggered_effect = {
+			trigger = {
+				story_owner = {
+					is_ai = yes
+					#NOT = { can_execute_decision = situation_dynastic_cycle_claim_mandate_decision }
+				}
+			}
+			effect = {
+				story_owner = {
+					save_scope_as = root_scope
+					
+					###### BUDGETING
+					if = {
+						limit = {
+							is_at_war = no
+							primary_title = { title_held_years >= 3 } # Do not go into buildup mode if there's a brother you need to destroy immediately!
+							OR = {
+								any_neighboring_and_across_water_top_liege_realm_owner = {
+									count = all
+									current_military_strength >= scope:root_scope.max_military_strength
+									NOR = {
+										is_allied_to = scope:root_scope
+										has_relation_friend = scope:root_scope
+										has_relation_lover = scope:root_scope
+									}
+								}
+								any_neighboring_and_across_water_top_liege_realm_owner = {
+									count >= 2
+									current_military_strength >= scope:root_scope.max_military_strength
+									NOR = {
+										is_allied_to = scope:root_scope
+										has_relation_friend = scope:root_scope
+										has_relation_lover = scope:root_scope
+									}
+								}
+								any_vassal = {
+									exists = joined_faction
+									joined_faction = {
+										faction_power >= faction_power_halfway_threshold
+									}
+								}
+								AND = {
+									NOT = { ai_should_get_conqueror_bonuses = yes } # They have a 75% discount
+									monthly_character_income_minus_expenses > half_monthly_character_income # Try to spend at least 50% of income on MaA!
+								}
+							}
+						}
+						move_budget_gold = { gold = long_term_gold from = budget_long_term to = budget_war_chest }
+						move_budget_gold = { gold = short_term_gold from = budget_short_term to = budget_war_chest }
+						move_budget_gold = { gold = long_term_gold from = budget_long_term to = budget_short_term }
+						
+						if = {
+							limit = {
+								has_treasury = yes
+							}
+							move_budget_treasury = { treasury = long_term_treasury from = budget_long_term to = budget_war_chest }
+							move_budget_treasury = { treasury = short_term_treasury from = budget_short_term to = budget_war_chest }
+							move_budget_treasury = { treasury = long_term_treasury from = budget_long_term to = budget_short_term }
+						}
+					}
+					
+
+					if = {
+						limit = {
+							is_at_war = no
+							OR = {
+								AND = {
+									has_treasury = yes
+									war_chest_treasury >= war_chest_treasury_maximum
+								}
+								AND = {
+									has_treasury = no
+									war_chest_gold >= war_chest_gold_maximum
+								}
+							}
+						}
+						ai_start_best_war = {
+							cb = {
+								chinese_consolidation_cb
+							}
+							is_valid = {
+								scope:target_character = {
+									current_military_strength < root.current_military_strength
+									OR = {
+										AND = {
+											root = { has_treasury = yes }
+											has_treasury = yes
+											treasury < root.treasury
+										}
+										AND = {
+											root = { has_treasury = yes }
+											has_treasury = no
+											gold < root.treasury
+										}
+										AND = {
+											root = { has_treasury = no }
+											has_treasury = yes
+											treasury < root.gold
+										}
+										AND = {
+											root = { has_treasury = no }
+											has_treasury = no
+											gold < root.gold
+										}
+										current_military_strength <= root.fifty_percent_of_current_military_strength
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
+	# effect_group = { # Take the decision #LotR
+	# 	days = { 60 120 }
+
+	# 	triggered_effect = {
+	# 		trigger = {
+	# 			story_owner = {
+	# 				is_ai = yes
+	# 				can_execute_decision = situation_dynastic_cycle_claim_mandate_decision
+	# 			}
+	# 		}
+	# 		effect = {
+	# 			story_owner = {
+	# 				execute_decision = situation_dynastic_cycle_claim_mandate_decision
+	# 			}
+	# 		}
+	# 	}
+	# }
+	effect_group = { # Various ways to end the cycle
+		days = { 900 1800 }
+	
+		triggered_effect = {
+			trigger = {
+				story_owner = {
+					OR = {
+						is_independent_ruler = no
+						is_landed = no
+						has_trait = incapable
+						highest_held_title_tier <= tier_county
+					}
+				}
+			}
+			effect = {
+				end_story = yes
+			}
+		}
+	}
+}
