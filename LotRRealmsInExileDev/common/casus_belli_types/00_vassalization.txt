@@ -23,7 +23,7 @@ vassalization_cb = {
 					has_game_rule = random_conquerors_bonuses
 					has_game_rule = reduced_random_conquerors_bonuses
 				}
-				ai_has_conqueror_personality = yes
+				has_variable = conqueror
 			}
 			ai_should_get_conqueror_bonuses = yes
 		}
@@ -79,11 +79,15 @@ vassalization_cb = {
 				}
 			}
 		}
+		scope:attacker = {
+			is_landed = yes
+		}
+		tgp_japan_offensive_wars_ban_trigger = yes
 	}
 	
 	allowed_against_character = {
 		scope:defender = {
-			is_independent_ruler = yes
+			top_liege = this
 			trigger_if = {
 				limit = { scope:attacker = { is_ai = no } } # Already pre-filtered by the AI due to ai_only_against_neighbors = yes. any_neighboring_top_liege_realm_owner is expensive
 				scope:attacker = {
@@ -170,7 +174,7 @@ vassalization_cb = {
 	should_invalidate = {
 		OR = {
 			scope:defender = {
-				is_independent_ruler = no
+				top_liege != this
 			}
 			scope:defender.primary_title.tier >= scope:attacker.primary_title.tier
 			scope:attacker = {
@@ -220,6 +224,21 @@ vassalization_cb = {
 			resolve_title_and_vassal_change = scope:change
 		}
 		
+		# Hope gain for the attacker
+		scope:attacker = {
+			if = { # Gains hope by winning a major war
+				limit = { is_elf = yes }
+				add_elven_hope_effect = { VALUE = major_elven_hope_value HOPE_EFFECT = effect_elven_hope_major_war_won }
+			}
+		}
+		
+		# Hope loss for the defender
+		scope:defender = {
+			if = { # Loses hope by losing a major war
+				limit = { is_elf = yes }
+				subtract_elven_hope_effect = { VALUE = major_elven_hope_value HOPE_EFFECT = effect_elven_hope_major_war_lost }
+			}
+		}
 		
 		# Prestige level progress for the attacker
 		scope:attacker = {
@@ -250,6 +269,9 @@ vassalization_cb = {
 
 		# EP3: note gold gained from military assistance/join war contracts and their war contribution threshold
 		laamp_as_mercenary_payout_tooltip_effect = yes
+
+		#Mandalas gain or lose piety/devotion depending on Decree
+		mandala_war_victory_effects = yes
 	}
 
 	on_white_peace_desc = {
@@ -323,9 +345,32 @@ vassalization_cb = {
 	
 	on_defeat = {
 		scope:attacker = { show_pow_release_message_effect = yes }
+		
+		# Hope gain for the defender
+		scope:defender = {
+			if = { # Gains hope by winning a major war
+				limit = { is_elf = yes }
+				add_elven_hope_effect = { VALUE = major_elven_hope_value HOPE_EFFECT = effect_elven_hope_major_war_won }
+			}
+		}
+		
+		# Hope loss for the attacker
+		scope:attacker = {
+			if = { # Loses hope by losing a major war
+				limit = { is_elf = yes }
+				subtract_elven_hope_effect = { VALUE = major_elven_hope_value HOPE_EFFECT = effect_elven_hope_major_war_lost }
+			}
+		}
 
-		#EP2 accolade glory gain for winning against higher ranked enemy
-		scope:defender = { accolade_defender_war_end_glory_gain_med_effect = yes }
+		scope:defender = { 
+			mandala_peacemaker_perk_serenity_effect = yes
+			#EP2 accolade glory gain for winning against higher ranked enemy
+			accolade_defender_war_end_glory_gain_high_effect = yes
+			# Prestige for Defender
+			add_prestige_war_defender_effect = {
+				PRESTIGE_VALUE = medium_prestige_value
+			}
+		}
 		
 		# Prestige loss for the attacker
 		scope:attacker = {
@@ -335,13 +380,6 @@ vassalization_cb = {
 			add_prestige = {
 				value = major_prestige_value
 				multiply = -1.0
-			}
-		}
-
-		# Prestige for the defender
-		scope:defender = {
-			add_prestige_war_defender_effect = {
-				PRESTIGE_VALUE = medium_prestige_value
 			}
 		}
 
@@ -365,6 +403,9 @@ vassalization_cb = {
 
 		# EP3: note gold gained from military assistance/join war contracts and their war contribution threshold
 		laamp_as_mercenary_payout_tooltip_effect = yes
+
+		#Mandalas gain or lose piety/devotion depending on Decree
+		mandala_war_defeat_effects = yes
 	}
 	
 	on_primary_attacker_death = inherit
@@ -388,35 +429,6 @@ vassalization_cb = {
 
 	ai_score_mult = {
 		value = 1
-		# As a feudal gov never attack tribal for vassalization
-		add = {
-			if = {
-				limit = {
-					scope:attacker = {
-						NOT = { government_has_flag = government_is_tribal }
-					}
-					scope:defender = {
-							government_has_flag = government_is_tribal
-					}
-				}
-				add = -1000
-			}
-		}
-		# Tell the Romans to stop going adventuring into the steppe for no gods-damned reason.
-		multiply = byzantium_conquests_ai_score_value
-
-		#Declaring war on the frankokratia leader can really ruin the whole thing
-		if = {
-			limit = {
-				scope:defender = {
-					any_owned_story = {
-						story_type = frankokratia_story
-						NOT = { has_variable = franko_war_complete }
-					}
-				}
-			}
-			multiply = 0
-		}
 		# LotR - Sauron and Nazgul should not target eachother
 		add = {
 			if = {
@@ -464,9 +476,41 @@ vassalization_cb = {
 
 		#LotR
 		multiply = elf_target_ai_score_value
+		# As a feudal gov never attack tribal for vassalization
+		add = {
+			if = {
+				limit = {
+					scope:attacker = {
+						NOT = { government_has_flag = government_is_tribal }
+					}
+					scope:defender = {
+						government_has_flag = government_is_tribal
+					}
+				}
+				add = -1000
+			}
+		}
+		#Mandala really shouldn't be interested in this
+		add = {
+			if = {
+				limit = {
+					scope:attacker = { 
+						government_has_flag = government_is_mandala
+						vassal_limit_available < 1
+					}
+				}
+				add = -1000
+			}
+		}
+		# HOUSE RELATIONS
+		add = house_relation_ai_score_value
+		# Tell the Romans to stop going adventuring into the steppe for no gods-damned reason.
+		multiply = byzantium_conquests_ai_score_value
+
+		add = frankokratia_leader_protection_value #Set back to 0. Declaring war on the frankokratia leader can really ruin the whole thing
 	}
-	
-	valid_to_start = {
+
+	valid_to_start = { #LotR
 		# dwarf_and_goblin_underground_duchy_cb_trigger = yes #Jamie-san - Jaco to consider
 		trigger_if = {
 			limit = {

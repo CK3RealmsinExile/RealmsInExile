@@ -77,7 +77,7 @@ claim_cb = {
 			limit = {
 				scope:attacker = {
 					is_ai = yes
-					ai_has_conqueror_personality = yes
+					has_variable = conqueror
 				}
 			}
 			tier >= tier_duchy
@@ -129,7 +129,7 @@ claim_cb = {
 			NOT = { has_trait = incapable }
 			is_hostage = no
 			trigger_if = {
-				limit = { NOT = { scope:claimant = scope:attacker } } # You can always press your own claims
+				limit = { scope:claimant != scope:attacker } # You can always press your own claims
 				is_imprisoned = no
 			}
 			#religion = scope:attacker.religion
@@ -154,15 +154,15 @@ claim_cb = {
 			custom_description = {
 				text = "claimant_titles_held_by_attacker_vassals"
 				NOT = {
-					any_vassal_or_below = {
-						has_title = root
+					root.holder = {
+						target_is_liege_or_above = scope:attacker
 					}
 				}
 			}
 		}
 		trigger_if = {
 			limit = {
-				NOT = { scope:claimant = scope:attacker } # You can always press your own claims (though the prestige cost might be high)
+				scope:claimant != scope:attacker # You can always press your own claims (though the prestige cost might be high)
 			}
 			trigger_if = {
 				limit = {
@@ -274,6 +274,7 @@ claim_cb = {
 				has_realm_law = camp_purpose_legitimists
 			}
 		}
+		tgp_japan_offensive_wars_ban_trigger = yes
 	}
 
 	cost = {
@@ -388,8 +389,7 @@ claim_cb = {
 					list = target_titles
 					any_in_de_jure_hierarchy = {
 						tier >= tier_county
-						exists = holder
-						holder = {
+						holder ?= {
 							OR = {
 								this = scope:defender
 								target_is_liege_or_above = scope:defender
@@ -399,7 +399,7 @@ claim_cb = {
 				}
 			}
 			AND = { 
-				NOT = { scope:claimant = scope:attacker } 
+				scope:claimant != scope:attacker 
 				scope:claimant = {
 					OR = {
 						is_alive = no 
@@ -417,7 +417,7 @@ claim_cb = {
 		first_valid = {
 			triggered_desc = {
 				trigger = {
-					NOT = { scope:claimant = scope:attacker } 
+					scope:claimant != scope:attacker 
 					scope:claimant = { is_alive = no }
 				}
 				desc = msg_claim_war_invalidated_claimant_unavailable_dead_message
@@ -514,6 +514,22 @@ claim_cb = {
 		}
 	
 		scope:attacker = { show_pow_release_message_effect = yes }
+		
+		# Hope gain for the attacker
+		scope:attacker = {
+			if = { # Gains hope by winning a minor war
+				limit = { is_elf = yes }
+				add_elven_hope_effect = { VALUE = medium_elven_hope_value HOPE_EFFECT = effect_elven_hope_minor_war_won }
+			}
+		}
+		
+		# Hope loss for the defender
+		scope:defender = {
+			if = { # Loses hope by losing a minor war
+				limit = { is_elf = yes }
+				subtract_elven_hope_effect = { VALUE = medium_elven_hope_value HOPE_EFFECT = effect_elven_hope_minor_war_lost }
+			}
+		}
 
 		# Legitimacy
 		add_legitimacy_attacker_victory_effect = yes
@@ -527,14 +543,14 @@ claim_cb = {
 		scope:defender ?= {
 			if = {
 				limit = {
-					is_independent_ruler = yes
+					top_liege = this
 					government_allows = administrative
 					primary_title = { is_in_list = target_titles }
 				}
 				every_held_title = {
+					title_tier >= county
 					limit = {
 						is_noble_family_title = no
-						tier >= tier_county
 					}
 					add_to_list = target_titles
 				}
@@ -563,7 +579,7 @@ claim_cb = {
 
 		if = {
 			limit = {
-				NOT = { scope:claimant = scope:attacker }
+				scope:claimant != scope:attacker
 				scope:claimant.primary_title.tier < scope:attacker.primary_title.tier
 				scope:claimant = {
 					NOT = { target_is_liege_or_above = scope:attacker }
@@ -586,7 +602,7 @@ claim_cb = {
 
 		if = {
 			limit = {
-				NOT = { scope:claimant = scope:attacker }
+				scope:claimant != scope:attacker
 				scope:attacker = {
 					can_add_hook = {
 					  	type = favor_hook
@@ -622,6 +638,9 @@ claim_cb = {
 
 		# EP3: note gold gained from military assistance/join war contracts and their war contribution threshold
 		laamp_as_mercenary_payout_tooltip_effect = yes
+
+		#Mandalas gain or lose piety/devotion depending on Decree
+		mandala_war_victory_effects = yes
 	}
 
 	on_white_peace_desc = {
@@ -690,7 +709,7 @@ claim_cb = {
 
 		if = {
 			limit = {
-				NOT = { scope:claimant = scope:attacker }
+				scope:claimant != scope:attacker
 				scope:attacker = {
 					can_add_hook = {
 					  	type = favor_hook
@@ -742,7 +761,10 @@ claim_cb = {
 		add_influence_attacker_defeat_effect = yes
 
 		#EP2 accolade glory gain for winning against higher ranked enemy
-		scope:defender = { accolade_defender_war_end_glory_gain_med_effect = yes }
+		scope:defender = {
+			mandala_peacemaker_perk_serenity_effect = yes
+			accolade_defender_war_end_glory_gain_med_effect = yes 
+		}
 
 		# lose claims
 		every_in_list = {
@@ -751,10 +773,26 @@ claim_cb = {
 				remove_claim = prev
 			}
 		}
+		
+		# Hope gain for the defender
+		scope:defender = {
+			if = { # Gains hope by winning a minor war
+				limit = { is_elf = yes }
+				add_elven_hope_effect = { VALUE = medium_elven_hope_value HOPE_EFFECT = effect_elven_hope_minor_war_won }
+			}
+		}
+		
+		# Hope loss for the attacker
+		scope:attacker = {
+			if = { # Loses hope by losing a minor war
+				limit = { is_elf = yes }
+				subtract_elven_hope_effect = { VALUE = medium_elven_hope_value HOPE_EFFECT = effect_elven_hope_minor_war_lost }
+			}
+		}
 
 		if = {
 			limit = {
-				NOT = { scope:claimant = scope:attacker }
+				scope:claimant != scope:attacker
 				scope:attacker = {
 					can_add_hook = {
 					  	type = favor_hook
@@ -806,6 +844,9 @@ claim_cb = {
 
 		# EP3: note gold gained from military assistance/join war contracts and their war contribution threshold
 		laamp_as_mercenary_payout_tooltip_effect = yes
+		
+		#Mandalas gain or lose piety/devotion depending on Decree
+		mandala_war_defeat_effects = yes
 	}
 
 	on_primary_attacker_death = inherit
@@ -833,6 +874,8 @@ claim_cb = {
 
 	ai_score_mult = {
 		value = 1
+		# HOUSE RELATIONS
+		add = house_relation_ai_score_value
 		#There is no fighting in the admin room!
 		if = {
 			limit = {
@@ -849,19 +892,7 @@ claim_cb = {
 			}
 			multiply = 0.4
 		}
-		#Declaring war on the frankokratia leader can really ruin the whole thing
-		if = {
-			limit = {
-				scope:defender = {
-					any_owned_story = {
-						story_type = frankokratia_story
-						NOT = { has_variable = franko_war_complete }
-					}
-				}
-			}
-			multiply = 0
-		}
-
+		add = frankokratia_leader_protection_value #Set back to 0. Declaring war on the frankokratia leader can really ruin the whole thing
 		# LotR - Sauron and Nazgul should not target eachother
 		add = {
 			if = {

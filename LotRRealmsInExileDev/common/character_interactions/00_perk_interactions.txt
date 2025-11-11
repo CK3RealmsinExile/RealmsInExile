@@ -71,9 +71,24 @@ claim_throne_interaction = {
 				#	}
 				#}
 				has_character_flag = confederation_claim_throne
+				AND = {
+					government_allows = merit
+					situation:dynastic_cycle ?= { situation_current_phase = situation_dynastic_cycle_phase_chaos }
+					exists = top_participant_group:dynastic_cycle
+				}
+			}
+			OR = {
+				NOT = { government_allows = merit }
+				government_has_flag = government_is_meritocratic
+				government_has_flag = government_is_steppe_admin
+				AND = {
+					government_allows = merit
+					situation:dynastic_cycle ?= { situation_current_phase = situation_dynastic_cycle_phase_chaos }
+					exists = top_participant_group:dynastic_cycle
+				}
 			}
 		}
-		NOT = { scope:recipient = scope:actor }	
+		scope:recipient != scope:actor	
 	}
 
 	is_valid_showing_failures_only = {
@@ -211,7 +226,6 @@ claim_throne_interaction = {
 	
 	ai_potential = {
 		is_adult = yes
-		highest_held_title_tier > tier_barony
 		ai_greed >= medium_positive_ai_value
 		learning >= medium_skill_rating
 		intrigue >= mediocre_skill_rating
@@ -246,7 +260,14 @@ claim_throne_interaction = {
 		}
 	}
 
-	ai_frequency = 36
+	ai_frequency_by_tier = {
+		barony = 0
+		county = 48
+		duchy = 36
+		kingdom = 36
+		empire = 0
+		hegemony = 0
+	}
 
 	ai_will_do = {
 		base = 100
@@ -394,7 +415,7 @@ fabricate_hook_interaction = {
 			is_in_valinor = no
 			NOT = { has_culture = culture:wastelands }
 		}
-		NOT = { scope:recipient = scope:actor }
+		scope:recipient != scope:actor
 	}
 
 	is_valid = {
@@ -603,7 +624,14 @@ fabricate_hook_interaction = {
 		adult = yes
 	}
 
-	ai_frequency = 12
+	ai_frequency_by_tier = {
+		barony = 0
+		county = 60
+		duchy = 12
+		kingdom = 12
+		empire = 12
+		hegemony = 12
+	}
 
 	ai_will_do = {
 		base = 10
@@ -745,7 +773,7 @@ demand_payment_interaction = {
 			is_in_valinor = no
 			NOT = { has_culture = culture:wastelands }
 		}
-		NOT = { scope:recipient = scope:actor }
+		scope:recipient != scope:actor
 	}
 
 	is_valid_showing_failures_only = {
@@ -847,7 +875,14 @@ demand_payment_interaction = {
 		ai_recipients = hooked_characters
 	}
 	
-	ai_frequency = 36
+	ai_frequency_by_tier = {
+		barony = 0
+		county = 48
+		duchy = 36
+		kingdom = 12
+		empire = 6
+		hegemony = 6
+	}
 	
 	ai_will_do = {
 		base = 100
@@ -920,7 +955,14 @@ buy_claim_interaction = {
 		scope:actor = {
 			is_landless_adventurer = no
 			OR = {
-				has_perk = sanctioned_loopholes_perk
+				AND = {
+					has_perk = sanctioned_loopholes_perk
+					NOR = {
+						government_has_flag = government_has_merit
+						government_has_flag = government_is_japan_administrative
+						government_has_flag = government_is_japan_feudal
+					}
+				}
 				AND = {
 					any_character_struggle = {
 						involvement = involved
@@ -934,6 +976,10 @@ buy_claim_interaction = {
 			NOT = { target_is_liege_or_above = scope:recipient }
 			is_in_valinor = no
 			NOT = { has_culture = culture:wastelands }
+			trigger_if = {
+				limit = { is_elf = yes }
+				has_game_rule = free_elven_expansion
+			}
 		}
 		NOT = {
 			scope:actor = scope:recipient
@@ -1033,6 +1079,26 @@ buy_claim_interaction = {
 				text = buy_claim_no_landless_adventurer_title
 				always = no
 			}
+		} 
+		trigger_if = { # LotR - Can't buy claims on Mordor or Gorgoroth
+			limit = {
+				scope:target ?= {
+					OR = {
+						this = title:e_mordor
+						this = title:k_gorgoroth
+					}
+					holder ?= {
+						OR = {
+							is_sauron = yes
+							is_nazgul = yes
+						}
+					}
+				}
+			}
+			custom_description = {
+				text = buy_claim_no_mordor_gorgoroth
+				always = no
+			}
 		}
 		scope:actor = { # Variable piety cost depending on tier
 			trigger_if = {
@@ -1103,9 +1169,30 @@ buy_claim_interaction = {
 					}
 				}
 			}
+			trigger_if = {
+				limit = {
+					exists = scope:target
+					scope:target = {
+						tier = tier_hegemony
+					}
+				}
+				piety >= {
+					value = monumental_buy_claim_piety_value
+					if = {
+						limit = {
+							government_allows = administrative
+						}
+						multiply = 1.5
+					}
+				}
+			}
 		}
-		scope:recipient = { is_busy_in_events_localised = yes }
 		scope:recipient = { NOT = { has_strong_hook = scope:actor } }
+		# LOTR Disabled
+	#	tgp_blocked_action_against_tenno_trigger = {
+	#		ACTOR = scope:actor
+	#		TARGET = scope:recipient
+	#	}
 	}
 	
 	auto_accept = yes
@@ -1150,6 +1237,14 @@ buy_claim_interaction = {
 							}
 						}
 						add = massive_buy_claim_piety_loss
+					}
+					if = {
+						limit = {
+							scope:target = {
+								tier = tier_hegemony
+							}
+						}
+						add = monumental_buy_claim_piety_loss
 					}
 					if = {
 						limit = {
@@ -1206,37 +1301,45 @@ challenge_to_single_combat_interaction = {
 		first_valid = {
 			triggered_desc = {
 				trigger = {
-					scope:actor = {
-						government_has_flag = government_is_nomadic
-					}
-					scope:recipient = {
-						government_has_flag = government_is_nomadic
-					}
+					scope:actor = { has_relation_rival = scope:recipient }
 				}
-				desc = challenge_to_single_combat_nomadic_interaction
+				desc = challenge_to_single_combat_interaction
 			}
-			desc = challenge_to_single_combat_interaction
+			desc = challenge_to_single_combat_nomadic_interaction
 		}
 	}
-	
-	desc = challenge_to_single_combat_interaction_desc
+	desc = {
+		first_valid = {
+			triggered_desc = {
+				trigger = {
+					scope:actor = { has_relation_rival = scope:recipient }
+				}
+				desc = challenge_to_single_combat_interaction_desc
+			}
+			triggered_desc = {
+				trigger = {
+					scope:actor = { government_has_flag = government_is_nomadic }
+				}
+				desc = challenge_to_single_combat_interaction_desc_nomadic
+			}
+			desc = challenge_to_single_combat_interaction_desc_non_admin
+		}
+	}
 
 	greeting = negative
 	notification_text = REQUEST_TRIAL_BY_COMBAT_TEXT
 
 	is_shown = {
-	
-		
-		scope:actor = {			
+		scope:actor = { #LotR			
 			NOT = { has_culture = culture:wastelands }
 			is_in_valinor = no
-			is_sauron = no
+			has_trait = sauron_ringless
 		}
 
-		scope:recipient = {			
+		scope:recipient = {	#LotR		
 			NOT = { has_culture = culture:wastelands }
 			is_in_valinor = no
-			is_sauron = no
+			has_trait = sauron_ringless
 		}
 
 		# First, check for the perk.
@@ -1244,7 +1347,8 @@ challenge_to_single_combat_interaction = {
 		# Then, look to see if this character is a rival.
 		OR = {
 			scope:actor = { has_relation_rival = scope:recipient }
-			AND = { # If you are a Nomad you can challenge martial non-close family characters
+			# If you are a Nomad you can challenge martial non-close family characters
+			AND = {
 				scope:actor = {
 					government_has_flag = government_is_nomadic
 					has_perk = stalwart_leader_perk
@@ -1255,9 +1359,20 @@ challenge_to_single_combat_interaction = {
 					can_be_combatant_based_on_gender_trigger = { ARMY_OWNER = scope:actor }
 				}
 			}
+			# Duel permissive culture
+			AND = {
+				scope:actor = {
+					has_perk = stalwart_leader_perk
+					culture = { has_cultural_parameter = stalwart_leader_non_admin_duels }
+				}
+				scope:recipient = {
+					culture = { has_cultural_parameter = stalwart_leader_non_admin_duels }
+					can_be_combatant_based_on_gender_trigger = { ARMY_OWNER = scope:actor }
+				}
+			}
 		}
 		# Can't duel yourself.
-		NOT = { scope:actor = scope:recipient }
+		scope:actor != scope:recipient
 	}
 
 	is_valid_showing_failures_only = {
@@ -1275,6 +1390,22 @@ challenge_to_single_combat_interaction = {
 		# Neither of the characters can be imprisoned.
 		scope:actor = { is_imprisoned = no }
 		scope:recipient = { is_imprisoned = no }
+		trigger_if = {
+			limit = {
+				scope:actor.culture = { has_cultural_parameter = stalwart_leader_non_admin_duels }
+				scope:recipient.culture = { has_cultural_parameter = stalwart_leader_non_admin_duels }
+			}
+			NOR = {
+				scope:actor = { government_allows = administrative }
+				scope:recipient = { government_allows = administrative }
+				scope:recipient = { is_liege_or_above_of = scope:actor }
+				AND = {
+					scope:recipient = { is_house_head = yes }
+					exists = scope:actor.house
+					scope:recipient.house ?= scope:actor.house
+				}
+			}
+		}
 	}
 
 	can_send = {
@@ -1527,7 +1658,7 @@ challenge_to_single_combat_interaction = {
 	ai_potential = {
 		can_challenge_rival_to_single_combat_trigger = yes
 		NOT = { has_trait = craven }
-		num_of_relation_rival > 0
+		any_relation = { type = rival }
 		is_imprisoned = no
 		can_start_single_combat_trigger = yes
 	}
@@ -1539,12 +1670,19 @@ challenge_to_single_combat_interaction = {
 		ai_recipients = scripted_relations
 	}
 
-	ai_frequency = 60
+	ai_frequency_by_tier = {
+		barony = 0
+		county = 120
+		duchy = 60
+		kingdom = 60
+		empire = 60
+		hegemony = 60
+	}
 
 	ai_will_do = {
 		base = -50
 		
-		modifier = {
+		modifier = { #LotR
 			add = -1000
 			trigger_if = {
 				scope:actor = {			
@@ -1553,7 +1691,7 @@ challenge_to_single_combat_interaction = {
 			}
 		}
 		
-		modifier = {
+		modifier = { #LotR
 			add = -1000
 			trigger_if = {
 				scope:recipient = {			
