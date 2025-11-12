@@ -3682,7 +3682,7 @@ tgp_japan_yearly_events.1150 = {
 				}
 			}
 			#This will cause strife with his house
-			scope:local_ruler.house = { 
+			scope:local_ruler.house = {
 				change_house_relation_effect = {
 					HOUSE = scope:emperor.house
 					VALUE = house_relation_damage_major_value
@@ -4094,7 +4094,7 @@ tgp_japan_yearly_events.1151 = {
 					}
 				}
 				#This will cause strife with his house
-				scope:local_ruler.house = { 
+				scope:local_ruler.house = {
 					change_house_relation_effect = {
 						HOUSE = scope:emperor.house
 						VALUE = house_relation_damage_major_value
@@ -4106,6 +4106,23 @@ tgp_japan_yearly_events.1151 = {
 				}
 			}
 		}
+	}
+}
+
+scripted_trigger is_suitable_spouse_or_concubine_tgp_japan_1160 = {
+	top_liege = house.house_head
+	liege = {
+		is_ai = yes # sanity check so as to not yeet a player's courtier
+	}
+	is_available_ai_adult = yes
+	is_house_head = no # this would be weird otherwise
+	is_ruler = no # this would be weirder otherwise
+	OR = {
+		can_marry_character_trigger = { CHARACTER = root }
+		can_become_concubine_of_character_trigger = { CHARACTER = root }
+	}
+	root = {
+		is_attracted_to_gender_of = prev
 	}
 }
 
@@ -4147,6 +4164,7 @@ tgp_japan_yearly_events.1160 = {
 	trigger = {
 		has_tgp_dlc_trigger = yes
 		is_available_adult = yes
+		is_at_war = no
 		exists = house
 		house.house_head = root
 		house = {
@@ -4155,6 +4173,20 @@ tgp_japan_yearly_events.1160 = {
 					has_house_relation_level = feud
 					has_house_relation_level = rivalry
 					has_house_relation_level = quarrel
+				}
+				any_relation_house = {
+					this != root.house
+					house_head = {
+						is_available_ai_adult = yes
+						is_at_war = no
+						opinion = {
+							target = root
+							value >= 0 # there should be at least some reason they want to improve relations
+						}
+					}
+					any_house_member = {
+						is_suitable_spouse_or_concubine_tgp_japan_1160 = yes
+					}
 				}
 			}
 		}
@@ -4177,10 +4209,35 @@ tgp_japan_yearly_events.1160 = {
 						has_house_relation_level = rivalry
 						has_house_relation_level = quarrel
 					}
+					any_relation_house = {
+						this != root.house
+						house_head = {
+							is_available_ai_adult = yes
+							is_at_war = no
+							opinion = {
+								target = root
+								value >= 0 # there should be at least some reason they want to improve relations
+							}
+						}
+						any_house_member = {
+							is_suitable_spouse_or_concubine_tgp_japan_1160 = yes
+						}
+					}
 				}
 				random_relation_house = {
 					limit = {
 						this != root.house
+						house_head = {
+							is_available_ai_adult = yes
+							is_at_war = no
+							opinion = {
+								target = root
+								value >= 0
+							}
+						}
+						any_house_member = {
+							is_suitable_spouse_or_concubine_tgp_japan_1160 = yes
+						}
 					}
 					save_scope_as = feuding_house
 				}
@@ -4189,32 +4246,9 @@ tgp_japan_yearly_events.1160 = {
 		scope:feuding_house = {
 			random_house_member = {
 				limit = {
-					is_ai = yes
-					is_nubile = yes #LotR
-					can_marry_trigger = yes
-					can_marry_character_trigger = { CHARACTER = root }
-					root = {
-						is_attracted_to_gender_of = prev
-					}
+					is_suitable_spouse_or_concubine_tgp_japan_1160 = yes
 				}
 				save_scope_as = new_concubine
-			}
-		}
-		if = {
-			limit = {
-				NOT = { exists = scope:new_concubine }
-			}
-			create_character = {
-				template = tgp_concubine_template
-				location = root.location
-				save_scope_as = new_concubine
-				after_creation = {
-					set_house = scope:feuding_house
-				}
-			}
-			add_character_flag = {
-				flag = fake_new_concubine
-				days = 1
 			}
 		}
 	}
@@ -4225,21 +4259,25 @@ tgp_japan_yearly_events.1160 = {
 
 		if = {
 			limit = {
-				allowed_more_concubines = yes
-			}
-			make_concubine = scope:new_concubine
-		}
-		else_if = {
-			limit = {
 				allowed_more_spouses = yes
 			}
 			marry = scope:new_concubine
 		}
+		else_if = {
+			limit = {
+				allowed_more_concubines = yes
+			}
+			make_concubine = scope:new_concubine
+		}
 
-		house = {
-			increase_house_relation_level_effect = {
-				HOUSE = scope:feuding_house
+		scope:feuding_house = {
+			change_house_relation_effect = {
+				HOUSE = root.house
+				VALUE = house_relation_improve_medium_value
 				REASON = gift
+				CHAR = scope:feuding_house.house_head
+				TARGET_CHAR = root
+				TITLE = scope:dummy_gender
 			}
 		}
 
@@ -4283,10 +4321,6 @@ tgp_japan_yearly_events.1160 = {
 				opinion = -15
 			}
 		}
-		add_character_flag = {
-			flag = refused_new_concubine
-			days = 1
-		}
 		ai_chance = {
 			base = 100
 		}
@@ -4302,9 +4336,14 @@ tgp_japan_yearly_events.1160 = {
 				any_secret = { type = secret_cannibal }
 			}
 		}
-		scope:new_concubine = { death = { death_reason = death_execution killer = root } }
+		scope:new_concubine = {
+			death = {
+				death_reason = death_execution
+				killer = root
+			}
+		}
 
-		house ?= { 
+		house ?= {
 			change_house_relation_effect = {
 				HOUSE = scope:feuding_house
 				VALUE = house_relation_damage_medium_value
@@ -4375,18 +4414,6 @@ tgp_japan_yearly_events.1160 = {
 			base = 100
 			ai_value_modifier = {
 				ai_rationality = -1
-			}
-		}
-	}
-
-	after = {
-		if = {
-			limit = {
-				has_character_flag = refused_new_concubine
-				has_character_flag = fake_new_concubine
-			}
-			scope:new_concubine ?= {
-				silent_disappearance_effect = yes
 			}
 		}
 	}
@@ -5052,7 +5079,7 @@ tgp_japan_yearly_events.1220 = {
 					type = event_toast_effect_good
 					title = tgp_japan_yearly_events.1220.tt
 					left_icon = root
-					add_learning_skill = 2
+					add_learning_skill = 1
 				}
 			}
 			flag:health = {
