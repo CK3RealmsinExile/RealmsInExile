@@ -537,15 +537,9 @@ PixelShader =
 					float SnowHighlight = 0.0;
 					EffectIntensities ConditionData;
 					SampleProvinceEffectsMask( ColorMapCoords, ConditionData );
-					ApplySnowMaterialMesh( ConditionData, Diffuse.rgb, Properties, Normal, Input.WorldSpacePos.xz, SnowHighlight );
+					ApplySnowMaterialMesh( ConditionData, Diffuse.rgb, Properties, Normal, Input.WorldSpacePos.xz, SnowHighlight, 2.0f );
 				#endif
 
-				// Colormap blend, pre light
-				#if defined( COLORMAP )
-					float3 ColorMap = PdxTex2D( ColorTexture, float2( ColorMapCoords.x, 1.0 - ColorMapCoords.y ) ).rgb;
-					Diffuse.rgb = SoftLight( Diffuse.rgb, ColorMap, ( 1 - Properties.r ) * COLORMAP_OVERLAY_STRENGTH );
-				#endif
-				
 				float FogOfWarAlphaValue = PdxTex2D( FogOfWarAlpha, 
 					Input.WorldSpacePos.xz * WorldSpaceToTerrain0To1 ).r;
 
@@ -565,6 +559,7 @@ PixelShader =
 				#else
 					SMaterialProperties MaterialProps = GetMaterialProperties( Diffuse.rgb, Normal, Properties.a, Properties.g, Properties.b );
 				#endif
+
 				float3 DiffuseTranslucency = vec3( 0.0f );
 				#if defined( LOW_SPEC_SHADERS )
 					SLightingProperties LightingProps = GetMapLightingProperties( 
@@ -593,8 +588,8 @@ PixelShader =
 						
 						// Apply shadow tint with cloud interaction for map objects
 						Color = ApplyMapObjectsShadowTintWithClouds( Color, Input.WorldSpacePos.xz, CloudMask, LightingProps._ShadowTerm, Normal, TerrainNormal );
-				#else
-					float3 Color = CalculateSunLighting( MaterialProps, LightingProps, EnvironmentMap );
+					#else
+						float3 Color = CalculateSunLighting( MaterialProps, LightingProps, EnvironmentMap );
 					#endif
 				#endif
 
@@ -609,7 +604,7 @@ PixelShader =
 						Color += DiffuseTranslucency;
 					#endif
 
-				float3 ScatteringColor = vec3(0.0f);
+				float3 ScatteringColor = vec3( 0.0f );
 				float ScatteringMask = Properties.r;
 				#ifdef FAKE_SCATTERING_EMISSIVE
 					float3 HSVColor = RGBtoHSV( Diffuse.rgb );
@@ -1290,8 +1285,8 @@ Effect standard_alpha_to_coverageShadow_mapobject
 Effect standard_atlas_mapobject
 {
 	VertexShader = "VS_mapobject"
-	PixelShader = "PS_standard"
-	Defines = { "ATLAS" "MAP_LIGHTING_HACK" }
+	PixelShader = "PS_standard" 
+	Defines = { "ATLAS" "APPLY_WINTER" "MAP_LIGHTING_HACK" }
 }
 Effect standard_atlasShadow_mapobject
 {
@@ -1306,7 +1301,7 @@ Effect snap_to_terrain_mapobject
 	VertexShader = "VS_mapobject"
 	PixelShader = "PS_standard"
 
-	Defines = { "PDX_MESH_SNAP_VERTICES_TO_TERRAIN" "MAP_LIGHTING_HACK" }
+	Defines = { "PDX_MESH_SNAP_VERTICES_TO_TERRAIN" "APPLY_WINTER" "MAP_LIGHTING_HACK" }
 }
 Effect snap_to_terrainShadow_mapobject
 {
@@ -1322,7 +1317,7 @@ Effect snap_to_terrain_alpha_to_coverage_mapobject
 	PixelShader = "PS_standard"
 
 	BlendState = "alpha_to_coverage"
-	Defines = { "PDX_MESH_SNAP_VERTICES_TO_TERRAIN" "MAP_LIGHTING_HACK" }
+	Defines = { "PDX_MESH_SNAP_VERTICES_TO_TERRAIN" "APPLY_WINTER" "MAP_LIGHTING_HACK" }
 }
 Effect snap_to_terrain_alpha_to_coverageShadow_mapobject
 {
@@ -1367,7 +1362,7 @@ Effect snap_to_terrain_atlas_mapobject
 	VertexShader = "VS_mapobject"
 	PixelShader = "PS_standard"
 	DepthStencilState = DepthStencilStateNoReplace
-	Defines = { "PDX_MESH_SNAP_VERTICES_TO_TERRAIN" "ATLAS" "MAP_LIGHTING_HACK" }
+	Defines = { "PDX_MESH_SNAP_VERTICES_TO_TERRAIN" "ATLAS" "APPLY_WINTER" "MAP_LIGHTING_HACK" }
 }
 Effect snap_to_terrain_atlasShadow_mapobject
 {
