@@ -346,14 +346,101 @@ conqueror_safe_spending_gold = { # Conquerors generally want to keep more gold t
 	multiply = 2
 }
 
+# Treasury budgets
+
+ai_war_chest_treasury_minus_100 = {
+	value = war_chest_treasury
+	add = -100
+	min = 1
+}
+
+halved_ai_war_chest_treasury = {
+	value = war_chest_treasury
+	multiply = 0.5
+}
+
+excess_over_halved_ai_war_chest_treasury = {
+	value = war_chest_treasury
+	subtract = halved_ai_war_chest_treasury_maximum
+}
+
+halved_ai_war_chest_treasury_maximum = {
+	value = war_chest_treasury_maximum
+	multiply = 0.5
+}
+
+quarter_ai_war_chest_treasury = {
+	value = war_chest_treasury
+	multiply = 0.25
+}
+
+excess_over_a_quarter_ai_war_chest_treasury = {
+	value = war_chest_treasury
+	subtract = quarter_ai_war_chest_treasury_maximum
+}
+
+quarter_ai_war_chest_treasury_maximum = {
+	value = war_chest_treasury_maximum
+	multiply = 0.25
+}
+
+cautious_ai_minimum_war_chest_treasury = {
+	value = 50
+	if = {
+		limit = {
+			highest_held_title_tier = tier_duchy
+		}
+		add = 100
+	}
+	else_if = {
+		limit = {
+			highest_held_title_tier = tier_kingdom
+		}
+		add = 200
+	}
+	else_if = {
+		limit = {
+			highest_held_title_tier = tier_empire
+		}
+		add = 300
+	}
+	max = war_chest_treasury_maximum
+}
+
+excess_over_cautious_ai_minimum_war_chest_treasury = {
+	value = war_chest_treasury
+	subtract = cautious_ai_minimum_war_chest_treasury
+}
+
+conqueror_safe_spending_treasury = { # Conquerors generally want to keep more treasury than their war chest maximum around, so they can wage more & longer wars
+	value = war_chest_treasury_maximum
+	multiply = 2
+}
+
 current_power_with_allies_value = {
 	value = military_power
-	every_ally = { add = military_power }
+	save_temporary_scope_as = ruler_temp
+	every_ally = {
+		limit = {
+			NOT = { is_vassal_or_below_of = scope:ruler_temp }
+		}
+		add = military_power
+	}
+}
+
+current_power_with_allies_half_value = {
+	value = current_power_with_allies_value
+	divide = 2
 }
 
 current_power_ninety_percent_value = {
 	value = military_power
 	multiply = 0.9
+}
+
+current_power_fifty_percent_value = {
+	value = military_power
+	multiply = 0.5
 }
 
 # Calc rough opinion values.
@@ -1499,7 +1586,7 @@ ai_men_at_arms_expense_gold_min = {
 	}
 	if = {
 		limit = {
-			ai_has_conqueror_personality = yes
+			has_variable = conqueror
 		}
 		add = {
 			desc = ai_conqueror_personality
@@ -1517,10 +1604,10 @@ ai_men_at_arms_expense_gold_min = {
 	}
 	if = {
 		limit = {
-			ai_has_economical_boom_personality = yes
+			ai_has_builder_or_pious_builder_personality = yes
 		}
 		add = {
-			desc = ai_economical_boom_personality
+			desc = "Builder or Pious Builder"
 			value = -0.1
 		}
 	}
@@ -1586,7 +1673,7 @@ ai_men_at_arms_expense_gold_ideal = {
 	}
 	if = {
 		limit = {
-			ai_has_conqueror_personality = yes
+			has_variable = conqueror
 		}
 		add = {
 			desc = ai_conqueror_personality
@@ -1595,10 +1682,10 @@ ai_men_at_arms_expense_gold_ideal = {
 	}
 	if = {
 		limit = {
-			ai_has_economical_boom_personality = yes
+			ai_has_builder_or_pious_builder_personality = yes
 		}
 		add = {
-			desc = ai_economical_boom_personality
+			desc = "Builder or Pious Builder"
 			value = -0.2
 		}
 	}
@@ -1814,7 +1901,7 @@ ai_men_at_arms_expense_prestige_min = {
 	}
 	if = {
 		limit = {
-			ai_has_conqueror_personality = yes
+			has_variable = conqueror
 		}
 		add = {
 			desc = ai_conqueror_personality
@@ -1832,10 +1919,10 @@ ai_men_at_arms_expense_prestige_min = {
 	}
 	if = {
 		limit = {
-			ai_has_economical_boom_personality = yes
+			ai_has_builder_or_pious_builder_personality = yes
 		}
 		add = {
-			desc = ai_economical_boom_personality
+			desc = "Builder or Pious Builder"
 			value = -0.1
 		}
 	}
@@ -1883,7 +1970,7 @@ ai_men_at_arms_expense_prestige_ideal = {
 	}
 	if = {
 		limit = {
-			ai_has_conqueror_personality = yes
+			has_variable = conqueror
 		}
 		add = {
 			desc = ai_conqueror_personality
@@ -1892,10 +1979,10 @@ ai_men_at_arms_expense_prestige_ideal = {
 	}
 	if = {
 		limit = {
-			ai_has_economical_boom_personality = yes
+			ai_has_builder_or_pious_builder_personality = yes
 		}
 		add = {
-			desc = ai_economical_boom_personality
+			desc = "Builder or Pious Builder"
 			value = -0.1
 		}
 	}
@@ -2058,6 +2145,676 @@ ai_men_at_arms_expense_prestige_max = {
 	max = 0.9
 }
 
+### Brief: ai_men_at_arms_expense_herd_min
+# The AI will quickly try to spend this much of its herd income on MAA 
+# maintenance. This is referenced in code, so do not rename or remove this 
+# without talking with a programmer about it. 
+# 
+# Value between 0 and 1, where 1 equivalents to using 100% of its income on maa 
+# maintenance.
+# 
+# Scopes:
+#	root - character
+#		AI character evaluating the ideal percentile. 
+#
+ai_men_at_arms_expense_herd_min = {
+	value = {
+		value = 0.5
+		desc = "default value"
+	}
+
+	min = 0
+	max = 0.9
+}
+
+### Brief: ai_men_at_arms_expense_herd_ideal
+# The AI will try to spend this much of its income on MAA maintenance. It won't
+# buy beyond this, but might end up higher due to reduced income. This is 
+# referenced in code, so do not rename or remove this without talking with a 
+# programmer about it. 
+#
+# Value between 0 and 1, where 1 equivalents to using 100% of its income on maa 
+# maintenance.
+# 
+# Scopes:
+#	root - character
+#		AI character evaluating the ideal percentile. 
+#
+ai_men_at_arms_expense_herd_ideal = {
+	value = {
+		value = 0.7
+		desc = "default value"
+	}
+
+	min = 0
+	max = 0.9
+}
+
+### Brief: ai_men_at_arms_expense_herd_max
+# The AI will disband MAA if it ends up spending more than this amount of its 
+# income on maintenance. This is referenced in code, so do not rename or remove
+# this without talking with a programmer about it. 
+#
+# Value between 0 and 1, where 1 equivalents to using 100% of its income on maa 
+# maintenance.
+# 
+# Scopes:
+#	root - character
+#		AI character evaluating the ideal percentile. 
+#
+ai_men_at_arms_expense_herd_max = {
+	value = {
+		value = 0.9
+		desc = "default value"
+	}
+
+	min = 0
+	max = 0.9
+}
+
+### Brief: ai_men_at_arms_expense_treasury_min
+# The AI will quickly try to spend this much of its treasury income on MAA 
+# maintenance. This is referenced in code, so do not rename or remove this 
+# without talking with a programmer about it. 
+# 
+# Value between 0 and 1, where 1 equivalents to using 100% of its income on maa 
+# maintenance.
+# 
+# Scopes:
+#	root - character
+#		AI character evaluating the ideal percentile. 
+#
+ai_men_at_arms_expense_treasury_min = {
+	value = {
+		value = 0.15
+		desc = "default value"
+	}
+	if = {
+		limit = {
+			ai_has_warlike_personality = yes
+		}
+		add = {
+			desc = ai_warlike_personality
+			value = 0.1
+		}
+	}
+	if = {
+		limit = {
+			has_variable = conqueror
+		}
+		add = {
+			desc = ai_conqueror_personality
+			value = 0.2
+		}
+	}
+	if = {
+		limit = {
+			ai_has_cautious_personality = yes
+		}
+		add = {
+			desc = ai_cautious_personality
+			value = 0.1
+		}
+	}
+	if = {
+		limit = {
+			ai_has_builder_or_pious_builder_personality = yes
+		}
+		add = {
+			desc = "Builder or Pious Builder"
+			value = -0.1
+		}
+	}
+	if = {
+		limit = {
+			OR = {
+				vassal_contract_has_flag = celestial_province_protectorate
+				vassal_contract_has_flag = celestial_province_military
+				vassal_contract_has_flag = meritocratic_province_protectorate
+				vassal_contract_has_flag = meritocratic_province_military
+				vassal_contract_has_flag = celestial_grand_marshal_obligation
+			}
+		}
+		add = 0.5
+	}
+	if = {
+		limit = {
+			has_character_flag = vassal_directive_build_maa
+			vassal_is_valid_and_follows_directive_trigger = { VASSAL = this LIEGE = liege }
+		}
+		add = {
+			desc = ai_directive
+			value = 0.5
+		}
+	}
+	min = 0
+	max = 0.9
+}
+
+### Brief: ai_men_at_arms_expense_treasury_ideal
+# The AI will try to spend this much of its treasury income on MAA maintenance. It won't
+# buy beyond this, but might end up higher due to reduced income. This is 
+# referenced in code, so do not rename or remove this without talking with a 
+# programmer about it. 
+#
+# Value between 0 and 1, where 1 equivalents to using 100% of its income on maa 
+# maintenance.
+# 
+# Scopes:
+#	root - character
+#		AI character evaluating the ideal percentile. 
+#
+ai_men_at_arms_expense_treasury_ideal = {
+	value = {
+		value = 0.4
+		desc = "default value"
+	}
+	if = {
+		limit = {
+			ai_has_warlike_personality = yes
+		}
+		add = {
+			desc = ai_warlike_personality
+			value = 0.1
+		}
+	}
+	if = {
+		limit = {
+			has_variable = conqueror
+		}
+		add = {
+			desc = ai_conqueror_personality
+			value = 0.2
+		}
+	}
+	if = {
+		limit = {
+			ai_has_builder_or_pious_builder_personality = yes
+		}
+		add = {
+			desc = "Builder or Pious Builder"
+			value = -0.2
+		}
+	}
+	if = {
+		limit = {
+			culture ?= {
+				has_cultural_era_or_later = culture_era_high_medieval
+			}
+			primary_title ?= {
+				tier >= tier_kingdom
+			}
+			monthly_character_treasury_income >= 20
+		}
+		add = {
+			desc = "significant ruler, high medieval"
+			value = 0.2
+		}
+	}
+	if = {
+		limit = {
+			culture ?= {
+				has_cultural_era_or_later = culture_era_late_medieval
+			}
+			primary_title ?= {
+				tier >= tier_kingdom
+			}
+			monthly_character_treasury_income >= 40
+		}
+		add = {
+			desc = "significant ruler, late medieval"
+			value = 0.2
+		}
+	}
+	if = {
+		limit = {
+			culture ?= {
+				has_cultural_era_or_later = culture_era_high_medieval
+			}
+			primary_title ?= {
+				tier < tier_kingdom
+			}
+			monthly_character_treasury_income >= 30
+		}
+		add = {
+			desc = "lesser ruler, high medieval"
+			value = 0.1
+		}
+	}
+	if = {
+		limit = {
+			culture ?= {
+				has_cultural_era_or_later = culture_era_late_medieval
+			}
+			primary_title ?= {
+				tier < tier_kingdom
+			}
+			monthly_character_treasury_income >= 60
+		}
+		add = {
+			desc = "lesser ruler, late medieval"
+			value = 0.1
+		}
+	}
+	if = {
+		limit = {
+			OR = {
+				vassal_contract_has_flag = celestial_province_protectorate
+				vassal_contract_has_flag = celestial_province_military
+				vassal_contract_has_flag = meritocratic_province_protectorate
+				vassal_contract_has_flag = meritocratic_province_military
+				vassal_contract_has_flag = celestial_grand_marshal_obligation
+			}
+		}
+		add = 0.5
+	}
+	if = {
+		limit = {
+			has_character_flag = vassal_directive_build_maa
+			vassal_is_valid_and_follows_directive_trigger = { VASSAL = this LIEGE = liege }
+		}
+		add = {
+			desc = ai_directive
+			value = 0.5
+		}
+	}
+	min = 0
+	max = 0.9
+}
+
+### Brief: ai_men_at_arms_expense_treasury_max
+# The AI will disband MAA if it ends up spending more than this treasury amount of its 
+# income on maintenance. This is referenced in code, so do not rename or remove
+# this without talking with a programmer about it. 
+#
+# Value between 0 and 1, where 1 equivalents to using 100% of its income on maa 
+# maintenance.
+# 
+# Scopes:
+#	root - character
+#		AI character evaluating the ideal percentile. 
+#
+ai_men_at_arms_expense_treasury_max = {
+	value = {
+		value = 0.6
+		desc = "default value"
+	}
+	if = {
+		limit = {
+			culture ?= {
+				has_cultural_era_or_later = culture_era_high_medieval
+			}
+			primary_title ?= {
+				tier >= tier_kingdom
+			}
+		}
+		add = {
+			desc = "significant ruler, high medieval"
+			value = 0.2
+		}
+	}
+	if = {
+		limit = {
+			culture ?= {
+				has_cultural_era_or_later = culture_era_late_medieval
+			}
+			primary_title ?= {
+				tier >= tier_kingdom
+			}
+		}
+		add = {
+			desc = "significant ruler, late medieval"
+			value = 0.2
+		}
+	}
+	if = {
+		limit = {
+			culture ?= {
+				has_cultural_era_or_later = culture_era_high_medieval
+			}
+			primary_title ?= {
+				tier < tier_kingdom
+			}
+		}
+		add = {
+			desc = "lesser ruler, high medieval"
+			value = 0.05
+		}
+	}
+	if = {
+		limit = {
+			culture ?= {
+				has_cultural_era_or_later = culture_era_late_medieval
+			}
+			primary_title ?= {
+				tier < tier_kingdom
+			}
+		}
+		add = {
+			desc = "lesser ruler, late medieval"
+			value = 0.1
+		}
+	}
+	if = {
+		limit = {
+			has_character_flag = vassal_directive_build_maa
+			vassal_is_valid_and_follows_directive_trigger = { VASSAL = this LIEGE = liege }
+		}
+		add = {
+			desc = ai_directive
+			value = 0.1
+		}
+	}
+	if = {
+		limit = {
+			OR = {
+				vassal_contract_has_flag = celestial_province_protectorate
+				vassal_contract_has_flag = celestial_province_military
+				vassal_contract_has_flag = meritocratic_province_protectorate
+				vassal_contract_has_flag = meritocratic_province_military
+				vassal_contract_has_flag = celestial_grand_marshal_obligation
+			}
+		}
+		add = 0.3
+	}
+	if = {
+		limit = {
+			government_allows = administrative
+			NOT = { vassal_contract_has_flag = admin_theme_civilian }
+		}
+		add = {
+			desc = ai_admin_vassal
+			value = 0.3
+		}
+	}
+
+	min = 0
+	max = 0.9
+	
+	if = {
+		limit = {
+			OR = {
+				government_allows = administrative
+				government_has_flag = government_is_nomadic
+			}
+			treasury_debt_level <= 2
+		}
+		value = 3
+	}
+}
+
+### Brief: ai_men_at_arms_expense_barter_goods_min
+# The AI will quickly try to spend this much of its barter goods income on MAA 
+# maintenance. This is referenced in code, so do not rename or remove this 
+# without talking with a programmer about it. 
+# 
+# Value between 0 and 1, where 1 equivalents to using 100% of its income on maa 
+# maintenance.
+# 
+# Scopes:
+#	root - character
+#		AI character evaluating the ideal percentile. 
+#
+ai_men_at_arms_expense_barter_goods_min = {
+	value = {
+		value = 0.25
+		desc = "default value"
+	}
+	if = {
+		limit = {
+			ai_has_warlike_personality = yes
+		}
+		add = {
+			desc = ai_warlike_personality
+			value = 0.1
+		}
+	}
+	if = {
+		limit = {
+			has_variable = conqueror
+		}
+		add = {
+			desc = ai_conqueror_personality
+			value = 0.2
+		}
+	}
+	if = {
+		limit = {
+			ai_has_cautious_personality = yes
+		}
+		add = {
+			desc = ai_cautious_personality
+			value = 0.1
+		}
+	}
+	if = {
+		limit = {
+			ai_has_builder_or_pious_builder_personality = yes
+		}
+		add = {
+			desc = "Builder or Pious Builder"
+			value = -0.1
+		}
+	}
+	if = {
+		limit = {
+			has_character_flag = vassal_directive_build_maa
+			vassal_is_valid_and_follows_directive_trigger = { VASSAL = this LIEGE = liege }
+		}
+		add = {
+			desc = ai_directive
+			value = 0.5
+		}
+	}
+
+	min = 0
+	max = 0.9
+}
+
+### Brief: ai_men_at_arms_expense_barter_goods_ideal
+# The AI will try to spend this much of its income on MAA maintenance. It won't
+# buy beyond this, but might end up higher due to reduced income. This is 
+# referenced in code, so do not rename or remove this without talking with a 
+# programmer about it. 
+#
+# Value between 0 and 1, where 1 equivalents to using 100% of its income on maa 
+# maintenance.
+# 
+# Scopes:
+#	root - character
+#		AI character evaluating the ideal percentile. 
+#
+ai_men_at_arms_expense_barter_goods_ideal = {
+	value = {
+		value = 0.4
+		desc = "default value"
+	}
+	if = {
+		limit = {
+			ai_has_warlike_personality = yes
+		}
+		add = {
+			desc = ai_warlike_personality
+			value = 0.1
+		}
+	}
+	if = {
+		limit = {
+			has_variable = conqueror
+		}
+		add = {
+			desc = ai_conqueror_personality
+			value = 0.2
+		}
+	}
+	if = {
+		limit = {
+			ai_has_builder_or_pious_builder_personality = yes
+		}
+		add = {
+			desc = "Builder or Pious Builder"
+			value = -0.1
+		}
+	}
+	if = {
+		limit = {
+			culture ?= {
+				has_cultural_era_or_later = culture_era_high_medieval
+			}
+			primary_title ?= {
+				tier >= tier_kingdom
+			}
+		}
+		add = {
+			desc = "significant ruler, high medieval"
+			value = 0.2
+		}
+	}
+	if = {
+		limit = {
+			culture ?= {
+				has_cultural_era_or_later = culture_era_late_medieval
+			}
+			primary_title ?= {
+				tier >= tier_kingdom
+			}
+		}
+		add = {
+			desc = "significant ruler, high medieval"
+			value = 0.2
+		}
+	}
+	if = {
+		limit = {
+			culture ?= {
+				has_cultural_era_or_later = culture_era_high_medieval
+			}
+			primary_title ?= {
+				tier < tier_kingdom
+			}
+		}
+		add = {
+			desc = "lesser ruler, high medieval"
+			value = 0.1
+		}
+	}
+	if = {
+		limit = {
+			culture ?= {
+				has_cultural_era_or_later = culture_era_late_medieval
+			}
+			primary_title ?= {
+				tier < tier_kingdom
+			}
+		}
+		add = {
+			desc = "lesser ruler, late medieval"
+			value = 0.1
+		}
+	}
+	if = {
+		limit = {
+			has_character_flag = vassal_directive_build_maa
+			vassal_is_valid_and_follows_directive_trigger = { VASSAL = this LIEGE = liege }
+		}
+		add = {
+			desc = ai_directive
+			value = 0.1
+		}
+	}
+
+	min = 0
+	max = 0.9
+}
+
+### Brief: ai_men_at_arms_expense_barter_goods_max
+# The AI will disband MAA if it ends up spending more than this amount of its 
+# income on maintenance. This is referenced in code, so do not rename or remove
+# this without talking with a programmer about it. 
+#
+# Value between 0 and 1, where 1 equivalents to using 100% of its income on maa 
+# maintenance.
+# 
+# Scopes:
+#	root - character
+#		AI character evaluating the ideal percentile. 
+#
+ai_men_at_arms_expense_barter_goods_max = {
+	value = {
+		value = 0.6
+		desc = "default value"
+	}
+	if = {
+		limit = {
+			culture ?= {
+				has_cultural_era_or_later = culture_era_high_medieval
+			}
+			primary_title ?= {
+				tier >= tier_kingdom
+			}
+		}
+		add = {
+			desc = "significant ruler, high medieval"
+			value = 0.2
+		}
+	}
+	if = {
+		limit = {
+			culture ?= {
+				has_cultural_era_or_later = culture_era_late_medieval
+			}
+			primary_title ?= {
+				tier >= tier_kingdom
+			}
+		}
+		add = {
+			desc = "significant ruler, high medieval"
+			value = 0.2
+		}
+	}
+	if = {
+		limit = {
+			culture ?= {
+				has_cultural_era_or_later = culture_era_high_medieval
+			}
+			primary_title ?= {
+				tier < tier_kingdom
+			}
+		}
+		add = {
+			desc = "lesser ruler, high medieval"
+			value = 0.05
+		}
+	}
+	if = {
+		limit = {
+			culture ?= {
+				has_cultural_era_or_later = culture_era_late_medieval
+			}
+			primary_title ?= {
+				tier < tier_kingdom
+			}
+		}
+		add = {
+			desc = "lesser ruler, late medieval"
+			value = 0.1
+		}
+	}
+	if = {
+		limit = {
+			has_character_flag = vassal_directive_build_maa
+			vassal_is_valid_and_follows_directive_trigger = { VASSAL = this LIEGE = liege }
+		}
+		add = {
+			desc = ai_directive
+			value = 0.1
+		}
+	}
+
+	min = 0
+	max = 0.9
+}
+
 ### Brief: ai_men_at_arms_chance_expense_below_min
 # Chance the AI will prefer MaA to buildings when spending less than the ideal 
 # on MaA.
@@ -2085,7 +2842,7 @@ ai_men_at_arms_chance_expense_below_min = {
 	}
 	if = {
 		limit = {
-			ai_has_conqueror_personality = yes
+			has_variable = conqueror
 		}
 		add = {
 			desc = ai_conqueror_personality
@@ -2103,10 +2860,10 @@ ai_men_at_arms_chance_expense_below_min = {
 	}
 	if = {
 		limit = {
-			ai_has_economical_boom_personality = yes
+			ai_has_builder_or_pious_builder_personality = yes
 		}
 		add = {
-			desc = ai_economical_boom_personality
+			desc = "Builder or Pious Builder"
 			value = -0.3
 		}
 	}
@@ -2144,6 +2901,18 @@ ai_men_at_arms_chance_expense_below_min = {
 		}
 		multiply = 0
 		add = 0.1
+	}
+	if = {
+		limit = {
+			OR = {
+				vassal_contract_has_flag = celestial_province_protectorate
+				vassal_contract_has_flag = celestial_province_military
+				vassal_contract_has_flag = meritocratic_province_protectorate
+				vassal_contract_has_flag = meritocratic_province_military
+				vassal_contract_has_flag = celestial_grand_marshal_obligation
+			}
+		}
+		add = 1
 	}
 	if = {
 		limit = {
@@ -2187,7 +2956,7 @@ ai_men_at_arms_chance_expense_below_ideal = {
 	}
 	if = {
 		limit = {
-			ai_has_conqueror_personality = yes
+			has_variable = conqueror
 		}
 		add = {
 			desc = ai_conqueror_personality
@@ -2252,11 +3021,11 @@ ai_men_at_arms_chance_expense_below_ideal = {
 	}
 	if = {
 		limit = {
-			ai_has_economical_boom_personality = yes
+			ai_has_builder_or_pious_builder_personality = yes
 		}
 		multiply = {
-			desc = ai_economical_boom_personality
-			value = 0.1
+			desc = "Builder or Pious Builder"
+			value = -0.1
 		}
 	}
 	if = {
@@ -2265,6 +3034,19 @@ ai_men_at_arms_chance_expense_below_ideal = {
 		}
 		multiply = 0
 		add = 0.1
+	}
+	if = {
+		limit = {
+			OR = {
+				vassal_contract_has_flag = celestial_province_protectorate
+				vassal_contract_has_flag = celestial_province_military
+				vassal_contract_has_flag = meritocratic_province_protectorate
+				vassal_contract_has_flag = meritocratic_province_military
+				vassal_contract_has_flag = celestial_grand_marshal_obligation
+			}
+		}
+		multiply = 0
+		add = 0.9
 	}
 	if = {
 		limit = {
@@ -2322,7 +3104,7 @@ ai_men_at_arms_chance_landless_ruler = {
 		}
 		if = { # Adventurers want a minimum set of buildings
 			limit = {
-				is_landless_adventurer = yes
+				has_government = landless_adventurer_government
 				max_military_strength >= 100
 				domicile.num_domicile_buildings <= 4
 			}
@@ -2330,11 +3112,56 @@ ai_men_at_arms_chance_landless_ruler = {
 		}
 		if = { # To avoid Adventurer travels becoming super-costly provision-wise, they should focus on buildings over MaA at certain ratios
 			limit = {
-				is_landless_adventurer = yes
+				has_government = landless_adventurer_government
 				max_military_strength >= 500
 				domicile.max_provisions <= 4000
 			}
 			multiply = 0
 		}
+		if = { # To avoid Adventurer travels becoming super-costly provision-wise, they should focus on buildings over MaA at certain ratios
+			limit = {
+				vassal_contract_has_flag = celestial_grand_marshal_obligation
+			}
+			add = 1
+		}
+		
+		min = 0
+		max = 0.9
+	}
+}
+
+# Used to weight how likely an AI will prioritize the creation of the given title
+#
+# Supported scopes:
+#	root ( character )
+#		ruler that would create the title
+#	scope:title ( title )
+#		the title that should be created
+#	scope:title_tier_rank ( integer )
+#		a number representing the rank of the title, ranging from 3 (Duchy) to 6 (Hegemony)
+#
+ai_title_creation_weight = {
+	# Base is rank squared times 10
+	value = scope:title_tier_rank
+	multiply = scope:title_tier_rank
+	multiply = 10
+
+	# double if dejure liege
+	if = {
+		limit = {
+			scope:title = {
+				is_ruler_de_jure_liege_or_above = root
+			}
+		}
+		multiply = 2
+	}
+
+	# times 10 for counts over vassal limit
+	if = {
+		limit = {
+			root.primary_title.tier = tier_county
+			vassal_limit_available <= 0
+		}
+		multiply = 10
 	}
 }

@@ -1,5 +1,6 @@
 ﻿activity_pilgrimage = {
 	is_shown = {
+		lotr_is_shown_pilgrimage_activity_trigger = yes #LotR
 		highest_held_title_tier > tier_barony
 		is_playable_character = yes
 		trigger_if = {
@@ -9,14 +10,19 @@
 			years_from_game_start >= 3
 			is_at_war = no
 			short_term_gold >= pilgrimage_base_cost
-			ai_has_conqueror_personality = no
-		}
-		is_sauron = no #LotR
-		is_nazgul = no #LotR
-		is_in_valinor = no #LotR
-		faith = { #LotR
-			NOT = { has_doctrine_parameter = forbidden_from_pilgrimage }
-			any_holy_site = { exists = this }	
+			NOT = { has_variable = conqueror }
+			trigger_if = { # Throttle Counts
+				limit = {
+					highest_held_title_tier = tier_county
+					NOR = {
+						government_has_flag = government_is_mandala
+						faith = { has_doctrine_parameter = mandatory_hajj }
+						has_government = japan_administrative_government
+						has_government = japan_feudal_government
+					}
+				}
+				ai_zeal >= 100
+			}
 		}
 		#Every other activity must be blocked until an uncrowned AI crowns themselves
 		trigger_if = {
@@ -121,7 +127,7 @@
 			#Invalidate flag, until/unless this is fixed in code
 			NOT = { has_variable = pilgrimage_invalidated_illness }
 			#Don't change your capital to be the holy site destination
-			NOT = { capital_province.barony = scope:activity.activity_location.barony }
+			capital_province.barony != scope:activity.activity_location.barony
 		}
 		# Converting mid-pilgrimage is a big no-no.
 		scope:activity = {
@@ -175,7 +181,7 @@
 				trigger_event = activity_system.0330
 			}
 			every_attending_character = {
-				limit = { NOT = { this = scope:host } }
+				limit = { this != scope:host }
 				trigger_event = activity_system.0331
 			}
 		}
@@ -250,7 +256,7 @@
 		#You can't pilgrimage to your own capital
 		custom_tooltip = {
 			text = activity_pilgrimage.is_location_valid.capital_is_holy_site
-			NOT = { scope:host.capital_province = root }
+			scope:host.capital_province != root
 		}
 		
 		#You can't pilgrimage to abandoned wilderness # LOTR
@@ -342,10 +348,11 @@
 			}	
 			
 			trigger_else = { always = yes }
-		}	
+		} 
+		trigger_else = { always = yes } #Needs trigger_else fallback
 
 		# If you are supposed to be the realm's reserve ruler, then you can't take a multi-year foreign trip.
-		trigger_else_if = {
+		trigger_if = {
 			limit = {
 				scope:host = { bannable_serving_diarch_trigger = yes }
 			}
@@ -356,8 +363,15 @@
 				}
 			}
 		}
-
-		trigger_else = { always = yes }
+		trigger_if = {
+			limit = {
+				scope:host = {
+					is_ai = yes
+					has_title = title:h_china
+				}
+			}
+			county.holder.top_liege = scope:host
+		}
 	}
 
 	province_description = {
@@ -367,7 +381,7 @@
 			trigger = {
 				scope:host = {
 					any_owned_story = {
-						story_type = story_cycle_imaginary_friend
+						type = story_cycle_imaginary_friend
 						var:pilgrimage_destination ?= root
 					}
 				}
@@ -613,16 +627,23 @@
 				desc = "Pilgrim mandatory malus"
 			}
 		}
-		# if = { #LotR
-			# limit = {
-				# faith = { has_doctrine = doctrine_pilgrimage_mandatory_hajj }
-				# NOT = { has_trait = hajjaj }
-			# }
-			# add = {
-				# value = 5000
-				# desc = "Hajj mandatory malus"
-			# }
-		# }
+		#if = { #LotR
+		#	limit = {
+		#		faith = { has_doctrine = doctrine_pilgrimage_mandatory_hajj }
+		#		NOT = { has_trait = hajjaj }
+		#	}
+		#	add = {
+		#		value = 5000
+		#		desc = "Hajj mandatory malus"
+		#	}
+		#}
+		if = {
+			limit = { ai_has_pious_builder_personality = yes}
+			add = {
+				value = 50
+				desc = "Pious Builder"
+			}
+		}
 		if = {
 			limit = { short_term_gold >= major_gold_value }
 			add = {
@@ -673,7 +694,7 @@
 		}
 		if = {
 			limit = {
-				is_independent_ruler = no
+				top_liege != this
 				has_vassal_stance = zealot
 			}
 			add = {
@@ -682,10 +703,43 @@
 			}
 		}
 		if = {
+			limit = { 
+				government_has_flag = government_is_mandala
+				NOT = { 
+					has_trait = pilgrim
+					has_trait_xp = {
+						trait = pilgrim
+						value >= 100
+					}
+				}
+			}
+			add = {
+				value = 100
+				desc = "Mandala is not max Pilgrim"
+			}
+		}
+		if = {
+			limit = { 
+				government_has_flag = government_is_mandala
+				NOT = { 
+					has_trait = pilgrim
+					has_trait_xp = {
+						trait = pilgrim
+						value >= 100
+					}
+				}
+				has_variable = mandala_godking
+			}
+			add = {
+				value = 400
+				desc = "Mandala Godking LET'S GOOO"
+			}
+		}
+		if = {
 			limit = {
 				OR = {
 					has_trait = cynical
-					any_secret = { secret_type = secret_non_believer }
+					any_secret = { type = secret_non_believer }
 				}
 			}
 			add = {
@@ -710,13 +764,8 @@
 		if = {
         	limit = {
         	    any_held_title = {
-					tier = tier_county
-        	        any_county_province = {
-        	            any_province_epidemic = {
-        	                count >= 1
-        	                outbreak_intensity < apocalyptic
-        	            }
-        	        }
+					title_tier = county
+        	        has_province_with_epidemic = { intensity < apocalyptic }
         	    }
         	    would_follow_social_distancing_value >= -1
         	}
@@ -728,12 +777,7 @@
     	else_if = {
     	    limit = {
     	        any_realm_county = {
-    	            any_county_province = {
-    	                any_province_epidemic = {
-    	                    count >= 1
-    	                    outbreak_intensity < apocalyptic
-    	                }
-    	            }
+    	            has_province_with_epidemic = { intensity < apocalyptic }
     	        }
     	        would_follow_social_distancing_value >= -1
     	    }
@@ -745,13 +789,8 @@
     	if = {
     	    limit = {
     	        any_held_title = {
-					tier = tier_county
-    	            any_county_province = {
-    	                any_province_epidemic = {
-    	                    count >= 1
-    	                    outbreak_intensity = apocalyptic
-    	                }
-    	            }
+					title_tier = county
+    	            has_province_with_epidemic = { intensity = apocalyptic }
     	        }
     	    }
     	    add = {
@@ -762,13 +801,8 @@
     	else_if = {
     	    limit = {
     	        any_held_title = {
-					tier = tier_county
-    	            any_county_province = {
-    	                any_province_epidemic = {
-    	                    count >= 1
-    	                    outbreak_intensity = apocalyptic
-    	                }
-    	            }
+					title_tier = county
+    	            has_province_with_epidemic = { intensity = apocalyptic }
     	        }
     	    }
     	    add = {
@@ -778,7 +812,14 @@
     	}
 	}
 
-	ai_check_interval = 60
+	ai_check_interval_by_tier = {
+		barony = 0
+		county = 60
+		duchy = 60
+		kingdom = 60
+		empire = 60
+		hegemony = 60
+	}
 
 	ai_will_select_province = {
 		value = 50
@@ -879,9 +920,7 @@
 		# Plague
     	if = {
 			limit = {
-				any_province_epidemic = {
-    	            count >= 1
-    	        }
+				any_province_epidemic = { }
     	    }
     	    add = {
     	        value = -200
@@ -952,7 +991,7 @@
 						exists = scope:province 
 						has_character_flag = imaginary_friend_pilgrimage_discount
 						any_owned_story = {
-							story_type = story_cycle_imaginary_friend
+							type = story_cycle_imaginary_friend
 							var:pilgrimage_destination ?= scope:province
 						}
 					}
@@ -971,6 +1010,52 @@
 						desc = court_event_discount_desc
 					}
 				}
+				#House Aspiration Humility
+				if = {
+					limit = {
+						house ?= { has_house_power_parameter = humility_pilgrimage_discount }
+					}
+					multiply = {
+						value = 0.75
+						desc = humility_house_aspiration_discount_desc
+					}
+				}
+				#Mandala Reverence Decree
+				if = {
+					limit = { has_realm_law_flag = cheaper_pilgrimages }
+					multiply = {
+						value = 0.75
+						desc = mandala_decree_flag_cheaper_pilgrimages_desc
+					}
+				}
+				if = {
+					limit = {
+						domicile ?= { has_domicile_parameter = estate_cheaper_pilgrimage_cost }
+					}
+					subtract = {
+						value = 0
+						add = {
+							value = pilgrimage_base_cost
+							add = {
+								value = pilgrimage_base_cost
+								multiply = activity_cost_scale_by_era
+								subtract = pilgrimage_base_cost
+							}
+						}
+						multiply = estate_cheaper_pilgrimage_cost_value
+						desc = estate_cheaper_pilgrimage_cost_desc
+					}
+				}
+				#Local Shrine Rituals
+				if = {
+					limit = {
+						faith = { has_doctrine_parameter = local_shrine_offering }
+					}
+					multiply = {
+						value = 1.75
+						desc = doctrine_pilgrimage_local_rites_name
+					}
+				}
 				#Adventurer & Nomads
 				if = {
 					limit = {
@@ -984,6 +1069,40 @@
 						value = 0.5
 						desc = adventurer_discount_desc
 					}
+				}
+				if = {
+					limit = {
+						confederation ?= { has_cohesion_level_parameter = any_member_activity_cost_reduced }
+					}
+					multiply = {
+						value = 0.9
+						desc = CB_COHESION_PARAMETER_DISCOUNT
+					}
+				}
+				# tgp_japan_yearly_events.1110
+				if = {
+					limit = { has_character_modifier = tgp_reflection_modifier }
+					multiply = {
+						value = 0.8
+						desc = tgp_reflection_modifier_desc_tt
+					}
+				}
+				if = {
+					limit = {
+						var:tgp_ceremonial_liege_events_0020_discount ?= flag:pilgrimage
+					}
+					multiply = {
+						value = 0.85
+						desc = tgp_ceremonial_liege_events_0020_discount_desc
+					}
+				}
+				#Mandala Godking AI
+				if = {
+					limit = { 
+						has_variable = mandala_godking
+						is_ai = yes
+					}
+					multiply = 0.25
 				}
 				min = minor_gold_value
 			}
@@ -1151,12 +1270,39 @@
 			}
 			if = {
 				limit = {
-					is_landless_adventurer = yes
+					has_government = landless_adventurer_government
 					has_perk = clerical_justifications_perk
 				}
 				multiply = {
 					value = 0.25
 					desc = adventurer_discount_desc
+				}
+			}
+			if = {
+				limit = {
+					faith = { has_doctrine_parameter = local_shrine_offering }
+				}
+				multiply = {
+					value = 1.75
+					desc = doctrine_pilgrimage_local_rites_name
+				}
+			}
+			if = {
+				limit = {
+					confederation ?= { has_cohesion_level_parameter = any_member_activity_cost_reduced }
+				}
+				multiply = {
+					value = 0.9
+					desc = CB_COHESION_PARAMETER_DISCOUNT
+				}
+			}
+			if = {
+				limit = {
+					var:tgp_ceremonial_liege_events_0020_discount ?= flag:pilgrimage
+				}
+				multiply = {
+					value = 0.85
+					desc = tgp_ceremonial_liege_events_0020_discount_desc
 				}
 			}
 			min = minor_gold_value
@@ -1224,7 +1370,7 @@
 								has_trait = lazy
 								has_trait = craven
 							}
-							any_secret = { secret_type = secret_non_believer }
+							any_secret = { type = secret_non_believer }
 						}
 						subtract = 50
 					}
@@ -1256,7 +1402,7 @@
 								has_trait = lazy
 								has_trait = craven
 							}
-							any_secret = { secret_type = secret_non_believer }
+							any_secret = { type = secret_non_believer }
 						}
 						add = 50
 					}
@@ -1402,7 +1548,7 @@
 									NOT = { has_trait = zealous }
 								}
 								# Non-believers want out of here.
-								any_secret = { secret_type = secret_non_believer }
+								any_secret = { type = secret_non_believer }
 							}
 						}
 						add = 100
@@ -1491,7 +1637,7 @@
 									NOT = { has_trait = zealous }
 								}
 								# Non-believers want out of here.
-								any_secret = { secret_type = secret_non_believer }
+								any_secret = { type = secret_non_believer }
 							}
 						}
 						add = -100
@@ -1786,7 +1932,7 @@
 								exists = scope:province 
 								has_character_flag = imaginary_friend_pilgrimage_discount
 								any_owned_story = {
-									story_type = story_cycle_imaginary_friend
+									type = story_cycle_imaginary_friend
 									var:pilgrimage_destination ?= scope:province
 								}
 							}
@@ -1799,7 +1945,7 @@
 						if = {
 							limit = {
 								exists = scope:province
-								is_landless_adventurer = yes
+								has_government = landless_adventurer_government
 								has_perk = clerical_justifications_perk
 							}
 							multiply = {
@@ -1892,7 +2038,7 @@
 				if = {
 					limit = {
 						any_owned_story = {
-							story_type = story_cycle_imaginary_friend
+							type = story_cycle_imaginary_friend
 							var:pilgrimage_destination ?= scope:activity.activity_location
 						}
 					}
@@ -1997,7 +2143,7 @@
 	max_guests = 30
 
 	host_intents = {
-		intents = { reflection_intent altruism_intent zealot_intent }
+		intents = { reflection_intent altruism_intent zealot_intent inspire_hope_intent } #LotR
 		default = reflection_intent
 	}
 
@@ -2040,6 +2186,7 @@
 			apa_picked_up_local_language
 			apa_lead_procession
 			apa_overcome_with_emotion
+			apa_studied_confucian_classics
 		}
 		chance_of_no_event = 5
 	}
@@ -2125,9 +2272,7 @@
 			# How jazzed are people about going?
 			every_attending_character = {
 				limit = {
-					NOT = {
-						this = scope:host
-					}
+					this != scope:host
 				}
 				# Then, apply suitable opinion.
 				custom = custom.every_entourage_character
@@ -2317,7 +2462,7 @@
 				limit = { 
 					NOT = {
 						any_memory = {
-							has_memory_type = completed_pilgrimage
+							memory_type = completed_pilgrimage
 							has_variable = first_pilgrimage
 						}
 					}
@@ -2415,9 +2560,18 @@
 					}
 				}	
 			}
-		#}
-		# Dynasty Legacies
+		# }
+		
 		scope:host = {
+			# tgp_ceremonial_liege_events.0020
+			if = {
+				limit = {
+					var:tgp_ceremonial_liege_events_0020_discount ?= flag:pilgrimage
+				}
+				tgp_one_up_activity_effect = yes
+				remove_variable = tgp_ceremonial_liege_events_0020_discount
+			}
+			# Dynasty Legacies
 			if = {
 				limit = {
 					# Has the right perk.
@@ -2449,16 +2603,6 @@
 					target = scope:activity.activity_location.county
 				}
 			}
-			# ACH Repent oath counter
-			if = {
-				limit = {
-					has_variable = repent_oath_pilgrimage_counter
-				}
-				change_variable = {
-					name = repent_oath_pilgrimage_counter
-					add = 1
-				}
-			}
 		}
 	}
 
@@ -2469,7 +2613,7 @@
 	# Travel
 	background = { # Bridge
 		trigger = {
-			NOT = { scope:host.location = scope:activity.activity_location }
+			scope:host.location != scope:activity.activity_location
 			scope:host.location = {
 				is_riverside_province = yes
 				#geographical_region = world_europe #LotR
@@ -2486,10 +2630,40 @@
 		environment = "environment_travel_bridge"
 		ambience = "event:/SFX/Events/Backgrounds/mountains_day"
 	}
+
+	background = { #Rice Fields - If we have Paddy fields AND/or terraced hills
+	#This goes before other terrain since it can override in many different terrains if built
+		trigger = {
+			scope:host.location != scope:activity.activity_location
+			scope:host.location = {
+				terrain = farmlands
+				OR = {
+					terrain = terraced_hills
+					has_building_or_higher = paddy_fields_01
+				}
+			}
+		}
+		texture = "gfx/interface/illustrations/event_scenes/tgp_rice_fields.dds"
+		environment = "environment_tgp_rice_fields"
+		ambience = "event:/DLC/EP4/SFX/Events/Event_Backgrounds/tgp_rice_fields"
+	}
+
+	background = { #Farmlands - East Asia
+		trigger = {
+			scope:host.location != scope:activity.activity_location
+			scope:host.location = {
+				terrain = farmlands
+				culture = { has_graphical_east_asia_culture_group_trigger = yes }
+			}
+		}
+		texture = "gfx/interface/illustrations/event_scenes/tgp_farm_asia.dds"
+		environment = "environment_tgp_farm_asia"
+		ambience = "event:/DLC/EP4/SFX/Events/Event_Backgrounds/tgp_farm_asia"
+	}
 	
 	background = { # Farmland, settled
 		trigger = {
-			NOT = { scope:host.location = scope:activity.activity_location }
+			scope:host.location != scope:activity.activity_location
 			scope:host.location = {
 				terrain = farmlands
 				exists = province_owner
@@ -2501,7 +2675,7 @@
 	}
 	background = { # Farmland, unsettled
 		trigger = {
-			NOT = { scope:host.location = scope:activity.activity_location }
+			scope:host.location != scope:activity.activity_location
 			scope:host.location = {
 				terrain = farmlands
 				NOT = { exists = province_owner }
@@ -2514,7 +2688,7 @@
 
 	background = { #Desert, settled
 		trigger = {
-			NOT = { scope:host.location = scope:activity.activity_location }
+			scope:host.location != scope:activity.activity_location
 			scope:host.location = {
 				graphical_wilderness_desert_trigger = yes
 				exists = province_owner
@@ -2526,7 +2700,7 @@
 	}
 	background = { #Desert, unsettled
 		trigger = {
-			NOT = { scope:host.location = scope:activity.activity_location }
+			scope:host.location != scope:activity.activity_location
 			scope:host.location = {
 				graphical_wilderness_desert_trigger = yes
 				NOT = { exists = province_owner }
@@ -2539,7 +2713,7 @@
 
 	background = { #forest snowy
 		trigger = {
-			NOT = { scope:host.location = scope:activity.activity_location }
+			scope:host.location != scope:activity.activity_location
 			scope:host.location ?= { hunt_snowy_forest_trigger = yes }
 		}
 		texture = "gfx/interface/illustrations/event_scenes/ep2_hunt_snowy_forest.dds"
@@ -2549,7 +2723,7 @@
 
 	background = { #forest_pine
 		trigger = {
-			NOT = { scope:host.location = scope:activity.activity_location }
+			scope:host.location != scope:activity.activity_location
 			scope:host.location = {
 				graphical_wilderness_forest_pine_trigger = yes
 			}
@@ -2561,7 +2735,7 @@
 
 	background = { #forest
 		trigger = {
-			NOT = { scope:host.location = scope:activity.activity_location }
+			scope:host.location != scope:activity.activity_location
 			scope:host.location = {
 				graphical_wilderness_forest_trigger = yes
 			}
@@ -2595,21 +2769,9 @@
 		ambience = "event:/SFX/Events/Backgrounds/deciduous_forest_day"
 	}
 
-	background = { #LotR myrtle_forest
-		trigger = {
-			NOT = { scope:host.location = scope:activity.activity_location }
-			scope:host.location = {
-				graphical_wilderness_forest_myrtle_trigger = yes
-			}
-		}
-		texture = "gfx/interface/illustrations/event_scenes/forest_myrtle.dds"
-		environment = "environment_event_forest"
-		ambience = "event:/SFX/Events/Backgrounds/deciduous_forest_day"
-	}
-
 	background = { #mountains, settled
 		trigger = {
-			NOT = { scope:host.location = scope:activity.activity_location }
+			scope:host.location != scope:activity.activity_location
 			scope:host.location = {
 				graphical_wilderness_mountains_trigger = yes
 				exists = province_owner
@@ -2621,7 +2783,7 @@
 	}
 	background = { #mountains, unsettled
 		trigger = {
-			NOT = { scope:host.location = scope:activity.activity_location }
+			scope:host.location != scope:activity.activity_location
 			scope:host.location = {
 				graphical_wilderness_mountains_trigger = yes
 				NOT = { exists = province_owner }
@@ -2634,7 +2796,7 @@
 
 	background = { #steppe, settled
 		trigger = {
-			NOT = { scope:host.location = scope:activity.activity_location }
+			scope:host.location != scope:activity.activity_location
 			scope:host.location = {
 				graphical_wilderness_steppe_trigger = yes
 				exists = province_owner
@@ -2646,7 +2808,7 @@
 	}
 	background = { #steppe, unsettled
 		trigger = {
-			NOT = { scope:host.location = scope:activity.activity_location }
+			scope:host.location != scope:activity.activity_location
 			scope:host.location = {
 				graphical_wilderness_steppe_trigger = yes
 				NOT = { exists = province_owner }
@@ -2659,7 +2821,7 @@
 
 	background = { #drylands (formerly desert)
 		trigger = {
-			NOT = { scope:host.location = scope:activity.activity_location }
+			scope:host.location != scope:activity.activity_location
 			scope:host.location = {
 				graphical_drylands_trigger = yes
 			}
@@ -2695,7 +2857,7 @@
 
 	background = { #wetlands
 		trigger = {
-			NOT = { scope:host.location = scope:activity.activity_location }
+			scope:host.location != scope:activity.activity_location
 			scope:host.location = {
 				graphical_wilderness_wetlands_trigger = yes
 			}
@@ -2707,7 +2869,7 @@
 
 	background = { #jungle
 		trigger = {
-			NOT = { scope:host.location = scope:activity.activity_location }
+			scope:host.location != scope:activity.activity_location
 			scope:host.location = {
 				graphical_wilderness_jungle_trigger = yes
 			}
@@ -2719,7 +2881,7 @@
 
 	background = { #plains, settled
 		trigger = {
-			NOT = { scope:host.location = scope:activity.activity_location }
+			scope:host.location != scope:activity.activity_location
 			scope:host.location = {
 				graphical_plains_trigger = yes
 				exists = province_owner
@@ -2731,7 +2893,7 @@
 	}
 	background = { #plains, unsettled
 		trigger = {
-			NOT = { scope:host.location = scope:activity.activity_location }
+			scope:host.location != scope:activity.activity_location
 			scope:host.location = {
 				graphical_plains_trigger = yes
 				NOT = { exists = province_owner }
@@ -2744,7 +2906,7 @@
 
 	background = { #hills, settled
 		trigger = {
-			NOT = { scope:host.location = scope:activity.activity_location }
+			scope:host.location != scope:activity.activity_location
 			scope:host.location = {
 				graphical_hills_trigger = yes
 				exists = province_owner
@@ -2756,7 +2918,7 @@
 	}
 	background = { #hills, unsettled
 		trigger = {
-			NOT = { scope:host.location = scope:activity.activity_location }
+			scope:host.location != scope:activity.activity_location
 			scope:host.location = {
 				graphical_hills_trigger = yes
 				NOT = { exists = province_owner }
@@ -2769,7 +2931,7 @@
 
 	background = { #sea
 		trigger = {
-			NOT = { scope:host.location = scope:activity.activity_location }
+			scope:host.location != scope:activity.activity_location
 			scope:host.location = {
 				is_sea_province = yes
 			}
@@ -2828,13 +2990,6 @@
 		environment = "environment_event_bp1_desert"
 		ambience = "event:/SFX/Events/Backgrounds/burning_building"
 	}
-	#Generic holy sites
-	# background = { #LotR
-	#	trigger = { scope:host.religion = religion:zoroastrianism_religion }
-	#	texture = "gfx/interface/illustrations/event_scenes/fp3_temple.dds"
-	#	environment = "environment_event_fp3_temple"
-	#	ambience = "event:/DLC/FP1/SFX/Events/event_temple"
-	# }
 	background = {
 		trigger = {
 			activity_location.culture = { has_graphical_mena_culture_group_trigger = yes }
@@ -2867,7 +3022,7 @@
 		environment = "environment_western_holy_site"
 		ambience = "event:/SFX/Events/Backgrounds/temple_christian"
 	}
-	background = {
+	background = { #LotR
 		trigger = {
 			activity_location.culture = { is_dwarf_culture = yes }
 		}
@@ -2930,7 +3085,7 @@
 	window_characters = {
 
 		pilgrim = {
-			camera = camera_event_center
+			camera = camera_body_left
 			
 			effect = {
 				if = {
@@ -2942,6 +3097,7 @@
 					}
 					every_attending_character = {
 						limit = {
+							this != scope:host
 							OR = {
 								scope:host.location = scope:activity.activity_location
 								scope:host.location = { is_sea_province = yes }
@@ -2955,27 +3111,31 @@
 			scripted_animation = {
 				triggered_animation = {
 					trigger = {
-						scope:character = { has_trait = zealous }
+						scope:character = {
+							OR = {
+								has_trait = cynical
+								any_secret = { type = secret_non_believer }
+							}
+						}
 					}
-					animation = personality_zealous
+					animation = { boredom personality_cynical worry personality_vengeful dismissal }
 				}
 				triggered_animation = {
 					trigger = {
-						scope:character = { has_trait = cynical }
+						scope:character = { always = yes }
 					}
-					animation = { boredom personality_cynical }
+					animation = { personality_forgiving survey prostration }
 				}
-				#Fallback
-				animation = thinking
 			}
 		}
 
 		pilgrim = {
-			camera = camera_event_center
+			camera = camera_body
 			
 			effect = {
 				every_attending_character = {
 					limit = {
+						this != scope:host
 						OR = {
 							scope:host.location = scope:activity.activity_location
 							scope:host.location = { is_sea_province = yes }
@@ -2988,18 +3148,21 @@
 			scripted_animation = {
 				triggered_animation = {
 					trigger = {
-						scope:character = { has_trait = zealous }
+						scope:character = {
+							OR = {
+								has_trait = cynical
+								any_secret = { type = secret_non_believer }
+							}
+						}
 					}
-					animation = personality_zealous
+					animation = { boredom personality_cynical worry personality_vengeful dismissal }
 				}
 				triggered_animation = {
 					trigger = {
-						scope:character = { has_trait = cynical }
+						scope:character = { always = yes }
 					}
-					animation = { boredom personality_cynical }
+					animation = { personality_compassionate chaplain reading }
 				}
-				#Fallback
-				animation = personality_compassionate
 			}
 		}
 
@@ -3016,6 +3179,7 @@
 					}
 					every_attending_character = {
 						limit = {
+							this != scope:host
 							NOR = {
 								scope:host.location = scope:activity.activity_location
 								scope:host.location = { is_sea_province = yes }
@@ -3037,6 +3201,7 @@
 			effect = {
 				every_attending_character = {
 					limit = {
+						this != scope:host
 						NOR = {
 							scope:host.location = scope:activity.activity_location
 							scope:host.location = { is_sea_province = yes }
@@ -3052,7 +3217,7 @@
 		}
 		
 		host = {
-			camera = camera_event_center
+			camera = camera_body
 			
 			effect = {
 				if = {
@@ -3075,22 +3240,16 @@
 				triggered_animation = {
 					trigger = {
 						scope:host = {
-							has_trait = zealous
-							NOT = {
-								any_secret = { secret_type = secret_non_believer }
+							OR = {
+								has_trait = cynical
+								any_secret = { type = secret_non_believer }
 							}
 						}
 					}
-					animation = personality_zealous
-				}
-				triggered_animation = {
-					trigger = {
-						scope:host = { has_trait = cynical }
-					}
-					animation = { boredom personality_cynical }
+					animation = { personality_cynical }
 				}
 				#Fallback
-				animation = personality_compassionate
+				animation = prayer
 			}
 		}
 		
@@ -3120,11 +3279,12 @@
 		}
 
 		pilgrim = {
-			camera = camera_event_center
+			camera = camera_body_right
 			
 			effect = {
 				every_attending_character = {
 					limit = {
+						this != scope:host
 						OR = {
 							scope:host.location = scope:activity.activity_location
 							scope:host.location = { is_sea_province = yes }
@@ -3137,23 +3297,26 @@
 			scripted_animation = {
 				triggered_animation = {
 					trigger = {
-						scope:character = { has_trait = zealous }
+						scope:character = {
+							OR = {
+								has_trait = cynical
+								any_secret = { type = secret_non_believer }
+							}
+						}
 					}
-					animation = personality_zealous
+					animation = { boredom personality_cynical worry personality_vengeful dismissal }
 				}
 				triggered_animation = {
 					trigger = {
-						scope:character = { has_trait = cynical }
+						scope:character = { always = yes }
 					}
-					animation = { boredom personality_cynical }
+					animation = { page_flipping personality_content holding_staff }
 				}
-				#Fallback
-				animation = thinking
 			}
 		}
 
 		pilgrim = {
-			camera = camera_event_center
+			camera = camera_body_right
 			
 			effect = {
 				if = {
@@ -3165,6 +3328,7 @@
 					}
 					every_attending_character = {
 						limit = {
+							this != scope:host
 							OR = {
 								scope:host.location = scope:activity.activity_location
 								scope:host.location = { is_sea_province = yes }
@@ -3178,27 +3342,31 @@
 			scripted_animation = {
 				triggered_animation = {
 					trigger = {
-						scope:character = { has_trait = zealous }
+						scope:character = {
+							OR = {
+								has_trait = cynical
+								any_secret = { type = secret_non_believer }
+							}
+						}
 					}
-					animation = personality_zealous
+					animation = { boredom personality_cynical worry personality_vengeful dismissal }
 				}
 				triggered_animation = {
 					trigger = {
-						scope:character = { has_trait = cynical }
+						scope:character = { always = yes }
 					}
-					animation = { boredom personality_cynical }
+					animation = { stunned pondering survey_staff }
 				}
-				#Fallback
-				animation = personality_compassionate
 			}
 		}
 
 		pilgrim = { # Travel
-			camera = camera_activity_horse
+			camera = camera_body
 			
 			effect = {
 				every_attending_character = {
 					limit = {
+						this != scope:host
 						NOR = {
 							scope:host.location = scope:activity.activity_location
 							scope:host.location = { is_sea_province = yes }
@@ -3226,6 +3394,7 @@
 					}
 					every_attending_character = {
 						limit = {
+							this != scope:host
 							NOR = {
 								scope:host.location = scope:activity.activity_location
 								scope:host.location = { is_sea_province = yes }

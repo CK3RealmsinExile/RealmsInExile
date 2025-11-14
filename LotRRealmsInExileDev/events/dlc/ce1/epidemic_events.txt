@@ -10,7 +10,7 @@
 # epidemic_events.0010 - The plague has reached your court, set your stance (event to avoid event spamming)
 
 # Army commander gets infected - may spread to army
-epidemic_events.0001 = {	
+epidemic_events.0001 = {
 	type = character_event
 	title = epidemic_events.0001.t
 	desc = epidemic_events.0001.desc
@@ -84,7 +84,7 @@ epidemic_events.0001 = {
 	}
 }
 
-# Notification for going into isolation
+# Notification for going into isolation due to epidemic
 epidemic_events.0100 = {
 	type = character_event
 	title = epidemic_events.0100.t
@@ -97,11 +97,12 @@ epidemic_events.0100 = {
 
 	option = { #Into isolation we go
 		name = epidemic_events.0100.a
+		add_legitimacy_effect = { LEGITIMACY = minor_legitimacy_loss }
+		add_prestige = major_prestige_loss
 		isolate_family_decision_effect = yes
 		ai_chance = {
 			base = 100
 		}
-		add_legitimacy_effect = { LEGITIMACY = miniscule_legitimacy_loss }
 	}
 }
 epidemic_events.0101 = {
@@ -147,13 +148,12 @@ epidemic_events.0110 = {
 
 	trigger = {
 		exists = scope:epidemic
-		# Make sure no new plagues showed up since then
+		# Make sure no new plagues showed up since then, or a new preferred capital county has not been chosen already
 		NOT = {
 			any_sub_realm_county = {
-				any_county_province = {
-					any_province_epidemic = {
-						count >= 1
-					}
+				OR = {
+					has_province_with_epidemic = { intensity = any }
+					has_variable = preferred_capital_chosen
 				}
 			}
 		}
@@ -189,7 +189,7 @@ epidemic_events.0110 = {
 							primary_title = {
 								is_de_jure_liege_or_above_target = scope:county_to_check
 							}
-							NOT = { capital_county = scope:county_to_check }
+							capital_county != scope:county_to_check
 							any_in_list = {
 								variable = formerly_infected_counties
 								this = scope:county_to_check
@@ -219,7 +219,7 @@ epidemic_events.0110 = {
 							primary_title = {
 								is_de_jure_liege_or_above_target = scope:county_to_check
 							}
-							NOT = { capital_county = scope:county_to_check }
+							capital_county != scope:county_to_check
 							any_in_list = {
 								variable = formerly_infected_counties
 								this = scope:county_to_check
@@ -228,6 +228,12 @@ epidemic_events.0110 = {
 					}
 				}
 				title_capital_county = { save_scope_as = new_preferred_capital }
+				scope:new_preferred_capital = {
+					set_variable = {
+						name = preferred_capital_chosen
+						years = 2
+					}
+				}
 			}
 		}
 	}
@@ -239,9 +245,9 @@ epidemic_events.0110 = {
 			scope:epidemic = { outbreak_intensity >= major } #don't switch capitals for a minor plague
 			is_ai = no
 		}
-		remove_short_term_gold = {
+		remove_treasury_or_gold = {
 			value = epidemic_fromdust_value
-			add = minor_gold_value
+			add = minor_treasury_or_gold_value
 		}
 		create_title_and_vassal_change = {
 			type = revoked
@@ -269,9 +275,7 @@ epidemic_events.0110 = {
 			variable = formerly_infected_counties
 			custom = every_county_infected_10_years
 			limit = {
-				NOT = {
-					this = scope:new_preferred_capital
-				}
+				this != scope:new_preferred_capital
 			}
 			add_county_modifier = {
 				modifier = county_epidemic_recovered_medium_modifier
@@ -289,7 +293,7 @@ epidemic_events.0110 = {
 					outbreak_intensity = apocalyptic
 				}
 			}
-			remove_short_term_gold = epidemic_fromdust_value
+			remove_treasury_or_gold = epidemic_fromdust_value
 			every_in_list = {
 				variable = formerly_infected_counties
 				custom = every_county_infected_10_years
@@ -305,7 +309,7 @@ epidemic_events.0110 = {
 					outbreak_intensity >= major
 				}
 			}
-			remove_short_term_gold = epidemic_fromdust_value
+			remove_treasury_or_gold = epidemic_fromdust_value
 			every_in_list = {
 				variable = formerly_infected_counties
 				custom = every_county_infected_10_years
@@ -316,7 +320,7 @@ epidemic_events.0110 = {
 			}
 		}
 		else = {
-			remove_short_term_gold = {
+			remove_treasury_or_gold = {
 				value = epidemic_fromdust_value
 				multiply = 0.5
 			}
@@ -402,34 +406,7 @@ epidemic_events.0110 = {
 epidemic_events.1000 = {
 	type = character_event
 	title = epidemic_events.1000.t
-	desc = {
-		desc = epidemic_events.1000.desc.intro
-		first_valid = {
-			triggered_desc = {
-				trigger = {
-					faith = { has_doctrine_parameter = unreformed }
-				}
-				desc = epidemic_events.1000.desc.mid.unreformed
-			}
-			desc = epidemic_events.1000.desc.mid.reformed
-		}
-		first_valid = {
-			triggered_desc = {
-				trigger = {
-					has_trait = cynical
-				}
-				desc = epidemic_events.1000.desc.mid2.cynical
-			}
-			triggered_desc = {
-				trigger = {
-					has_trait = zealous
-				}
-				desc = epidemic_events.1000.desc.mid2.zealous
-			}
-			desc = epidemic_events.1000.desc.mid2.fallback
-		}
-		desc = epidemic_events.1000.desc.outro
-	}
+	desc = epidemic_events.1000.desc
 	theme = plague
 	override_background = { reference = ce1_funeral_pyre }
 	override_effect_2d = {
@@ -437,18 +414,8 @@ epidemic_events.1000 = {
 	}
 	
 	left_portrait = {
-		character = root
-		triggered_animation = {
-			trigger = {
-				has_trait = cynical
-			}
-			animation = thinking
-		}
-		animation = anger
-	}
-	right_portrait = {
 		character = scope:charismatic_priest
-		animation = personality_zealous
+		animation = debating
 	}
 	cooldown = { years = 5 } 
 	trigger = {
@@ -466,8 +433,7 @@ epidemic_events.1000 = {
 					}
 				}
 				any_province_epidemic = {
-					count >= 1
-					outbreak_intensity >= major
+					intensity >= major
 				}
 			}
 		}
@@ -526,7 +492,7 @@ epidemic_events.1000 = {
 						}
 					}
 					any_province_epidemic = {
-						outbreak_intensity >= major
+						intensity >= major
 					}
 				}
 			}
@@ -534,18 +500,13 @@ epidemic_events.1000 = {
 				base = 1
 				modifier = {
 					add = 250
-					any_county_province = {
-						any_province_epidemic = {
-							count >= 1
-							outbreak_intensity >= apocalyptic
-						}
-					}
+					has_province_with_epidemic = { intensity >= apocalyptic }
 				}
 			}
 			random_county_province = {
 				limit = {
 					any_province_epidemic = {
-						outbreak_intensity >= major
+						intensity >= major
 					}
 				}
 				weight = {
@@ -553,15 +514,12 @@ epidemic_events.1000 = {
 					modifier = {
 						add = 250
 						any_province_epidemic = {
-							count >= 1
-							outbreak_intensity >= apocalyptic
+							intensity >= apocalyptic
 						}
 					}
 				}
 				random_province_epidemic = {
-					limit = {
-						outbreak_intensity >= major
-					}
+					intensity >= major
 					weight = {
 						base = 1
 						modifier = {
@@ -717,6 +675,45 @@ epidemic_events.1000 = {
 			save_scope_as = charismatic_priest
 		}
 	}
+	
+	option = { # They have a point :thinking_emoji:
+		name = epidemic_events.1000.c
+		trigger = {
+			has_trait = cynical
+		}
+		set_character_faith = scope:heretical_faith
+		every_sub_realm_county = {
+			custom = every_infected_county
+			limit = {
+				any_county_province = {
+					any_province_epidemic = {
+						this = scope:cult_epidemic
+					}
+				}
+			}
+			set_county_faith = scope:heretical_faith
+			add_county_modifier = {
+				modifier = plague_cult_embraced
+				years = 10
+			}
+		}
+		stress_impact = {
+			cynical = major_stress_impact_loss
+			arrogant = medium_stress_impact_gain
+			stubborn = medium_stress_impact_gain
+		}
+		ai_chance = {
+			base = 50
+			ai_value_modifier = {
+				ai_zeal = -1
+				ai_rationality = -1
+			}
+			modifier = {
+				factor = 0
+				faith = { NOT = { has_doctrine_parameter = unreformed } }
+			}
+		}
+	}
 
 	option = { # Burn this raving lunatic!
 		name = epidemic_events.1000.a
@@ -786,45 +783,6 @@ epidemic_events.1000 = {
 			}
 		}
 	}
-
-	option = { # They have a point :thinking_emoji:
-		name = epidemic_events.1000.c
-		trigger = {
-			has_trait = cynical
-		}
-		set_character_faith = scope:heretical_faith
-		every_sub_realm_county = {
-			custom = every_infected_county
-			limit = {
-				any_county_province = {
-					any_province_epidemic = {
-						this = scope:cult_epidemic
-					}
-				}
-			}
-			set_county_faith = scope:heretical_faith
-			add_county_modifier = {
-				modifier = plague_cult_embraced
-				years = 10
-			}
-		}
-		stress_impact = {
-			cynical = major_stress_impact_loss
-			arrogant = medium_stress_impact_gain
-			stubborn = medium_stress_impact_gain
-		}
-		ai_chance = {
-			base = 50
-			ai_value_modifier = {
-				ai_zeal = -1
-				ai_rationality = -1
-			}
-			modifier = {
-				factor = 0
-				faith = { NOT = { has_doctrine_parameter = unreformed } }
-			}
-		}
-	}
 }
 
 ############################
@@ -837,16 +795,16 @@ epidemic_events.1010 = {
 	title = epidemic_events.1010.t
 	desc = epidemic_events.1010.desc
 	theme = plague
+	override_background = ce1_catacombs
 	left_portrait = {
-		character = root
-		animation = anger
+		character = scope:superstitious_courtier
+		animation = throne_room_one_handed_passive_3
+		camera = camera_event_group_talking_left_left
 	}
 	right_portrait = {
-		character = scope:superstitious_courtier
-		animation = manic
-	}
-	lower_right_portrait = {
 		character = scope:dead_lover
+		animation = dead
+		camera = camera_event_right_forward
 	}
 	cooldown = { years = 5 } 
 	trigger = {
@@ -862,8 +820,7 @@ epidemic_events.1010 = {
 					}
 				}
 				any_province_epidemic = {
-					count >= 1
-					outbreak_intensity >= major
+					intensity >= major
 				}
 			}
 		}
@@ -885,7 +842,6 @@ epidemic_events.1010 = {
 			is_available_adult = yes
 			probably_superstitious = yes
 		}
-		NOT = { is_elf = yes } #LOTR
 	}
 
 	immediate = {
@@ -912,88 +868,6 @@ epidemic_events.1010 = {
 				probably_superstitious = yes
 			}
 			save_scope_as = superstitious_courtier
-		}
-	}
-
-	option = { # How bloody well dare you
-		name = epidemic_events.1010.a
-		reverse_add_opinion = {
-			modifier = hate_opinion
-			opinion = -20
-			target = scope:superstitious_courtier
-		}
-		every_sub_realm_county = {
-			custom = all_realm_county_epidemic_scope
-			limit = {
-				any_county_province = {
-					any_province_epidemic = {
-						this = scope:epidemic_scope
-					}
-				}
-			}
-			add_county_modifier = {
-				modifier = beset_by_revenants
-				years = 10
-			}
-		}
-		add_legitimacy = miniscule_legitimacy_loss
-		stress_impact = {
-			callous = minor_stress_impact_loss
-			cynical = minor_stress_impact_gain
-			paranoid = minor_stress_impact_gain
-			eccentric = minor_stress_impact_gain
-		}
-		ai_chance = {
-			base = 100
-			ai_value_modifier = {
-				ai_zeal = 1
-				ai_compassion = 1
-				ai_rationality = 1
-			}
-		}
-	}
-
-	option = { # Nail it shut!
-		name = epidemic_events.1010.b
-		scope:dead_lover = {
-			every_close_family_member = {
-				custom = every_family_member_of_lover
-				add_opinion = {
-					modifier = hate_opinion
-					opinion = -30
-					target = root
-				}
-			}
-		}
-		every_sub_realm_county = {
-			custom = every_infected_county
-			limit = {
-				any_county_province = {
-					any_province_epidemic = {
-						this = scope:epidemic_scope
-					}
-				}
-			}
-			add_county_modifier = {
-				modifier = revenant_expelled
-				years = 10
-			}
-		}
-		stress_impact = {
-			paranoid = minor_stress_impact_loss
-			callous = minor_stress_impact_loss
-			base = minor_stress_impact_gain
-			zealous = minor_stress_impact_gain
-			gregarious = minor_stress_impact_gain
-			lustful = minor_stress_impact_gain
-		}
-		ai_chance = {
-			base = 100
-			ai_value_modifier = {
-				ai_compassion = -1
-				ai_rationality = -1
-				ai_honor = -1
-			}
 		}
 	}
 
@@ -1032,7 +906,68 @@ epidemic_events.1010 = {
 			}
 		}
 		stress_impact = {
-			paranoid = medium_stress_impact_loss
+			paranoid = major_stress_impact_loss
+			callous = minor_stress_impact_loss
+			base = minor_stress_impact_gain
+			zealous = minor_stress_impact_gain
+			gregarious = minor_stress_impact_gain
+			lustful = minor_stress_impact_gain
+		}
+		ai_chance = {
+			base = 100
+			ai_value_modifier = {
+				ai_compassion = -1
+				ai_rationality = -1
+				ai_honor = -1
+			}
+		}
+	}
+
+	option = { # How bloody well dare you
+		name = epidemic_events.1010.a
+		add_piety = minor_piety_gain
+		capital_county = {
+			add_county_modifier = {
+				modifier = beset_by_revenants
+				years = 5
+			}
+		}
+		stress_impact = {
+			callous = minor_stress_impact_loss
+			cynical = minor_stress_impact_gain
+			paranoid = minor_stress_impact_gain
+			eccentric = minor_stress_impact_gain
+		}
+		ai_chance = {
+			base = 100
+			ai_value_modifier = {
+				ai_zeal = 1
+				ai_compassion = 1
+				ai_rationality = 1
+			}
+		}
+	}
+
+	option = { # Nail it shut!
+		name = epidemic_events.1010.b
+		scope:dead_lover = {
+			every_close_family_member = {
+				custom = every_family_member_of_lover
+				add_opinion = {
+					modifier = hate_opinion
+					opinion = -30
+					target = root
+				}
+			}
+		}
+		capital_county = {
+			add_county_modifier = {
+				modifier = revenant_expelled
+				years = 5
+			}
+		}
+		stress_impact = {
+			paranoid = minor_stress_impact_loss
 			callous = minor_stress_impact_loss
 			base = minor_stress_impact_gain
 			zealous = minor_stress_impact_gain
@@ -1060,13 +995,17 @@ epidemic_events.1020 = {
 	title = epidemic_events.1020.t
 	desc = epidemic_events.1020.desc
 	theme = plague
+	override_background = ce1_funeral_pyre
+	override_effect_2d = { reference = flies }
 	left_portrait = {
 		character = root
-		animation = anger
+		animation = survey
+		camera = camera_event_left_away
 	}
 	right_portrait = {
 		character = scope:miasma_courtier
-		animation = thinking
+		animation = storyteller
+		camera = camera_event_center_away
 	}
 	cooldown = { years = 5 } 
 	trigger = {
@@ -1080,9 +1019,7 @@ epidemic_events.1020 = {
 						value <= squared_distance_medium #250 map-pixels. Roughly one Ireland away (top to bottom).
 					}
 				}
-				any_province_epidemic = {
-					count >= 1
-				}
+				any_province_epidemic = { }
 			}
 		}
 		any_courtier_or_guest = {
@@ -1102,9 +1039,7 @@ epidemic_events.1020 = {
 							value <= squared_distance_medium #250 map-pixels. Roughly one Ireland away (top to bottom).
 						}
 					}
-					any_province_epidemic = {
-						count >= 1
-					}
+					any_province_epidemic = { }
 					save_temporary_scope_as = province_temp
 				}
 			}
@@ -1139,12 +1074,12 @@ epidemic_events.1020 = {
 
 	option = { # Okay, I'll do it :eyeroll:
 		name = epidemic_events.1020.a
-		add_prestige = minor_prestige_gain
-		remove_short_term_gold = medium_gold_value
+		add_legitimacy_effect = { LEGITIMACY = miniscule_legitimacy_gain }
+		remove_treasury_or_gold = minor_treasury_or_gold_value
 		scope:epidemic_county = {
 			add_county_modifier = {
 				modifier = flowers_planted
-				years = 5
+				years = 15
 			}
 		}
 		stress_impact = {
@@ -1159,7 +1094,7 @@ epidemic_events.1020 = {
 			base = 100
 			modifier = {
 				factor = 0
-				gold < medium_gold_value
+				treasury_or_gold < medium_treasury_or_gold_value
 			}
 			ai_value_modifier = {
 				ai_zeal = 1
@@ -1171,13 +1106,6 @@ epidemic_events.1020 = {
 
 	option = { # What a waste of money
 		name = epidemic_events.1020.b
-		add_prestige = minor_prestige_loss
-		scope:epidemic_county = {
-			add_county_modifier = {
-				modifier = miasma_ignored
-				years = 15
-			}
-		}
 		add_legitimacy_effect = { LEGITIMACY = miniscule_legitimacy_loss }
 		stress_impact = {
 			compassionate = minor_stress_impact_gain
@@ -1204,10 +1132,12 @@ epidemic_events.1030 = {
 	title = epidemic_events.1030.t
 	desc = epidemic_events.1030.desc
 	theme = plague
-	override_background = { reference = ce1_funeral_pyre }
+	override_background = physicians_study
+	override_effect_2d = { reference = flies }
 	left_portrait = {
 		character = root
 		animation = shock
+		camera = camera_event_very_left
 	}
 	right_portrait = {
 		character = scope:leeched_courtier
@@ -1217,24 +1147,19 @@ epidemic_events.1030 = {
 	trigger = {
 		# Only if there's a big plague
 		capital_county = {
-			any_county_province = {
-				any_province_epidemic = {
-					outbreak_intensity >= major
-					save_temporary_scope_as = plague_to_check
-					root = {
-						# We don't use is_available, because that blocks diseased characters
-						any_courtier_or_guest = {
-							#is_adult = yes
-							is_lotr_adult = yes
-							is_alive = yes
-							is_in_army = no
-							is_imprisoned = no
-							is_incapable = no
-							NOT = { has_variable = gone_adventuring }
-							is_busy_in_events_unlocalised = no
-							has_trait = scope:plague_to_check.epidemic_type.epidemic_trait
-							save_temporary_scope_as = courtier_temp
-						}
+			any_county_province_epidemic = {
+				intensity >= major
+				save_temporary_scope_as = plague_to_check
+				root = {
+					# We don't use is_available, because that blocks diseased characters
+					any_courtier_or_guest = {
+						is_adult = yes
+						is_alive = yes
+						is_in_army = no
+						is_imprisoned = no
+						is_incapable = no
+						has_trait = scope:plague_to_check.epidemic_type.epidemic_trait
+						save_temporary_scope_as = courtier_temp
 					}
 				}
 			}
@@ -1247,7 +1172,7 @@ epidemic_events.1030 = {
 			random_county_province = {
 				limit = {
 					any_province_epidemic = {
-						outbreak_intensity >= major
+						intensity >= major
 						save_temporary_scope_as = plague_to_check
 						root = {
 							# We don't use is_available, because that blocks diseased characters
@@ -1258,15 +1183,13 @@ epidemic_events.1030 = {
 								is_in_army = no
 								is_imprisoned = no
 								is_incapable = no
-								NOT = { has_variable = gone_adventuring }
-								is_busy_in_events_unlocalised = no
 								has_trait = scope:plague_to_check.epidemic_type.epidemic_trait
 							}
 						}
 					}
 				}
 				random_province_epidemic = {
-					limit = { outbreak_intensity >= major }
+					intensity >= major
 					save_scope_as = epidemic_scope
 				}
 			}
@@ -1280,8 +1203,6 @@ epidemic_events.1030 = {
 				is_in_army = no
 				is_imprisoned = no
 				is_incapable = no
-				NOT = { has_variable = gone_adventuring }
-				is_busy_in_events_unlocalised = no
 				has_trait = scope:epidemic_scope.epidemic_type.epidemic_trait
 			}
 			save_scope_as = leeched_courtier
@@ -1292,7 +1213,7 @@ epidemic_events.1030 = {
 		name = epidemic_events.1030.a
 		if = {
 			limit = {
-				is_landless_adventurer = yes
+				has_government = landless_adventurer_government
 				is_ai = no
 			}
 			remove_short_term_gold = { 10 20 }
@@ -1354,25 +1275,10 @@ epidemic_events.1030 = {
 						limit = {
 							has_trait = scope:epidemic_scope.epidemic_type.epidemic_trait
 						}
-						add_character_modifier = {
-							modifier = medicating_with_leeches_bad
-							years = 10
-						}
 						add_opinion = {
-							modifier = hate_opinion
+							modifier = annoyed_opinion
 							opinion = -30
 							target = root
-						}
-					}
-					if = {
-						limit = {
-							root = {
-								has_trait = scope:epidemic_scope.epidemic_type.epidemic_trait
-							}
-						}
-						add_character_modifier = {
-							modifier = medicating_with_leeches_bad
-							years = 10
 						}
 					}
 				}
@@ -1447,13 +1353,21 @@ epidemic_events.1040 = {
 	}
 	theme = plague
 	override_background = { reference = ce1_funeral_pyre }
+	override_effect_2d = { reference = smoke }
 	left_portrait = {
 		character = root
 		animation = shock
 	}
 	right_portrait = {
 		character = scope:chaplain
+		triggered_animation = {
+			trigger = {
+				has_trait = flagellant
+			}
+			animation = happiness
+		}
 		animation = anger
+		camera = camera_event_right_forward
 	}
 	cooldown = { years = 15 } 
 	trigger = {
@@ -1469,8 +1383,7 @@ epidemic_events.1040 = {
 					}
 				}
 				any_province_epidemic = {
-					count >= 1
-					outbreak_intensity >= major
+					intensity >= major
 				}
 			}
 		}
@@ -1614,14 +1527,17 @@ epidemic_events.1050 = {
 	title = epidemic_events.1050.t
 	desc = epidemic_events.1050.desc
 	theme = plague
-	override_background = { reference = throne_room }
+	override_background = ce1_funeral_pyre
+	override_effect_2d = { reference = smoke }
 	left_portrait = {
 		character = root
-		animation = stress
+		animation = pondering
+		camera = camera_event_center_pointing_right
 	}
 	right_portrait = {
 		character = scope:chaplain
 		animation = worry
+		camera = camera_event_right_pointing_right
 	}
 	cooldown = { years = 6 } 
 	trigger = {
@@ -1637,8 +1553,7 @@ epidemic_events.1050 = {
 					}
 				}
 				any_province_epidemic = {
-					count >= 1
-					outbreak_intensity >= major
+					intensity >= major
 				}
 			}
 		}
@@ -1684,7 +1599,6 @@ epidemic_events.1050 = {
 
 	option = { # Go and debate them
 		name = epidemic_events.1050.b
-		remove_short_term_gold = medium_gold_value
 		duel = {
 			skill = learning
 			value = high_skill_rating
@@ -1700,6 +1614,7 @@ epidemic_events.1050 = {
 					send_interface_toast = {
 						title = epidemic_events.1050.b.tt.success
 						left_icon = scope:chaplain
+						add_legitimacy_effect = { LEGITIMACY = minor_legitimacy_gain }
 					}
 				}
 			}
@@ -1715,7 +1630,7 @@ epidemic_events.1050 = {
 					send_interface_toast = {
 						title = epidemic_events.1050.b.tt.failure
 						left_icon = scope:chaplain
-						add_legitimacy = miniscule_legitimacy_loss
+						add_legitimacy_effect = { LEGITIMACY = miniscule_legitimacy_loss }
 						every_sub_realm_county = {
 							custom = every_infected_county
 							limit = {
@@ -1741,10 +1656,6 @@ epidemic_events.1050 = {
 		}
 		ai_chance = {
 			base = 100
-			modifier = {
-				factor = 0
-				gold < medium_gold_value
-			}
 			ai_value_modifier = {
 				ai_compassion = 0.5
 				ai_energy = 0.5
@@ -1755,6 +1666,7 @@ epidemic_events.1050 = {
 
 	option = { # Just ignore it
 		name = epidemic_events.1050.c
+		add_legitimacy_effect = { LEGITIMACY = miniscule_legitimacy_gain }
 		every_sub_realm_county = {
 			custom = every_infected_county
 			limit = {
@@ -1769,7 +1681,6 @@ epidemic_events.1050 = {
 				years = 10
 			}
 		}
-		add_legitimacy = miniscule_legitimacy_loss
 		stress_impact = {
 			diligent = minor_stress_impact_gain
 			just = minor_stress_impact_gain
@@ -1793,6 +1704,8 @@ epidemic_events.1050 = {
 epidemic_events.1060 = {
 	type = character_event
 	title = epidemic_events.1060.t
+	window = big_event_window
+	override_effect_2d = { reference = rain }
 	desc = {
 		desc = epidemic_events.1060.desc.intro
 		first_valid = {
@@ -1824,6 +1737,7 @@ epidemic_events.1060 = {
 				trigger = {
 					scope:story_scope = {
 						var:blamed_plague_on = flag:trait
+						NOT = { var:trait_blamed = trait:witch }
 					}
 				}
 				desc = epidemic_events.1060.desc.mid.trait
@@ -1855,7 +1769,7 @@ epidemic_events.1060 = {
 		character = root
 		animation = stress
 	}
-	cooldown = { years = 5 } 
+	cooldown = { years = 15 } 
 	trigger = {
 		is_available_adult = yes
 		# Only if there's a big plague
@@ -1869,7 +1783,7 @@ epidemic_events.1060 = {
 					}
 				}
 				any_province_epidemic = {
-					outbreak_intensity >= major
+					intensity >= major
 				}
 			}
 		}
@@ -1879,9 +1793,7 @@ epidemic_events.1060 = {
 		get_random_nearby_realm_epidemic = { INTENSITY = major }
 		create_story = plague_witch_hunt
 		random_owned_story = {
-			limit = {
-				story_type = plague_witch_hunt
-			}
+			type = plague_witch_hunt
 			save_scope_as = story_scope
 			# This is used to keep track of which epidemic is the source of people blaming the plague on some group
 			set_variable = {
@@ -1922,13 +1834,11 @@ epidemic_events.1060 = {
 				}
 				20 = {
 					trigger = {
-						OR = {
-							trait_is_shunned_or_criminal_in_faith_trigger = {
+						trait_is_shunned_or_criminal_in_faith_trigger = {
 								TRAIT = witch
 								FAITH = root.faith
 								GENDER_CHARACTER = root
 							}
-						}
 					}
 					set_variable = {
 						name = blamed_plague_on
@@ -1962,72 +1872,14 @@ epidemic_events.1060 = {
 			}
 		}
 	}
-
-	option = { # How awful!
-		name = epidemic_events.1060.a
-		every_sub_realm_county = {
-			custom = every_infected_county
-			limit = {
-				any_county_province = {
-					any_province_epidemic = {
-						this = scope:epidemic_scope
-					}
-				}
-			}
-			add_county_modifier = {
-				modifier = rampant_witch_trials
-				years = 10
-			}
-		}
-		stress_impact = {
-			diligent = minor_stress_impact_gain
-			compassionate = minor_stress_impact_gain
-		}
-		ai_chance = {
-			base = 100
-			ai_value_modifier = {
-				ai_rationality = -1
-				ai_zeal = 0.2
-			}
-		}
-	}
-
-	option = { # Stop this madness in the name of your king!
-		name = epidemic_events.1060.b
-		every_sub_realm_county = {
-			custom = every_infected_county
-			limit = {
-				any_county_province = {
-					any_province_epidemic = {
-						this = scope:epidemic_scope
-					}
-				}
-			}
-			add_county_modifier = {
-				modifier = witch_trials_slowed
-				years = 10
-			}
-		}
-		stress_impact = {
-			zealous = minor_stress_impact_gain
-			paranoid = medium_stress_impact_gain
-			trusting = medium_stress_impact_gain
-		}
-		ai_chance = {
-			base = 100
-			ai_value_modifier = {
-				ai_rationality = 1
-				ai_honor = 0.5
-			}
-		}
-	}
-
+	
 	option = { # Am I not an authority on religious matters? This is heresy!
 		name = epidemic_events.1060.c
 		reason = piety_level
 		trigger = {
 			piety_level >= very_high_piety_level
 		}
+		custom_tooltip = witch_trial_story_tt
 		# if = { #LotR
 		# 	limit = {
 		# 		scope:story_scope = {
@@ -2064,6 +1916,67 @@ epidemic_events.1060 = {
 			}
 		}
 	}
+
+	option = { # How awful!
+		name = epidemic_events.1060.a
+		custom_tooltip = witch_trial_story_tt
+		every_sub_realm_county = {
+			custom = every_infected_county
+			limit = {
+				any_county_province = {
+					any_province_epidemic = {
+						this = scope:epidemic_scope
+					}
+				}
+			}
+			add_county_modifier = {
+				modifier = rampant_witch_trials
+				years = 10
+			}
+		}
+		stress_impact = {
+			diligent = minor_stress_impact_gain
+			compassionate = minor_stress_impact_gain
+		}
+		ai_chance = {
+			base = 100
+			ai_value_modifier = {
+				ai_rationality = -1
+				ai_zeal = 0.2
+			}
+		}
+	}
+
+	option = { # Stop this madness in the name of your king!
+		name = epidemic_events.1060.b
+		custom_tooltip = witch_trial_story_tt
+		every_sub_realm_county = {
+			custom = every_infected_county
+			limit = {
+				any_county_province = {
+					any_province_epidemic = {
+						this = scope:epidemic_scope
+					}
+				}
+			}
+			add_county_modifier = {
+				modifier = witch_trials_slowed
+				years = 10
+			}
+		}
+		stress_impact = {
+			zealous = minor_stress_impact_gain
+			paranoid = medium_stress_impact_gain
+			trusting = medium_stress_impact_gain
+		}
+		ai_chance = {
+			base = 100
+			ai_value_modifier = {
+				ai_rationality = 1
+				ai_honor = 0.5
+			}
+		}
+	}
 }
 
 ############################
@@ -2073,6 +1986,7 @@ epidemic_events.1060 = {
 ############################
 epidemic_events.1061 = {
 	type = character_event
+	window = big_event_window
 	title = epidemic_events.1061.t
 	desc = {
 		desc = epidemic_events.1061.desc.intro
@@ -2122,6 +2036,61 @@ epidemic_events.1061 = {
 
 	immediate = {
 		cp:councillor_court_chaplain = { save_scope_as = chaplain }
+	}
+
+	option = { # I declare cats/dogs to be the royal animal of the realm!
+		name = epidemic_events.1061.c
+		reason = prestige_level
+		trigger = {
+			prestige_level >= very_high_prestige_level
+		}
+		add_legitimacy_effect = { LEGITIMACY = minor_legitimacy_gain }
+		if = {
+			limit = {
+				scope:story_scope = {
+					var:blamed_plague_on = flag:cats
+				}
+			}
+			add_character_modifier = {
+				modifier = royal_cats
+				years = 25
+			}
+		}
+		else_if = {
+			limit = {
+				var:blamed_plague_on = flag:dogs
+			}
+			add_character_modifier = {
+				modifier = royal_dogs
+				years = 25
+			}
+		}
+		every_sub_realm_county = {
+			custom = every_infected_county
+			limit = {
+				any_county_province = {
+					any_province_epidemic = {
+						this = scope:epidemic_scope
+					}
+				}
+			}
+			add_county_modifier = {
+				modifier = plague_animals_loose
+				years = 5
+			}
+		}
+		custom_tooltip = cats_and_dogs_trial_will_end_tt
+		hidden_effect = {
+			scope:story_scope = { end_story = yes }
+		}
+		ai_chance = { # This is the objectively best option, the AI should generally pick it if they're not insane
+			base = 1000
+			ai_value_modifier = {
+				ai_rationality = 1
+				ai_honor = 1
+				ai_zeal = 1
+			}
+		}
 	}
 
 	option = { # Well, nothing I can do unfortunately
@@ -2203,6 +2172,89 @@ epidemic_events.1061 = {
 			}
 		}
 	}
+}
+
+############################
+## A skilled cat/dog-catcher offers to round them all up
+## 1062
+## by James Beaumont
+############################
+epidemic_events.1062 = {
+	type = character_event
+	window = big_event_window
+	override_background = throne_room
+	title = epidemic_events.1062.t
+	desc = {
+		desc = epidemic_events.1062.desc.intro
+		first_valid = {
+			triggered_desc = {
+				trigger = {
+					scope:story_scope = {
+						var:blamed_plague_on = flag:cats
+					}
+				}
+				desc = epidemic_events.1062.desc.mid.cats
+			}
+			triggered_desc = {
+				trigger = {
+					scope:story_scope = {
+						var:blamed_plague_on = flag:dogs
+					}
+				}
+				desc = epidemic_events.1062.desc.mid.dogs
+			}
+		}
+		desc = epidemic_events.1062.desc.outro
+	}
+	theme = plague
+	left_portrait = {
+		character = root
+		animation = pondering
+		camera = camera_event_scheme_center
+	}
+	center_portrait = {
+		character = scope:poacher_1
+		animation = hunting_knife_start
+		camera = camera_event_scheme_far_right
+	}
+	right_portrait = {
+		character = scope:poacher_2
+		animation = bow_idle
+	}
+	cooldown = { years = 5 }
+	trigger = {
+		scope:story_scope = {
+			OR = {
+				var:blamed_plague_on = flag:cats
+				var:blamed_plague_on = flag:dogs
+			}
+		}
+	}
+	
+	immediate = {
+		create_character = {
+			template = generic_peasant_character
+			location = root.location
+			culture = root.culture
+			faith = root.faith
+			gender_female_chance = root_soldier_female_chance
+			save_scope_as = poacher_1
+			after_creation = {
+				add_character_flag = created
+			}
+		}
+		create_character = {
+			template = generic_peasant_character
+			location = root.location
+			culture = root.culture
+			faith = root.faith
+			gender_female_chance = root_soldier_female_chance
+			save_scope_as = poacher_2
+			after_creation = {
+				add_character_flag = created
+			}
+		}
+	}
 
 	option = { # I declare cats/dogs to be the royal animal of the realm!
 		name = epidemic_events.1061.c
@@ -2210,6 +2262,7 @@ epidemic_events.1061 = {
 		trigger = {
 			prestige_level >= very_high_prestige_level
 		}
+		add_legitimacy_effect = { LEGITIMACY = minor_legitimacy_gain }
 		if = {
 			limit = {
 				scope:story_scope = {
@@ -2254,52 +2307,6 @@ epidemic_events.1061 = {
 				ai_rationality = 1
 				ai_honor = 1
 				ai_zeal = 1
-			}
-		}
-	}
-}
-
-############################
-## A skilled cat/dog-catcher offers to round them all up
-## 1062
-## by James Beaumont
-############################
-epidemic_events.1062 = {
-	type = character_event
-	title = epidemic_events.1062.t
-	desc = {
-		desc = epidemic_events.1062.desc.intro
-		first_valid = {
-			triggered_desc = {
-				trigger = {
-					scope:story_scope = {
-						var:blamed_plague_on = flag:cats
-					}
-				}
-				desc = epidemic_events.1062.desc.mid.cats
-			}
-			triggered_desc = {
-				trigger = {
-					scope:story_scope = {
-						var:blamed_plague_on = flag:dogs
-					}
-				}
-				desc = epidemic_events.1062.desc.mid.dogs
-			}
-		}
-		desc = epidemic_events.1062.desc.outro
-	}
-	theme = plague
-	left_portrait = {
-		character = root
-		animation = stress
-	}
-	cooldown = { years = 5 }
-	trigger = {
-		scope:story_scope = {
-			OR = {
-				var:blamed_plague_on = flag:cats
-				var:blamed_plague_on = flag:dogs
 			}
 		}
 	}
@@ -2410,58 +2417,12 @@ epidemic_events.1062 = {
 			}
 		}
 	}
-
-	option = { # I declare cats/dogs to be the royal animal of the realm!
-		name = epidemic_events.1061.c
-		reason = prestige_level
-		trigger = {
-			prestige_level >= very_high_prestige_level
+	after = {
+		scope:poacher_1 = {
+			silent_disappearance_ai_effect = yes
 		}
-		if = {
-			limit = {
-				scope:story_scope = {
-					var:blamed_plague_on = flag:cats
-				}
-			}
-			add_character_modifier = {
-				modifier = royal_cats
-				years = 25
-			}
-		}
-		else_if = {
-			limit = {
-				var:blamed_plague_on = flag:dogs
-			}
-			add_character_modifier = {
-				modifier = royal_dogs
-				years = 25
-			}
-		}
-		every_sub_realm_county = {
-			custom = every_infected_county
-			limit = {
-				any_county_province = {
-					any_province_epidemic = {
-						this = scope:epidemic_scope
-					}
-				}
-			}
-			add_county_modifier = {
-				modifier = plague_animals_loose
-				years = 5
-			}
-		}
-		custom_tooltip = cats_and_dogs_trial_will_end_tt
-		hidden_effect = {
-			scope:story_scope = { end_story = yes }
-		}
-		ai_chance = { # This is the objectively best option, the AI should generally pick it if they're not insane
-			base = 1000
-			ai_value_modifier = {
-				ai_rationality = 1
-				ai_honor = 1
-				ai_zeal = 1
-			}
+		scope:poacher_2 = {
+			silent_disappearance_ai_effect = yes
 		}
 	}
 }
@@ -2473,6 +2434,7 @@ epidemic_events.1062 = {
 ############################
 epidemic_events.1063 = {
 	type = character_event
+	window = big_event_window
 	title = epidemic_events.1063.t
 	desc = {
 		desc = epidemic_events.1063.desc.intro
@@ -2532,6 +2494,11 @@ epidemic_events.1063 = {
 		character = root
 		animation = stress
 	}
+	right_portrait = {
+		character = scope:priest
+		animation = debating
+	}
+	cooldown = { years = 5 }
 	trigger = {
 		is_available_adult = yes
 		# Make sure that ROOT doesn't have literally every virtuous trait in their faith
@@ -2589,6 +2556,77 @@ epidemic_events.1063 = {
 				root.faith = { trait_is_virtue = scope:random_virtue_trait }
 			}
 			save_scope_as = virtuous_trait
+		}
+		
+		# Create a priest
+		create_character = {
+			template = priest_character_template
+			location = root.location
+			culture = root.culture
+			faith = root.faith
+			save_scope_as = priest
+		}
+	}
+
+	option = { # Uhhh actually, he speaks the bullshit!
+		name = epidemic_events.1063.c
+		reason = piety_level
+		trigger = {
+			piety_level >= very_high_piety_level
+		}
+		duel = {
+			skill = learning
+			value = high_skill_rating
+			# Success: you are able to argue you're good actually
+			50 = {
+				compare_modifier = {
+					value = scope:duel_value
+					multiplier = 3.5
+					min = -49
+				}
+				desc = epidemic_events.1063.c.success
+				send_interface_toast = {
+					title = epidemic_events.1063.c.success
+					left_icon = root
+					add_piety = major_piety_gain
+					add_legitimacy_effect = { LEGITIMACY = minor_legitimacy_gain }
+				}
+			}
+			# Failure: people are still into it
+			50 = {
+				compare_modifier = {
+					value = scope:duel_value
+					multiplier = -3.5
+					min = -49
+				}
+				desc = epidemic_events.1063.c.failure
+				send_interface_toast = {
+					title = epidemic_events.1063.c.failure
+					left_icon = root
+					add_legitimacy = miniscule_legitimacy_loss
+					every_sub_realm_county = {
+						custom = every_infected_county
+						limit = {
+							any_county_province = {
+								any_province_epidemic = {
+									this = scope:epidemic_scope
+								}
+							}
+						}
+						add_county_modifier = {
+							modifier = refused_to_repent
+							years = 10
+						}
+					}
+				}
+			}
+		}
+		ai_chance = {
+			base = 100
+			ai_value_modifier = {
+				ai_rationality = 2
+				ai_zeal = 1
+			}
 		}
 	}
 
@@ -2660,7 +2698,7 @@ epidemic_events.1063 = {
 		add_legitimacy = miniscule_legitimacy_loss
 		stress_impact = {
 			base = minor_stress_impact_gain
-			cynical = minor_stress_impact_loss # Am I *really* a sinner tho?
+			cynical = medium_stress_impact_loss # Am I *really* a sinner tho?
 			zealous = medium_stress_impact_gain
 			trusting = medium_stress_impact_gain
 		}
@@ -2669,67 +2707,6 @@ epidemic_events.1063 = {
 			ai_value_modifier = {
 				ai_rationality = 1
 				ai_zeal = -0.5
-			}
-		}
-	}
-
-	option = { # Uhhh actually, he speaks the bullshit!
-		name = epidemic_events.1063.c
-		reason = piety_level
-		trigger = {
-			piety_level >= very_high_piety_level
-		}
-		duel = {
-			skill = learning
-			value = high_skill_rating
-			# Success: you are able to argue you're good actually
-			50 = {
-				compare_modifier = {
-					value = scope:duel_value
-					multiplier = 3.5
-					min = -49
-				}
-				desc = epidemic_events.1063.c.success
-				send_interface_toast = {
-					title = epidemic_events.1063.c.success
-					left_icon = root
-					add_piety = major_piety_gain
-				}
-			}
-			# Failure: people are still into it
-			50 = {
-				compare_modifier = {
-					value = scope:duel_value
-					multiplier = -3.5
-					min = -49
-				}
-				desc = epidemic_events.1063.c.failure
-				send_interface_toast = {
-					title = epidemic_events.1063.c.failure
-					left_icon = root
-					add_legitimacy = miniscule_legitimacy_loss
-					every_sub_realm_county = {
-						custom = every_infected_county
-						limit = {
-							any_county_province = {
-								any_province_epidemic = {
-									this = scope:epidemic_scope
-								}
-							}
-						}
-						add_county_modifier = {
-							modifier = refused_to_repent
-							years = 10
-						}
-					}
-				}
-			}
-		}
-		ai_chance = {
-			base = 100
-			ai_value_modifier = {
-				ai_rationality = 2
-				ai_zeal = 1
 			}
 		}
 	}
@@ -2742,6 +2719,7 @@ epidemic_events.1063 = {
 ############################
 epidemic_events.1064 = {
 	type = character_event
+	window = big_event_window
 	title = epidemic_events.1064.t
 	desc = {
 		desc = epidemic_events.1064.desc.intro
@@ -2776,7 +2754,7 @@ epidemic_events.1064 = {
 	}
 	left_portrait = {
 		character = root
-		animation = stress
+		animation = worry
 	}
 	cooldown = { years = 5 }
 	trigger = {
@@ -2807,30 +2785,73 @@ epidemic_events.1064 = {
 		}
 	}
 
+	option = { # Let me make a well-formulated argument that sinning is fine actually
+		name = epidemic_events.1064.c
+		reason = piety_level
+		trigger = {
+			piety_level >= high_piety_level
+		}
+		duel = {
+			skill = learning
+			value = high_skill_rating
+			# Success: you are able to argue you're good actually
+			50 = {
+				compare_modifier = {
+					value = scope:duel_value
+					multiplier = 3.5
+					min = -49
+				}
+				desc = epidemic_events.1064.c.success
+				send_interface_toast = {
+					title = epidemic_events.1064.c.success
+					left_icon = root
+					add_piety = medium_piety_gain
+					add_legitimacy_effect = { LEGITIMACY = minor_legitimacy_gain }
+				}
+			}
+			# Failure: people are still into it
+			50 = {
+				compare_modifier = {
+					value = scope:duel_value
+					multiplier = -3.5
+					min = -49
+				}
+				desc = epidemic_events.1064.c.failure
+				send_interface_toast = {
+					title = epidemic_events.1064.c.failure
+					left_icon = root
+					add_legitimacy_effect = { LEGITIMACY = miniscule_legitimacy_loss }
+					every_sub_realm_county = {
+						custom = every_infected_county
+						limit = {
+							any_county_province = {
+								any_province_epidemic = {
+									this = scope:epidemic_scope
+								}
+							}
+						}
+						add_county_modifier = {
+							modifier = witch_trials_obstructed
+							years = 10
+						}
+					}
+				}
+			}
+		}
+		ai_chance = {
+			base = 100
+			ai_value_modifier = {
+				ai_rationality = 2
+				ai_zeal = 1
+			}
+		}
+	}
+
 	option = { # The witch trials are fine maybe probably
 		name = epidemic_events.1064.a
 		scope:witch_trial_county = {
 			change_development_level = -2
-		}
-		every_sub_realm_county = {
-			custom = every_infected_county
-			limit = {
-				any_county_province = {
-					any_province_epidemic = {
-						this = scope:epidemic_scope
-					}
-				}
-				NOT = {
-					this = scope:witch_trial_county
-				}
-			}
-			change_county_control = major_county_control_loss
-			change_development_progress = -100
-		}
-		stress_impact = {
-			diligent = minor_stress_impact_gain
-			just = minor_stress_impact_gain
-			cynical = minor_stress_impact_gain
+			change_county_control = -100
 		}
 		ai_chance = {
 			base = 100
@@ -2861,7 +2882,6 @@ epidemic_events.1064 = {
 		add_legitimacy = miniscule_legitimacy_loss
 		stress_impact = {
 			trusting = minor_stress_impact_gain
-			paranoid = minor_stress_impact_gain
 			lazy = minor_stress_impact_gain
 		}
 		ai_chance = {
@@ -2870,67 +2890,6 @@ epidemic_events.1064 = {
 				ai_rationality = 0.2
 				ai_honor = 0.5
 				ai_zeal = -0.5
-			}
-		}
-	}
-
-	option = { # Let me make a well-formulated argument that sinning is fine actually
-		name = epidemic_events.1064.c
-		reason = piety_level
-		trigger = {
-			piety_level >= high_piety_level
-		}
-		duel = {
-			skill = learning
-			value = high_skill_rating
-			# Success: you are able to argue you're good actually
-			50 = {
-				compare_modifier = {
-					value = scope:duel_value
-					multiplier = 3.5
-					min = -49
-				}
-				desc = epidemic_events.1064.c.success
-				send_interface_toast = {
-					title = epidemic_events.1064.c.success
-					left_icon = root
-					add_piety = medium_piety_gain
-				}
-			}
-			# Failure: people are still into it
-			50 = {
-				compare_modifier = {
-					value = scope:duel_value
-					multiplier = -3.5
-					min = -49
-				}
-				desc = epidemic_events.1064.c.failure
-				send_interface_toast = {
-					title = epidemic_events.1064.c.failure
-					left_icon = root
-					add_legitimacy = miniscule_legitimacy_loss
-					every_sub_realm_county = {
-						custom = every_infected_county
-						limit = {
-							any_county_province = {
-								any_province_epidemic = {
-									this = scope:epidemic_scope
-								}
-							}
-						}
-						add_county_modifier = {
-							modifier = witch_trials_obstructed
-							years = 10
-						}
-					}
-				}
-			}
-		}
-		ai_chance = {
-			base = 100
-			ai_value_modifier = {
-				ai_rationality = 2
-				ai_zeal = 1
 			}
 		}
 	}
@@ -2959,6 +2918,7 @@ scripted_trigger epidemic_events_1065_has_blamed_trait = {
 
 epidemic_events.1065 = {
 	type = character_event
+	window = big_event_window
 	title = epidemic_events.1065.t
 	desc = {
 		desc = epidemic_events.1065.desc.intro
@@ -2987,13 +2947,16 @@ epidemic_events.1065 = {
 		desc = epidemic_events.1065.desc.outro
 	}
 	theme = plague
+	override_background = corridor_night
 	left_portrait = {
 		character = root
 		animation = stress
+		camera = camera_torso_scheme_player
 	}
 	right_portrait = {
 		character = scope:shamed_buddy
 		animation = shock
+		camera = camera_torso_scheme_target
 	}
 	cooldown = { years = 5 }
 	trigger = {
@@ -3098,15 +3061,50 @@ epidemic_events.1065 = {
 		}
 	}
 
+	option = { # I will take your place, buddy
+		name = epidemic_events.1065.c
+		trigger = {
+			has_trait = august
+		}
+		add_legitimacy_effect = { LEGITIMACY = miniscule_legitimacy_loss }
+		increase_wounds_no_death_effect = { REASON = beaten }
+		upgrade_to_friend_effect = {
+			CHARACTER = scope:shamed_buddy
+			REASON = friend_walk_of_shame
+		}
+		stress_impact = {
+			base = medium_stress_impact_gain
+			arrogant = minor_stress_impact_gain
+			humble = medium_stress_impact_loss
+			compassionate = medium_stress_impact_loss
+			gregarious = minor_stress_impact_loss
+			eccentric = minor_stress_impact_loss
+		}
+		ai_chance = {
+			base = 100
+			ai_value_modifier = {
+				ai_rationality = -2
+				ai_sociability = 1
+				ai_zeal = 1
+			}
+		}
+	}
+
 	option = { # Just do it, buddy
 		name = epidemic_events.1065.a
-		downgrade_to_rival_effect = {
-			CHARACTER = scope:shamed_buddy
-			REASON = rival_walk_of_shame
+		add_legitimacy_effect = { LEGITIMACY = miniscule_legitimacy_loss }
+		scope:shamed_buddy = {
+			add_prestige = massive_prestige_loss
+			hidden_effect = {
+				increase_wounds_no_death_effect = { REASON = beaten }
+				increase_wounds_no_death_effect = { REASON = beaten }
+			}
+			show_as_tooltip = {
+				add_trait = wounded_2
+			}
 		}
 		stress_impact = {
 			just = minor_stress_impact_gain
-			cynical = minor_stress_impact_gain
 			gregarious = minor_stress_impact_gain
 		}
 		ai_chance = {
@@ -3138,7 +3136,6 @@ epidemic_events.1065 = {
 		}
 		stress_impact = {
 			trusting = minor_stress_impact_gain
-			paranoid = minor_stress_impact_gain
 			lazy = minor_stress_impact_gain
 		}
 		ai_chance = {
@@ -3151,35 +3148,6 @@ epidemic_events.1065 = {
 			}
 		}
 	}
-
-	option = { # I will take your place, buddy
-		name = epidemic_events.1065.c
-		trigger = {
-			has_trait = august
-		}
-		add_prestige = major_prestige_loss
-		add_legitimacy = miniscule_legitimacy_loss
-		upgrade_to_friend_effect = {
-			CHARACTER = scope:shamed_buddy
-			REASON = friend_walk_of_shame
-		}
-		stress_impact = {
-			base = medium_stress_impact_gain
-			arrogant = minor_stress_impact_gain
-			humble = medium_stress_impact_loss
-			compassionate = medium_stress_impact_loss
-			gregarious = minor_stress_impact_loss
-			eccentric = minor_stress_impact_loss
-		}
-		ai_chance = {
-			base = 100
-			ai_value_modifier = {
-				ai_rationality = -2
-				ai_sociability = 1
-				ai_zeal = 1
-			}
-		}
-	}
 }
 
 ############################
@@ -3189,12 +3157,15 @@ epidemic_events.1065 = {
 ############################
 epidemic_events.1066 = {
 	type = character_event
+	window = big_event_window
 	title = epidemic_events.1066.t
 	desc = epidemic_events.1066.desc
 	theme = plague
+	override_background = burning_building
+	override_effect_2d = { reference = smoke }
 	left_portrait = {
 		character = root
-		animation = stress
+		animation = grief
 	}
 	trigger = {
 		scope:story_scope = {
@@ -3207,6 +3178,45 @@ epidemic_events.1066 = {
 		add_legitimacy = miniscule_legitimacy_loss
 	}
 
+	option = { # Offer minorities asylum in the capital
+		name = epidemic_events.1066.c
+		trigger = {
+			has_trait = administrator
+		}
+		every_sub_realm_county = {
+			custom = every_infected_county
+			limit = {
+				any_county_province = {
+					any_province_epidemic = {
+						this = scope:epidemic_scope
+					}
+				}
+				this != root.capital_county
+			}
+			change_development_progress = -50
+		}
+		capital_county = {
+			change_development_progress_with_overflow = 50
+			add_county_modifier = {
+				modifier = persecuted_minorities_protected
+				years = 15
+			}
+		}
+		stress_impact = {
+			zealous = minor_stress_impact_gain # I'm a fundementalist
+			callous = minor_stress_impact_gain
+			arbitrary = minor_stress_impact_gain
+		}
+		ai_chance = {
+			base = 100
+			ai_value_modifier = {
+				ai_rationality = 1
+				ai_compassion = 1
+				ai_zeal = -0.5
+			}
+		}
+	}
+
 	option = { # Forbid the expulsion
 		name = epidemic_events.1066.a
 		every_sub_realm_county = {
@@ -3217,15 +3227,21 @@ epidemic_events.1066 = {
 						this = scope:epidemic_scope
 					}
 				}
-				NOT = {
-					this = root.capital_county
-					faith = scope:faith_blamed
-				}
+				this != root.capital_county
 			}
 			change_county_control = major_county_control_loss
 			add_county_modifier = {
 				modifier = minority_persecution_forbidden
 				years = 10
+			}
+			if = {
+				limit = {
+					faith = scope:faith_blamed
+				}
+				random = {
+					chance = 35
+					set_county_faith = root.faith 
+				}
 			}
 		}
 		stress_impact = {
@@ -3254,7 +3270,7 @@ epidemic_events.1066 = {
 					}
 				}
 			}
-			change_development_progress = -100
+			change_development_progress = -50
 			add_county_modifier = {
 				modifier = persecuted_minorities_expelled
 				years = 10
@@ -3262,10 +3278,26 @@ epidemic_events.1066 = {
 		}
 		hidden_effect = {
 			save_scope_as = bigoted_ruler_that_everyone_hates
-			random_neighboring_and_across_water_top_liege_realm_owner ?= {
-				trigger_event = {
-					id = epidemic_events.1067
-					days = { 3 10 }
+			if = {
+				limit = {
+					any_neighboring_and_across_water_top_liege_realm_owner = {
+						is_alive = yes
+						any_character_to_title_neighboring_and_across_water_county = {
+							holder.top_liege = scope:bigoted_ruler_that_everyone_hates
+						}
+					}
+				}
+				random_neighboring_and_across_water_top_liege_realm_owner = {
+					limit = {
+						is_alive = yes
+						any_character_to_title_neighboring_and_across_water_county = {
+							holder.top_liege = scope:bigoted_ruler_that_everyone_hates
+						}
+					}
+					trigger_event = {
+						id = epidemic_events.1067
+						days = { 3 10 }
+					}
 				}
 			}
 		}
@@ -3285,47 +3317,6 @@ epidemic_events.1066 = {
 			}
 		}
 	}
-
-	option = { # Offer minorities asylum in the capital
-		name = epidemic_events.1066.c
-		trigger = {
-			has_trait = administrator
-		}
-		every_sub_realm_county = {
-			custom = every_infected_county
-			limit = {
-				any_county_province = {
-					any_province_epidemic = {
-						this = scope:epidemic_scope
-					}
-				}
-				NOT = {
-					this = root.capital_county
-				}
-			}
-			change_development_progress = -100
-		}
-		capital_county = {
-			change_development_progress_with_overflow = 50
-			add_county_modifier = {
-				modifier = persecuted_minorities_protected
-				years = 15
-			}
-		}
-		stress_impact = {
-			zealous = minor_stress_impact_gain # I'm a fundementalist
-			callous = minor_stress_impact_gain
-			arbitrary = minor_stress_impact_gain
-		}
-		ai_chance = {
-			base = 100
-			ai_value_modifier = {
-				ai_rationality = 1
-				ai_compassion = 1
-				ai_zeal = -0.5
-			}
-		}
-	}
 }
 
 # Response event for a neighbouring ruler
@@ -3339,12 +3330,40 @@ epidemic_events.1067 = {
 		animation = thinking
 	}
 
+	option = { # Funnel them all into the capital
+		name = epidemic_events.1067.c
+		trigger = {
+			has_trait = administrator
+		}
+		capital_county = {
+			change_development_progress_with_overflow = 150
+			add_county_modifier = {
+				modifier = plague_minorities_sanctuary_boosted
+				years = 10
+			}
+		}
+		stress_impact = {
+			paranoid = minor_stress_impact_gain
+			zealous = minor_stress_impact_gain
+			callous = minor_stress_impact_gain
+			arbitrary = minor_stress_impact_gain
+		}
+		ai_chance = {
+			base = 100
+			ai_value_modifier = {
+				ai_rationality = 1
+				ai_compassion = 1
+				ai_zeal = -0.5
+			}
+		}
+	}
+
 	option = { # Oh cool, welcome!
 		name = epidemic_events.1067.a
 		scope:bigoted_ruler_that_everyone_hates = {
 			every_character_to_title_neighboring_and_across_water_county = {
 				custom = every_bordering_county
-				change_development_progress = 20
+				change_development_progress = 50
 				add_county_modifier = {
 					modifier = plague_minorities_sanctuary
 					years = 10
@@ -3386,34 +3405,6 @@ epidemic_events.1067 = {
 			}
 		}
 	}
-
-	option = { # Funnel them all into the capital
-		name = epidemic_events.1067.c
-		trigger = {
-			has_trait = administrator
-		}
-		capital_county = {
-			change_development_progress_with_overflow = 50
-			add_county_modifier = {
-				modifier = plague_minorities_sanctuary_boosted
-				years = 10
-			}
-		}
-		stress_impact = {
-			paranoid = minor_stress_impact_gain
-			zealous = minor_stress_impact_gain
-			callous = minor_stress_impact_gain
-			arbitrary = minor_stress_impact_gain
-		}
-		ai_chance = {
-			base = 100
-			ai_value_modifier = {
-				ai_rationality = 1
-				ai_compassion = 1
-				ai_zeal = -0.5
-			}
-		}
-	}
 }
 
 ############################
@@ -3423,21 +3414,24 @@ epidemic_events.1067 = {
 ############################
 epidemic_events.1068 = {
 	type = character_event
+	window = big_event_window
 	title = epidemic_events.1068.t
 	desc = epidemic_events.1068.desc
 	theme = plague
+	override_background = throne_room
 	left_portrait = {
 		character = root
-		animation = thinking
+		animation = stunned
 	}
 	right_portrait = {
 		character = scope:loneless_vassal
-		animation = stress
+		animation = obsequious_bow
 		triggered_outfit = {
 			remove_default_outfit = no
 			outfit_tags = { beggar_rags }
 		}
 	}
+	cooldown = { years = 5 }
 	trigger = {
 		scope:story_scope = {
 			var:blamed_plague_on = flag:faith
@@ -3446,6 +3440,11 @@ epidemic_events.1068 = {
 			is_landed_or_landless_administrative = yes # No unlanded HoFs
 			exists = capital_county # No barons
 			highest_held_title_tier >= tier_county
+			any_sub_realm_county = {
+				any_county_province_epidemic = {
+					this = scope:epidemic_scope
+				}
+			}
 		}
 	}
 
@@ -3455,6 +3454,11 @@ epidemic_events.1068 = {
 				is_landed_or_landless_administrative = yes
 				exists = capital_county
 				highest_held_title_tier >= tier_county
+				any_sub_realm_county = {
+					any_county_province_epidemic = {
+						this = scope:epidemic_scope
+					}
+				}
 			}
 			weight = {
 				base = 1
@@ -3513,6 +3517,11 @@ epidemic_events.1068 = {
 
 	option = { # I'll offer you a loan!
 		name = epidemic_events.1068.b
+		progress_towards_friend_effect = {
+			CHARACTER = scope:loneless_vassal
+			OPINION = default_friend_opinion
+			REASON = friend_plague_financial_help
+		}
 		if = {
 			limit = {
 				scope:loneless_vassal = {
@@ -3531,7 +3540,16 @@ epidemic_events.1068 = {
 		}
 		pay_short_term_gold = {
 			target = scope:loneless_vassal
-			gold = medium_gold_value
+			gold = {
+				if = {
+					limit = {
+						scope:loneless_vassal.gold < 0
+					}
+					add = scope:loneless_vassal.gold
+					multiply = -1
+				}
+				min = tiny_gold_value
+			}
 		}
 		stress_impact = {
 			just = minor_stress_impact_gain
@@ -3542,7 +3560,7 @@ epidemic_events.1068 = {
 			base = 100
 			modifier = {
 				factor = 0
-				gold < medium_gold_value
+				gold < major_gold_value
 			}
 			ai_value_modifier = {
 				ai_rationality = 1
@@ -3555,12 +3573,12 @@ epidemic_events.1068 = {
 
 	option = { # Not my fuckin problem
 		name = epidemic_events.1068.c
+		add_legitimacy_effect = { LEGITIMACY = minor_legitimacy_gain }
 		progress_towards_rival_effect = {
 			CHARACTER = scope:loneless_vassal
-			OPINION = default_rival_opinion
+			OPINION = 0
 			REASON = rival_refused_to_help_my_loans
 		}
-		add_legitimacy = miniscule_legitimacy_loss
 		stress_impact = {
 			lazy = minor_stress_impact_loss
 			just = minor_stress_impact_gain
@@ -3715,7 +3733,7 @@ epidemic_events.1100 = {
 
 	trigger = {
 		is_available = yes
-		NOT = { # Don't repeatedly inform the player of the same plague over and over
+		NOR = { # Don't repeatedly inform the player of the same plague over and over
 			is_target_in_variable_list = {
 				name = plagues_notified
 				target = scope:epidemic
@@ -3723,7 +3741,6 @@ epidemic_events.1100 = {
 			scope:epidemic = {
 				epidemic_type.epidemic_trait = trait:bubonic_plague
 			}
-			scope:epidemic = { epidemic_type = epidemic_type:long_winter_plague } #LotR
 		}
 	}
 
@@ -3840,31 +3857,36 @@ epidemic_events.1100 = {
 	option = { # Call the physician!
 		name = epidemic_events.1100.b
 		trigger = {
+			exists = court_position:court_physician_court_position
+		}
+		reason = physician
+		custom_tooltip = {
+			text = physician_will_help_epidemic_tt
+			court_position:court_physician_court_position = { save_scope_as = physician }
+			trigger_event = {
+				id = physician_epidemic_events.1020
+				days = 3
+			}
+		}
+		ai_chance = {
+			base = 100
+		}
+	}
+
+	option = { # Call a physician!
+		name = epidemic_events.1100.c
+		trigger = {
+			NOT = { exists = court_position:court_physician_court_position }
 			OR = { # prevent stacking treatment
-				is_independent_ruler = yes
+				top_liege = this
 				is_ai = no
 			}
 		}
-		if = {
-			limit = {
-				NOT = { exists = court_position:court_physician_court_position }
-			}
-			custom_tooltip = {
-				text = look_for_physician_epidemic_tt
-				add_character_flag = { flag = seeking_epidemic_treatment days = 30 }
-				trigger_event = {
-					id = health.3001 days = { court_physician_search_min court_physician_search_max }
-				}
-			}
-		}
-		else = {
-			custom_tooltip = {
-				text = physician_will_help_epidemic_tt
-				court_position:court_physician_court_position = { save_scope_as = physician }
-				trigger_event = {
-					id = physician_epidemic_events.1020
-					days = 3
-				}
+		custom_tooltip = {
+			text = look_for_physician_epidemic_tt
+			add_character_flag = { flag = seeking_epidemic_treatment days = 30 }
+			trigger_event = {
+				id = health.3001 days = { court_physician_search_min court_physician_search_max }
 			}
 		}
 		ai_chance = {
@@ -3979,7 +4001,6 @@ epidemic_events.1101 = {
 
 	trigger = {
 		is_available = yes
-		NOT = { scope:epidemic = { epidemic_type.epidemic_trait = trait:long_winter_plague } } #LotR
 		OR = {
 			AND = {
 				has_dlc_feature = legends_of_the_dead
@@ -4113,7 +4134,7 @@ epidemic_events.1101 = {
 		name = epidemic_events.1100.b
 		trigger = {
 			OR = { # prevent stacking treatment
-				is_independent_ruler = yes
+				top_liege = this
 				is_ai = no
 			}
 		}
@@ -4157,19 +4178,22 @@ epidemic_events.1110 = {
 	theme = plague
 	left_portrait = {
 		character = root
-		animation = stress
+		animation = pondering
+		camera = camera_event_left_away_3_4
 	}
 	right_portrait = {
 		character = scope:chaplain
-		animation = worry
+		animation = beg
+		camera = camera_event_right_away
 	}
+	override_effect_2d = { reference = flies }
 
 	cooldown = { years = 10 }
 
 	trigger = {
 		is_available = yes
 		any_held_title = {
-			tier = tier_county
+			title_tier = county
 			any_county_province = {
 				has_building_or_higher = burial_site_01
 			}
@@ -4185,17 +4209,19 @@ epidemic_events.1110 = {
 					}
 				}
 				any_province_epidemic = {
-					count >= 1
-					outbreak_intensity >= major
+					intensity >= major
 				}
 			}
+		}
+		any_courtier_or_guest = {
+			is_available_ai_adult = yes
 		}
 	}
 
 	immediate = {
 		random_held_title = {
+			title_tier = county
 			limit = {
-				tier = tier_county
 				any_county_province = {
 					has_building_or_higher = burial_site_01
 				}
@@ -4224,10 +4250,6 @@ epidemic_events.1110 = {
 
 	option = { # Okay, let's make room for common graves :eyeroll:
 		name = epidemic_events.1110.a
-		add_character_modifier = {
-			modifier = ce1_commoners_in_graves
-			years = 15
-		}
 		scope:graveyard_county = {
 			add_county_modifier = {
 				modifier = ce1_common_graves
@@ -4251,6 +4273,8 @@ epidemic_events.1110 = {
 
 	option = { # Lol, no shot I'm ruining my graveyard with commoners
 		name = epidemic_events.1110.b
+		add_legitimacy_effect = { LEGITIMACY = minor_legitimacy_gain }
+		add_prestige = medium_prestige_gain
 		every_sub_realm_county = {
 			custom = every_infected_county
 			limit = {
@@ -4796,13 +4820,11 @@ epidemic_events.3000 = {
 	trigger = {
 		is_travelling = yes
 		location = {
-			any_province_epidemic = {
-				count >= 1
-			}
+			any_province_epidemic = { }
 		}
 		current_travel_plan ?= {
 			any_entourage_character = {
-				NOT = { this = root }
+				this != root
 				is_physically_able_ai_adult = yes
 			}
 		}
@@ -4820,7 +4842,7 @@ epidemic_events.3000 = {
 		current_travel_plan ?= {
 			random_entourage_character = {
 				limit = {
-					NOT = { this = root }
+					this != root
 					is_physically_able_ai_adult = yes
 					NOT = { has_trait = scope:epidemic_scope.epidemic_type.epidemic_trait }
 				}
@@ -4853,8 +4875,7 @@ epidemic_events.3000 = {
 			limit = {
 				any_pool_character = {
 					province = root.location
-					#is_adult = yes
-					is_lotr_adult = yes
+					is_adult = yes
 					has_no_particular_noble_roots_trigger = yes
 					has_trait = scope:epidemic_scope.epidemic_type.epidemic_trait
 				}
@@ -4949,14 +4970,6 @@ epidemic_events.3000 = {
 						has_perk = wash_your_hands_perk
 					}
 				}
-				modifier = {
-					add = { value = -1000 }
-					OR = {
-						is_elf = yes
-						is_dwarf = yes
-						cannot_be_killed = yes
-					}
-				}
 				root = {
 					send_interface_toast = {
 						title = epidemic_events.3000.b.sick
@@ -5047,9 +5060,7 @@ epidemic_events.3010 = {
 	trigger = {
 		is_travelling = yes
 		location = {
-			any_province_epidemic = {
-				count >= 1
-			}
+			any_province_epidemic = { }
 		}
 	}
 
@@ -5213,11 +5224,11 @@ epidemic_events.5000 = {
 	}
 	left_portrait = {
 		character = root
-		animation = worry
+		animation = chancellor
 	}
 	right_portrait = {
 		character = scope:church_person
-		animation = thinking
+		animation = debating
 	}
 	cooldown = { years = 10 }
 
@@ -5233,9 +5244,7 @@ epidemic_events.5000 = {
 						value <= squared_distance_medium #250 map-pixels. Roughly one Ireland away (top to bottom).
 					}
 				}
-				any_province_epidemic = {
-					count >= 1
-				}
+				any_province_epidemic = { }
 			}
 		}
 
@@ -5258,9 +5267,7 @@ epidemic_events.5000 = {
 							value <= squared_distance_medium #250 map-pixels. Roughly one Ireland away (top to bottom).
 						}
 					}
-					any_province_epidemic = {
-						count >= 1
-					}
+					any_province_epidemic = { }
 				}
 			}
 			save_scope_as = infected_county
@@ -5268,9 +5275,7 @@ epidemic_events.5000 = {
 		scope:infected_county = {
 			random_county_province = {
 				limit = {
-					any_province_epidemic = {
-						count >= 1
-					}
+					any_province_epidemic = { }
 				}
 				random_province_epidemic = {
 					save_scope_as = epidemic
@@ -5335,20 +5340,22 @@ epidemic_events.5000 = {
 		trigger = {
 			NOT = {
 				any_owned_story = {
-					story_type = story_cycle_pet_cat
+					type = story_cycle_pet_cat
 				}
 			}
 			any_owned_story = {
-				story_type = story_cycle_pet_dog
+				type = story_cycle_pet_dog
 			}
 		}
+		
+		add_piety = major_piety_gain
 
 		if = { #Kill all your courtiers' cats if they're there!
 			limit = {
 				any_courtier_or_guest = {
 					location = scope:infected_province
 					any_owned_story = {
-						story_type = story_cycle_pet_cat
+						type = story_cycle_pet_cat
 					}
 				}
 			}
@@ -5356,13 +5363,11 @@ epidemic_events.5000 = {
 				limit = {
 					location = scope:infected_province
 					any_owned_story = {
-						story_type = story_cycle_pet_cat
+						type = story_cycle_pet_cat
 					}
 				}
 				random_owned_story = {
-					limit = {
-						story_type = story_cycle_pet_cat
-					}
+					type = story_cycle_pet_cat
 					save_scope_as = story
 				}
 				show_as_tooltip = {
@@ -5415,20 +5420,22 @@ epidemic_events.5000 = {
 		trigger = {
 			NOT = {
 				any_owned_story = {
-					story_type = story_cycle_pet_dog
+					type = story_cycle_pet_dog
 				}
 			}
 			any_owned_story = {
-				story_type = story_cycle_pet_cat
+				type = story_cycle_pet_cat
 			}
 		}
+		
+		add_piety = major_piety_gain
 
 		if = { #Kill all your courtiers' dogs if they're there!
 			limit = {
 				any_courtier_or_guest = {
 					location = scope:infected_province
 					any_owned_story = {
-						story_type = story_cycle_pet_dog
+						type = story_cycle_pet_dog
 					}
 				}
 			}
@@ -5436,13 +5443,11 @@ epidemic_events.5000 = {
 				limit = {
 					location = scope:infected_province
 					any_owned_story = {
-						story_type = story_cycle_pet_dog
+						type = story_cycle_pet_dog
 					}
 				}
 				random_owned_story = {
-					limit = {
-						story_type = story_cycle_pet_dog
-					}
+					type = story_cycle_pet_dog
 					save_scope_as = story
 				}
 				show_as_tooltip = {
@@ -5491,25 +5496,10 @@ epidemic_events.5000 = {
 			}
 		}
 
-		random_list = {
-			15 = {
-				modifier = { #Fuzzy it up a lil
-					add = scope:infection_range
-				}
-				scope:infected_county = {
-					add_county_modifier = {
-						modifier = vectors_reduced
-						years = 5
-					}
-				}
-			}
-			30 = {
-				scope:infected_county = {
-					add_county_modifier = {
-						modifier = disastrous_cull
-						years = 5
-					}
-				}	
+		scope:infected_county = {
+			add_county_modifier = {
+				modifier = vectors_reduced
+				years = 10
 			}
 		}
 
@@ -5540,20 +5530,10 @@ epidemic_events.5000 = {
 	option = { # Don't be ridiculous, realm priest!
 		name = epidemic_events.5000.e
 
-		add_character_modifier = {
-			modifier = pleas_ignored
-			years = 15
-		}
-
 		reverse_add_opinion = {
 			modifier = angry_opinion
 			opinion = -25
 			target = scope:church_person
-		}
-
-		if = {
-			limit = { has_legitimacy = yes }
-			add_legitimacy = miniscule_legitimacy_loss
 		}
 
 		stress_impact = {
@@ -5582,13 +5562,15 @@ epidemic_events.5001 = {
 	title = epidemic_events.5001.t
 	desc = epidemic_events.5001.desc
 	theme = plague
+	override_background = study
 	left_portrait = {
 		character = root
-		animation = thinking
+		animation = chancellor
+		camera = camera_event_very_left
 	}
 	right_portrait = {
 		character = scope:courtier
-		animation = stress
+		animation = holding_scrolls
 	}
 	cooldown = { years = 10 }
 
@@ -5609,13 +5591,12 @@ epidemic_events.5001 = {
 					}
 				}
 				any_province_epidemic = {
-					count >= 1
-					outbreak_intensity <= minor
+					intensity <= minor
 				}
 			}
 		}
 
-		any_courtier_or_guest = {
+		any_courtier = {
 			location = root.location
 			is_available_ai_adult = yes
 		}
@@ -5634,17 +5615,34 @@ epidemic_events.5001 = {
 						}
 					}
 					any_province_epidemic = {
-						count >= 1
-						outbreak_intensity <= minor
+						intensity <= minor
 					}
 					province_owner = { save_temporary_scope_as = province_owner_temp }
+				}
+			}
+			random_county_province = {
+				limit = {
+					exists = province_owner
+					OR = {
+						county.holder = root
+						squared_distance = {
+							target = root.capital_province
+							value <= squared_distance_medium #250 map-pixels. Roughly one Ireland away (top to bottom).
+						}
+					}
+					any_province_epidemic = {
+						intensity <= minor
+					}
+				}
+				random_province_epidemic = {
+					save_scope_as = epidemic_scope
 				}
 			}
 			save_scope_as = epidemic_county
 			scope:province_owner_temp = { save_scope_as = province_owner }
 		}
 
-		random_courtier_or_guest = {
+		random_courtier = {
 			limit = {
 				location = root.location
 				is_available_ai_adult = yes
@@ -5653,128 +5651,12 @@ epidemic_events.5001 = {
 		}
 	}
 
-	option = { # LOCK. DOWN. EVERYTHING.
-		name = epidemic_events.5001.a
-
-		trigger = {
-			has_trait = paranoid
-		}
-
-		scope:epidemic_county = {
-			add_county_modifier = {
-				modifier = draconian_lockdown
-				years = 10
-			}
-		}
-
-		reverse_add_opinion = {
-			modifier = pleased_opinion
-			opinion = 15
-			target = scope:courtier
-		}
-
-		stress_impact = {
-			base = medium_stress_impact_loss
-			diligent = miniscule_stress_impact_loss
-			craven = miniscule_stress_impact_loss
-			impatient = miniscule_stress_impact_loss
-			lazy = minor_stress_impact_gain
-			brave = minor_stress_impact_gain
-			patient = minor_stress_impact_gain
-		}
-
-		ai_chance = {
-			base = 100
-			ai_value_modifier = {
-				ai_compassion = -0.5
-				ai_rationality = 1
-			}
-		}
-	}
-
-	option = { # Leave them to it, they'll know what to do
-		name = epidemic_events.5001.b
-
-		trigger = {
-			has_trait = trusting
-		}
-
-		if = {
-			limit = {
-				scope:province_owner = {
-					NOT = {
-						this = root
-					}
-				}
-			}
-			reverse_add_opinion = {
-				modifier = pleased_opinion
-				opinion = 40
-				target = scope:province_owner
-			}
-		}
-
-		scope:epidemic_county = {
-			add_county_modifier = {
-				modifier = trusted_ruler
-				years = 5
-			}
-		}
-
-		stress_impact = {
-			base = medium_stress_impact_loss
-			diligent = minor_stress_impact_gain
-			craven = minor_stress_impact_gain
-			impatient = minor_stress_impact_gain
-			lazy = miniscule_stress_impact_loss
-			brave = miniscule_stress_impact_loss
-			patient = miniscule_stress_impact_loss
-		}
-
-		ai_chance = {
-			base = 100
-			ai_value_modifier = {
-				ai_compassion = 0.5
-				ai_rationality = -1
-			}
-		}
-	}
-
-	option = { # Don't you think I have enough to worry about, fool?!
-		name = epidemic_events.5001.c
-
-		trigger = {
-			has_trait = wrathful
-		}
-
-		progress_towards_rival_effect = {
-			REASON = rival_ignored_warnings
-			CHARACTER = scope:courtier
-			OPINION = default_rival_opinion
-		}
-
-		add_legitimacy = miniscule_legitimacy_loss
-
-		stress_impact = {
-			base = medium_stress_impact_loss
-			stubborn = miniscule_stress_impact_loss
-			paranoid = miniscule_stress_impact_loss
-			fickle = minor_stress_impact_gain
-			trusting = minor_stress_impact_gain
-		}
-
-		ai_chance = {
-			base = 100
-			ai_value_modifier = {
-				ai_compassion = -1
-			}
-		}
-	}
-
 	option = { # Send them some supplies
 		name = epidemic_events.5001.d
+		
+		add_legitimacy_effect = { LEGITIMACY = minor_legitimacy_gain }
 
-		remove_short_term_gold = minor_gold_value
+		remove_treasury_or_gold = minor_treasury_or_gold_value
 
 		scope:epidemic_county = {
 			add_county_modifier = {
@@ -5794,8 +5676,6 @@ epidemic_events.5001 = {
 			diligent = miniscule_stress_impact_loss
 			humble = miniscule_stress_impact_loss
 			greedy = minor_stress_impact_gain
-			lazy = minor_stress_impact_gain
-			arrogant = minor_stress_impact_gain
 		}
 
 		ai_chance = {
@@ -5809,9 +5689,7 @@ epidemic_events.5001 = {
 
 	option = { # I'm sure they'll be fine
 		name = epidemic_events.5001.e
-
-		add_prestige = minor_prestige_loss
-
+		
 		scope:epidemic_county = {
 			add_county_modifier = {
 				modifier = plight_ignored
@@ -5819,18 +5697,9 @@ epidemic_events.5001 = {
 			}
 		}
 
-		reverse_add_opinion = {
-			modifier = angry_opinion
-			opinion = -20
-			target = scope:courtier
-		}
-
-		add_legitimacy = miniscule_legitimacy_loss
-
 		stress_impact = {
 			diligent = minor_stress_impact_gain
-			humble = minor_stress_impact_gain
-			stubborn = minor_stress_impact_gain
+			generous = minor_stress_impact_gain
 			calm = miniscule_stress_impact_loss
 			lazy = miniscule_stress_impact_loss
 			fickle = miniscule_stress_impact_loss
@@ -5841,324 +5710,6 @@ epidemic_events.5001 = {
 			ai_value_modifier = {
 				ai_compassion = 1
 				ai_rationality = -0.5
-			}
-		}
-	}
-}
-
-# You can pile the dead into a boat and set it adrift
-# by Nick Meredith
-epidemic_events.5002 = {
-	type = character_event
-	title = epidemic_events.5002.t
-	desc = epidemic_events.5002.desc
-	theme = plague
-	override_background = { reference = docks }
-	left_portrait = {
-		character = root
-		animation = stress
-	}
-	right_portrait = {
-		character = scope:steward
-		animation = personality_rational
-	}
-	override_effect_2d = {
-		reference = fog	
-	}
-	cooldown = { years = 10 }
-	
-	trigger = {
-		is_available = yes
-		# There be a plague, and it's in a coastal province
-		any_sub_realm_county = {
-			any_county_province = {
-				OR = {
-					county.holder = root
-					squared_distance = {
-						target = root.capital_province
-						value <= squared_distance_medium #250 map-pixels. Roughly one Ireland away (top to bottom).
-					}
-				}
-				OR = {
-					is_riverside_province = yes
-					is_coastal = yes
-				}
-				any_province_epidemic = {
-					count >= 1
-				}
-			}
-		}
-
-		exists = cp:councillor_steward
-		cp:councillor_steward = {
-			is_available_ai_adult = yes
-			is_healthy = yes
-			location = root.location
-		}
-	}
-
-	immediate = {
-		cp:councillor_steward = {
-			save_scope_as = steward
-		}
-		random_sub_realm_county = {
-			limit = {
-				any_county_province = {
-					OR = {
-						county.holder = root
-						squared_distance = {
-							target = root.capital_province
-							value <= squared_distance_medium #250 map-pixels. Roughly one Ireland away (top to bottom).
-						}
-					}
-					OR = {
-						is_riverside_province = yes
-						is_coastal = yes
-					}
-					any_province_epidemic = {
-						count >= 1
-					}
-				}
-			}
-			random_county_province = {
-				limit = {
-					OR = {
-						is_riverside_province = yes
-						is_coastal = yes
-					}
-					any_province_epidemic = {
-						count >= 1
-					}
-				}
-				save_scope_as = coastal_province
-			}
-		}
-		if = {
-			limit = {
-				location = {
-					any_neighboring_province = {
-						OR = {
-							is_riverside_province = yes
-							is_coastal = yes
-						}
-						exists = county
-						NOR = {
-							county.holder = {
-								liege = root
-								this = root
-							}
-						}
-					}
-				}				
-			}
-			location = {
-				random_neighboring_province = {
-					limit = {
-						OR = {
-							is_riverside_province = yes
-							is_coastal = yes
-						}
-						exists = county
-						NOR = {
-							county.holder = {
-								liege = root
-								this = root
-							}
-						}
-					}
-					save_scope_as = other_province
-				}
-			}
-		}
-		save_scope_value_as = {
-			name = infection_range
-			value = {
-				integer_range = {
-					min = 1
-					max = 15
-				}
-			}
-		}
-	}
-
-	option = { # Cast the boat off... in the direction of a neighbouring county that isn't ours
-		name = epidemic_events.5002.a
-
-		flavor = epidemic_events.5002.a.tt
-
-		trigger = {
-			exists = scope:other_province
-			scope:other_province = { #Make sure there's another county that you can do this to
-				OR = {
-					is_riverside_province = yes
-					is_coastal = yes
-				}
-				NOR = {
-					county.holder = {
-						liege = root
-						this = root
-					}
-				}
-			}
-		}
-
-		add_internal_flag = special
-
-		scope:other_province = {
-			add_province_modifier = {
-				modifier = dead_boats
-				years = 10
-			}
-		}
-
-		stress_impact = {
-			callous = medium_stress_impact_loss
-			sadistic = medium_stress_impact_loss
-			deceitful = miniscule_stress_impact_loss
-			vengeful = miniscule_stress_impact_loss
-			arbitrary = miniscule_stress_impact_loss
-			honest = minor_stress_impact_gain
-			forgiving = minor_stress_impact_gain
-			just = minor_stress_impact_gain
-		}
-
-		ai_chance = {
-			base = 100
-			ai_value_modifier = {
-				ai_compassion = -1
-				ai_rationality = 0.5
-				ai_vengefulness = 1
-			}
-		}
-	}
-
-	option = { # Set them adrift
-		name = epidemic_events.5002.b
-
-		random_list = {
-			40 = { #Your province escapes unharmed
-				modifier = { #Fuzzy it up a lil
-					add = scope:infection_range
-				}
-				desc = epidemic_events.5002.b.success
-				send_interface_toast = {
-					title = epidemic_events.5002.b.success
-					left_icon = root
-					right_icon = scope:steward
-
-					scope:coastal_province = {
-						add_province_modifier = {
-							modifier = clear_beaches
-							years = 5
-						}
-					}
-				}				
-			}
-			30 = { #The boat returns a few days later
-				desc = epidemic_events.5002.b.failure
-				send_interface_toast = {
-					title = epidemic_events.5002.b.failure
-					left_icon = root
-					right_icon = scope:steward
-					add_legitimacy = miniscule_legitimacy_loss
-					scope:coastal_province = {
-						add_province_modifier = {
-							modifier = contaminated_beaches
-							years = 5
-						}
-					}
-				}				
-			}
-			10 = { #The boat sinks and corpses begin washing ashore
-				desc = epidemic_events.5002.b.criticalfailure
-				send_interface_toast = {
-					title = epidemic_events.5002.b.criticalfailure
-					left_icon = root
-					right_icon = scope:steward
-					add_legitimacy = miniscule_legitimacy_loss
-
-					scope:coastal_province = {
-						add_province_modifier = {
-							modifier = pestilent_beaches
-							years = 5
-						}
-					}
-				}				
-			}
-		}
-
-		stress_impact = {
-			diligent = miniscule_stress_impact_loss
-			craven = miniscule_stress_impact_loss
-			impatient = miniscule_stress_impact_loss
-			cynical = miniscule_stress_impact_loss
-			lazy = minor_stress_impact_gain
-			brave = minor_stress_impact_gain
-			patient = minor_stress_impact_gain
-			zealous = minor_stress_impact_gain
-		}
-
-		ai_chance = {
-			base = 100
-			ai_value_modifier = {
-				ai_compassion = -1
-				ai_zeal = -1
-			}
-		}
-	}
-
-	option = { # They deserve proper funerary rites
-		name = epidemic_events.5002.c
-
-		scope:coastal_province = {
-			add_province_modifier = {
-				modifier = respected_dead
-				years = 10
-			}
-		}
-
-		stress_impact = {
-			zealous = medium_stress_impact_loss
-			compassionate = miniscule_stress_impact_loss
-			trusting = miniscule_stress_impact_loss
-			cynical = medium_stress_impact_gain
-			callous = minor_stress_impact_gain
-			paranoid = minor_stress_impact_gain
-		}
-
-		ai_chance = {
-			base = 100
-			ai_value_modifier = {
-				ai_compassion = 0.5
-				ai_zeal = 1
-			}
-		}
-	}
-
-	option = { # Unload them and take the boat
-		name = epidemic_events.5002.d
-
-		add_character_modifier = {
-			modifier = free_boats
-			years = 10
-		}
-
-		scope:coastal_province = {
-			add_province_modifier = {
-				modifier = corpse_piles
-				years = 10
-			}
-		}
-
-		stress_impact = {
-			trusting = miniscule_stress_impact_loss
-			greedy = miniscule_stress_impact_loss
-		}
-
-		ai_chance = {
-			base = 50
-			ai_value_modifier = {
-				ai_greed = 1
 			}
 		}
 	}
@@ -6177,12 +5728,13 @@ epidemic_events.5003 = {
 	}
 	left_portrait = {
 		character = root
-		animation = jockey_walk
+		animation = horse_conversing_right
 		camera = camera_event_horse_left
 	}
 	right_portrait = {
 		character = scope:peasant
 		animation = beg
+		camera = camera_event_standing_with_horse_right
 	}
 	lower_center_portrait = {
 		character = scope:child
@@ -6204,9 +5756,7 @@ epidemic_events.5003 = {
 						value <= squared_distance_medium #250 map-pixels. Roughly one Ireland away (top to bottom).
 					}
 				}
-				any_province_epidemic = { 
-					count >= 1
-				}
+				any_province_epidemic = { }
 				this = root.capital_province
 			}
 		}
@@ -6223,17 +5773,13 @@ epidemic_events.5003 = {
 							value <= squared_distance_medium #250 map-pixels. Roughly one Ireland away (top to bottom).
 						}
 					}
-					any_province_epidemic = { 
-						count >= 1
-					}
+					any_province_epidemic = { }
 					this = root.capital_province
 				}
 			}
 			random_county_province = {
 				limit = {
-					any_province_epidemic = { 
-						count >= 1
-					}
+					any_province_epidemic = { }
 					this = root.capital_province
 				}
 				save_scope_as = location
@@ -6276,6 +5822,9 @@ epidemic_events.5003 = {
 					faith = root.faith
 					location = root.location
 					save_scope_as = peasant
+					after_creation = {
+						add_character_flag = created
+					}
 				}
 				hidden_effect = {
 					scope:peasant = {
@@ -6289,6 +5838,9 @@ epidemic_events.5003 = {
 				faith = root.faith
 				location = root.location
 				save_scope_as = child
+				after_creation = {
+					add_character_flag = created
+				}
 			}
 
 			if = { #Set the previous character as their parent
@@ -6339,16 +5891,18 @@ epidemic_events.5003 = {
 				has_trait = paranoid
 			}
 		}
+		trait = callous
+		trait = sadistic
+		trait = paranoid
 
 		add_character_modifier = {
 			modifier = health_first
 			years = 15
 		}
-
-		scope:location = {
-			add_province_modifier = {
-				modifier = dismissed_peasantry
-				years = 10
+		
+		scope:child = {
+			death = {
+				death_reason = death_ill
 			}
 		}
 
@@ -6357,9 +5911,10 @@ epidemic_events.5003 = {
 			wrathful = miniscule_stress_impact_loss
 			vengeful = miniscule_stress_impact_loss
 			arbitrary = miniscule_stress_impact_loss
-			calm = medium_stress_impact_gain
-			forgiving = medium_stress_impact_gain
-			just = medium_stress_impact_gain
+			compassionate = medium_stress_impact_gain
+			callous = medium_stress_impact_loss
+			paranoid = medium_stress_impact_loss
+			sadistic = medium_stress_impact_loss
 		}
 
 		ai_chance = {
@@ -6374,74 +5929,28 @@ epidemic_events.5003 = {
 
 	option = { # Give it a go
 		name = epidemic_events.5003.b
-
-		random_list = {
-			10 = { #The child is somehow miraculously healed
-				desc = epidemic_events.5003.b.criticalsuccess
-				send_interface_toast = {
-					title = epidemic_events.5003.b.criticalsuccess
-					left_icon = root
-					right_icon = scope:child
-
-					add_prestige = major_prestige_gain
-
-					scope:child = {
-						remove_trait = ill
-					}
-					
-					add_character_modifier = {
-						modifier = miracle_worker
-						years = 25
-					}					
-				}				
-			}
-			70 = { #The kid shows no visible change
-				modifier = { #Fuzzy it up a lil
-					add = scope:infection_range
-				}
-				desc = epidemic_events.5003.b.success
-				send_interface_toast = {
-					title = epidemic_events.5003.b.success
-					left_icon = root
-					right_icon = scope:child
-
-					add_prestige = minor_prestige_gain
-
-					add_character_modifier = {
-						modifier = man_of_the_people
-						years = 10
-					}
-				}
-			}
-			10 = { #The child dies
-				desc = epidemic_events.5003.b.failure
-				send_interface_toast = {
-					title = epidemic_events.5003.b.failure
-					left_icon = root
-					right_icon = scope:child
-
-					random = {
-						chance = 25
-						contract_disease_effect = { DISEASE = ill TREATMENT_EVENT = yes }
-					}
-
-					add_character_modifier = {
-						modifier = out_of_touch
-						years = 25
-					}
-				}				
-			}
+		
+		add_legitimacy_effect = { LEGITIMACY = medium_legitimacy_gain }
+		
+		add_character_modifier = {
+			modifier = man_of_the_people
+			years = 10
+		}
+		
+		random = {
+			chance = 50
+			contract_disease_effect = { DISEASE = ill TREATMENT_EVENT = yes }
 		}
 
 		stress_impact = {
-			brave = miniscule_stress_impact_loss
-			gregarious = miniscule_stress_impact_loss
-			humble = miniscule_stress_impact_loss
+			compassionate = miniscule_stress_impact_loss
 			trusting = miniscule_stress_impact_loss
 			paranoid = minor_stress_impact_gain
 			craven = minor_stress_impact_gain
 			shy = minor_stress_impact_gain
 			arrogant = minor_stress_impact_gain
+			sadistic = minor_stress_impact_gain
+			callous = minor_stress_impact_gain
 		}
 
 		ai_chance = {
@@ -6456,19 +5965,13 @@ epidemic_events.5003 = {
 	option = { # Just... try to ignore them
 		name = epidemic_events.5003.c
 
-		reverse_add_opinion = {
-			modifier = disappointed_opinion
-			opinion = -20
-			target = scope:peasant
-		}
-
 		stress_impact = {
 			shy = medium_stress_impact_loss
-			compassionate = miniscule_stress_impact_loss
-			trusting = miniscule_stress_impact_loss
-			gregarious = medium_stress_impact_gain
-			callous = minor_stress_impact_gain
-			paranoid = minor_stress_impact_gain
+			compassionate = minor_stress_impact_gain
+			trusting = minor_stress_impact_gain
+			callous = medium_stress_impact_loss
+			paranoid = medium_stress_impact_loss
+			sadistic = medium_stress_impact_loss
 		}
 
 		ai_chance = {
@@ -6476,6 +5979,14 @@ epidemic_events.5003 = {
 			ai_value_modifier = {
 				ai_compassion = -0.5
 			}
+		}
+	}
+	after = {
+		scope:peasant = {
+			silent_disappearance_ai_effect = yes
+		}
+		scope:child = {
+			silent_disappearance_ai_effect = yes
 		}
 	}
 }
@@ -6488,9 +5999,11 @@ epidemic_events.5004 = {
 	desc = epidemic_events.5004.desc
 	theme = plague
 	override_background = { reference = throne_room }
+	override_effect_2d = { reference = flies }
 	left_portrait = {
 		character = root
-		animation = worry
+		animation = shock
+		camera = camera_event_very_left
 	}
 	right_portrait = {
 		character = scope:peasant_1
@@ -6505,7 +6018,7 @@ epidemic_events.5004 = {
 	lower_right_portrait = {
 		character = scope:peasant_4
 	}
-	cooldown = { years = 10 }
+	cooldown = { years = 100 }
 	
 	trigger = {
 		is_available = yes
@@ -6516,20 +6029,8 @@ epidemic_events.5004 = {
 		location = root.capital_province
 
 		# There be a plague in your capital
-		any_sub_realm_county = {
-			any_county_province = {
-				OR = {
-					county.holder = root
-					squared_distance = {
-						target = root.capital_province
-						value <= squared_distance_medium #250 map-pixels. Roughly one Ireland away (top to bottom).
-					}
-				}
-				any_province_epidemic = { 
-					count >= 1
-				}
-				this = root.capital_province
-			}
+		capital_province = {
+			any_province_epidemic = { }
 		}
 
 		any_pool_character = {
@@ -6538,6 +6039,11 @@ epidemic_events.5004 = {
 			is_available_ai_adult = yes
 			has_no_particular_noble_roots_trigger = yes
 			root = { lotr_can_host_courtier = { CHARACTER = prev } } #LotR
+		}
+		
+		NOR = {
+			government_has_flag = government_is_nomadic
+			government_has_flag = government_is_tribal
 		}
 	}
 
@@ -6552,17 +6058,13 @@ epidemic_events.5004 = {
 							value <= squared_distance_medium #250 map-pixels. Roughly one Ireland away (top to bottom).
 						}
 					}
-					any_province_epidemic = { 
-						count >= 1
-					}
+					any_province_epidemic = { }
 					this = root.capital_province
 				}
 			}
 			random_county_province = {
 				limit = {
-					any_province_epidemic = { 
-						count >= 1
-					}
+					any_province_epidemic = { }
 					this = root.capital_province
 				}
 				random_province_epidemic = {
@@ -6587,9 +6089,7 @@ epidemic_events.5004 = {
 			limit = {
 				is_available_ai_adult = yes
 				has_no_particular_noble_roots_trigger = yes
-				NOT = {
-					this = scope:peasant_1
-				}
+				this != scope:peasant_1
 				root = { lotr_can_host_courtier = { CHARACTER = prev } } #LotR
 			}
 			save_scope_as = peasant_2
@@ -6637,18 +6137,6 @@ epidemic_events.5004 = {
 	option = { # Welcome in!
 		name = epidemic_events.5004.a
 
-		remove_short_term_gold = medium_gold_value
-
-		hidden_effect = {
-			every_courtier_or_guest = {
-				add_opinion = {
-					modifier = annoyed_opinion
-					opinion = -10
-					target = root
-				}
-			}
-		}
-
 		every_in_list = {
 			list = peasant_rabble
 			root = {
@@ -6668,7 +6156,6 @@ epidemic_events.5004 = {
 		}
 
 		custom_tooltip = epidemic_events.5004.a.new_courtiers
-		custom_tooltip = epidemic_events.5004.a.old_courtiers
 
 		scope:location = {
 			add_province_modifier = {
@@ -6696,87 +6183,10 @@ epidemic_events.5004 = {
 		}
 	}
 
-	option = { # Come on, now, you know I can't do that...
-		name = epidemic_events.5004.b
-
-		duel = {
-			skill = diplomacy
-			value = high_skill_rating
-			# They understand the situation
-			50 = {
-				compare_modifier = {
-					value = scope:duel_value
-					multiplier = 3.5
-					min = -49
-				}
-				send_interface_toast = {
-					title = epidemic_events.5004.b.success
-					left_icon = root
-					right_icon = scope:peasant_1
-
-					scope:location = {
-						add_province_modifier = {
-							modifier = fears_allayed
-							years = 10
-						}
-					}
-				}
-			}
-			# They have to be removed by force
-			50 = {
-				compare_modifier = {
-					value = scope:duel_value
-					multiplier = -3.5
-					min = -49
-				}
-				send_interface_toast = {
-					title = epidemic_events.5004.b.failure
-					left_icon = root
-					right_icon = scope:peasant_1
-					add_legitimacy = miniscule_legitimacy_loss
-					scope:location = {
-						add_province_modifier = {
-							modifier = fears_ignored
-							years = 10
-						}
-					}
-				}
-			}
-		}
-
-		stress_impact = {
-			vengeful = miniscule_stress_impact_loss
-			stubborn = miniscule_stress_impact_loss
-			calm = miniscule_stress_impact_loss
-			paranoid = miniscule_stress_impact_loss
-			trusting = minor_stress_impact_gain
-			wrathful = minor_stress_impact_gain
-			fickle = minor_stress_impact_gain
-			forgiving = minor_stress_impact_gain
-		}
-
-		ai_chance = {
-			base = 100
-			ai_value_modifier = {
-				ai_compassion = -0.5
-				ai_vengefulness = 0.5
-			}
-		}
-	}
-
 	option = { # Get out of here, miscreants!
 		name = epidemic_events.5004.c
-
-		hidden_effect = {
-			every_in_list = {
-				list = peasant_rabble
-				add_opinion = {
-					modifier = angry_opinion
-					opinion = -40
-					target = root			
-				}
-			}
-		}
+		
+		add_dread = massive_dread_gain
 
 		scope:location = {
 			add_province_modifier = {
@@ -6784,13 +6194,34 @@ epidemic_events.5004 = {
 				years = 15
 			}
 		}
-		add_legitimacy = miniscule_legitimacy_loss
+		
+		every_in_list = {
+			list = peasant_rabble
+			if = {
+				limit = {
+					age <= 20
+				}
+				add_stress = major_stress_impact_gain
+			}
+			if = {
+				limit = {
+					age <= 40
+				}
+				increase_wounds_effect = { REASON = fight }
+			}
+			if = {
+				limit = {
+					age > 40
+				}
+				death = { death_reason = death_fight }
+			}
+		}
 
 		stress_impact = {
+			wrathful = minor_stress_impact_loss
 			shy = minor_stress_impact_loss
 			callous = minor_stress_impact_loss
 			paranoid = medium_stress_impact_loss
-			gregarious = medium_stress_impact_gain
 			compassionate = minor_stress_impact_gain
 			trusting = minor_stress_impact_gain
 		}
@@ -6803,6 +6234,31 @@ epidemic_events.5004 = {
 			}
 		}
 	}
+
+	option = { # Come on, now, you know I can't do that...
+		name = epidemic_events.5004.b
+
+		scope:location = {
+			add_province_modifier = {
+				modifier = commoners_turned_away
+				years = 15
+			}
+		}
+
+		stress_impact = {
+			paranoid = miniscule_stress_impact_loss
+			trusting = minor_stress_impact_gain
+			forgiving = minor_stress_impact_gain
+		}
+
+		ai_chance = {
+			base = 100
+			ai_value_modifier = {
+				ai_compassion = -0.5
+				ai_vengefulness = 0.5
+			}
+		}
+	}
 }
 
 # The plague is spreading in from the coast
@@ -6812,7 +6268,8 @@ epidemic_events.5005 = {
 	title = epidemic_events.5005.t
 	desc = epidemic_events.5005.desc
 	theme = plague
-	override_background = { reference = throne_room }
+	override_background = docks
+	override_effect_2d = { reference = flies }
 	left_portrait = {
 		character = root
 		animation = thinking
@@ -6836,9 +6293,7 @@ epidemic_events.5005 = {
 						value <= squared_distance_medium #250 map-pixels. Roughly one Ireland away (top to bottom).
 					}
 				}
-				any_province_epidemic = {
-					count >= 1
-				}
+				any_province_epidemic = { }
 			}
 		}
 
@@ -6860,17 +6315,13 @@ epidemic_events.5005 = {
 							value <= squared_distance_medium #250 map-pixels. Roughly one Ireland away (top to bottom).
 						}
 					}
-					any_province_epidemic = {
-						count >= 1
-					}
+					any_province_epidemic = { }
 				}
 			}
 			random_county_province = {
 				limit = {
 					is_coastal = yes
-					any_province_epidemic = {
-						count >= 1
-					}
+					any_province_epidemic = { }
 				}
 				save_scope_as = coastal_province
 			}
@@ -6878,9 +6329,7 @@ epidemic_events.5005 = {
 
 		every_sub_realm_county = {
 			limit = {
-				any_county_province = {
-					is_coastal = yes
-				}
+				has_coastal_province = yes
 			}
 			every_county_province = {
 				limit = {
@@ -6893,16 +6342,12 @@ epidemic_events.5005 = {
 		random_sub_realm_county = {
 			limit = {
 				any_county_province = {
-					any_province_epidemic = { 
-						count >= 1
-					}
+					any_province_epidemic = { }
 				}
 			}
 			random_county_province = {
 				limit = {
-					any_province_epidemic = { 
-						count >= 1
-					}
+					any_province_epidemic = { }
 				}
 				random_province_epidemic = {
 					save_scope_as = epidemic_scope
@@ -6927,6 +6372,11 @@ epidemic_events.5005 = {
 				has_trait = stubborn
 			}
 		}
+		trait = paranoid
+		trait = sadistic
+		trait = callous
+		trait = arbitrary
+		trait = stubborn
 
 		if = { #Tooltip ensmallener for if you have more than 5 sea provinces
 			limit = {
@@ -6954,32 +6404,15 @@ epidemic_events.5005 = {
 			}
 		}
 
-		every_vassal = {
-			limit = {
-				has_vassal_stance = barons_and_minor_landholders
-				NOT = { # Just in case
-					this = scope:steward
-				}
-			}
-			custom = epidemic_events.5005.a.landholders
-			add_opinion = {
-				modifier = angry_opinion
-				opinion = -20
-				target = root
-			}
+		reverse_add_opinion = {
+			modifier = relieved_opinion
+			opinion = 15
+			target = scope:steward
 		}
 
 		stress_impact = {
 			paranoid = minor_stress_impact_loss
-			sadistic = minor_stress_impact_loss
-			callous = minor_stress_impact_loss
-			arbitrary = miniscule_stress_impact_loss
-			stubborn = miniscule_stress_impact_loss
 			trusting = medium_stress_impact_gain
-			compassionate = medium_stress_impact_gain
-			greedy = medium_stress_impact_gain
-			just = miniscule_stress_impact_gain
-			fickle = miniscule_stress_impact_gain
 		}
 
 		ai_chance = {
@@ -7028,15 +6461,7 @@ epidemic_events.5005 = {
 
 		stress_impact = {
 			paranoid = minor_stress_impact_loss
-			sadistic = minor_stress_impact_loss
-			callous = minor_stress_impact_loss
-			arbitrary = miniscule_stress_impact_loss
-			stubborn = miniscule_stress_impact_loss
 			trusting = medium_stress_impact_gain
-			compassionate = medium_stress_impact_gain
-			greedy = medium_stress_impact_gain
-			just = miniscule_stress_impact_gain
-			fickle = miniscule_stress_impact_gain
 		}
 
 		ai_chance = {
@@ -7051,20 +6476,8 @@ epidemic_events.5005 = {
 	option = { # We can't afford this. We'll just have to hope.
 		name = epidemic_events.5005.c
 
-		reverse_add_opinion = {
-			modifier = worried_opinion
-			opinion = -10
-			target = scope:steward
-		}
-		if = {
-			limit = { has_legitimacy = yes }
-			add_legitimacy = miniscule_legitimacy_loss
-		}
-
 		stress_impact = {
 			paranoid = medium_stress_impact_gain
-			sadistic = minor_stress_impact_gain
-			callous = minor_stress_impact_gain
 			trusting = minor_stress_impact_loss
 			compassionate = miniscule_stress_impact_loss
 			greedy = minor_stress_impact_loss
@@ -7087,7 +6500,7 @@ epidemic_events.5006 = {
 	title = epidemic_events.5006.t
 	desc = epidemic_events.5006.desc
 	theme = plague
-	override_background = { reference = throne_room }
+	override_background = corridor_day
 	left_portrait = {
 		character = root
 		animation = eyeroll
@@ -7110,9 +6523,7 @@ epidemic_events.5006 = {
 						value <= squared_distance_medium #250 map-pixels. Roughly one Ireland away (top to bottom).
 					}
 				}
-				any_province_epidemic = {
-					count >= 1
-				}
+				any_province_epidemic = { }
 			}
 		}
 
@@ -7136,16 +6547,12 @@ epidemic_events.5006 = {
 							value <= squared_distance_medium #250 map-pixels. Roughly one Ireland away (top to bottom).
 						}
 					}
-					any_province_epidemic = {
-						count >= 1
-					}
+					any_province_epidemic = { }
 				}
 			}
 			random_county_province = {
 				limit = {
-					any_province_epidemic = {
-						count >= 1
-					}
+					any_province_epidemic = { }
 				}
 				save_scope_as = province
 			}
@@ -7154,16 +6561,12 @@ epidemic_events.5006 = {
 		random_sub_realm_county = {
 			limit = {
 				any_county_province = {
-					any_province_epidemic = { 
-						count >= 1
-					}
+					any_province_epidemic = { }
 				}
 			}
 			random_county_province = {
 				limit = {
-					any_province_epidemic = { 
-						count >= 1
-					}
+					any_province_epidemic = { }
 				}
 				random_province_epidemic = {
 					save_scope_as = epidemic_scope
@@ -7180,16 +6583,6 @@ epidemic_events.5006 = {
 				}
 			}
 			save_scope_as = councillor
-		}
-
-		save_scope_value_as = {
-			name = fuzzy_range
-			value = {
-				integer_range = {
-					min = 1
-					max = 10
-				}
-			}
 		}
 	}
 
@@ -7262,57 +6655,35 @@ epidemic_events.5006 = {
 
 	option = { # Let's give it a go eh?
 		name = epidemic_events.5006.c
-
-		random_list = {
-			55 = { #You feel a little better
-				desc = epidemic_events.5006.c.success
-				send_interface_toast = {
-					title = epidemic_events.5006.c.success
-					left_icon = root
-					right_icon = scope:councillor
-					
-					add_stress = major_stress_loss
-
-					reverse_add_opinion = {
-						modifier = pleased_opinion
-						opinion = 20
-						target = scope:councillor
-					}
-				}
-			}
-			45 = { #You come off a little unconvincing
-				modifier = { #Fuzzy it up a lil
-					add = scope:fuzzy_range
-				}
-				desc = epidemic_events.5006.c.failure
-				send_interface_toast = {
-					title = epidemic_events.5006.c.failure
-					left_icon = root
-					right_icon = scope:councillor
-
-					add_stress = miniscule_stress_gain
-
-					add_character_modifier = {
-						modifier = strange_levity
-						years = 10
-					}
-
-					reverse_add_opinion = {
-						modifier = annoyed_opinion
-						opinion = -20
-						target = scope:councillor
-					}
-				}
-			}
+		
+		reverse_add_opinion = {
+			modifier = pleased_opinion
+			opinion = 20
+			target = scope:councillor
 		}
 
 		stress_impact = {
+			base = minor_stress_impact_loss
 			impatient = minor_stress_impact_gain
 			callous = minor_stress_impact_gain
 			stubborn = minor_stress_impact_gain
 			patient = miniscule_stress_impact_loss
 			fickle = miniscule_stress_impact_loss
 			compassionate = miniscule_stress_impact_loss
+			eccentric = minor_stress_impact_loss
+		}
+		
+		random = {
+			chance = 10
+			send_interface_toast = {
+				title = epidemic_events.5006.t
+				left_icon = root
+
+				add_character_modifier = {
+					modifier = strange_levity
+					years = 15
+				}
+			}
 		}
 
 		ai_chance = {
@@ -7329,19 +6700,10 @@ epidemic_events.5006 = {
 
 		add_prestige = miniscule_prestige_gain
 
-		reverse_add_opinion = {
-			modifier = disappointed_opinion
-			opinion = -15
-			target = scope:councillor
-		}
-
 		stress_impact = {
 			impatient = miniscule_stress_impact_loss
 			callous = miniscule_stress_impact_loss
 			stubborn = miniscule_stress_impact_loss
-			patient = minor_stress_impact_gain
-			fickle = minor_stress_impact_gain
-			compassionate = minor_stress_impact_gain
 		}
 
 		ai_chance = {
@@ -7363,15 +6725,13 @@ epidemic_events.5007 = {
 	theme = plague
 	override_background = { reference = corridor_day }
 	left_portrait = {
-		character = root
-		animation = worry
+		character = scope:accuser
+		animation = rage
+		camera = camera_event_very_left
 	}
 	right_portrait = {
-		character = scope:accuser
-		animation = anger
-	}
-	lower_center_portrait = {
 		character = scope:herbalist
+		animation = dismissal
 	}
 	cooldown = { years = 10 }
 
@@ -7397,16 +6757,18 @@ epidemic_events.5007 = {
 						value <= squared_distance_medium #250 map-pixels. Roughly one Ireland away (top to bottom).
 					}
 				}
-				any_province_epidemic = {
-					count >= 1
-				}
+				any_province_epidemic = { }
 			}
 		}
 
 		any_courtier_or_guest = {
 			is_available_healthy_ai_adult = yes
-			has_trait = lifestyle_herbalist
-			is_ai = yes
+			OR = {
+				has_trait = lifestyle_herbalist
+				has_trait = lifestyle_mystic
+				has_trait = lifestyle_physician
+				has_trait = lifestyle_gardener
+			}
 			NOT = {
 				has_trait = witch
 			}
@@ -7426,9 +6788,7 @@ epidemic_events.5007 = {
 					trait_is_virtue = witch
 				}
 			}
-			NOT = {
-				this = scope:temp_herbalist
-			}
+			this != scope:temp_herbalist
 		}
 	}
 
@@ -7443,16 +6803,12 @@ epidemic_events.5007 = {
 							value <= squared_distance_medium #250 map-pixels. Roughly one Ireland away (top to bottom).
 						}
 					}
-					any_province_epidemic = { 
-						count >= 1
-					}
+					any_province_epidemic = { }
 				}
 			}
 			random_county_province = {
 				limit = {
-					any_province_epidemic = { 
-						count >= 1
-					}
+					any_province_epidemic = { }
 				}
 				random_province_epidemic = {
 					save_scope_as = epidemic_scope
@@ -7463,8 +6819,12 @@ epidemic_events.5007 = {
 		random_courtier_or_guest = {
 			limit = {
 				is_available_healthy_ai_adult = yes
-				has_trait = lifestyle_herbalist
-				is_ai = yes
+				OR = {
+					has_trait = lifestyle_herbalist
+					has_trait = lifestyle_mystic
+					has_trait = lifestyle_physician
+					has_trait = lifestyle_gardener
+				}
 				NOT = {
 					has_trait = witch
 				}
@@ -7476,9 +6836,7 @@ epidemic_events.5007 = {
 			limit = {
 				is_available_healthy_ai_adult = yes
 				is_ai = yes
-				NOT = {
-					this = scope:herbalist
-				}
+				this != scope:herbalist
 			}
 			save_scope_as = accuser
 		}
@@ -7488,29 +6846,25 @@ epidemic_events.5007 = {
 		name = epidemic_events.5007.a
 
 		trigger = {
-			has_trait = lifestyle_herbalist
+			OR = {
+				has_trait = lifestyle_herbalist
+				has_trait = lifestyle_mystic
+				has_trait = lifestyle_physician
+				has_trait = lifestyle_gardener
+			}
 		}
+		trait = lifestyle_herbalist
+		trait = lifestyle_mystic
+		trait = lifestyle_physician
+		trait = lifestyle_gardener
 
 		reverse_add_opinion = {
 			modifier = grateful_opinion
 			opinion = 40
 			target = scope:herbalist
 		}
-
-		reverse_add_opinion = {
-			modifier = angry_opinion
-			opinion = -20
-			target = scope:accuser
-		}
-		add_legitimacy = miniscule_legitimacy_loss
-
-		scope:accuser = {
-			progress_towards_rival_effect = {
-				REASON = rival_witch_accuser
-				CHARACTER = scope:herbalist
-				OPINION = default_rival_opinion
-			}
-		}
+		
+		add_legitimacy_effect = { LEGITIMACY = miniscule_legitimacy_gain }
 
 		stress_impact = {
 			base = minor_stress_impact_loss
@@ -7532,6 +6886,8 @@ epidemic_events.5007 = {
 
 	option = { # You're right! Imprison them!
 		name = epidemic_events.5007.b
+		
+		add_piety = medium_piety_gain
 
 		scope:herbalist = {
 			add_trait = witch
@@ -7544,14 +6900,8 @@ epidemic_events.5007 = {
 
 		reverse_add_opinion = {
 			modifier = pleased_opinion
-			opinion = 20
+			opinion = 40
 			target = scope:accuser
-		}
-
-		progress_towards_rival_effect = {
-			REASON = rival_witch_imprisoned
-			CHARACTER = root
-			OPINION = 0
 		}
 
 		stress_impact = {
@@ -7573,53 +6923,20 @@ epidemic_events.5007 = {
 		}
 	}
 
-	option = { # Try to talk the crowd out of it
+	option = { # Nonsense
 		name = epidemic_events.5007.c
 
-		duel = {
-			skill = diplomacy
-			value = high_skill_rating
-			# They see your point
-			50 = {
-				compare_modifier = {
-					value = scope:duel_value
-					multiplier = 3.5
-					min = -49
-				}
-				send_interface_toast = {
-					title = epidemic_events.5007.c.success
-					left_icon = root
-					right_icon = scope:herbalist
-
-					add_stress = minor_stress_loss
-
-					reverse_add_opinion = {
-						modifier = pleased_opinion
-						opinion = 20
-						target = scope:herbalist
-					}	
-				}
+		reverse_add_opinion = {
+			modifier = annoyed_opinion
+			opinion = -20
+			target = scope:accuser
+		}
+		
+		if = {
+			limit = {
+				can_set_relation_potential_friend_trigger = { CHARACTER = scope:herbalist }
 			}
-			# You fail to talk them round
-			50 = {
-				compare_modifier = {
-					value = scope:duel_value
-					multiplier = -3.5
-					min = -49
-				}
-				send_interface_toast = {
-					title = epidemic_events.5007.c.failure
-					left_icon = root
-					right_icon = scope:herbalist
-					add_legitimacy = miniscule_legitimacy_loss
-
-					scope:herbalist = {
-						add_trait = witch
-					}
-
-					add_stress = minor_stress_gain
-				}
-			}
+			set_relation_potential_friend = scope:herbalist
 		}
 
 		stress_impact = {
@@ -7638,129 +6955,6 @@ epidemic_events.5007 = {
 			}
 		}
 	}
-
-	option = { # Demand they lay off
-		name = epidemic_events.5007.d
-
-		trigger = {
-			NOT = {
-				has_trait = lifestyle_herbalist
-			}
-		}
-
-		every_courtier = {
-			limit = {
-				NOR = {
-					this = scope:accuser
-					this = scope:herbalist
-				}
-			}
-			custom = all_courtiers_and_guests
-			add_opinion = {
-				target = scope:herbalist
-				modifier = suspicious_opinion
-				opinion = -10
-			}
-		}
-
-		progress_towards_rival_effect = {
-			REASON = rival_witch_protector
-			CHARACTER = scope:accuser
-			OPINION = default_rival_opinion
-		}
-
-		scope:herbalist = {
-			add_character_modifier = {
-				modifier = herbalist_suspicions
-				years = 10
-			}
-		}
-
-		reverse_add_opinion = {
-			modifier = grateful_opinion
-			opinion = 30
-			target = scope:herbalist
-		}
-
-		stress_impact = {
-			stubborn = miniscule_stress_impact_loss
-			just = miniscule_stress_impact_loss
-			patient = miniscule_stress_impact_loss
-			impatient = minor_stress_impact_gain
-			fickle = minor_stress_impact_gain
-			arbitrary = minor_stress_impact_gain
-		}
-
-		ai_chance = {
-			base = 100
-			ai_value_modifier = {
-				ai_compassion = 0.5
-				ai_energy = 0.5
-			}
-		}
-	}
-
-	option = { # Try and compromise
-		name = epidemic_events.5007.e
-
-		every_courtier = {
-			limit = {
-				NOT = {
-					this = scope:accuser
-				}
-			}
-			custom = all_courtiers_and_guests
-			add_opinion = {
-				target = root
-				modifier = pleased_opinion
-				opinion = 15
-			}
-		}
-
-		scope:accuser = {
-			progress_towards_rival_effect = {
-				REASON = rival_witch_accuser
-				CHARACTER = scope:herbalist
-				OPINION = default_rival_opinion
-			}
-			add_opinion = {
-				modifier = hate_opinion
-				opinion = -15
-				target = scope:herbalist
-			}
-		}
-
-		scope:herbalist = {
-			remove_trait = lifestyle_herbalist
-		}
-
-		reverse_add_opinion = {
-			modifier = grateful_opinion
-			opinion = 5
-			target = scope:herbalist
-		}
-
-		reverse_add_opinion = {
-			modifier = pleased_opinion
-			opinion = 15
-			target = scope:accuser
-		}
-
-		stress_impact = {
-			diplomat = minor_stress_impact_loss
-			stubborn = minor_stress_impact_gain
-			just = miniscule_stress_impact_loss
-			fickle = miniscule_stress_impact_loss
-			arbitrary = minor_stress_impact_gain
-		}
-
-		ai_chance = {
-			base = 100
-			ai_value_modifier = {
-				ai_energy = -0.5
-			}
-		}
-	}
 }
 
 # You begin sequestering yourself more often
@@ -7770,10 +6964,10 @@ epidemic_events.5008 = {
 	title = epidemic_events.5008.t
 	desc = epidemic_events.5008.desc
 	theme = plague
-	override_background = { reference = throne_room }
+	override_background = relaxing_room
 	left_portrait = {
 		character = root
-		animation = ecstasy
+		animation = drink_goblet
 	}
 	cooldown = { years = 10 }
 
@@ -7789,14 +6983,16 @@ epidemic_events.5008 = {
 						value <= squared_distance_medium #250 map-pixels. Roughly one Ireland away (top to bottom).
 					}
 				}
-				any_province_epidemic = {
-					count >= 1
-				}
+				any_province_epidemic = { }
 			}
 		}
 
 		#And you're a recluse
-		has_trait = reclusive
+		OR = {
+			has_trait_introverted_trigger = yes
+			has_character_modifier = isolating_modifier
+		}
+		has_personality_introverted_trigger = no
 	}
 
 	immediate = {
@@ -7810,16 +7006,12 @@ epidemic_events.5008 = {
 							value <= squared_distance_medium #250 map-pixels. Roughly one Ireland away (top to bottom).
 						}
 					}
-					any_province_epidemic = { 
-						count >= 1
-					}
+					any_province_epidemic = { }
 				}
 			}
 			random_county_province = {
 				limit = {
-					any_province_epidemic = { 
-						count >= 1
-					}
+					any_province_epidemic = { }
 				}
 				random_province_epidemic = {
 					save_scope_as = epidemic_scope
@@ -7839,10 +7031,10 @@ epidemic_events.5008 = {
 			modifier = absent_ruler
 			years = 10
 		}
-		add_legitimacy = miniscule_legitimacy_loss
 
 		stress_impact = {
 			base = major_stress_impact_loss
+			craven = major_stress_impact_loss
 			diligent = medium_stress_impact_gain
 			ambitious = minor_stress_impact_gain
 			stubborn = miniscule_stress_impact_loss
@@ -7861,7 +7053,7 @@ epidemic_events.5008 = {
 	option = { # I must be seen by my subjects.
 		name = epidemic_events.5008.b
 
-		add_prestige = major_prestige_gain
+		add_legitimacy_effect = { LEGITIMACY = medium_legitimacy_gain }
 
 		add_character_modifier = {
 			modifier = present_ruler
@@ -7869,12 +7061,13 @@ epidemic_events.5008 = {
 		}
 
 		stress_impact = {
-			base = major_stress_impact_gain
-			diligent = minor_stress_impact_loss
-			ambitious = miniscule_stress_impact_loss
+			base = medium_stress_impact_gain
 			lazy = minor_stress_impact_gain
 			stubborn = minor_stress_impact_gain
 			content = minor_stress_impact_gain
+			shy = medium_stress_impact_gain
+			reclusive = medium_stress_impact_gain
+			craven = medium_stress_impact_gain
 		}
 
 		ai_chance = {
@@ -7892,15 +7085,14 @@ epidemic_events.5008 = {
 			modifier = hiding_from_epidemic
 			years = 10
 		}
-		add_legitimacy = miniscule_legitimacy_loss
 
 		stress_impact = {
-			impatient = minor_stress_impact_gain
-			callous = minor_stress_impact_gain
-			stubborn = minor_stress_impact_gain
 			patient = miniscule_stress_impact_loss
 			fickle = miniscule_stress_impact_loss
 			compassionate = miniscule_stress_impact_loss
+			shy = minor_stress_impact_loss
+			reclusive = minor_stress_impact_loss
+			craven = minor_stress_impact_loss
 		}
 
 		ai_chance = {
@@ -7922,13 +7114,16 @@ epidemic_events.5009 = {
 	desc = epidemic_events.5009.desc
 	theme = plague
 	override_background = { reference = market }
+	override_effect_2d = { reference = flies }
 	left_portrait = {
 		character = root
-		animation = thinking
+		animation = steward
+		camera = camera_event_left_crowning_observation
 	}
 	right_portrait = {
 		character = scope:merchant
-		animation = ecstasy
+		animation = debating
+		camera = camera_event_very_right
 	}
 	cooldown = { years = 10 }
 
@@ -7944,12 +7139,9 @@ epidemic_events.5009 = {
 						value <= squared_distance_medium #250 map-pixels. Roughly one Ireland away (top to bottom).
 					}
 				}
-				any_province_epidemic = {
-					count >= 1
-				}
+				any_province_epidemic = { }
 			}
 		}
-		is_travelling = no
 	}
 
 	immediate = {
@@ -7963,16 +7155,12 @@ epidemic_events.5009 = {
 							value <= squared_distance_medium #250 map-pixels. Roughly one Ireland away (top to bottom).
 						}
 					}
-					any_province_epidemic = { 
-						count >= 1
-					}
+					any_province_epidemic = { }
 				}
 			}
 			random_county_province = {
 				limit = {
-					any_province_epidemic = { 
-						count >= 1
-					}
+					any_province_epidemic = { }
 				}
 				random_province_epidemic = {
 					save_scope_as = epidemic_scope
@@ -7999,9 +7187,20 @@ epidemic_events.5009 = {
 				culture = root.capital_province.culture
 				faith = root.capital_province.faith
 				save_scope_as = merchant
+				after_creation = {
+					add_character_flag = created
+				}
 			}
+		}
+		hidden_effect_new_object = {
 			scope:merchant = {
 				move_to_pool = yes
+				get_pressed_flower_species_effect = { LOCATION = root.location }
+				create_artifact_pressed_flower_effect = { OWNER = scope:merchant }
+				scope:newly_created_artifact = {
+					add_artifact_modifier = artifact_stress_gain_1_modifier
+					flag_as_trash_artifact = yes
+				}
 			}
 		}
 	}
@@ -8015,6 +7214,16 @@ epidemic_events.5009 = {
 				has_trait = generous
 				has_trait = profligate
 			}
+		}
+		trait = paranoid
+		trait = generous
+		trait = profligate
+		
+		scope:newly_created_artifact = { set_owner = root }
+		
+		pay_short_term_gold = {
+			target = scope:merchant
+			gold = tiny_gold_value
 		}
 
 		add_character_modifier = {
@@ -8038,77 +7247,19 @@ epidemic_events.5009 = {
 		}
 	}
 
-	option = { # Twenty shekels? You're 'aving a larf!
+	option = { # Buy a fine sachet
 		name = epidemic_events.5009.b
+		
+		scope:newly_created_artifact = { set_owner = root }
 
-		duel = {
-			skills = { stewardship diplomacy }
+		add_character_modifier = {
+			modifier = sachet_protection
+			years = 10
+		}
+		
+		pay_short_term_gold = {
 			target = scope:merchant
-			# They agree
-			20 = {
-				compare_modifier = {
-					value = scope:duel_value
-					multiplier = 3.5
-					min = -49
-				}
-				send_interface_toast = {
-					title = epidemic_events.5009.b.success
-					left_icon = root
-					right_icon = scope:merchant
-
-					add_character_modifier = {
-						modifier = sachet_protection
-						years = 10
-					}
-
-					pay_short_term_gold = {
-						target = scope:merchant
-						gold = minor_gold_value
-					}
-				}
-			}
-			# They refuse
-			40 = {
-				compare_modifier = {
-					value = scope:duel_value
-					multiplier = -3.5
-					min = -49
-				}
-				send_interface_toast = {
-					title = epidemic_events.5009.b.failure
-					left_icon = root
-					right_icon = scope:merchant
-
-					add_character_modifier = {
-						modifier = sachet_protection
-						years = 10
-					}
-
-					pay_short_term_gold = {
-						target = scope:merchant
-						gold = medium_gold_value
-					}
-				}
-			}
-			# They really refuse
-			40 = {
-				compare_modifier = {
-					value = scope:duel_value
-					multiplier = -3.5
-					min = -49
-				}
-				send_interface_toast = {
-					title = epidemic_events.5009.b.criticalfailure
-					left_icon = root
-					right_icon = scope:merchant
-
-					reverse_add_opinion = {
-						modifier = annoyed_opinion
-						opinion = -20
-						target = scope:merchant
-					}
-				}
-			}
+			gold = tiny_gold_value
 		}
 
 		stress_impact = {
@@ -8138,15 +7289,11 @@ epidemic_events.5009 = {
 			years = 10
 		}
 
-		pay_short_term_gold = {
-			target = scope:merchant
-			gold = medium_gold_value
-		}
-
 		stress_impact = {
-			greedy = major_stress_impact_gain
+			cynical = minor_stress_impact_gain
+			paranoid = minor_stress_impact_gain
 			generous = miniscule_stress_impact_loss
-			profligate = miniscule_stress_impact_loss
+			profligate = medium_stress_impact_gain
 			trusting = miniscule_stress_impact_loss
 		}
 
@@ -8154,7 +7301,6 @@ epidemic_events.5009 = {
 			base = 100
 			ai_value_modifier = {
 				ai_energy = 1
-				ai_greed = -0.5
 			}
 		}
 	}
@@ -8162,14 +7308,7 @@ epidemic_events.5009 = {
 	option = { # Don't buy anything
 		name = epidemic_events.5009.d
 
-		reverse_add_opinion = {
-			modifier = annoyed_opinion
-			opinion = -10
-			target = scope:merchant
-		}
-
 		stress_impact = {
-			greedy = miniscule_stress_impact_loss
 			generous = medium_stress_impact_gain
 			profligate = medium_stress_impact_gain
 			trusting = minor_stress_impact_gain
@@ -8180,6 +7319,11 @@ epidemic_events.5009 = {
 			ai_value_modifier = {
 				ai_greed = 1
 			}
+		}
+	}
+	after = {
+		scope:merchant = {
+			silent_disappearance_ai_effect = yes
 		}
 	}
 }
@@ -8424,7 +7568,17 @@ epidemic_events.5900 = {
 	type = character_event
 	window = fullscreen_event
 	title = epidemic_events.5900.t
-	desc = epidemic_events.5900.desc
+	desc = {
+		first_valid = {
+			#triggered_desc = { #LotR
+			#	trigger = {
+			#		culture_has_asian_heritage_pillar_trigger = yes
+			#	}
+			#	desc = epidemic_events.5900.desc_asia
+			#}
+			desc = epidemic_events.5900.desc
+		}
+	}
 	theme = plague
 	override_background = { reference = ce1_fullscreen_black_death }
 	cooldown = { years = 100 }
@@ -8436,13 +7590,11 @@ epidemic_events.5900 = {
 		if = { #just to be sure the story about preparing for black death ends
 			limit = {
 				any_owned_story = {
-					story_type = story_cycle_black_death
+					type = story_cycle_black_death
 				}
 			}
 			random_owned_story = {
-				limit = {
-					story_type = story_cycle_black_death
-				}
+				type = story_cycle_black_death
 				end_story = yes
 			}
 		}
@@ -8762,7 +7914,7 @@ epidemic_events.5902 = {
 	option = { # Set up shanty towns
 		name = epidemic_events.5902.b
 
-		remove_short_term_gold = medium_gold_value
+		remove_treasury_or_gold = medium_treasury_or_gold_value
 
 		scope:border_province = {
 			add_province_modifier = {
@@ -9658,7 +8810,7 @@ epidemic_events.5906 = {
 		}
 
 		every_vassal_or_below = {
-			limit = { has_vassal_stance = zealot }
+			vassal_stance = zealot
 			custom = every_zealot_vassal
 			add_opinion = {
 				modifier = disrespect_opinion
@@ -9894,7 +9046,7 @@ epidemic_events.5908 = {
 	option = { # You'll be compensated fairly
 		name = epidemic_events.5908.b
 
-		remove_short_term_gold = medium_gold_value
+		remove_treasury_or_gold = medium_treasury_or_gold_value
 
 		scope:province = {
 			add_province_modifier = {
@@ -10131,20 +9283,30 @@ epidemic_events.6000 = {
 	type = character_event
 	window = fullscreen_event
 	title = epidemic_events.5900.t
-	desc = epidemic_events.5900.desc
+	desc = {
+		first_valid = {
+			#triggered_desc = { #LotR
+			#	trigger = {
+			#		culture_has_asian_heritage_pillar_trigger = yes
+			#	}
+			#	desc = epidemic_events.5900.desc_asia
+			#}
+			desc = epidemic_events.5900.desc
+		}
+	}
 	theme = plague
 	override_background = { reference = ce1_fullscreen_black_death }
 	cooldown = { years = 100 }
 
 	trigger = {
 		OR = {
-			is_landless_adventurer = yes
+			has_government = landless_adventurer_government
 			is_landless_administrative = yes
 		}
 		location = {
 			any_province_epidemic = {
+				intensity = apocalyptic
 				epidemic_type.epidemic_trait = trait:bubonic_plague
-				outbreak_intensity = apocalyptic
 			}
 		}
 	}

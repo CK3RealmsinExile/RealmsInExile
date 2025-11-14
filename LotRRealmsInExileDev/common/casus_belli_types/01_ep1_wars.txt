@@ -29,7 +29,7 @@
 						artifact_owner = {
 							trigger_if = { # Lowborn or not the same House
 								limit = { exists = house }
-								NOT = { house = scope:attacker.house }
+								house != scope:attacker.house
 							}
 						}
 					}
@@ -95,7 +95,7 @@
 							artifact_owner = {
 								trigger_if = { # Lowborn or not the same House
 									limit = { exists = house }
-									NOT = { house = scope:attacker.house }
+									house != scope:attacker.house
 								}
 							}
 						}
@@ -146,6 +146,9 @@
 
 		# EP3: note gold gained from military assistance/join war contracts and their war contribution threshold
 		laamp_as_mercenary_payout_tooltip_effect = yes
+
+		#Mandalas gain or lose piety/devotion depending on Decree
+		mandala_war_victory_effects = yes
 	}
 
 	on_white_peace_desc = {
@@ -197,8 +200,15 @@
 		# Legitimacy
 		add_legitimacy_attacker_defeat_effect = yes
 		
-		#EP2 accolade glory gain for winning against higher ranked enemy
-		scope:defender = { accolade_defender_war_end_glory_gain_med_effect = yes }
+		scope:defender = { 
+			mandala_peacemaker_perk_serenity_effect = yes
+			#EP2 accolade glory gain for winning against higher ranked enemy
+			accolade_defender_war_end_glory_gain_high_effect = yes
+			# Prestige for Defender
+			add_prestige_war_defender_effect = {
+				PRESTIGE_VALUE = medium_prestige_value
+			}
+		}
 
 		scope:attacker = {
 			show_pow_release_message_effect = yes
@@ -219,7 +229,7 @@
 							artifact_owner = {
 								trigger_if = { # Lowborn or not the same House
 									limit = { exists = house }
-									NOT = { house = scope:attacker.house }
+									house != scope:attacker.house
 								}
 							}
 						}
@@ -238,13 +248,6 @@
 			add_prestige = {
 				value = major_prestige_value
 				multiply = -1.0
-			}
-		}
-
-		# Prestige for Defender
-		scope:defender = {
-			add_prestige_war_defender_effect = {
-				PRESTIGE_VALUE = major_prestige_value
 			}
 		}
 
@@ -269,40 +272,39 @@
 
 		# EP3: note gold gained from military assistance/join war contracts and their war contribution threshold
 		laamp_as_mercenary_payout_tooltip_effect = yes
+
+		#Mandalas gain or lose piety/devotion depending on Decree
+		mandala_war_defeat_effects = yes
 	}
 
 	should_invalidate = {
-		OR = {
-			NOT = {
-				scope:attacker = {
-					OR = {
-						any_personal_claimed_artifact = {
-							artifact_owner = {
-								is_ruler = yes
-								target_is_same_character_or_above = scope:defender
-							}
+		NOT = {
+			scope:attacker = {
+				OR = {
+					any_personal_claimed_artifact = {
+						artifact_owner = {
+							is_ruler = yes
+							target_is_same_character_or_above = scope:defender
 						}
-						AND = {
-							exists = scope:attacker.house
-							house = {
-								any_house_claimed_artifact = {
-									artifact_owner = {
-										OR = {
-											AND = { # Not the same House
-												exists = scope:attacker.house
-												exists = house
-												NOT = {
-													house = scope:attacker.house
-												}
-											}
-											AND = { # Defender is lowborn
-												exists = scope:attacker.house
-												is_lowborn = yes
-											}
+					}
+					AND = {
+						exists = scope:attacker.house
+						house = {
+							any_house_claimed_artifact = {
+								artifact_owner = {
+									OR = {
+										AND = { # Not the same House
+											exists = scope:attacker.house
+											exists = house
+											house != scope:attacker.house
 										}
-										is_ruler = yes
-										target_is_same_character_or_above = scope:defender
+										AND = { # Defender is lowborn
+											exists = scope:attacker.house
+											is_lowborn = yes
+										}
 									}
+									is_ruler = yes
+									target_is_same_character_or_above = scope:defender
 								}
 							}
 						}
@@ -409,8 +411,14 @@ reclaim_relic_artifact_war = {
 	group = artifact
 	ai_only_against_neighbors = yes
 	allow_hostages = no
-	
+
 	allowed_for_character = {
+		trigger_if = {
+			limit = {
+				is_ai = yes
+			}
+			ai_zeal >= 100
+		}
 		OR = {
 			highest_held_title_tier >= tier_duchy
 			is_ai = no
@@ -425,31 +433,45 @@ reclaim_relic_artifact_war = {
 	allowed_against_character = {
 		custom_tooltip = { # The custom_tooltip is here for error suppression
 			text = SCOPE_EMPTY
-			NOT = {
-				scope:attacker.faith = scope:defender.faith
-			}
-			scope:defender = {
-				OR = {
+			scope:attacker.faith != scope:defender.faith
+			trigger_if = {
+				limit = {
+					scope:attacker = { is_ai = yes }
+				}
+				scope:defender = {
 					any_character_artifact = {
 						OR = {
 							# Standard relics.
 							relic_war_valid_religious_artefact_trigger = yes
 							# Struggle relics.
 							## The Bells of Santiago de Compostela.
-							# relic_war_valid_struggle_artefact_trigger = yes
+							relic_war_valid_struggle_artefact_trigger = yes
 						}
 					}
-					any_vassal_or_below = {
-						NOT = {
-							faith = scope:attacker.faith
-						}
+				}
+			}
+			trigger_else = {
+				scope:defender = {
+					OR = {
 						any_character_artifact = {
 							OR = {
 								# Standard relics.
 								relic_war_valid_religious_artefact_trigger = yes
 								# Struggle relics.
 								## The Bells of Santiago de Compostela.
-								# relic_war_valid_struggle_artefact_trigger = yes
+								relic_war_valid_struggle_artefact_trigger = yes
+							}
+						}
+						any_vassal_or_below = {
+							faith != scope:attacker.faith
+							any_character_artifact = {
+								OR = {
+									# Standard relics.
+									relic_war_valid_religious_artefact_trigger = yes
+									# Struggle relics.
+									## The Bells of Santiago de Compostela.
+									relic_war_valid_struggle_artefact_trigger = yes
+								}
 							}
 						}
 					}
@@ -461,8 +483,6 @@ reclaim_relic_artifact_war = {
 		}
 	}
 
-	allowed_against_character_display_regardless = {}
-	
 	on_declaration = {
 		on_declared_war = yes
 	}
@@ -509,7 +529,7 @@ reclaim_relic_artifact_war = {
 						relic_war_valid_religious_artefact_trigger = yes
 						# Struggle relics.
 						## The Bells of Santiago de Compostela.
-						# relic_war_valid_struggle_artefact_trigger = yes
+						relic_war_valid_struggle_artefact_trigger = yes
 					}
 				}
 				set_owner = {
@@ -531,9 +551,7 @@ reclaim_relic_artifact_war = {
 			}
 			every_vassal_or_below = {
 				limit = {
-					NOT = {
-						faith = scope:attacker.faith
-					}
+					faith != scope:attacker.faith
 				}
 				every_character_artifact = {
 					limit = {
@@ -542,7 +560,7 @@ reclaim_relic_artifact_war = {
 							relic_war_valid_religious_artefact_trigger = yes
 							# Struggle relics.
 							## The Bells of Santiago de Compostela.
-							# relic_war_valid_struggle_artefact_trigger = yes
+							relic_war_valid_struggle_artefact_trigger = yes
 						}
 					}
 					set_owner = {
@@ -586,6 +604,9 @@ reclaim_relic_artifact_war = {
 
 		# EP3: note gold gained from military assistance/join war contracts and their war contribution threshold
 		laamp_as_mercenary_payout_tooltip_effect = yes
+
+		#Mandalas gain or lose piety/devotion depending on Decree
+		mandala_war_victory_effects = yes
 	}
 
 	on_white_peace_desc = {
@@ -639,8 +660,15 @@ reclaim_relic_artifact_war = {
 		# Legitimacy
 		add_legitimacy_attacker_defeat_effect = yes
 
-		#EP2 accolade glory gain for winning against higher ranked enemy
-		scope:defender = { accolade_defender_war_end_glory_gain_med_effect = yes }
+		scope:defender = { 
+			mandala_peacemaker_perk_serenity_effect = yes
+			#EP2 accolade glory gain for winning against higher ranked enemy
+			accolade_defender_war_end_glory_gain_high_effect = yes
+			# Prestige for Defender
+			add_prestige_war_defender_effect = {
+				PRESTIGE_VALUE = medium_prestige_value
+			}
+		}
 
 		# Prestige loss for the attacker
 		scope:attacker = {
@@ -650,13 +678,6 @@ reclaim_relic_artifact_war = {
 			add_prestige = {
 				value = major_prestige_value
 				multiply = -1.0
-			}
-		}
-
-		# Prestige for Defender
-		scope:defender = {
-			add_prestige_war_defender_effect = {
-				PRESTIGE_VALUE = major_prestige_value
 			}
 		}
 
@@ -681,19 +702,32 @@ reclaim_relic_artifact_war = {
 
 		# EP3: note gold gained from military assistance/join war contracts and their war contribution threshold
 		laamp_as_mercenary_payout_tooltip_effect = yes
+
+		#Mandalas gain or lose piety/devotion depending on Decree
+		mandala_war_defeat_effects = yes
 	}
 
 	should_invalidate = {
-		OR = {
-				scope:defender = {
-				NOR = {
+		scope:defender = {
+			NOR = {
+				any_character_artifact = {
+					OR = {
+						# Standard relics.
+						relic_war_valid_religious_artefact_trigger = yes
+						# Struggle relics.
+						## The Bells of Santiago de Compostela.
+						relic_war_valid_struggle_artefact_trigger = yes
+					}
+				}
+				any_vassal_or_below = {
+					faith != scope:attacker.faith
 					any_character_artifact = {
 						OR = {
 							# Standard relics.
 							relic_war_valid_religious_artefact_trigger = yes
 							# Struggle relics.
 							## The Bells of Santiago de Compostela.
-							# relic_war_valid_struggle_artefact_trigger = yes
+							relic_war_valid_struggle_artefact_trigger = yes
 						}
 					}
 					any_vassal_or_below = {
@@ -706,7 +740,7 @@ reclaim_relic_artifact_war = {
 								relic_war_valid_religious_artefact_trigger = yes
 								# Struggle relics.
 								## The Bells of Santiago de Compostela.
-								# relic_war_valid_struggle_artefact_trigger = yes
+								relic_war_valid_struggle_artefact_trigger = yes
 							}
 						}
 					}
