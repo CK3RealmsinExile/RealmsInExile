@@ -1161,7 +1161,7 @@ Effect snap_to_terrain_alpha_to_coverage_colormap
 	VertexShader = "VS_standard"
 	PixelShader = "PS_standard"
 	BlendState = "alpha_to_coverage"
-	Defines = { "PDX_MESH_SNAP_VERTICES_TO_TERRAIN" "COLORMAP" "ALPHA_TO_COVERAGE" "APPLY_WINTER" }
+	Defines = { "PDX_MESH_SNAP_VERTICES_TO_TERRAIN" "COLORMAP" "ALPHA_TO_COVERAGE" "APPLY_WINTER" "MAP_LIGHTING_HACK" }
 }
 Effect snap_to_terrain_alpha_to_coverage_colormapShadow
 {
@@ -1174,7 +1174,7 @@ Effect standard_colormap
 {
 	VertexShader = "VS_standard"
 	PixelShader = "PS_standard"
-	Defines = { "COLORMAP" "APPLY_WINTER" }
+	Defines = { "COLORMAP" "APPLY_WINTER" "MAP_LIGHTING_HACK" }
 }
 Effect standard_colormapShadow
 {
@@ -1334,7 +1334,7 @@ Effect snap_to_terrain_alpha_to_coverage_colormap_mapobject
 	VertexShader = "VS_mapobject"
 	PixelShader = "PS_standard"
 	BlendState = "alpha_to_coverage"
-	Defines = { "PDX_MESH_SNAP_VERTICES_TO_TERRAIN" "COLORMAP" "ALPHA_TO_COVERAGE" "APPLY_WINTER" }
+	Defines = { "PDX_MESH_SNAP_VERTICES_TO_TERRAIN" "COLORMAP" "ALPHA_TO_COVERAGE" "APPLY_WINTER" "MAP_LIGHTING_HACK" }
 }
 Effect snap_to_terrain_alpha_to_coverage_colormapShadow_mapobject
 {
@@ -1347,7 +1347,7 @@ Effect standard_colormap_mapobject
 {
 	VertexShader = "VS_mapobject"
 	PixelShader = "PS_standard"
-	Defines = { "COLORMAP" "APPLY_WINTER" }
+	Defines = { "COLORMAP" "APPLY_WINTER" "MAP_LIGHTING_HACK" }
 }
 Effect standard_colormapShadow_mapobject
 {
@@ -1436,7 +1436,7 @@ Effect standard_winter_mapobject
 {
 	VertexShader = "VS_mapobject"
 	PixelShader = "PS_standard"
-	Defines = { "APPLY_WINTER" }
+	Defines = { "APPLY_WINTER" "MAP_LIGHTING_HACK" }
 }
 
 Effect standard_winterShadow_mapobject
