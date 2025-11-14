@@ -222,7 +222,7 @@ PixelShader =
 			CompensateWhiteHighlightColor( Diffuse.rgb, MapCoords, SnowHighlight );
 			
 			SMaterialProperties MaterialProps = GetMaterialProperties( Diffuse.rgb, Normal, Properties.a, Properties.g, Properties.b );
-
+			
 			// Calculate combined shadow mask from clouds and shadow tint
 			float CloudMask = GetCloudShadowMask( WorldSpacePos.xz );
 			const float3 TerrainNormal = CalculateNormal( WorldSpacePos.xz );
@@ -271,11 +271,7 @@ PixelShader =
 				Diffuse.a = ApplyOpacity( Diffuse.a, Input.Position.xy, Input.InstanceIndex );
 				// Use dithered alpha test for smooth edges
 
-				if ( _HasTreeDitheringEnabled == 1 )
-				{
-					DitheredAlpha( Diffuse.a, Input.Position.xy, 0.4f );
-				}
-				else
+				if ( _HasTreeDitheringEnabled != 1 )
 				{
 					clip( Diffuse.a - 0.4f );
 				}
@@ -286,7 +282,7 @@ PixelShader =
 				float3 Normal = normalize( mul( NormalSample, TBN ) );
 
 				float4 Properties = PdxTex2D( PropertiesMap, Input.UV0 );
-
+				
 				EffectIntensities ConditionData;
 				SampleProvinceEffectsMask( ColorMapCoords, ConditionData );
 				ApplyProvinceEffectsTree( ConditionData, Diffuse, ColorMapCoords, Input.WorldSpacePos.xz );
@@ -300,9 +296,18 @@ PixelShader =
 				//Colormap
 				float SnowHighlight = 0.0f;
 				//Diffuse.rgb = ApplyDynamicMasksDiffuse( Diffuse.rgb, Normal, ColorMapCoords, SnowHighlight );
-				ApplySnowMaterialMesh( ConditionData, Diffuse.rgb, Properties, Normal, Input.WorldSpacePos.xz, SnowHighlight );
+				ApplySnowMaterialMesh( ConditionData, Diffuse.rgb, Properties, Normal, Input.WorldSpacePos.xz, SnowHighlight, 5.0f );
 				Diffuse.a = lerp( Diffuse.a, smoothstep( 0.8f, 0.85f, Diffuse.a ), SnowHighlight );
-				clip( Diffuse.a - 0.4f );
+				if ( _HasTreeDitheringEnabled == 1 )
+				{
+					DitheredAlpha( Diffuse.a, Input.Position.xy, 0.4f );
+				}
+				else
+				{
+					clip( Diffuse.a - 0.4f );
+				}
+
+				Diffuse.rgb = lerp( Diffuse.rgb, Diffuse.rgb * 1.5f, SnowHighlight );
 #if defined( PDX_OSX ) && defined( PDX_OPENGL )
 				// The amount of texture samplers is limited on Mac, so we don't read the data for the ColorMap directly
 				// from a texture. Instead we assign a default gray value here. This is also done for the terrain (on Mac)
