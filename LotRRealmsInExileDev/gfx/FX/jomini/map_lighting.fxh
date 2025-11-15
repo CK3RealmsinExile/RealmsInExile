@@ -82,7 +82,7 @@ PixelShader =
 		// Map objects sunny scenario lighting parameters
 		#define MAP_OBJECTS_SUNNY_SPECULAR_FACTOR      0.3f //LotR - Vanilla = 1.0
 		#define MAP_OBJECTS_SUNNY_SUN_COLOR            float3( 1.0f, 0.9f, 0.6f ) //LotR - Vanilla = 1.0/0.9/0.8
-		#define MAP_OBJECTS_SUNNY_SUN_INTENSITY        10.0f //LotR - Vanilla = 10.0
+		#define MAP_OBJECTS_SUNNY_SUN_INTENSITY        20.0f //LotR - Vanilla = 10.0
 		#define MAP_OBJECTS_SUNNY_IBL_SCALE            1.7f //LotR - Vanilla = 1.5
 
 		// Map objects shadow scenario lighting parameters
