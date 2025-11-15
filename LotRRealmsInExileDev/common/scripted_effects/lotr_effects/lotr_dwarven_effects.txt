@@ -782,11 +782,11 @@ dorfdad_one_personality_trait_effect = { # Gives a potential reincarnation kid o
 transfer_moria_duchy_titles_effect = {
 	if = {
 		limit = {
-			$TITLE$.holder = { is_dwarf = yes }
+			$TITLE$.holder ?= { is_dwarf = yes }
 			NOT = { $TITLE$.holder = scope:dwarf_in_moria }
 		}
 		create_title_and_vassal_change = {
-			type = swear_fealty
+			type = granted
 			save_scope_as = change
 			add_claim_on_loss = no
 		}
@@ -820,21 +820,146 @@ transfer_moria_duchy_titles_effect = {
 		}
 		resolve_title_and_vassal_change = scope:change
 	}
-
+	every_ruler = {
+		limit = {
+			highest_held_title_tier < scope:dwarf_in_moria.highest_held_title_tier
+			any_held_county = { duchy ?= $TITLE$ }
+			NOT = { has_title = $TITLE$ }
+		}
+		create_title_and_vassal_change = {
+			type = swear_fealty
+			save_scope_as = change
+		}
+		change_liege = {
+			liege = $TITLE$.holder
+			change = scope:change
+		}
+		resolve_title_and_vassal_change = scope:change
+	}
 }
 
 transfer_central_moria_effect = {
-	scope:dwarf_in_moria = { set_variable = grant_wilderness_titles }
+	scope:dwarf_in_moria = { set_variable = grant_wilderness_titles add_character_flag = dwarf_in_moria }
+	if = {
+		limit = { scope:dwarf_in_moria = { is_landed = no } }
+		scope:dwarf_in_moria = {
+			get_title = title:c_durins_hall
+			if = {
+				limit = { NOT = { has_government = feudal_government } }
+				change_government = feudal_government
+			}
+			every_vassal = {
+				limit = { NOT = { has_government = feudal_government } }
+				change_government = feudal_government
+			}
+			every_held_title = {
+				limit = { title_province = { terrain = halls } tier = tier_county }
+				title_province = { set_holding_type = dwarven_holding }
+			}
+			create_title_and_vassal_change = {
+				type = independency
+				save_scope_as = change
+				add_claim_on_loss = no
+			}
+			becomes_independent = { change = scope:change }
+			resolve_title_and_vassal_change = scope:change
+		}
+		ai_colonisation_effect = { WASTELANDS = title:c_durins_hall ROOT_SCOPE = scope:dwarf_in_moria }
+	}
 	moria_wastelands_to_delvings_effect = { DUCHY = title:d_zirakzigil }
 	moria_wastelands_to_delvings_effect = { DUCHY = title:d_barazinbar }
 	moria_wastelands_to_delvings_effect = { DUCHY = title:d_bundushathur }
-	scope:dwarf_in_moria = { get_title = title:d_zirakzigil }
-	scope:dwarf_in_moria = { get_title = title:d_barazinbar }
-	scope:dwarf_in_moria = { get_title = title:d_bundushathur }
-	scope:dwarf_in_moria = { get_title = title:k_khazad_dum }
+	if = {
+		limit = { NOT = { title:k_khazad_dum.holder = scope:dwarf_in_moria } }
+		scope:dwarf_in_moria = { get_title = title:k_khazad_dum }
+	}
+	transfer_moria_duchy_titles_effect = { TITLE = title:d_zirakzigil }
+	transfer_moria_duchy_titles_effect = { TITLE = title:d_barazinbar }
+	transfer_moria_duchy_titles_effect = { TITLE = title:d_bundushathur }
 	scope:dwarf_in_moria = { remove_variable = grant_wilderness_titles }
-	scope:dwarf_in_moria = { change_government = feudal_government }
 	scope:dwarf_in_moria = {
+		if = {
+			limit = { NOT = { has_government = feudal_government } }
+			change_government = feudal_government
+		}
+		every_vassal = {
+			limit = { NOT = { has_government = feudal_government } }
+			change_government = feudal_government
+		}
+	}
+	if = {
+		limit = { OR = { has_title = title:c_caradhras_pass has_title = title:c_dimrill_dale } }
+		create_title_and_vassal_change = {
+			type = granted
+			save_scope_as = change
+			add_claim_on_loss = no
+		}
+		if = {
+			limit = { has_title = title:c_caradhras_pass }
+			title:c_caradhras_pass = {
+				change_title_holder = {
+					holder = scope:dwarf_in_moria
+					change = scope:change
+				}
+				set_county_culture = scope:dwarf_in_moria.culture
+				set_county_faith = scope:dwarf_in_moria.faith
+			}
+		}
+		if = {
+			limit = { has_title = title:c_dimrill_dale }
+			title:c_dimrill_dale = {
+				change_title_holder = {
+					holder = scope:dwarf_in_moria
+					change = scope:change
+				}
+				set_county_culture = scope:dwarf_in_moria.culture
+				set_county_faith = scope:dwarf_in_moria.faith
+			}
+		}
+		resolve_title_and_vassal_change = scope:change
+	}
+}
+
+moria_wastelands_to_delvings_effect = {
+	$DUCHY$ = {
+		every_de_jure_county = {
+			limit = {
+				title_province = { has_holding_type = wastelands_holding }
+			}
+			save_scope_as = county_title
+			ai_colonisation_effect = { WASTELANDS = scope:county_title ROOT_SCOPE = scope:dwarf_in_moria }
+			if = {
+				limit = { scope:county_title.title_province = { terrain = halls } }
+				scope:county_title.title_province = { set_holding_type = dwarven_holding }
+			}
+			else = {
+				scope:county_title.title_province = { set_holding_type = castle_holding }
+			}
+		}
+	}
+	create_title_and_vassal_change = {
+		type = returned
+		save_scope_as = change
+		add_claim_on_loss = no
+	}
+	$DUCHY$ = {
+		if = {
+			limit = { NOT = { exists = holder } }
+			change_title_holder = {
+				holder = scope:dwarf_in_moria
+				change = scope:change
+			}
+		}
+		every_de_jure_county = {
+			limit = { holder = character:k_wastelands_holder }
+			change_title_holder = {
+				holder = $DUCHY$.holder
+				change = scope:change
+			}
+		}
+	}
+	resolve_title_and_vassal_change = scope:change
+	$DUCHY$.holder ?= {
 		every_held_county = {
 			every_county_province = { # Set Holding
 				limit = {
@@ -852,8 +977,8 @@ transfer_central_moria_effect = {
 				}
 				set_holding_type = castle_holding
 			}
-			set_county_culture = scope:dwarf_in_moria.culture
-			set_county_faith = scope:dwarf_in_moria.faith
+			set_county_culture = holder.culture
+			set_county_faith = holder.faith
 			random_list = {
 				1 = { change_development_level = 3 }
 				1 = { change_development_level = 4 }
@@ -862,23 +987,6 @@ transfer_central_moria_effect = {
 			generate_coa = yes
 		}
 	}
-}
-
-moria_wastelands_to_delvings_effect = {
-	create_title_and_vassal_change = {
-		type = returned
-		save_scope_as = change
-		add_claim_on_loss = no
-	}
-	$DUCHY$ = {
-		every_de_jure_county = {
-			change_title_holder = {
-				holder = scope:dwarf_in_moria
-				change = scope:change
-			}
-		}
-	}
-	resolve_title_and_vassal_change = scope:change
 }
 
 transfer_highpass_to_valemen = {
@@ -1065,12 +1173,13 @@ serve_balrog_decision_effect = {
 }
 
 clear_dwarven_kingdom_claims = {
-	every_living_character = {
-		limit = { has_claim_on = $KINGDOM$ }
-		save_scope_as = claimant
-		if = {
-			limit = { NOT = { $KINGDOM$.holder.primary_heir = scope:claimant } }
-			remove_claim = $KINGDOM$
+	$KINGDOM$ = {
+		every_claimant = {
+			save_scope_as = claimant
+			if = {
+				limit = { NOT = { $KINGDOM$.holder.primary_heir = scope:claimant } }
+				remove_claim = $KINGDOM$
+			}
 		}
 	}
 }
@@ -1108,7 +1217,7 @@ add_thorins_tomb_modifiers_effect = {
 		}
 		if = {
 			limit = {
-				NOR = { 
+				NOR = {
 					has_global_variable = orcrist_plundered
 					has_global_variable = arkenstone_plundered
 				}
@@ -1208,28 +1317,82 @@ dwarven_empire_titular_history_effect = {
 	dwarven_titular_history_effect = { EMPIRE = title:e_thulins_folk KINGDOM = title:k_thulins_folk }
 }
 
-set_historical_fathers_house = {
+lotr_crown_dwarven_dynast = {
 	if = {
-		limit = { game_start_date >= 5014.12.25 }
-		character:lineofthrarV = { set_house = character:lineofthrarI.house }
+		limit = { primary_title.tier <= tier_kingdom }
+		if = {
+			limit = { dynasty = dynasty:dynasty_durin  }
+			get_title = title:k_durins_folk
+			set_primary_title_to = title:k_durins_folk
+		}
+		else_if = {
+			limit = { dynasty = dynasty:dynasty_uri  }
+			get_title = title:k_uris_folk
+			set_primary_title_to = title:k_uris_folk
+		}
+		else_if = {
+			limit = { dynasty = dynasty:dynasty_dwalin  }
+			get_title = title:k_dwalins_folk
+			set_primary_title_to = title:k_dwalins_folk
+		}
+		else_if = {
+			limit = { dynasty = dynasty:dynasty_thrar  }
+			get_title = title:k_thrars_folk
+			set_primary_title_to = title:k_thrars_folk
+		}
+		else_if = {
+			limit = { dynasty = dynasty:dynasty_sindri  }
+			get_title = title:k_sindris_folk
+			set_primary_title_to = title:k_sindris_folk
+		}
+		else_if = {
+			limit = { dynasty = dynasty:dynasty_bavor }
+			get_title = title:k_bavors_folk
+			set_primary_title_to = title:k_bavors_folk
+		}
+		else_if = {
+			limit = { dynasty = dynasty:dynasty_thulin  }
+			get_title = title:k_thulins_folk
+			set_primary_title_to = title:k_thulins_folk
+		}
 	}
-}
-
-generate_thorins_company_list_effect = {
-	if = {
-		limit = { game_start_date >= 6974.11.23 }
-		add_to_global_variable_list = { name = canon_thorins_company target = character:lineofdurin95 }
-		add_to_global_variable_list = { name = canon_thorins_company target = character:lineofdurin96 }
-		add_to_global_variable_list = { name = canon_thorins_company target = character:lineofdurin98 }
-		add_to_global_variable_list = { name = canon_thorins_company target = character:lineofdurin99 }
-		add_to_global_variable_list = { name = canon_thorins_company target = character:lineofdurin86 }
-		add_to_global_variable_list = { name = canon_thorins_company target = character:lineofdurin87 }
-		add_to_global_variable_list = { name = canon_thorins_company target = character:lineofdurin104 }
-		add_to_global_variable_list = { name = canon_thorins_company target = character:lineofdurin105 }
-		add_to_global_variable_list = { name = canon_thorins_company target = character:lineofbifur }
-		add_to_global_variable_list = { name = canon_thorins_company target = character:lineofbomfur2 }
-		add_to_global_variable_list = { name = canon_thorins_company target = character:lineofbomfur1 }
-		add_to_global_variable_list = { name = canon_thorins_company target = character:lineofbaggins12 }
+	else_if = {
+		limit = { primary_title.tier = tier_empire }
+		if = {
+			limit = { dynasty = dynasty:dynasty_durin  }
+			get_title = title:e_durins_folk
+			set_primary_title_to = title:e_durins_folk
+		}
+		else_if = {
+			limit = { dynasty = dynasty:dynasty_uri  }
+			get_title = title:e_uris_folk
+			set_primary_title_to = title:e_uris_folk
+		}
+		else_if = {
+			limit = { dynasty = dynasty:dynasty_dwalin  }
+			get_title = title:e_dwalins_folk
+			set_primary_title_to = title:e_dwalins_folk
+		}
+		else_if = {
+			limit = { dynasty = dynasty:dynasty_thrar  }
+			get_title = title:e_thrars_folk
+			set_primary_title_to = title:e_thrars_folk
+		}
+		else_if = {
+			limit = { dynasty = dynasty:dynasty_sindri  }
+			get_title = title:e_sindris_folk
+			set_primary_title_to = title:e_sindris_folk
+		}
+		else_if = {
+			limit = { dynasty = dynasty:dynasty_bavor }
+			get_title = title:e_bavors_folk
+			set_primary_title_to = title:e_bavors_folk
+		}
+		else_if = {
+			limit = { dynasty = dynasty:dynasty_thulin  }
+			get_title = title:e_thulins_folk
+			set_primary_title_to = title:e_thulins_folk
+		}
 	}
 }
 
@@ -1255,12 +1418,88 @@ lotr_set_name = {
 			1 = { change_first_name = Dania }
 			1 = { change_first_name = Edda }
 			1 = { change_first_name = F_ia }
-			1 = { change_first_name = Janna }
+			1 = { change_first_name = Minna }
 			1 = { change_first_name = P_il }
 			1 = { change_first_name = Ragna }
 			1 = { change_first_name = Tova }
 			1 = { change_first_name = Unna }
 			1 = { change_first_name = V_is }
+		}
+	}
+}
+
+mountains_hegeomy_formation_effect = {
+	if = {
+		limit = { is_dwarf = yes }
+		# Normal Empires
+		title:e_yellow_mountains = { add_to_list = mountains }
+		title:e_blue_mountains = { add_to_list = mountains }
+		title:e_white_mountains = { add_to_list = mountains }
+
+		# Potentially landless
+		if = {
+			limit = {
+				NOT = {
+					is_target_in_global_variable_list = {
+						name = unavailable_unique_decisions
+						target = flag:decision_unify_durins_folk
+					}
+				}
+			}
+			title:e_iron_mountains = { add_to_list = mountains }
+			title:e_misty_mountains = { add_to_list = mountains }
+		}
+		if = {
+			limit = {
+				NOT = {
+					is_target_in_global_variable_list = {
+						name = unavailable_unique_decisions
+						target = flag:decision_reunite_yellow_mountains
+					}
+				}
+			}
+			title:e_western_yellow_mountains = { add_to_list = mountains }
+		}
+	}
+	else = {
+		title:e_yellow_mountains = { add_to_list = mountains }
+		title:e_blue_mountains = { add_to_list = mountains }
+		title:e_white_mountains = { add_to_list = mountains }
+		title:e_iron_mountains = { add_to_list = mountains }
+		title:e_misty_mountains = { add_to_list = mountains }
+		if = {
+			limit = {
+				NOT = {
+					is_target_in_global_variable_list = {
+						name = unavailable_unique_decisions
+						target = flag:decision_reunite_yellow_mountains
+					}
+				}
+			}
+			title:e_western_yellow_mountains = { add_to_list = mountains }
+		}
+	}
+	every_in_list = {
+		list = mountains
+		save_temporary_scope_as = mountain_title
+		scope:mountain_title ?= { set_de_jure_liege_title = title:h_mountains }
+	}
+
+	if = {
+		limit = { is_dwarf = yes }
+		every_culture_global = {
+			limit = {
+				is_dwarf_culture = yes
+				NOT = { this = root.culture }
+			}
+			add_to_list = dwarf_cultures
+		}
+		every_in_list = {
+			list = dwarf_cultures
+			save_temporary_scope_as = culture
+			root.culture = {
+				get_all_innovations_from = scope:culture
+			}
 		}
 	}
 }
