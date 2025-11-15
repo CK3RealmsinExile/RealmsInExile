@@ -1,4 +1,9 @@
-﻿commission_artifact_decision = {
+﻿### Commission Artifact ###
+commission_artifact_decision = {
+	picture = {
+		trigger = { culture = { has_graphical_east_asia_culture_group_trigger = yes } }
+		reference = "gfx/interface/illustrations/decisions/tgp_retire.dds"
+	}
 	picture = {
 		trigger = { government_has_flag = government_is_nomadic }
 		reference = "gfx/interface/illustrations/event_scenes/mpo_hunt_steppe.dds"
@@ -44,6 +49,36 @@
 				}
 				multiply = estate_reduce_commission_artifact_cost_value
 			}
+			else_if = {
+				limit = {
+					scope:commission_weapon ?= yes
+					domicile ?= { has_domicile_parameter = cheaper_commission_weapon_artifact_parameter_1 }
+				}
+				multiply = estate_reduce_commission_artifact_cost_value
+			}
+			else_if = {
+				limit = {
+					scope:commission_armor ?= yes
+					domicile ?= { has_domicile_parameter = cheaper_commission_armor_artifact_parameter_1 }
+				}
+				multiply = estate_reduce_commission_artifact_cost_value
+			}
+			else_if = {
+				limit = {
+					scope:commission_furniture ?= yes
+					domicile ?= { has_domicile_parameter = cheaper_commission_furniture_artifact_parameter_1 }
+				}
+				multiply = estate_reduce_commission_artifact_cost_value
+			}
+			if = {
+				limit = {
+					confederation ?= { has_cohesion_level_parameter = any_member_commission_and_inspiration_reduced }
+				}
+				multiply = {
+					value = 0.9
+					desc = CB_COHESION_PARAMETER_DISCOUNT
+				}
+			}
 			if = {
 				limit = {
 					has_character_modifier = mpo_artifact_material_modifier
@@ -58,6 +93,38 @@
 		controller = decision_option_list_controller
 		decision_to_second_step_button = "COMMISSION_ARTIFACT_DECISION_NEXT_STEP_BUTTON" 
 
+		# Commission a Kris
+		item = {
+			value = commission_kris
+			current_description = {
+				desc = commission_artifact_decision_option_kris_desc
+			}
+			localization  = {
+				desc = commission_artifact_decision_option_kris
+			}
+			icon = "gfx/interface/icons/artifact/kris.dds"
+
+			is_shown = {
+				culture = {
+					has_cultural_parameter = may_commission_kris
+				}
+			}
+
+			ai_chance = {
+				value = 0 
+				if = {
+					limit = {
+						# Only make this choice if we don't already have an artifact of this type.
+						NOT = {
+							any_character_artifact = {
+								has_variable = is_kris
+							}
+						}
+					}
+					add = 5000
+				}
+			}
+		}
 
 		# Personal Artifacts are always valid to commission
 		item = {
@@ -392,47 +459,43 @@
 				root = { add_courtier = scope:local_artisan	}
 				scope:local_artisan = {
 					add_character_flag = local_artisan
-					if = {
-						limit = { scope:commission_weapon = yes }
-						create_inspiration = weapon_inspiration
-					}
-					else_if = {
-						limit = { scope:commission_armor = yes }
-						set_variable = {
-							name = force_armor
-							value = flag:force_armor_true
+					switch = {
+						trigger = yes
+						scope:commission_kris = {
+							set_variable = {
+								name = artifact_weapon_type
+								value = flag:artifact_weapon_type_dagger
+							}
+							set_variable = is_inspiration_for_kris_dagger
+							create_inspiration = weapon_inspiration
 						}
-						create_inspiration = armor_inspiration
-					}
-					else_if = {
-						limit = { scope:commission_crown = yes }
-						set_variable = {
-							name = artifact_smith_type
-							value = flag:smith_type_crown
+						scope:commission_weapon = { create_inspiration = weapon_inspiration }
+						scope:commission_armor = {
+							set_variable = {
+								name = force_armor
+								value = flag:force_armor_true
+							}
+							create_inspiration = armor_inspiration
 						}
-						create_inspiration = smith_inspiration
-					}
-					else_if = {
-						limit = { scope:commission_regalia = yes }
-						set_variable = {
-							name = artifact_smith_type
-							value = flag:smith_type_regalia
+						scope:commission_crown = {
+							set_variable = {
+								name = artifact_smith_type
+								value = flag:smith_type_crown
+							}
+							create_inspiration = smith_inspiration
 						}
-						create_inspiration = smith_inspiration
-					}
-					else_if = {
-						limit = { scope:commission_tapestry = yes }
-						root = {
-							trigger_event = fund_inspiration.0044
+						scope:commission_regalia = {
+							set_variable = {
+								name = artifact_smith_type
+								value = flag:smith_type_regalia
+							}
+							create_inspiration = smith_inspiration
 						}
-					}
-					else_if = {
-						limit = { scope:commission_furniture = yes }
-						create_inspiration = artisan_inspiration
-					}
-					else_if = {
-						limit = { scope:commission_book = yes }
-						create_inspiration = book_inspiration
+						scope:commission_tapestry = {
+							root = { trigger_event = fund_inspiration.0044 }
+						}
+						scope:commission_furniture = { create_inspiration = artisan_inspiration }
+						scope:commission_book = { create_inspiration = book_inspiration }
 					}
 					if = {
 						limit = { exists = inspiration }
@@ -442,16 +505,36 @@
 				}
 			}
 		}
+
+		#Mandala Creation Aspect
+		if = {
+			limit = {
+				government_has_flag = government_is_mandala
+				house = { has_house_power_parameter = aspect_of_creation }
+				is_house_head = yes
+			}
+			increment_variable_effect = {
+				VAR = num_commissioned_artifacts
+				VAL = 1
+			}
+		}
 	}
 
-	ai_check_interval = 36
+	ai_check_interval_by_tier = {
+		barony = 0
+		county = 36
+		duchy = 36
+		kingdom = 36
+		empire = 36
+		hegemony = 36
+	}
 	
 	ai_potential = {
 		is_at_war = no
 		ai_greed < medium_positive_ai_value
 		short_term_gold > ai_war_chest_desired_gold_value
 		war_chest_gold >= halved_ai_war_chest_gold_maximum
-		ai_has_conqueror_personality = no
+		NOT = { has_variable = conqueror }
 		ai_should_focus_on_building_in_their_capital = no
 	}
 
