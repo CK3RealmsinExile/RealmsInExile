@@ -1335,6 +1335,8 @@ gondor.0502 = { # Aragorn is allowed into Minas Tirith and is coronated
 				change = scope:change
 			}
 		}
+		
+		set_realm_capital = title:c_minas_tirith
 
 		scope:gondor_steward = {
 			every_held_title = {
@@ -2300,7 +2302,7 @@ gondor.0506 = { # A dream from long ago... Will Aragorn marry Arwen?
 		trigger = {
 			title:e_gondor.holder ?= { in_diplomatic_range = title:e_bellakar.holder }
 			title:e_bellakar.holder ?= { faith_is_good = yes }
-			character:lineoftumakveh86 = { is_alive = yes }
+			character:lineoftumakveh144 = { is_alive = yes }
 		}
 
 		if = {
@@ -2309,12 +2311,12 @@ gondor.0506 = { # A dream from long ago... Will Aragorn marry Arwen?
 				has_dlc_feature = advanced_activities
 			}
 			#Setting up the betrothal
-			create_betrothal = character:lineoftumakveh86
+			create_betrothal = character:lineoftumakveh144
 			set_grand_wedding_betrothal_variables = {
 				SPOUSE_1 = root
-				SPOUSE_2 = character:lineoftumakveh86
+				SPOUSE_2 = character:lineoftumakveh144
 				HOST = root
-				PROMISEE = character:lineoftumakveh86.liege
+				PROMISEE = character:lineoftumakveh144.liege
 			}
 			add_character_flag = aragorn_gw
 
@@ -2328,7 +2330,7 @@ gondor.0506 = { # A dream from long ago... Will Aragorn marry Arwen?
 			}
 		}
 		else = {
-			marry = character:lineoftumakveh86
+			marry = character:lineoftumakveh144
 		}
 
 		hidden_effect = {
@@ -2435,61 +2437,78 @@ gondor.0506 = { # A dream from long ago... Will Aragorn marry Arwen?
 	}
 }
 
-gondor.0517 = { #Aragorn wedding if he was too stupid to do it himself
+gondor.0517 = { #Aragorn wedding-bot if he was too stupid to do it himself
 	type = character_event
 	hidden = yes
 
-	immediate = {
-		if = {
-			limit = {
-				has_character_flag = aragorn_gw
+	trigger = {
+		has_character_flag = aragorn_gw #Aragorn hasn't organised his GW yet
+		trigger_if = { #If betrothed to Arwen, check if he still fulfills the conditions
+			limit = { root.betrothed = character:lineofelrond4 }
+			OR = {
+				has_title = title:h_reunited_kingdom
+				AND = {
+					has_title = title:e_gondor
+					has_title = title:e_arnor
+				}
 			}
+		}
+	}
 
+	immediate = {
+		#So AI Aragorn doesn't have multiple lovers/soulmates (AI loves to seduce Aragorn)
+		if = {
+			limit = { is_ai = yes }
+			every_relation = {
+				type = lover
+				limit = { this != root.betrothed }
+				remove_relation_lover = root
+			}
+			every_relation = {
+				type = soulmate
+				limit = { this != root.betrothed }
+				remove_relation_soulmate = root
+			}
+		}
+		
+		#Aragorn marries his betrothed normally
+		marry = root.betrothed
+		#Aragorn loses his opportunity to hold a free GW
+		remove_character_flag = aragorn_gw
+		#So Aragorn doesn't get married twice to the same person
+		remove_variable = promised_grand_wedding_marriage_countdown
+
+		if = {  #Arwen marriage handling
+			limit = { root.betrothed = character:lineofelrond4 }
+
+			#Set up their relationship
+			set_relation_lover = character:lineofelrond4
+			set_relation_friend = character:lineofelrond4
 			if = {
-				limit = { root.betrothed = character:lineofelrond4 } #Arwen marriage handling
-
-				#So Aragorn doesn't have multiple lovers/soulmates
-				every_relation = {
-					type = lover
-					remove_relation_lover = root
-				}
-				every_relation = {
-					type = soulmate
-					remove_relation_soulmate = root
-				}
-
-				set_relation_lover = character:lineofelrond4
-				set_relation_friend = character:lineofelrond4
-				set_relation_soulmate = character:lineofelrond4
-
-				character:lineoffinarfin5 = { # Galadriel sends a royal gift
-					trigger_event = {
-						id = elven.0103
-						days = 1
+				limit = { #So the player doesn't end up with 2 soulmates
+					any_relation = {
+						type = soulmate
+						count = 0
 					}
 				}
+				set_relation_soulmate = character:lineofelrond4
 			}
-			marry = root.betrothed
-			remove_character_flag = aragorn_gw
-
-			if = { #So Aragorn doesn't get married twice to the same person
-				limit = {
-					has_variable = promised_grand_wedding_marriage_countdown
+			
+			character:lineoffinarfin5 = { # Galadriel sends a royal gift
+				trigger_event = {
+					id = elven.0103
+					days = 1
 				}
-				remove_variable = promised_grand_wedding_marriage_countdown
+			}
+			trigger_event = { #Incepting Eldarion
+				id = gondor.0508
+				days = 100
 			}
 		}
-		if = {
-			limit = {
-				any_spouse = { this = character:lineofelrond4 }
-			}
-			set_relation_lover = character:lineofelrond4
-			set_relation_soulmate = character:lineofelrond4
-		}
-		trigger_event = { #Incepting Eldarion
-			id = gondor.0508
-			days = 100
-		}
+	}
+
+	on_trigger_fail = { #If Aragorn doesn't fulfill the conditions, end the betrothal
+		break_betrothal = root.betrothed
 	}
 }
 
@@ -9538,7 +9557,7 @@ gondor.2900 = { # Maintenance event to start the combination of Bellakar x Gondo
 		NOT = {
 			OR = {
 				has_title = title:e_gondor
-				has_title = title:h_reunitedkingdom
+				has_title = title:h_reunited_kingdom
 			}
 			has_title = title:e_bellakar
 		}
@@ -9554,12 +9573,12 @@ gondor.2900 = { # Maintenance event to start the combination of Bellakar x Gondo
 		}
 		trigger_if = {
 			limit = {
-				exists = title:e_pharazain.holder
+				exists = title:h_pharazain.holder
 			}
-			title:e_pharazain.holder = {
+			title:h_pharazain.holder = {
 				OR = {
 					is_allied_to = title:e_gondor.holder
-					is_allied_to = title:h_reunitedkingdom.holder
+					is_allied_to = title:h_reunited_kingdom.holder
 				}
 			}
 		}
@@ -9567,21 +9586,21 @@ gondor.2900 = { # Maintenance event to start the combination of Bellakar x Gondo
 			title:e_bellakar.holder = {
 				OR = {
 					is_allied_to = title:e_gondor.holder
-					is_allied_to = title:h_reunitedkingdom.holder
+					is_allied_to = title:h_reunited_kingdom.holder
 				}
 			}
 		}
 		trigger_if = {
 			limit = {
 				AND = {
-					exists = title:h_reunitedkingdom.holder
+					exists = title:h_reunited_kingdom.holder
 					is_target_in_global_variable_list = {
 						name = unavailable_unique_decisions
 						target = flag:decision_solidify_reunited_kingdom
 					}
 				}
 			}
-			title:h_reunitedkingdom.holder ?= {
+			title:h_reunited_kingdom.holder ?= {
 				OR = {
 					primary_heir = {
 						any_parent = {
@@ -9618,23 +9637,23 @@ gondor.2900 = { # Maintenance event to start the combination of Bellakar x Gondo
 		if = {
 			limit = {
 				AND = {
-					exists = title:h_reunitedkingdom.holder
+					exists = title:h_reunited_kingdom.holder
 					is_target_in_global_variable_list = {
 						name = unavailable_unique_decisions
 						target = flag:decision_solidify_reunited_kingdom
 					}
 				}
 			}
-			title:h_reunitedkingdom = { save_scope_as = gondor_title }
+			title:h_reunited_kingdom = { save_scope_as = gondor_title }
 		}
 		else = {
 			title:e_gondor = { save_scope_as = gondor_title }
 		}
 		if = {
 			limit = {
-				exists = title:e_pharazain.holder
+				exists = title:h_pharazain.holder
 			}
-			title:e_pharazain = { save_scope_as = bellakar_title }
+			title:h_pharazain = { save_scope_as = bellakar_title }
 		}
 		else = {
 			title:e_bellakar = { save_scope_as = bellakar_title }
@@ -9854,14 +9873,14 @@ gondor.2950 = { # Bellakar receives message about making alliance with Gondor
 		if = {
 			limit = {
 				AND = {
-					exists = title:h_reunitedkingdom.holder
+					exists = title:h_reunited_kingdom.holder
 					is_target_in_global_variable_list = {
 						name = unavailable_unique_decisions
 						target = flag:decision_solidify_reunited_kingdom
 					}
 				}
 			}
-			title:h_reunitedkingdom = { save_scope_as = gondor_title }
+			title:h_reunited_kingdom = { save_scope_as = gondor_title }
 		}
 		else = {
 			title:e_gondor = { save_scope_as = gondor_title }
@@ -9926,9 +9945,9 @@ gondor.2951 = { # Bellakar accepts alliance offer
 	immediate = {
 		if = {
 			limit = {
-				exists = title:e_pharazain.holder
+				exists = title:h_pharazain.holder
 			}
-			title:e_pharazain = { save_scope_as = bellakar_title }
+			title:h_pharazain = { save_scope_as = bellakar_title }
 		}
 		else = {
 			title:e_bellakar = { save_scope_as = bellakar_title }
@@ -9996,9 +10015,9 @@ gondor.2952 = { # Bellakar declines alliance offer # Bellakar recieves message o
 	immediate = {
 		if = {
 			limit = {
-				exists = title:e_pharazain.holder
+				exists = title:h_pharazain.holder
 			}
-			title:e_pharazain = { save_scope_as = bellakar_title }
+			title:h_pharazain = { save_scope_as = bellakar_title }
 		}
 		else = {
 			title:e_bellakar = { save_scope_as = bellakar_title }
@@ -10040,9 +10059,9 @@ gondor.2953 = { # Gondor received message that Bellakar ruler died, renew allian
 	immediate = {
 		if = {
 			limit = {
-				exists = title:e_pharazain.holder
+				exists = title:h_pharazain.holder
 			}
-			title:e_pharazain = { save_scope_as = bellakar_title }
+			title:h_pharazain = { save_scope_as = bellakar_title }
 		}
 		else = {
 			title:e_bellakar = { save_scope_as = bellakar_title }
