@@ -1,0 +1,234 @@
+﻿namespace = court_new
+
+scripted_trigger court_new_1_body_guard_candidate = {
+	can_be_combatant_based_on_gender_trigger = { ARMY_OWNER = root }
+	is_available_ai_adult = yes
+	lotr_can_recruit_in_laamp = yes
+	aptitude = {
+		court_position = bodyguard_court_position
+		value >= 2
+	}
+}
+
+scripted_trigger court_new_1_murderer = {
+	any_scheme = {
+		type = murder
+		is_scheme_exposed = yes
+	}
+}
+
+# The Sword of Damocles
+# I'm scared of being murdered and want a bodyguard
+court_new.0001 = {
+	type = court_event
+	title = court_new.0001.t
+	desc = {
+		desc = court_new.0001.desc.intro
+		first_valid = {
+			triggered_desc = { # someone close to me was murdered
+				trigger = {
+					exists = scope:murdered_person
+				}
+				desc = court_new.0001.desc.murdered
+			}
+			triggered_desc = { # I know a murderer
+				trigger = {
+					exists = scope:murder_dude
+				}
+				desc = court_new.0001.desc.murderer
+			}
+			desc = court_new.0001.desc.paranoid
+		}
+		desc = court_new.0001.desc.outro
+	}
+
+	theme = court
+	court_scene = {
+		button_position_character = scope:bodyguard_candidate
+		roles = {
+			scope:bodyguard_candidate = {
+				group = event_group
+				animation = hero_flex
+			}
+		}
+	}
+
+	cooldown = { years = 5 }
+
+	trigger = {
+		is_available_adult = yes
+		OR = {
+			has_trait = paranoid
+			any_close_or_extended_family_member = {
+				even_if_dead = yes
+				is_alive = no
+				death_reason = death_murder
+			}
+			any_former_spouse = {
+				even_if_dead = yes
+				is_alive = no
+				death_reason = death_murder
+			}
+			any_courtier = {
+				court_new_1_murderer = yes
+			}
+		}
+		OR = {
+			NOT = { employs_court_position = bodyguard_court_position }
+			AND = {
+				has_trait = paranoid
+				any_court_position_holder = {
+					type = bodyguard_court_position
+					count = 1
+				}
+			}
+		}
+	}
+	
+	weight_multiplier = {
+		base = 1
+	}
+
+	immediate = {
+		if = {
+			limit = {
+				any_pool_character = {
+					province = root.capital_province
+					court_new_1_body_guard_candidate = yes
+				}
+			}
+			random_pool_character = {
+				province = root.capital_province
+				limit = {
+					court_new_1_body_guard_candidate = yes
+				}
+				save_scope_as = bodyguard_candidate
+			}
+		}
+		else = {
+			create_character = {
+				template = mercenary
+				location = root.location
+				dynasty = none
+				culture = root.capital_county.culture
+				faith = root.capital_county.faith
+				gender_female_chance = root_soldier_female_chance
+				save_scope_as = bodyguard_candidate
+			}
+		}
+		if = {
+			limit = {
+				any_close_or_extended_family_member = {
+					even_if_dead = yes
+					is_alive = no 
+					death_reason = death_murder
+				}
+			}
+			random_close_or_extended_family_member = {
+				even_if_dead = yes
+				limit = {
+					is_alive = no
+					death_reason = death_murder
+				}
+				save_scope_as = murdered_person
+			}
+		}
+		else_if = {
+			limit = {
+				any_former_spouse = {
+					even_if_dead = yes
+					is_alive = no
+					death_reason = death_murder
+				}
+			}
+			random_former_spouse = {
+				even_if_dead = yes
+				limit = {
+					is_alive = no
+					death_reason = death_murder
+				}
+				save_scope_as = murdered_person
+			}
+		}
+		else_if = {
+			limit = {
+				any_courtier = {
+					court_new_1_murderer = yes
+				}
+			}
+			random_courtier = {
+				limit = {
+					court_new_1_murderer = yes
+				}
+				save_scope_as = murder_dude
+			}
+		}
+	}
+
+	option = { # I need a bodyguard right away
+		name = {
+			text = {
+				first_valid = {
+					triggered_desc = {
+						trigger = {
+							any_killed_character = { }
+						}
+						desc = court_new.0001.a.murderer
+					}
+					desc = court_new.0001.a
+				}
+			}
+		}
+		if = {
+			limit = {
+				scope:bodyguard_candidate = {
+					NOT = { is_courtier_of = root }
+				}
+			}
+			add_courtier = scope:bodyguard_candidate
+		}
+		court_position_grant_effect = {
+			EMPLOYER = root
+			POS = bodyguard
+			CANDIDATE = scope:bodyguard_candidate
+		}
+		stress_impact = {
+			base = miniscule_stress_impact_loss
+			paranoid = minor_stress_impact_loss
+		}
+		ai_chance = {
+			base = 50
+			modifier = {
+				has_trait = paranoid
+				factor = 50
+			}
+			ai_value_modifier = {
+				ai_boldness = -1
+			}
+		}
+	}
+
+	option = { # I'm sure I'll be fine
+		name = court_new.0001.b
+		stress_impact = {
+			base = miniscule_stress_impact_gain
+			paranoid = miniscule_stress_impact_gain
+		}
+		ai_chance = {
+			base = 50
+			modifier = {
+				has_trait = paranoid
+				factor = -50
+			}
+			ai_value_modifier = {
+				ai_boldness = 1
+			}
+		}
+	}
+
+	after = {
+		scope:bodyguard_candidate = {
+			clear_court_event_participation = yes
+		}
+	}
+}

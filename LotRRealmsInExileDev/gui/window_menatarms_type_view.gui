@@ -51,7 +51,7 @@ window = {
 			layoutpolicy_horizontal = expanding
 			blockoverride "header_text"
 			{
-				text = "ADD_MEN_AT_ARMS_LABEL"
+				text = "[MenAtArmsTypeView.GetTitle]"
 
 			}
 
@@ -106,7 +106,7 @@ window = {
 
 								text_single = {
 									name = "men_at_arms_cost"
-									text = "[MenAtArmsType.GetCostString( GetPlayer )]"
+									text = "[Select_CString( MenAtArmsTypeView.GetSelectedTitle.IsValid, MenAtArmsType.GetTitleRegimentCostString( GetPlayer ), MenAtArmsType.GetCostString( GetPlayer ) )]"
 									default_format = "#high"
 
 									tooltip = "[MenAtArmsTypeViewTypeItem.GetCreateWarning]"
@@ -157,9 +157,9 @@ window = {
 				size = { 100% 250 }
 
 				background = {
-					texture = "[MenAtArmsType.GetHorizontalImage]"
+					texture = "[MenAtArmsType.GetHorizontalImageForCulture( GetPlayer.GetCulture )]"
 					alpha = 0.8
-					margin = { -4 0 }
+					using = Mask_Rough_Edges
 
 					modify_texture = {
 						texture = "gfx/interface/component_masks/mask_fade_vertical.dds"
@@ -171,8 +171,6 @@ window = {
 
 			state = {
 				name = _show
-
-				#using = Animation_FadeIn_Standard
 				duration = 0.2
 
 				animation = {
@@ -242,13 +240,21 @@ window = {
 					}
 
 					text_label_center = {
-						visible = "[Not(GetPlayer.GetGovernment.IsType( 'landless_adventurer_government' ))]"
+						visible = "[And( Not(GetPlayer.GetGovernment.IsType( 'landless_adventurer_government' )), Not( MenAtArmsTypeView.IsUsingHorde ))]"
 						text = "MV_REGIMENT_START_SIZE"
+						max_width = 400
 					}
 
 					text_label_center = {
 						visible = "[GetPlayer.GetGovernment.IsType( 'landless_adventurer_government' )]"
 						text = "MV_REGIMENT_START_SIZE_ADVENTURER"
+						max_width = 400
+					}
+
+					text_label_center = {
+						visible = "[MenAtArmsTypeView.IsUsingHorde]"
+						text = "MV_REGIMENT_START_SIZE_NOMAD"
+						max_width = 400
 					}
 
 					spacer = {
@@ -260,7 +266,7 @@ window = {
 						text = "[MenAtArmsTypeView.GetCostString( GetPlayer )]"
 						onclick = "[MenAtArmsTypeView.Create]"
 						enabled = "[MenAtArmsTypeView.CanCreate]"
-						tooltip = "[MenAtArmsTypeView.GetCreateTooltip]"
+						tooltip = "MEN_AT_ARMS_CAN_CREATE_TOOLTIP"
 
 						background = {
 							using = Background_Area
@@ -292,13 +298,13 @@ types MenAtArms
 {
 	### Brief: vbox_maa_stats_numbers_base
 	#	Base widget for men at arms.
-	# 
-	#	Requires datacontexts: 
+	#
+	#	Requires datacontexts:
 	#		MenAtArmsType:
 	#			The type of men at arms we are looking at
-	# 
+	#
 	#		Province:
-	#			The province the men at arms are stationed in. If not 
+	#			The province the men at arms are stationed in. If not
 	#			stationed use null object
 	#
 	#		Title:
@@ -306,8 +312,8 @@ types MenAtArms
 	#			If Personal MAAs, this should be the null object.
 	#
 	type vbox_maa_stats_numbers_base = vbox {
-		vbox = { # 
-			visible = "[Or(Not( MenAtArmsType.FightsInMainPhase ), EqualTo_string(MenAtArmsType.GetIconKey, 'blacklock_engineers'))]"
+		vbox = {
+			visible = "[Not( MenAtArmsType.FightsInMainPhase )]"
 			layoutpolicy_horizontal = expanding
 			margin = { 15 0 }
 			margin_bottom = 5
@@ -364,11 +370,8 @@ types MenAtArms
 			name = "stats"
 			visible = "[MenAtArmsType.FightsInMainPhase]"
 			layoutpolicy_horizontal = expanding
-			margin = { 5 5 }
-
-			background = {
-				using = Background_Area
-			}
+			margin = { 5 0 }
+			margin_top = 5
 
 			block "stat_spacing"
 			{
@@ -498,7 +501,7 @@ types MenAtArms
 					min_width = 25
 				}
 			}
-			
+
 			hbox = {
 				visible = "[GreaterThan_CFixedPoint(MenAtArmsType.GetStat(GetPlayer, Province.Self, Title.Self, 'siege_value'), '(CFixedPoint)0')]"
 				block "siege_tt"
@@ -554,7 +557,7 @@ types MenAtArms
 	}
 
 	type vbox_maa_stats = vbox {
-		margin_bottom = 5
+		margin_bottom = 10
 
 		background = {
 			using = Background_Area_With_Header
@@ -562,13 +565,13 @@ types MenAtArms
 
 		hbox = {
 			layoutpolicy_horizontal = expanding
-			margin =  { 10 2 }
+			margin =  { 15 0 }
 
 			text_single = {
 				name = "title"
 				text = "[MenAtArmsType.GetNameNoTooltip]"
 				using = Font_Size_Medium
-
+				max_width = 250
 			}
 
 			expand = {}
@@ -586,12 +589,22 @@ types MenAtArms
 				text_single = {
 					name = "soldier count"
 					text = "MV_CREATE_REGIMENT_SIZE"
+					max_width = 150
 				}
 			}
 		}
 
 		vbox_maa_stats_numbers = {
 			layoutpolicy_horizontal = expanding
+		}
+
+		divider_light = {
+			layoutpolicy_horizontal = expanding
+
+			modify_texture = {
+				texture = "gfx/interface/component_masks/mask_fade_horizontal_middle_thick.dds"
+				blend_mode = alphamultiply
+			}
 		}
 
 		block "type_text"
@@ -603,7 +616,6 @@ types MenAtArms
 	}
 
 	type vbox_maa_info = vbox {
-		visible = "[MenAtArmsType.FightsInMainPhase]"
 		margin = { 15 0 }
 		spacing = 5
 
@@ -621,31 +633,156 @@ types MenAtArms
 			expand = {}
 		}
 
-		text_single = {
-			name = "terrain_label"
+
+
+		hbox = {
+			name = "terrain_grid"
+			visible = "[Not(IsDataModelEmpty(MenAtArmsType.GetTerrainModifiers))]"
 			layoutpolicy_horizontal = expanding
-			text = "REGIMENT_TERRAIN_BONUS_HEADER"
+
+			vbox = {
+				spacing = 5
+
+				text_single = {
+					name = "terrain_label"
+					visible = "[Not(IsDataModelEmpty(MenAtArmsType.GetTerrainModifiers))]"
+					layoutpolicy_horizontal = expanding
+					text = "REGIMENT_TERRAIN_BONUS_HEADER"
+					max_width = 250
+				}
+				
+				fixedgridbox = {
+					datamodel = "[MenAtArmsType.GetTerrainModifiers]"
+					addrow = 45
+					addcolumn = 40
+					datamodel_wrap = 8
+					maxhorizontalslots = 8
+					maxverticalslots = 2
+					flipdirection = yes
+
+					item = {
+						icon = {
+							name = "icon"
+							size = { 40 40 }
+							texture = "[RegimentTerrainModifier.GetTerrain.GetIcon]"
+
+							tooltip = "REGIMENT_TERRAIN_MODIFIER_TOOLTIP"
+							using = tooltip_below
+
+							icon = {
+								visible = "[Not( RegimentTerrainModifier.IsPositive )]"
+								parentanchor = bottom|right
+								position = { 0 5 }
+								size = { 25 25 }
+								texture = "gfx/interface/icons/symbols/icon_minus_small.dds"
+							}
+
+							icon = {
+								visible = "[RegimentTerrainModifier.IsPositive]"
+								parentanchor = bottom|right
+								position = { 0 5 }
+								size = { 25 25 }
+								texture = "gfx/interface/icons/symbols/icon_plus_small.dds"
+							}
+						}
+					}
+				}
+			}
+
+			expand = {}
+
+			vbox = {
+				layoutpolicy_vertical = expanding
+				spacing = 5
+
+				text_single = {
+					name = "winter_label"
+					layoutpolicy_horizontal = expanding
+					text = "REGIMENT_WINTER_EFFECT_HEADER"
+					visible = "[MenAtArmsType.HasWinterHarshModifier]"
+					max_width = 150
+				}
+
+				hbox = {
+					layoutpolicy_horizontal = expanding
+					visible = "[MenAtArmsType.HasWinterHarshModifier]"
+
+					maa_winter_effects_positive_icon = { # Positive Harsh Winter Effects
+						blockoverride "maa_has_winter_modifier" {
+							visible = "[MenAtArmsType.HasWinterHarshModifier]"
+						}
+						blockoverride "maa_has_winter_effect" {
+							visible = "[MenAtArmsType.GetWinterHarshModifier.IsPositive]"
+							texture = "gfx/interface/icons/terrain_types/winter_harsh.dds"
+							tooltip = "REGIMENT_WINTER_HARSH_MODIFIER_TOOLTIP"
+						}
+					}
+
+					maa_winter_effects_positive_icon = { # Positive Normal Winter Effects
+						blockoverride "maa_has_winter_modifier" {
+							visible = "[MenAtArmsType.HasWinterNormalModifier]"
+						}
+						blockoverride "maa_has_winter_effect" {
+							visible = "[MenAtArmsType.GetWinterNormalModifier.IsPositive]"
+							texture = "gfx/interface/icons/terrain_types/winter_normal.dds"
+							tooltip = "REGIMENT_WINTER_NORMAL_MODIFIER_TOOLTIP"
+						}
+					}
+
+					maa_winter_effects_negative_icon = { # Negative Harsh Winter Effects
+						blockoverride "maa_has_winter_modifier" {
+							visible = "[MenAtArmsType.HasWinterHarshModifier]"
+						}
+						blockoverride "maa_has_winter_effect" {
+							visible = "[Not( MenAtArmsType.GetWinterHarshModifier.IsPositive )]"
+							texture = "gfx/interface/icons/terrain_types/winter_harsh.dds"
+							tooltip = "REGIMENT_WINTER_HARSH_MODIFIER_TOOLTIP"
+						}
+					}
+
+					maa_winter_effects_negative_icon = { # Negative Normal Winter Effects
+						blockoverride "maa_has_winter_modifier" {
+							visible = "[MenAtArmsType.HasWinterNormalModifier]"
+						}
+						blockoverride "maa_has_winter_effect" {
+							visible = "[Not( MenAtArmsType.GetWinterNormalModifier.IsPositive )]"
+							texture = "gfx/interface/icons/terrain_types/winter_normal.dds"
+							tooltip = "REGIMENT_WINTER_NORMAL_MODIFIER_TOOLTIP"
+						}
+					}
+					expand = {}
+				}
+
+				expand = {}
+			}
+		}
+
+		text_single = {
+			name = "holding_label"
+			visible = "[Not(IsDataModelEmpty(MenAtArmsType.GetHoldingModifiers))]"
+			layoutpolicy_horizontal = expanding
+			text = "REGIMENT_HOLDING_BONUS_HEADER"
 		}
 
 		hbox = {
+			visible = "[Not(IsDataModelEmpty(MenAtArmsType.GetHoldingModifiers))]"
 			layoutpolicy_horizontal = expanding
-			visible = "[Not(IsDataModelEmpty(MenAtArmsType.GetTerrainModifiers))]"
-			
+
 			hbox = {
-				name = "terrain_grid"
-				datamodel = "[MenAtArmsType.GetTerrainModifiers]"
+				name = "holding_grid"
+				datamodel = "[MenAtArmsType.GetHoldingModifiers]"
 				spacing = 5
 
 				item = {
-					icon = {
+					icon_flat_standard = {
 						name = "icon"
 						size = { 40 40 }
-						texture = "[RegimentTerrainModifier.GetTerrain.GetIcon]"
-						tooltip = "REGIMENT_TERRAIN_MODIFIER_TOOLTIP"
+						texture = "[RegimentHoldingModifier.GetHolding.GetPrimaryBuildingType.GetTypeIcon]"
+						tooltip = "REGIMENT_HOLDING_MODIFIER_TOOLTIP"
 						using = tooltip_below
 
 						icon = {
-							visible = "[Not( RegimentTerrainModifier.IsPositive )]"
+							visible = "[Not( RegimentHoldingModifier.IsPositive )]"
 							texture = "gfx/interface/icons/symbols/icon_minus_small.dds"
 							parentanchor = bottom|right
 							position = { 0 5 }
@@ -653,78 +790,13 @@ types MenAtArms
 						}
 
 						icon = {
-							visible = "[RegimentTerrainModifier.IsPositive]"
+							visible = "[RegimentHoldingModifier.IsPositive]"
 							texture = "gfx/interface/icons/symbols/icon_plus_small.dds"
 							parentanchor = bottom|right
 							position = { 0 5 }
 							size = { 25 25 }
 						}
 					}
-				}
-			}
-			expand = {}
-		}
-
-		text_single = {
-			name = "no_terrains"
-			visible = "[IsDataModelEmpty(MenAtArmsType.GetTerrainModifiers)]"
-
-			text = "REGIMENT_TERRAIN_BONUS_NONE"
-			minimumsize = { 0 44 }
-		}
-		
-		text_single = {
-			name = "winter_label"
-			layoutpolicy_horizontal = expanding
-			text = "REGIMENT_WINTER_EFFECT_HEADER"
-			visible = "[MenAtArmsType.HasWinterHarshModifier]"
-		}
-
-		hbox = {
-			layoutpolicy_horizontal = expanding
-			visible = "[MenAtArmsType.HasWinterHarshModifier]"
-
-			maa_winter_effects_positive_icon = { # Positive Harsh Winter Effects
-				blockoverride "maa_has_winter_modifier" {
-					visible = "[MenAtArmsType.HasWinterHarshModifier]"
-				}
-				blockoverride "maa_has_winter_effect" {
-					visible = "[MenAtArmsType.GetWinterHarshModifier.IsPositive]"
-					texture = "gfx/interface/icons/terrain_types/winter_harsh.dds"
-					tooltip = "REGIMENT_WINTER_HARSH_MODIFIER_TOOLTIP"
-				}
-			}
-
-			maa_winter_effects_positive_icon = { # Positive Normal Winter Effects
-				blockoverride "maa_has_winter_modifier" {
-					visible = "[MenAtArmsType.HasWinterNormalModifier]"
-				}
-				blockoverride "maa_has_winter_effect" {
-					visible = "[MenAtArmsType.GetWinterNormalModifier.IsPositive]"
-					texture = "gfx/interface/icons/terrain_types/winter_normal.dds"
-					tooltip = "REGIMENT_WINTER_NORMAL_MODIFIER_TOOLTIP"
-				}
-			}
-
-			maa_winter_effects_negative_icon = { # Negative Harsh Winter Effects
-				blockoverride "maa_has_winter_modifier" {
-					visible = "[MenAtArmsType.HasWinterHarshModifier]"
-				}
-				blockoverride "maa_has_winter_effect" {
-					visible = "[Not( MenAtArmsType.GetWinterHarshModifier.IsPositive )]"
-					texture = "gfx/interface/icons/terrain_types/winter_harsh.dds"
-					tooltip = "REGIMENT_WINTER_HARSH_MODIFIER_TOOLTIP"
-				}
-			}
-
-			maa_winter_effects_negative_icon = { # Negative Normal Winter Effects
-				blockoverride "maa_has_winter_modifier" {
-					visible = "[MenAtArmsType.HasWinterNormalModifier]"
-				}
-				blockoverride "maa_has_winter_effect" {
-					visible = "[Not( MenAtArmsType.GetWinterNormalModifier.IsPositive )]"
-					texture = "gfx/interface/icons/terrain_types/winter_normal.dds"
-					tooltip = "REGIMENT_WINTER_NORMAL_MODIFIER_TOOLTIP"
 				}
 			}
 			expand = {}
@@ -737,7 +809,6 @@ types MenAtArms
 		allow_outside = yes
 
 		vbox = {
-			margin = { 10 3 }
 			spacing = 5
 
 			vbox_maa_stats = {
@@ -753,6 +824,7 @@ types MenAtArms
 				size = { 0 75 }
 				text = "[MenAtArmsType.GetFlavorString]"
 				margin = { 15 5 }
+				max_width = 430
 			}
 
 			expand = {}
@@ -763,16 +835,19 @@ types MenAtArms
 				text_label_center = {
 					visible = "[IsLandlessAdventurer( GetPlayer )]"
 					text = "[MenAtArmsType.GetProvisionsCostString]"
+					max_width = 400
 				}
 
 				text_label_center = {
 					visible = "[Not(GetPlayer.GetGovernment.IsType( 'landless_adventurer_government' ))]"
-					text = "[MenAtArmsType.GetReinforcementCostString( GetPlayer )]"
+					text = "[Select_CString( MenAtArmsTypeView.GetSelectedTitle.IsValid, MenAtArmsType.GetTitleRegimentReinforcementCostString( GetPlayer ), MenAtArmsType.GetReinforcementCostString( GetPlayer ) )]"
+					max_width = 400
 				}
 
 				text_label_center = {
 					visible = "[Not(GetPlayer.GetGovernment.IsType( 'landless_adventurer_government' ))]"
-					text = "[MenAtArmsType.GetFullStrengthMaintenanceCostForPlayerString]"
+					text = "[Select_CString( MenAtArmsTypeView.GetSelectedTitle.IsValid, MenAtArmsType.GetTitleRegimentFullStrengthMaintenanceCostForPlayerString, MenAtArmsType.GetFullStrengthMaintenanceCostForPlayerString )]"
+					max_width = 400
 				}
 			}
 		}

@@ -77,9 +77,8 @@ window = {
 					background = {
 						name = "image"
 						datacontext = "[Regiment.GetMAAType]"
-						texture = "[MenAtArmsType.GetHorizontalImage]"
+						texture = "[MenAtArmsType.GetHorizontalImageForCulture( Regiment.GetOwner.GetCulture )]"
 						fittype = centercrop
-
 						using = Mask_Rough_Edges
 					}
 
@@ -140,19 +139,20 @@ window = {
 						layoutpolicy_horizontal = expanding
 
 						onclick = "[MenAtArmsView.BuyMaa]"
-						# enabled = "[MenAtArmsView.CanBuyMaa]"
-						enabled = "[And(MenAtArmsView.CanDestroyMaa,Not(EqualTo_string(MenAtArmsView.GetRegiment.GetNameNoTooltip,'Settlers')))]"
+						# enabled = "[MenAtArmsView.CanBuyMaa]" #LotR
+						enabled = "[And(MenAtArmsView.CanBuyMaa,Not(EqualTo_string(MenAtArmsView.GetRegiment.GetNameNoTooltip,'Settlers')))]"
 					
 						visible = "[NotEqualTo_int32( Regiment.GetMAAChunkCount, Regiment.CalcMaxMAAChunkCount )]"
-					
+
 						tooltipwidget = {
 							change_maa_tooltip = {
+
 								blockoverride "enable_tooltip" {
 									visible = "[MenAtArmsView.CanBuyMaa]"
 								}
 
 								blockoverride "enable_tooltip_text" {
-									text = "MAA_INCREASE_SIZE_TOOLTIP"
+									text = "[MenAtArmsView.GetIncreaseSizeTooltip]"
 								}
 
 								blockoverride "disable_tooltip" {
@@ -214,12 +214,13 @@ window = {
 
 							tooltipwidget = {
 								change_maa_tooltip = {
+
 									blockoverride "enable_tooltip" {
 										visible = "[MenAtArmsView.CanSellMaa]"
 									}
 
 									blockoverride "enable_tooltip_text" {
-										text = "MAA_DECREASE_SIZE_TOOLTIP"
+										text = "[MenAtArmsView.GetDecreaseSizeTooltip]"
 									}
 
 									blockoverride "disable_tooltip" {
@@ -291,7 +292,9 @@ window = {
 			hbox_maa_location = {
 				name = "maa_location"
 				layoutpolicy_horizontal = expanding
+				
 				margin = { 15 0 }
+				margin_top = 10
 
 				blockoverride "no_location"
 				{
@@ -309,48 +312,62 @@ window = {
 
 			vbox = {
 				layoutpolicy_horizontal = expanding
-				margin = { 20 10 }
-				spacing = 2
+				margin = { 15 0 }
+				margin_bottom = 15
+				spacing = 5
 
 				### INFO TEXT
 				hbox = {
+					visible = "[Not( Regiment.IsAtFullStength )]"
 					layoutpolicy_horizontal = expanding
+					margin_bottom = 10
 
-					text_single = {
+					text_multi = {
 						visible = "[And( Not(Regiment.IsAtFullStength), Not( GetPlayer.GetGovernment.HasRule( 'conditional_maa_refill' )))]"
 						text = "MAA_REINFORCING"
 						align = left
+						max_width = 380
+						autoresize = yes
 					}
 
-					text_single = {
+					text_multi = {
 						visible = "[GetPlayer.GetGovernment.HasRule( 'conditional_maa_refill' )]"
 						text = "CONDITIONAL_MAINTENANCE_INFO"
 						align = left
-					}
-
-					text_single = {
-						visible = "[And(Regiment.IsAtFullStength, Regiment.IsRaised)]"
-						text = "MAA_RAISED"
-						align = left
-					}
-
-					text_single = {
-						visible = "[And(Regiment.IsAtFullStength, Not( Regiment.IsRaised ) )]"
-						text = "MAA_UNRAISED"
-						align = left
+						max_width = 380
+						autoresize = yes
 					}
 
 					expand = {}
 				}
 
-				spacer = {
-					size = { 10 2 }
+				hbox = {
+					visible = "[Regiment.IsAtFullStength]"
+					layoutpolicy_horizontal = expanding
+					margin_bottom = 10
+
+					text_single = {
+						visible = "[And(Regiment.IsAtFullStength, Regiment.IsRaised)]"
+						text = "MAA_RAISED"
+						align = right
+						max_width = 200
+					}
+
+					text_single = {
+						visible = "[And(Regiment.IsAtFullStength, Not( Regiment.IsRaised ) )]"
+						text = "MAA_UNRAISED"
+						align = right
+						max_width = 200
+					}
+
+					expand = {}
 				}
 
 				hbox = {
-					spacing = 10
-					layoutpolicy_horizontal = expanding
 					visible = "[Not( GetPlayer.GetGovernment.HasRule( 'conditional_maa_refill' ))]"
+					layoutpolicy_horizontal = expanding
+					spacing = 10
+
 					divider_light = {
 						layoutpolicy_vertical = expanding
 					}
@@ -377,21 +394,19 @@ window = {
 					}
 				}
 
-				spacer = {
-					size = { 10 2 }
-				}
-
 				vbox = {
 					layoutpolicy_horizontal = expanding
 
 					text_single = {
 						layoutpolicy_horizontal = expanding
 						text = "MAA_REINFORCEMENT_COST_ENTRY"
+						max_width = 390
 					}
 
 					text_single = {
 						layoutpolicy_horizontal = expanding
 						text = "MAA_MAINTENANCE"
+						max_width = 390
 					}
 
 					text_single = {
@@ -399,6 +414,7 @@ window = {
 						layoutpolicy_horizontal = expanding
 
 						text = "[Regiment.GetProvisionsCostString]"
+						max_width = 390
 					}
 				}
 			}
@@ -437,6 +453,8 @@ window = {
 					expand = {}
 				}
 			}
+
+			expand = {}
 		}
 	}
 }
@@ -446,7 +464,7 @@ types MenAtArmsTypes
 	type change_action_maa_text = hbox {
 		layoutpolicy_horizontal = expanding
 		text_multi = {
-			block "text_visibility" { 
+			block "text_visibility" {
 				visible = no
 			}
 			max_width = 390
@@ -519,13 +537,13 @@ types MenAtArmsTypes
 
 	### Brief: vbox_maa_province_stats_numbers
 	#	Widget for showing the men at arms stationed in a province.
-	# 
-	#	Requires datacontexts: 
+	#
+	#	Requires datacontexts:
 	#		MenAtArmsType:
 	#			The type of men at arms we are looking at
-	# 
+	#
 	#		Province:
-	#			The province the men at arms are stationed in. If not 
+	#			The province the men at arms are stationed in. If not
 	#			stationed use null object
 	#
 	#		Title:
@@ -545,7 +563,7 @@ types MenAtArmsTypes
 		blockoverride "siege_tt"
 		{
 			tooltip = "REGIMENT_PROVINCE_SIEGE_TT"
-			alpha = "[Select_float(GreaterThan_CFixedPoint(MenAtArmsType.GetProvinceStat( GetPlayer, Province.Self, Title.Self, 'siege_value' ),'(CFixedPoint)0'), '(float)1.0','(float)0.4'))]"
+			alpha = "[Select_float(GreaterThan_CFixedPoint(MenAtArmsType.GetProvinceStat( GetPlayer, Province.Self, Title.Self, 'siege_value' ),'(CFixedPoint)0'), '(float)1.0','(float)0.4')]"
 		}
 		blockoverride "siege_effective_level"
 		{
@@ -559,7 +577,7 @@ types MenAtArmsTypes
 		{
 			tooltip = "REGIMENT_PROVINCE_DAMAGE_TT"
 			# fade out if 0
-			alpha = "[Select_float(GreaterThan_CFixedPoint(MenAtArmsType.GetProvinceStat( GetPlayer, Province.Self, Title.Self, 'damage' ),'(CFixedPoint)0'), '(float)1.0','(float)0.4'))]"
+			alpha = "[Select_float(GreaterThan_CFixedPoint(MenAtArmsType.GetProvinceStat( GetPlayer, Province.Self, Title.Self, 'damage' ),'(CFixedPoint)0'), '(float)1.0','(float)0.4')]"
 		}
 		blockoverride "toughness_stat"
 		{
@@ -569,7 +587,7 @@ types MenAtArmsTypes
 		{
 			tooltip = "REGIMENT_PROVINCE_TOUGHNESS_TT"
 			# fade out if 0
-			alpha = "[Select_float(GreaterThan_CFixedPoint(MenAtArmsType.GetProvinceStat( GetPlayer, Province.Self, Title.Self, 'toughness' ),'(CFixedPoint)0'), '(float)1.0','(float)0.4'))]"
+			alpha = "[Select_float(GreaterThan_CFixedPoint(MenAtArmsType.GetProvinceStat( GetPlayer, Province.Self, Title.Self, 'toughness' ),'(CFixedPoint)0'), '(float)1.0','(float)0.4')]"
 		}
 		blockoverride "pursuit_stat"
 		{
@@ -579,7 +597,7 @@ types MenAtArmsTypes
 		{
 			tooltip = "REGIMENT_PROVINCE_PURSUIT_TT"
 			# fade out if 0
-			alpha = "[Select_float(GreaterThan_CFixedPoint(MenAtArmsType.GetProvinceStat( GetPlayer, Province.Self, Title.Self, 'pursuit' ),'(CFixedPoint)0'), '(float)1.0','(float)0.4'))]"
+			alpha = "[Select_float(GreaterThan_CFixedPoint(MenAtArmsType.GetProvinceStat( GetPlayer, Province.Self, Title.Self, 'pursuit' ),'(CFixedPoint)0'), '(float)1.0','(float)0.4')]"
 		}
 		blockoverride "screen_stat"
 		{
@@ -589,7 +607,7 @@ types MenAtArmsTypes
 		{
 			tooltip = "REGIMENT_PROVINCE_SCREEN_TT"
 			# fade out if 0
-			alpha = "[Select_float(GreaterThan_CFixedPoint(MenAtArmsType.GetProvinceStat( GetPlayer, Province.Self, Title.Self, 'screen' ),'(CFixedPoint)0'), '(float)1.0','(float)0.4'))]"
+			alpha = "[Select_float(GreaterThan_CFixedPoint(MenAtArmsType.GetProvinceStat( GetPlayer, Province.Self, Title.Self, 'screen' ),'(CFixedPoint)0'), '(float)1.0','(float)0.4')]"
 		}
 		blockoverride "stat_icon_size"
 		{

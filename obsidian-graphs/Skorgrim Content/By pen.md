@@ -1,0 +1,1 @@
+Decision to invite selected King to a feast/meeting

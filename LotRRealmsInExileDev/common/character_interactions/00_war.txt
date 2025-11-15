@@ -10,9 +10,7 @@
 	desc = declare_war_desc
 
 	is_shown = {
-		NOT = {
-			scope:recipient = scope:actor
-		}
+		scope:recipient != scope:actor
 		scope:recipient = {
 			is_playable_character = yes
 			NOT = { has_culture = culture:wastelands } #LotR
@@ -25,15 +23,35 @@
 			NOT = { has_culture = culture:wastelands } #LotR
 			is_in_valinor = no #LotR
 		}
-		
 	}
 
 	is_valid_showing_failures_only = {
 		scope:actor = {
+			custom_tooltip = {
+				text = sworn_peace_tt
+				NOT = { has_character_flag = sworn_peace }
+			}
 			NOT = { has_trait = incapable }
 			can_attack_in_hierarchy = scope:recipient
-			NOT = {
-				has_raised_armies = yes
+			trigger_if = {
+				limit = {
+					NOT = {
+						government_has_flag = can_start_war_with_raised_troops
+					}
+				}
+				NOT = {
+					has_raised_armies = yes
+				}
+			}
+			trigger_else = {
+				custom_description = {
+					text = army_blocks_defender_army
+					NOT = {
+						any_army = {
+							location.county.holder ?= scope:recipient
+						}
+					}
+				}
 			}
 			has_any_display_cb_on = scope:recipient
 			NOT = {
@@ -41,7 +59,7 @@
 			}
 			custom_description = {
 				text = "is_not_bankrupt"
-				gold > 0
+				is_in_debt = no
 			}
 			NOT = {
 				custom_description = {
@@ -80,14 +98,27 @@
 					}
 				}
 			}
+			trigger_if = {
+				limit = {
+					has_realm_law = japanese_bureaucracy_3
+					this != top_liege
+				}
+				custom_tooltip = {
+					text = non_admin_vassal_japanese_bureaucracy_3
+					government_allows = administrative
+				}
+			}
 		}
-		scope:recipient = { NOT = { has_strong_hook = scope:actor } }
 		scope:recipient = {
+			custom_tooltip = {
+				text = is_a_herder_recipient_tt
+				NOT = { government_has_flag = government_is_herder } # herders can't fight
+			}
+			NOT = { is_tributary_of_suzerain_or_above = scope:actor } # can't fight your tributaries or your tributaries' tributaries
+			NOT = { has_strong_hook = scope:actor }
 			trigger_if = {
 				limit = { is_imprisoned = yes }
-				NOT = {
-					imprisoner = scope:actor
-				}
+				imprisoner != scope:actor
 			}
 		}
 		scope:actor = {
@@ -96,7 +127,10 @@
 					NOT = { government_allows = administrative }
 					liege ?= {
 						has_realm_law_flag = vassal_all_wars_banned_permanent
-						NOT = { this = scope:actor }
+						this != scope:actor
+					}
+					NOT = {
+						culture = { has_cultural_parameter = internal_wars_always_allowed } #LOTR
 					}
 				}
 				custom_tooltip = {
@@ -109,7 +143,13 @@
 					government_allows = administrative
 					top_liege = scope:recipient.top_liege
 					scope:recipient = { government_allows = administrative }
-					NOT = { top_liege = scope:recipient }
+					top_liege != scope:recipient
+					NOT = {
+						top_participant_group:dynastic_cycle ?= {
+							has_participant_group_parameter = dynastic_cycle_vassal_internal_wars_allowed
+						}
+					}
+					NOT = { culture = { has_cultural_parameter = internal_wars_always_allowed } } #LOTR
 				}
 				custom_tooltip = {
 					text = admin_cannot_declare_internal_wars
@@ -119,11 +159,12 @@
 			trigger_if = { # Admin - Laws only allow frontier and naval themes to declare war
 				limit = {
 					government_allows = administrative
-					is_independent_ruler = no
+					top_liege != this
 					top_liege = {
 						this != scope:recipient.top_liege
 						has_realm_law_flag = admin_vassal_wars_restricted
 					}
+					NOT = {culture = { has_cultural_parameter = internal_wars_always_allowed } } #LOTR
 				}
 				custom_tooltip = {
 					text = admin_all_vassal_wars_banned
@@ -145,6 +186,7 @@
 						has_realm_law_flag = admin_vassal_wars_permission_only
 						NOT = { has_realm_law_flag = admin_vassal_wars_banned }
 					}
+					NOT = {culture = { has_cultural_parameter = internal_wars_always_allowed } } #LOTR
 				}
 				custom_tooltip = {
 					text = admin_vassal_wars_permission_only_desc
@@ -162,16 +204,33 @@
 						this != scope:recipient.top_liege
 						has_realm_law_flag = admin_vassal_wars_banned
 					}
+					NOT = {culture = { has_cultural_parameter = internal_wars_always_allowed } } #LOTR
 				}
 				custom_tooltip = {
 					text = admin_all_vassal_wars_banned
 					always = no
 				}
 			}
+			trigger_if = {
+				limit = {
+					scope:recipient = {
+						OR = {
+							has_subject_contract_group = tributary_celestial
+							has_subject_contract_group = tributary_hegemonic
+						}
+					}
+					is_independent_ruler = no # to avoid duplicating tooltips already applying to the top_liege
+				}
+				NOT = {
+					scope:recipient = {
+						is_tributary_of = scope:actor.top_liege
+					}
+				}
+			}
 		}
 		scope:actor = {
 			trigger_if = {
-				limit = { is_landless_adventurer = yes }
+				limit = { has_government = landless_adventurer_government }
 				custom_tooltip = {
 					text = camp_located_in_defender_realm.tt
 					domicile.domicile_location.county.holder = {
@@ -180,6 +239,18 @@
 							any_liege_or_above = { this = scope:recipient }
 						}
 					}
+				}
+			}
+		}
+		trigger_if = {
+			limit = {
+				scope:actor = {
+					is_confederation_member = yes
+				}
+			}
+			NOT = {
+				scope:recipient = {
+					is_member_of_confederation = scope:actor.confederation
 				}
 			}
 		}
@@ -255,7 +326,7 @@
 					exists = var:promised_war
 					var:promised_war = {
 						is_alive = yes
-						NOT = { this = scope:recipient }
+						this != scope:recipient
 					}
 				}
 				trigger_event = {
@@ -278,7 +349,7 @@
 						casus_belli = {
 							primary_attacker = scope:actor
 							primary_defender = scope:recipient
-							any_target_title = { count >= 1 }
+							any_target_title = { }
 						}
 					}
 				}
@@ -402,9 +473,16 @@ end_war_attacker_victory_interaction = {
 	ai_targets = {
 		ai_recipients = primary_war_enemies
 	}
-	
-	ai_frequency = 1
-	
+
+	ai_frequency_by_tier = {
+		barony = 0
+		county = 1
+		duchy = 1
+		kingdom = 1
+		empire = 1
+		hegemony = 1
+	}
+
 	# Depending on who was the attacker, we need to send a different notification message to the recipient.
 	notification_text = {
 		first_valid = {
@@ -488,7 +566,7 @@ end_war_attacker_victory_interaction = {
 			}
 		}
 		else = {
-		release_prisoners_of_war_effect = yes
+			release_prisoners_of_war_effect = yes
 		}
 
 		# Hostages
@@ -533,11 +611,11 @@ end_war_attacker_victory_interaction = {
 				if = {
 					limit = {
 						any_vassal = {
-							NOT = { this = scope:defender_loser }
+							this != scope:defender_loser
 						}
 					}
 					every_vassal = {
-						limit = { NOT = { this = scope:defender_loser } }
+						limit = { this != scope:defender_loser }
 						send_interface_toast = {
 							type = msg_liege_war_ended_attacker_win
 							title = war_event.notification_liege_win.t
@@ -551,11 +629,11 @@ end_war_attacker_victory_interaction = {
 			scope:defender_loser = {
 				if = {
 					limit = {
-						any_vassal = { NOT = { this = scope:attacker_winner } }
+						any_vassal = { this != scope:attacker_winner }
 					}
 					every_vassal = {
 						limit = {
-							NOT = { this = scope:attacker_winner }
+							this != scope:attacker_winner
 						}
 						send_interface_toast = {
 							type = msg_liege_war_ended_attacker_win
@@ -574,10 +652,10 @@ end_war_attacker_victory_interaction = {
 
 		end_war = attacker
 	}
-	
+
 	on_decline = {
 	}
-	
+
 	ai_potential = {
 		is_at_war = yes
 		any_character_war = {
@@ -585,7 +663,15 @@ end_war_attacker_victory_interaction = {
 			OR = {
 				attacker_war_score >= 100
 				AND = {
-					attacker_war_score >= 90
+					OR = {
+						attacker_war_score >= 90
+						AND = {
+							attacker_war_score >= 80
+							root = {
+								dynasty ?= { has_dynasty_perk = mpo_nomad_legacy_3 }
+							}
+						}
+					}
 					root = {
 						has_perk = peacemaker_perk
 					}
@@ -593,9 +679,40 @@ end_war_attacker_victory_interaction = {
 						is_ai = yes
 					}
 				}
+				AND = {
+					OR = {
+						attacker_war_score >= 90
+						AND = {
+							attacker_war_score >= 80
+							root = {
+								has_perk = peacemaker_perk
+							}
+						}
+					}
+					root = {
+						dynasty ?= { has_dynasty_perk = mpo_nomad_legacy_3 }
+					}
+					primary_defender = {
+						is_ai = yes
+					}
+				}
+				#SENT A SCARY SEVERED HEAD AAAAHHH
+				AND = {
+					attacker_war_score >= 70
+					primary_defender = {
+						is_ai = yes
+						save_temporary_scope_as = defender
+					}
+					root = {
+						has_variable = peace_acceptance_head_scare
+						var:peace_acceptance_head_scare = {
+							this = scope:defender
+						}
+					}
+				}
 				primary_defender = {
 					is_ai = yes
-					ai_has_conqueror_personality = yes
+					has_variable = conqueror
 				}
 			}
 		}
@@ -603,19 +720,58 @@ end_war_attacker_victory_interaction = {
 
 	ai_will_do = {
 		base = 0
-		
+
 		modifier = {
 			scope:war = {
 				primary_attacker = scope:actor
 				OR = {
 					attacker_war_score >= 100
 					AND = {
-						attacker_war_score >= 90
-						scope:actor = {
+						OR = {
+							attacker_war_score >= 90
+							AND = {
+								attacker_war_score >= 80
+								root = {
+									dynasty ?= { has_dynasty_perk = mpo_nomad_legacy_3 }
+								}
+							}
+						}
+						root = {
 							has_perk = peacemaker_perk
 						}
 						primary_defender = {
 							is_ai = yes
+						}
+					}
+					AND = {
+						OR = {
+							attacker_war_score >= 90
+							AND = {
+								attacker_war_score >= 80
+								root = {
+									has_perk = peacemaker_perk
+								}
+							}
+						}
+						root = {
+							dynasty ?= { has_dynasty_perk = mpo_nomad_legacy_3 }
+						}
+						primary_defender = {
+							is_ai = yes
+						}
+					}
+					#SENT A SCARY SEVERED HEAD AAAAHHH
+					AND = {
+						attacker_war_score >= 70
+						primary_defender = {
+							is_ai = yes
+							save_temporary_scope_as = defender
+						}
+						root = {
+							has_variable = peace_acceptance_head_scare
+							var:peace_acceptance_head_scare = {
+								this = scope:defender
+							}
 						}
 					}
 					AND = {
@@ -626,11 +782,11 @@ end_war_attacker_victory_interaction = {
 						}
 						primary_defender = {
 							is_ai = yes
-							ai_has_conqueror_personality = yes
+							has_variable = conqueror
 						}
 					}
-				}			
-			}			
+				}
+			}
 			add = 100
 		}
 		modifier = {
@@ -655,13 +811,43 @@ end_war_attacker_victory_interaction = {
 			scope:war.casus_belli = {
 				primary_attacker = {
 					has_perk = peacemaker_perk
-					NOT = { this = scope:recipient }
+					this != scope:recipient
 				}
 			}
 
 			add = peacemaker_value
 
 			desc = "PEACEMAKER_PERK_MODIFIER"
+		}
+		modifier = {
+			scope:war.casus_belli = {
+				primary_attacker = {
+					dynasty ?= { has_dynasty_perk = mpo_nomad_legacy_3 }
+					NOT = { this = scope:recipient }
+				}
+			}
+
+			add = 10
+
+			desc = "NOMAD_LEGACY_PERK_MODIFIER"
+		}
+		modifier = {
+			scope:war.casus_belli = {
+				primary_defender = {
+					save_temporary_scope_as = defender
+				}
+				primary_attacker = {
+					has_variable = peace_acceptance_head_scare
+					var:peace_acceptance_head_scare = {
+						this = scope:defender
+					}
+				}
+				primary_defender = {
+					is_ai = yes
+				}
+			}
+			add = 30
+			desc = "COWED_BY_SEVERED_HEAD_MODIFIER"
 		}
 
 		# Hostages
@@ -748,7 +934,7 @@ end_war_attacker_victory_interaction = {
 						}
 						primary_defender = {
 							is_ai = yes
-							ai_has_conqueror_personality = yes
+							has_variable = conqueror
 							this = scope:recipient
 						}
 					}
@@ -809,7 +995,7 @@ end_war_attacker_victory_interaction = {
 					text = hostage_no_land_after_war_tt
 					scope:recipient = {
 						any_held_title = {
-							tier = tier_county
+							title_tier = county
 							NOT = {
 								any_this_title_or_de_jure_above = { is_in_list = target_titles }
 							}
@@ -847,9 +1033,16 @@ end_war_attacker_white_peace_interaction = {
 	ai_targets = {
 		ai_recipients = primary_war_enemies
 	}
-	
-	ai_frequency = 12
-	
+
+	ai_frequency_by_tier = {
+		barony = 0
+		county = 12
+		duchy = 12
+		kingdom = 12
+		empire = 12
+		hegemony = 12
+	}
+
 	# Depending on who was the attacker, we need to send a different notification message to the recipient.
 	notification_text = {
 		first_valid = {
@@ -868,7 +1061,7 @@ end_war_attacker_white_peace_interaction = {
 			desc = end_war_attacker_white_peace_defender_desc
 		}
 	}
-
+	
 	redirect = {
 		# secondary recipient is always set, so we need to clear it
 		# if can_send condition depends on the scope being empty
@@ -933,7 +1126,7 @@ end_war_attacker_white_peace_interaction = {
 			}
 		}
 		else = {
-		release_prisoners_of_war_effect = yes
+			release_prisoners_of_war_effect = yes
 		}
 
 		# Hostages
@@ -977,11 +1170,11 @@ end_war_attacker_white_peace_interaction = {
 			scope:attacker_white_peace = {
 				if = {
 					limit = {
-						any_vassal = { NOT = { this = scope:defender_white_peace } }
+						any_vassal = { this != scope:defender_white_peace }
 					}
 					every_vassal = {
 						limit = {
-							NOT = { this = scope:defender_white_peace }
+							this != scope:defender_white_peace
 						}
 						send_interface_toast = {
 							type = msg_liege_war_ended_white_peace
@@ -996,11 +1189,11 @@ end_war_attacker_white_peace_interaction = {
 			scope:defender_white_peace = {
 				if = {
 					limit = {
-						any_vassal = { NOT = { this = scope:attacker_white_peace } }
+						any_vassal = { this != scope:attacker_white_peace }
 					}
 					every_vassal = {
 						limit = {
-							NOT = { this = scope:attacker_white_peace }
+							this != scope:attacker_white_peace
 						}
 						send_interface_toast = {
 							type = msg_liege_war_ended_white_peace
@@ -1016,10 +1209,10 @@ end_war_attacker_white_peace_interaction = {
 
 		end_war = white_peace
 	}
-	
+
 	on_decline = {
 	}
-	
+
 	ai_potential = {
 		any_character_war = {
 			count >= 1
@@ -1033,7 +1226,7 @@ end_war_attacker_white_peace_interaction = {
 		
 		NAND = { #AI Sauron won't propose white peaces in offensive wars
 			is_sauron = yes
-			scope:war = { casus_belli = { primary_attacker = root } }
+			scope:war ?= { casus_belli = { primary_attacker = root } }
 		}
 		
 		trigger_if = {
@@ -1076,7 +1269,7 @@ end_war_attacker_white_peace_interaction = {
 				attacker_war_score <= 0
 			}
 			any_character_war = {
-				NOT = { this = scope:war }
+				this != scope:war
 				casus_belli = {
 					primary_defender = root
 				}
@@ -1180,12 +1373,15 @@ end_war_attacker_white_peace_interaction = {
 			scope:war.casus_belli = {
 				primary_defender = root
 			}
-			debt_level >= 1
+			OR = {
+				debt_level >= 1
+				treasury_debt_level >= 1
+			}
 
 			add = {
 				value = debt_level
 				multiply = 20
-				
+
 				if = {
 					limit = { scope:war = { defender_war_score > 0 }}
 					subtract = scope:war.defender_war_score
@@ -1207,7 +1403,11 @@ end_war_attacker_white_peace_interaction = {
 			scope:war.casus_belli = {
 				primary_attacker = root
 			}
-			debt_level >= 1
+			OR = {
+				debt_level >= 1
+				treasury_debt_level >= 1
+			}
+
 
 			add = {
 				value = debt_level
@@ -1390,7 +1590,7 @@ end_war_attacker_white_peace_interaction = {
 			scope:war.casus_belli = {
 				primary_defender = {
 					this = scope:actor
-					ai_has_conqueror_personality = yes
+					has_variable = conqueror
 				}
 				primary_attacker = { is_ai = yes }
 			}
@@ -1398,7 +1598,7 @@ end_war_attacker_white_peace_interaction = {
 			add = 100
 		}
 	}
-	
+
 	ai_accept = {
 		base = -30
 		compare_modifier = {
@@ -1445,7 +1645,11 @@ end_war_attacker_white_peace_interaction = {
 			scope:war.casus_belli = {
 				primary_defender = root
 			}
-			debt_level >= 1
+			OR = {
+				debt_level >= 1
+				treasury_debt_level >= 1
+			}
+
 
 			add = {
 				value = debt_level
@@ -1461,7 +1665,7 @@ end_war_attacker_white_peace_interaction = {
 			}
 			scope:recipient = {
 				any_character_war = {
-					NOT = { this = scope:war }
+					this != scope:war
 					primary_defender = scope:recipient
  				}
 			}
@@ -1577,6 +1781,72 @@ end_war_attacker_white_peace_interaction = {
 			
 			desc = "PEACEMAKER_PERK_MODIFIER"
 		}
+		modifier = {
+			trigger = {
+				scope:war.casus_belli = {
+					primary_defender = scope:recipient
+					primary_attacker = { 
+						dynasty ?= { has_dynasty_perk = mpo_nomad_legacy_3 }
+					}
+				}
+			}
+			add = 10
+			
+			desc = "NOMAD_LEGACY_PERK_MODIFIER"
+		}
+		modifier = {
+			trigger = {
+				scope:war.casus_belli = {
+					primary_attacker = scope:recipient
+					primary_defender = {
+						dynasty ?= { has_dynasty_perk = mpo_nomad_legacy_3 }
+					}
+				}
+			}
+			add = 10
+			
+			desc = "NOMAD_LEGACY_PERK_MODIFIER"
+		}
+		modifier = {
+			trigger = {
+				scope:war.casus_belli = {
+					primary_attacker = scope:recipient
+					primary_attacker = {
+						is_ai = yes
+						save_temporary_scope_as = attacker
+					}
+					primary_defender = {
+						has_variable = peace_acceptance_head_scare
+						var:peace_acceptance_head_scare = {
+							this = scope:attacker
+						}
+					}
+				}
+			}
+			add = 30
+			
+			desc = "COWED_BY_SEVERED_HEAD_MODIFIER"
+		}
+		modifier = {
+			trigger = {
+				scope:war.casus_belli = {
+					primary_defender = scope:recipient
+					primary_defender = {
+						is_ai = yes
+						save_temporary_scope_as = defender
+					}
+					primary_attacker = {
+						has_variable = peace_acceptance_head_scare
+						var:peace_acceptance_head_scare = {
+							this = scope:defender
+						}
+					}
+				}
+			}
+			add = 30
+			
+			desc = "COWED_BY_SEVERED_HEAD_MODIFIER"
+		}
 
 		# Cultural Traditions
 		modifier = {
@@ -1627,6 +1897,42 @@ end_war_attacker_white_peace_interaction = {
 			add = 10
 
 			desc = "STRUGGLE_INVOLVED_OR_INTERLOPER_PHASE_BONUS"
+		}
+
+		# GoK war
+		modifier = {
+			desc = WAR_OVERVIEW_WHITE_PEACE_GOK
+			add = -70
+			scope:war = {
+				using_cb = mpo_gok_onslaught_cb
+				primary_defender = scope:actor
+			}
+		}
+		# GoK war but have counties occupied
+		modifier = {
+			desc = WAR_OVERVIEW_WHITE_PEACE_GOK_OCCUPATION
+			add = {
+				value = 0
+				scope:war.primary_defender = {
+					every_sub_realm_county = {
+						limit = {
+							county_controller = scope:war.primary_attacker
+						}
+						add = 2
+					}
+				}
+				max = 200
+			}
+			scope:war = {
+				using_cb = mpo_gok_onslaught_cb
+				attacker_war_score <= 25
+				primary_defender = {
+					any_sub_realm_county = {
+						county_controller = scope:war.primary_attacker
+					}
+				}
+				primary_defender = scope:actor
+			}
 		}
 
 		# Hostages
@@ -1682,7 +1988,14 @@ end_war_attacker_defeat_interaction = {
 		ai_recipients = primary_war_enemies
 	}
 	
-	ai_frequency = 1
+	ai_frequency_by_tier = {
+		barony = 0
+		county = 1
+		duchy = 1
+		kingdom = 1
+		empire = 1
+		hegemony = 1
+	}
 	
 	# Depending on who was the attacker, we need to send a different notification message to the recipient.
 	notification_text = {
@@ -1702,7 +2015,7 @@ end_war_attacker_defeat_interaction = {
 			desc = end_war_attacker_defeat_defender_desc
 		}
 	}
-
+	
 	populate_actor_list = {
 		scope:actor = {
 			every_close_family_member = {
@@ -1813,12 +2126,12 @@ end_war_attacker_defeat_interaction = {
 				if = {
 					limit = {
 						any_vassal = {
-							NOT = { this = scope:defender_winner }
+							this != scope:defender_winner
 						}
 					}
 					every_vassal = {
 						limit = {
-							NOT = { this = scope:defender_winner }
+							this != scope:defender_winner
 						}
 						send_interface_toast = {
 							type = msg_liege_war_ended_defender_win
@@ -1833,11 +2146,11 @@ end_war_attacker_defeat_interaction = {
 			scope:defender_winner = {
 				if = {
 					limit = {
-						any_vassal = { NOT = { this = scope:attacker_loser } }
+						any_vassal = { this != scope:attacker_loser }
 					}
 					every_vassal = {
 						limit = {
-							NOT = { this = scope:attacker_loser }
+							this != scope:attacker_loser
 						}
 						send_interface_toast = {
 							type = msg_liege_war_ended_defender_win
@@ -1845,7 +2158,7 @@ end_war_attacker_defeat_interaction = {
 							left_icon = scope:defender_winner
 							right_icon = scope:attacker_loser
 							custom_tooltip = war_event.1906 
-							}
+						}
 					}
 				}
 			}
@@ -1865,17 +2178,50 @@ end_war_attacker_defeat_interaction = {
 			OR = {
 				defender_war_score >= 100
 				AND = {
-					defender_war_score >= 90
-					root = {
-						OR = {
-							has_perk = peacemaker_perk
-							culture = {
-								has_cultural_parameter = can_end_defensive_wars_earlier
+					OR = {
+						attacker_war_score >= 90
+						AND = {
+							attacker_war_score >= 80
+							root = {
+								dynasty ?= { has_dynasty_perk = mpo_nomad_legacy_3 }
 							}
 						}
 					}
+					root = {
+						has_perk = peacemaker_perk
+					}
+					primary_defender = {
+						is_ai = yes
+					}
+				}
+				AND = {
+					OR = {
+						attacker_war_score >= 90
+						AND = {
+							attacker_war_score >= 80
+							root = {
+								has_perk = peacemaker_perk
+							}
+						}
+					}
+					root = {
+						dynasty ?= { has_dynasty_perk = mpo_nomad_legacy_3 }
+					}
+					primary_defender = {
+						is_ai = yes
+					}
+				}
+				AND = {
+					defender_war_score >= 70
 					primary_attacker = {
 						is_ai = yes
+						save_temporary_scope_as = attacker
+					}
+					root = {
+						has_variable = peace_acceptance_head_scare
+						var:peace_acceptance_head_scare = {
+							this = scope:attacker
+						}
 					}
 				}
 			}
@@ -1902,6 +2248,28 @@ end_war_attacker_defeat_interaction = {
 						}
 						primary_attacker = {
 							is_ai = yes
+						}
+					}
+					AND = {
+						defender_war_score >= 90
+						scope:actor = {
+							dynasty ?= { has_dynasty_perk = mpo_nomad_legacy_3 }
+						}
+						primary_attacker = {
+							is_ai = yes
+						}
+					}
+					AND = {
+						defender_war_score >= 70
+						primary_attacker = {
+							is_ai = yes
+							save_temporary_scope_as = attacker
+						}
+						root = {
+							has_variable = peace_acceptance_head_scare
+							var:peace_acceptance_head_scare = {
+								this = scope:attacker
+							}
 						}
 					}
 				}				
@@ -1937,7 +2305,7 @@ end_war_attacker_defeat_interaction = {
 			scope:war.casus_belli = {
 				primary_defender = {
 					has_perk = peacemaker_perk
-					NOT = { this = scope:recipient }
+					this != scope:recipient
 				}
 			}
 			
@@ -1948,10 +2316,39 @@ end_war_attacker_defeat_interaction = {
 		modifier = {
 			scope:war.casus_belli = {
 				primary_defender = {
+					dynasty ?= { has_dynasty_perk = mpo_nomad_legacy_3 }
+					NOT = { this = scope:recipient }
+				}
+			}
+			
+			add = 10
+			
+			desc = "NOMAD_LEGACY_PERK_MODIFIER"
+		}
+
+		modifier = {
+			scope:war.casus_belli = {
+				primary_attacker = {
+					is_ai = yes
+					save_temporary_scope_as = attacker
+				}
+				primary_defender = {
+					has_variable = peace_acceptance_head_scare
+					var:peace_acceptance_head_scare = {
+						this = scope:attacker
+					}
+				}
+			}
+			add = 30
+			desc = "COWED_BY_SEVERED_HEAD_MODIFIER"
+		}
+		modifier = {
+			scope:war.casus_belli = {
+				primary_defender = {
 					culture = {
 						has_cultural_parameter = can_end_defensive_wars_earlier
 					}
-					NOT = { this = scope:recipient }
+					this != scope:recipient
 				}
 			}
 			
@@ -2006,7 +2403,6 @@ end_war_attacker_defeat_interaction = {
 	}
 }
 
-
 view_war_interaction = {
 	category = interaction_category_diplomacy
 	common_interaction = yes
@@ -2018,8 +2414,8 @@ view_war_interaction = {
 
 	is_shown = {
 		scope:actor = {
-			is_at_war_with = scope:recipient		
-			NOT = {	
+			is_at_war_with = scope:recipient
+			NOT = {
 				any_character_war = {
 					is_war_leader = scope:actor
 					is_participant = scope:recipient

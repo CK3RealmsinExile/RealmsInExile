@@ -12,33 +12,36 @@ invasion_war = {
 	allowed_for_character = {
 		OR = {
 			government_has_flag = government_is_tribal
+			government_has_flag = government_is_nomadic
 			faith = {
 				has_doctrine_parameter = invasion_cb_enabled
 			}
 			has_character_flag = bp2_inspired_culture_for_conquest
+			has_variable = mpo_desperate_stance_invasion_cb_enable_var
 			ai_should_get_extreme_conqueror_bonuses = yes
+			AND = {
+				house ?= { has_house_head_parameter = has_unlimited_invasion_cb }
+				is_house_head = yes
+			}
 		}
 		trigger_if = {
-			limit = {
-				NOT = { ai_should_get_extreme_conqueror_bonuses = yes }
-			}
-			NOT = {
-				has_character_flag = used_lifetime_invasion
-			}
+			limit = { ai_should_get_extreme_conqueror_bonuses = no }
+			NOT = { has_character_flag = used_lifetime_invasion }
 		}
-		NOT = {
-			government_has_flag = government_is_landless_adventurer
-		}
+		NOT = { government_has_flag = government_is_landless_adventurer }
+		
+		#LotR
 		# Elven Expansion CB limitation in game rules
-		NOT = {
-			AND = {
-				is_elf = yes
-				has_game_rule = limited_elven_expansion
-				NOT = { # Birthright of the Eldar enables conquest CBs again
-					faith = { has_doctrine = tenet_birthright_eldar }
+		NAND = {
+			is_elf = yes
+			has_game_rule = limited_elven_expansion
+			NOT = { # Birthright of the Eldar and Makar tenet enable conquest CBs again
+				faith = { 
+					has_doctrine = tenet_birthright_eldar
+					has_doctrine = tenet_veneration_of_the_makarnea
 				}
 			}
-		}	
+		}
 		scope:attacker = {
 			NOT = {
 				AND = {
@@ -47,13 +50,16 @@ invasion_war = {
 		        }
 			}
 		} 
+		
+		# The Necromancer is hidden
+		NOT = { has_character_flag = unknown_sauron_flag } # LOTR
 	}
 
 	allowed_for_character_display_regardless = {
 		trigger_if = {
 			limit = {
 				has_character_flag =  bp2_inspired_culture_for_conquest
-				NOT = { ai_should_get_extreme_conqueror_bonuses = yes }
+				ai_should_get_extreme_conqueror_bonuses = no
 			}
 			prestige_level >= 0
 		}
@@ -66,7 +72,7 @@ invasion_war = {
 				culture = {
 					has_cultural_parameter = cb_lower_prestige_level_requirement
 				}
-				NOT = { ai_should_get_extreme_conqueror_bonuses = yes }
+				ai_should_get_extreme_conqueror_bonuses = no
 			}
 			prestige_level >= 2
 		}
@@ -83,14 +89,12 @@ invasion_war = {
 						has_cultural_parameter = cb_lower_prestige_level_requirement
 					}
 				}
-				NOT = { ai_should_get_extreme_conqueror_bonuses = yes }
+				ai_should_get_extreme_conqueror_bonuses = no
 			}
 			prestige_level >= 3
 		}
 		trigger_else_if = {
-			limit = {
-				ai_should_get_extreme_conqueror_bonuses = yes
-			}
+			limit = { ai_should_get_extreme_conqueror_bonuses = yes }
 		}
 		trigger_else = {
 			prestige_level >= 4
@@ -100,6 +104,7 @@ invasion_war = {
 			text = struggle_involvement_cb_check_failure
 			struggle_blocks_invasion_conquest_cb_trigger = yes
 		}
+		tgp_japan_offensive_wars_ban_trigger = yes
 	}
 	
 	allowed_against_character = {
@@ -107,53 +112,16 @@ invasion_war = {
 			ALL_FALSE = {
 				top_liege = scope:defender.top_liege
 				liege = scope:defender
-				AND = {
+				AND = { #LotR
 			        exists = primary_title.empire
 			        primary_title.empire = title:e_valinor
 		        }
 			}
 		}
+		
+		# The Necromancer is hidden
+		NOT = { has_character_flag = unknown_sauron_flag } #LotR
 	}
-	
-	allowed_against_character_display_regardless = { #LotR Tributaries
-		custom_tooltip = {
-			text = IS_GUARANTEED_BY_ME_TRIGGER_CB
-			NAND = {
-				exists = var:my_suzerain
-				scope:attacker = {
-					OR = {
-						is_target_in_variable_list = { name = non_permanent_tributaries target = prev }
-						is_target_in_variable_list = { name = permanent_tributaries target = prev }
-					}		
-				}
-			}
-		}
-		custom_tooltip = {
-			text = IS_GUARANTEED_BY_ATTACKERS_TOP_LIEGE_TRIGGER_CB
-			NAND = {
-				exists = var:my_suzerain
-				scope:attacker.top_liege = {
-					OR = {
-						is_target_in_variable_list = { name = non_permanent_tributaries target = prev }
-						is_target_in_variable_list = { name = permanent_tributaries target = prev }
-					}		
-				}
-				scope:attacker = {
-					is_independent_ruler = no
-				}
-			}
-		}
-		custom_tooltip = {
-			text = IS_MY_SUZERAIN_TRIGGER_CB
-			NAND = {
-				scope:attacker = { 
-					exists = var:my_suzerain
-					scope:defender = var:my_suzerain
-				}
-			}
-		}
-	}
-	
 	target_titles = all
 	target_title_tier = kingdom
 	target_de_jure_regions_above = yes
@@ -164,10 +132,14 @@ invasion_war = {
 	}
 	ai_score_mult = {
 		value = viking_conquest_ai_score_value
-
+		# HOUSE RELATIONS
+		add = house_relation_ai_score_value
 		# AI in struggles act insularly for wars that don't have a familial or legal basis.
 		multiply = struggle_wars_prioritise_struggle_targets_value
-		
+		# Tell the Romans to stop going adventuring into the steppe for no gods-damned reason.
+		#multiply = byzantium_conquests_ai_score_value #LotR
+		#multiply = muslim_invasions_prefer_nonmuslims_ai_score_value #LotR
+
 		#Declaring war on the frankokratia leader can really ruin the whole thing
 		if = {
 			limit = {
@@ -215,7 +187,12 @@ invasion_war = {
 		add = {
 			if = {
 				limit = {
-					scope:attacker = { has_variable = overlord_protector }
+					scope:attacker = {
+						any_tributary = { 
+							this = scope:defender
+							has_subject_contract_group = tributary_protectorate
+						}
+					}
 				}
 				add = -1000
 			}
@@ -256,15 +233,13 @@ invasion_war = {
 	}
 
 	should_invalidate = {
-		OR = {
-			NOT = {
-				any_in_list = {
-					list = target_titles
-					any_in_de_jure_hierarchy = {
-						tier = tier_county
-						holder = {
-							target_is_same_character_or_above = scope:defender
-						}
+		NOR = { #LotR
+			any_in_list = {
+				list = target_titles
+				any_in_de_jure_hierarchy = {
+					tier = tier_county
+					holder = {
+						target_is_same_character_or_above = scope:defender
 					}
 				}
 			}
@@ -292,16 +267,44 @@ invasion_war = {
 
 	cost = {
 		piety = {
-			value = 0
-			add = common_cb_impious_piety_cost
+			if = {
+				limit = {
+					scope:attacker = {
+						NOT = {
+							government_has_flag = government_is_mandala
+							house ?= { has_house_head_parameter = has_unlimited_invasion_cb }
+							is_house_head = yes
+						}
+					}
+				}
+				value = common_cb_impious_piety_cost
+			}
+			else = {
+				value = {
+					value = 2000
+					desc = CB_BASE_COST
+				}
+				multiply = common_cb_piety_cost_multiplier
+			}
 		}
 		prestige = {
-			add = {
-				value = 2000
-				desc = CB_BASE_COST
+			if = {
+				limit = {
+					scope:attacker = {
+						government_has_flag = government_is_mandala
+						house ?= { has_house_head_parameter = has_unlimited_invasion_cb }
+						is_house_head = yes
+					}
+				}
+				value = 0
 			}
-
-			multiply = common_cb_prestige_cost_multiplier
+			else = {
+				value = {
+					value = 2000
+					desc = CB_BASE_COST
+				}
+				multiply = common_cb_prestige_cost_multiplier
+			}
 		}
 	}
 	
@@ -328,7 +331,7 @@ invasion_war = {
 	
 	on_victory = {
 		scope:attacker = { show_pow_release_message_effect = yes }
-
+		
 		# Legitimacy
 		add_legitimacy_attacker_victory_effect = yes
 
@@ -343,7 +346,7 @@ invasion_war = {
 			save_scope_as = change
 			add_claim_on_loss = yes
 		}
-		
+
 		show_as_tooltip = {
 			every_in_list = {
 				list = target_titles
@@ -371,14 +374,14 @@ invasion_war = {
 		}
 		
 		hidden_effect = {
-		setup_invasion_cb = {
-			titles = target_titles
-			attacker = scope:attacker
-			defender = scope:defender
-			change = scope:change
-			take_occupied = yes
-		}
-		resolve_title_and_vassal_change = scope:change
+			setup_invasion_cb = {
+				titles = target_titles
+				attacker = scope:attacker
+				defender = scope:defender
+				change = scope:change
+				take_occupied = yes
+			}
+			resolve_title_and_vassal_change = scope:change
 		}
 
 		# Attacker gets Prestige Experience, Defender loses Prestige, all other participants gain Prestige based on their war contribution.
@@ -401,6 +404,9 @@ invasion_war = {
 
 		# EP3: note gold gained from military assistance/join war contracts and their war contribution threshold
 		laamp_as_mercenary_payout_tooltip_effect = yes
+
+		#Mandalas gain or lose piety/devotion depending on Decree
+		mandala_war_victory_effects = yes
 	}
 
 	on_white_peace_desc = {
@@ -459,18 +465,21 @@ invasion_war = {
 			desc = invasion_war_white_peace_desc
 		}
 	}
-	
+
 	on_defeat = {
 		scope:attacker = { show_pow_release_message_effect = yes }
-
+		
 		# Legitimacy
 		add_legitimacy_attacker_defeat_effect = yes
 
 		# Influence
 		add_influence_attacker_defeat_effect = yes
-
-		#EP2 accolade glory gain for winning against higher ranked enemy
-		scope:defender = { accolade_defender_war_end_glory_gain_high_effect = yes }
+		
+		scope:defender = { 
+			mandala_peacemaker_perk_serenity_effect = yes
+			#EP2 accolade glory gain for winning against higher ranked enemy
+			accolade_defender_war_end_glory_gain_high_effect = yes
+		}
 
 		# Prestige loss for the attacker
 		scope:attacker = {
@@ -512,6 +521,9 @@ invasion_war = {
 
 		# EP3: note gold gained from military assistance/join war contracts and their war contribution threshold
 		laamp_as_mercenary_payout_tooltip_effect = yes
+
+		#Mandalas gain or lose piety/devotion depending on Decree
+		mandala_war_defeat_effects = yes
 	}
 	
 	transfer_behavior = transfer
@@ -548,15 +560,13 @@ clan_invasion_war = {
 	allowed_for_character = {
 		government_has_flag = government_is_clan
 		NAND = {
-				exists = house
-				house = {
-					has_house_unity_parameter = unity_disable_invasions
-				}
+			house ?= {
+				has_house_unity_parameter = unity_disable_invasions
 			}
+		}
 		trigger_if = {
 			limit = {
-				exists = house
-				house = {
+				house ?= {
 					has_house_unity_parameter = unity_multiple_invasions
 				}
 			}
@@ -564,8 +574,7 @@ clan_invasion_war = {
 		}
 		trigger_else_if = {
 			limit = {
-				exists = house
-				house = {
+				house ?= {
 					has_house_unity_parameter = unity_unlimited_invasions
 				}
 			}
@@ -589,12 +598,12 @@ clan_invasion_war = {
 		}
 
 		# Elven Expansion CB limitation in game rules
-		NOT = {
-			AND = {
-				is_elf = yes
-				has_game_rule = limited_elven_expansion
-			}
+		NAND = {
+			is_elf = yes
+			has_game_rule = limited_elven_expansion
 		}
+		# The Necromancer is hidden
+		NOT = { has_character_flag = unknown_sauron_flag } # LOTR
 	}
 
 	allowed_for_character_display_regardless = {
@@ -634,6 +643,7 @@ clan_invasion_war = {
 			text = struggle_involvement_cb_check_failure
 			struggle_blocks_invasion_conquest_cb_trigger = yes
 		}
+		tgp_japan_offensive_wars_ban_trigger = yes
 	}
 	
 	allowed_against_character = {
@@ -653,46 +663,11 @@ clan_invasion_war = {
 		        }
 			}
 		}
+		# The Necromancer is hidden
+		NOT = { has_character_flag = unknown_sauron_flag } # LOTR
 	}
 	
-	allowed_against_character_display_regardless = { #LotR Tributaries
-		custom_tooltip = {
-			text = IS_GUARANTEED_BY_ME_TRIGGER_CB
-			NAND = {
-				exists = var:my_suzerain
-				scope:attacker = {
-					OR = {
-						is_target_in_variable_list = { name = non_permanent_tributaries target = prev }
-						is_target_in_variable_list = { name = permanent_tributaries target = prev }
-					}		
-				}
-			}
-		}
-		custom_tooltip = {
-			text = IS_GUARANTEED_BY_ATTACKERS_TOP_LIEGE_TRIGGER_CB
-			NAND = {
-				exists = var:my_suzerain
-				scope:attacker.top_liege = {
-					OR = {
-						is_target_in_variable_list = { name = non_permanent_tributaries target = prev }
-						is_target_in_variable_list = { name = permanent_tributaries target = prev }
-					}		
-				}
-				scope:attacker = {
-					is_independent_ruler = no
-				}
-			}
-		}
-		custom_tooltip = {
-			text = IS_MY_SUZERAIN_TRIGGER_CB
-			NAND = {
-				scope:attacker = { 
-					exists = var:my_suzerain
-					scope:defender = var:my_suzerain
-				}
-			}
-		}
-	}
+	allowed_against_character_display_regardless = {}
 	
 	target_titles = all
 	target_title_tier = all
@@ -702,10 +677,14 @@ clan_invasion_war = {
 
 	ai_score_mult = {
 		value = 1
-
+		# HOUSE RELATIONS
+		add = house_relation_ai_score_value
 		# AI in struggles act insularly for wars that don't have a familial or legal basis.
 		multiply = struggle_wars_prioritise_struggle_targets_value
-		
+		# Tell the Romans to stop going adventuring into the steppe for no gods-damned reason.
+		#multiply = byzantium_conquests_ai_score_value
+		#multiply = muslim_invasions_prefer_nonmuslims_ai_score_value
+
 		#Declaring war on the frankokratia leader can really ruin the whole thing
 		if = {
 			limit = {
@@ -753,7 +732,12 @@ clan_invasion_war = {
 		add = {
 			if = {
 				limit = {
-					scope:attacker = { has_variable = overlord_protector }
+					scope:attacker = {
+						any_tributary = { 
+							this = scope:defender
+							has_subject_contract_group = tributary_protectorate
+						}
+					}
 				}
 				add = -1000
 			}
@@ -791,17 +775,15 @@ clan_invasion_war = {
 	}
 
 	should_invalidate = {
-		OR ={
-			NOT = {
-				any_in_list = {
-					list = target_titles
-					any_in_de_jure_hierarchy = {
-						tier = tier_county
-						holder = {
-							OR = {
-								this = scope:defender
-								target_is_liege_or_above = scope:defender
-							}
+		NOR = { #LotR
+			any_in_list = {
+				list = target_titles
+				any_in_de_jure_hierarchy = {
+					tier = tier_county
+					holder = {
+						OR = {
+							this = scope:defender
+							target_is_liege_or_above = scope:defender
 						}
 					}
 				}
@@ -880,7 +862,7 @@ clan_invasion_war = {
 	
 	on_victory = {
 		scope:attacker = { show_pow_release_message_effect = yes }
-
+		
 		# Legitimacy
 		add_legitimacy_attacker_victory_effect = yes
 
@@ -892,15 +874,15 @@ clan_invasion_war = {
 			save_scope_as = change
 			add_claim_on_loss = yes
 		}
-		
+
 		hidden_effect = {
-		setup_invasion_cb = {
-			titles = target_titles
-			attacker = scope:attacker
-			defender = scope:defender
-			change = scope:change
-			take_occupied = yes
-		}
+			setup_invasion_cb = {
+				titles = target_titles
+				attacker = scope:attacker
+				defender = scope:defender
+				change = scope:change
+				take_occupied = yes
+			}
 		}
 
 		show_as_tooltip = {
@@ -949,8 +931,8 @@ clan_invasion_war = {
 					}
 				}
 			}
-		}
-
+		}	
+		
 		#If target is lower tier, vassalise them.
 		if = {
 			limit = {
@@ -1021,6 +1003,9 @@ clan_invasion_war = {
 
 		# EP3: note gold gained from military assistance/join war contracts and their war contribution threshold
 		laamp_as_mercenary_payout_tooltip_effect = yes
+
+		#Mandalas gain or lose piety/devotion depending on Decree
+		mandala_war_victory_effects = yes
 	}
 
 	on_white_peace_desc = {
@@ -1084,12 +1069,15 @@ clan_invasion_war = {
 	
 	on_defeat = {
 		scope:attacker = { show_pow_release_message_effect = yes }
-
+		
 		# Legitimacy
 		add_legitimacy_attacker_defeat_effect = yes
 
-		#EP2 accolade glory gain for winning against higher ranked enemy
-		scope:defender = { accolade_defender_war_end_glory_gain_high_effect = yes }
+		scope:defender = { 
+			mandala_peacemaker_perk_serenity_effect = yes
+			#EP2 accolade glory gain for winning against higher ranked enemy
+			accolade_defender_war_end_glory_gain_high_effect = yes
+		}
 
 		# Prestige loss for the attacker
 		scope:attacker = {
@@ -1133,6 +1121,9 @@ clan_invasion_war = {
 
 		# EP3: note gold gained from military assistance/join war contracts and their war contribution threshold
 		laamp_as_mercenary_payout_tooltip_effect = yes
+
+		#Mandalas gain or lose piety/devotion depending on Decree
+		mandala_war_defeat_effects = yes
 	}
 	
 	transfer_behavior = transfer

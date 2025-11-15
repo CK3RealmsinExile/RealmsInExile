@@ -303,11 +303,15 @@ on_faith_created = {
 # scope:old_faith is the faith they used to have
 # scope:actor is the character instigating the conversion
 on_faith_conversion = {
+	on_actions = { lotr_on_faith_conversion } #LotR
 	events = {
 		faith_conversion.0001	# Convert capital county
 		faith_conversion.0003	# Convert close family
 		faith_conversion.1002	# Player-only narrative-notification event
 		faith_conversion.1101   # Notify vassals of conversion
+		rangers.9300 			# LotR - Ranger laamp converting away from their suzerain's alignment
+		rangers.9301			# LotR - Ranger laamp converting to neutral faith
+		rangers.9302			# LotR - Liege converting away from their Ranger laamp's alignment
 	}
 
 	effect = {
@@ -537,6 +541,25 @@ on_character_faith_change = {
 			}
 		}
 
+		if = {
+			limit = {
+				has_variable = japan_1010_discount
+				var:japan_1010_discount = faith 
+			}
+			remove_variable = japan_1010_discount
+		}
+
+		#if = { # LotR
+		#	limit = {
+		#		has_character_flag = tgp_japan_1040_discount
+		#		faith.religion = religion:shintoism_religion
+		#	}
+		#	remove_character_flag = tgp_japan_1040_discount
+		#}
+
+		#Lose Mandala if you change to a monotheist faith
+		mandala_no_longer_polytheist_effect = yes
+
 		random_councillor = {
 			limit = {
 				has_council_position = councillor_court_chaplain
@@ -550,11 +573,11 @@ on_character_faith_change = {
 		faith_conversion.0002 # Remove obsolete modifiers
 		faith_conversion.0004 # Convert Theocracies
 		faith_conversion.0005 # Update marriage opinions
-		#great_holy_war.0025 # Replace Recipient for ongoing GHW
-		#great_holy_war.0029 # Beneficiary converted, remove and replace.
-		#great_holy_war.0059 # Clear Crusader traits on conversion.
-		#great_holy_war.0084 # Replace fallback ghw recipient
-		#great_holy_war.0085 # Remove pledged vassals upon conversion of their liege.
+		great_holy_war.0025 # Replace Recipient for ongoing GHW
+		great_holy_war.0029 # Beneficiary converted, remove and replace.
+		great_holy_war.0059 # Clear Crusader traits on conversion.
+		great_holy_war.0084 # Replace fallback ghw recipient
+		great_holy_war.0085 # Remove pledged vassals upon conversion of their liege.
 		war_event.3100		# Handles invalidation of religious wars
 	}
 }
@@ -571,10 +594,246 @@ on_faith_monthly = {
 	}
 	events = {
 		# hajj.0010 #Someone changed their capital to Mecca without having the Hajjaj trait
-		# great_holy_war.0010 #Great Holy Wars are unlocked for a Faith.
-		# great_holy_war.0001
-		# great_holy_war.0022 #Pope harasses players for not pledging support to Crusade yet.
-		# great_holy_war.0030 #Monthly cleanup for Beneficiaries becoming unfit for various reasons.
+		great_holy_war.0010 #Great Holy Wars are unlocked for a Faith.
+		great_holy_war.0001
+		great_holy_war.0022 #Pope harasses players for not pledging support to Crusade yet.
+		great_holy_war.0030 #Monthly cleanup for Beneficiaries becoming unfit for various reasons.
+	}
+	effect = {
+		# Religious migrants created by the County Conversion council task move somewhere safe
+		random = {
+			chance = 4 # Roughly once every 2 years
+			save_scope_as = target_faith
+			if = {
+				limit = {
+					exists = var:converted_development
+					var:converted_development >= 1
+					NOT = {
+						has_doctrine_parameter = unreformed
+					}
+				}
+				# Save all suitable rulers
+				random = {
+					chance = var:converted_development
+					save_scope_as = faith_target
+					every_independent_ruler = {
+						limit = {
+							is_landed = yes
+							NOT = { government_has_flag = government_is_herder }
+							# A very large area - enough for a province in north-western india to reach all of Borneo
+							"this.capital_province.squared_distance(root.var:associated_county.title_province)" <= squared_distance_mega
+							any_sub_realm_county = {
+								faith = prev.faith
+							}
+							trigger_if = {
+								limit = {
+									has_variable_list = faiths_converted_in_counties
+								}
+								NOT = {
+									is_target_in_variable_list = {
+										name = faiths_converted_in_counties
+										target = scope:target_faith
+									}
+								}
+							}
+						}
+						add_to_list = migration_targets
+						every_vassal = {
+							limit = {
+								is_landed = yes
+								highest_held_title_tier >= tier_duchy
+								any_sub_realm_county = {
+									faith = prev.faith
+								}
+								trigger_if = {
+									limit = {
+										has_variable_list = faiths_converted_in_counties
+									}
+									NOT = {
+										is_target_in_variable_list = {
+											name = faiths_converted_in_counties
+											target = scope:target_faith
+										}
+									}
+								}
+							}
+							add_to_list = migration_targets
+						}
+					}
+					every_player = {
+						limit = {
+							is_landed = yes
+							NOT = { government_has_flag = government_is_herder }
+							NOT = { is_in_list = migration_targets }
+							# A vary large area - enough for a province in north-western india to reach all of Borneo
+							"this.capital_province.squared_distance(root.var:associated_county.title_province)" <= squared_distance_mega
+							any_sub_realm_county = {
+								faith = prev.faith
+							}
+							trigger_if = {
+								limit = {
+									has_variable_list = faiths_converted_in_counties
+								}
+								NOT = {
+									is_target_in_variable_list = {
+										name = faiths_converted_in_counties
+										target = scope:target_faith
+									}
+								}
+							}
+						}
+						add_to_list = migration_targets
+					}
+					# If the faith is still large, they only want to move to same-faith rulers
+					if = {
+						limit = {
+							num_county_followers >= 40
+						}
+						random_in_list = {
+							list = migration_targets
+							limit = {
+								faith = root
+								any_sub_realm_county = {
+									faith = root
+								}
+								# Do NOT go within the same realm as you were converted from
+								top_liege != scope:target_faith.var:associated_county.holder.top_liege
+							}
+							weight = {
+								base = 1
+								modifier = {
+									add = 3
+									is_ai = no
+								}
+								modifier = {
+									add = 3
+									government_has_flag = government_is_mandala
+								}
+								modifier = {
+									add = 10
+									highest_held_title_tier >= tier_kingdom
+								}
+								modifier = {
+									add = root.var:converted_development
+									NOT = { government_has_flag = government_is_nomadic }
+									any_sub_realm_county = {
+										count >= {
+											value = root.var:converted_development
+											divide = 2
+										}
+										faith = root
+									}
+								}
+								modifier = {
+									add = 0.1
+									government_has_flag = government_is_nomadic
+								}
+								modifier = {
+									add = 0.1
+									highest_held_title_tier <= tier_county
+								}
+							}
+							save_scope_as = ruler_target
+							save_scope_as = seeking_same_faith_counties
+							trigger_event = global_religion.1000
+						}
+					}
+					# Smaller faiths can go wherever
+					else = {
+						random_in_list = {
+							list = migration_targets
+							limit = {
+								NOR = {
+									top_liege = scope:target_faith.var:associated_county.holder.top_liege # Do NOT go within the same realm as you were converted from
+									faith = { has_doctrine = doctrine_pluralism_fundamentalist }
+									culture = { has_cultural_tradition = tradition_zealous_people }
+								}
+								OR = {
+									faith = {
+										faith_hostility_level = {
+											target = root
+											value <= faith_astray_level
+										}
+									}
+									faith = { has_doctrine = tenet_adaptive }
+									faith = { has_doctrine_parameter = unreformed }
+									faith = { has_doctrine = doctrine_pluralism_pluralistic }
+									culture = { has_cultural_tradition = tradition_religion_blending }
+									#culture = { has_cultural_parameter = less_likely_to_force_conversion } #LotR
+									has_trait = nomadic_philosophy
+									AND = {
+										is_ai = no
+										has_perk = open_minded_perk
+									}
+								}
+								any_held_title = {
+									tier = tier_county
+									faith = prev.faith
+									trigger_if = {
+										limit = {
+											has_variable_list = faiths_converted_in_the_county
+										}
+										NOT = {
+											is_target_in_variable_list = {
+												name = faiths_converted_in_the_county
+												target = scope:target_faith
+											}
+										}
+									}
+									trigger_if = {
+										limit = {
+											holder = {
+												is_ai = yes
+											}
+										}
+										holder = {
+											is_ai = yes
+										}
+									}
+								}
+							}
+							weight = {
+								base = 1
+								modifier = {
+									add = 3
+									is_ai = no
+								}
+								modifier = {
+									add = 3
+									government_has_flag = government_is_mandala
+								}
+								modifier = {
+									add = 10
+									highest_held_title_tier >= tier_kingdom
+								}
+								modifier = {
+									add = root.var:converted_development
+									NOT = { government_has_flag = government_is_nomadic }
+									any_sub_realm_county = {
+										count >= {
+											value = root.var:converted_development
+											divide = 2
+										}
+										faith = prev.faith
+									}
+								}
+								modifier = {
+									add = 0.1
+									government_has_flag = government_is_nomadic
+								}
+								modifier = {
+									add = 0.1
+									highest_held_title_tier <= tier_county
+								}
+							}
+							save_scope_as = ruler_target
+							save_scope_as = seeking_any_counties
+							trigger_event = global_religion.1000
+						}
+					}
+				}
+			}
+		}
 	}
 }
 
@@ -698,13 +957,12 @@ pagan_conversion_pulse = {
 	}
 }
 
-
 # Code on-action: when a great holy war no longer has a valid target, and there was no one left in the target kingdom to replace them. The target scopes will still point to the last target at this point
 # If a new target is not picked in script, the GHW will be invalidated
 # Root is the great holy war
 on_potential_great_holy_war_invalidation = {
 	events = {
-		# great_holy_war.0004
+		great_holy_war.0004
 	}
 }
 
@@ -712,7 +970,7 @@ on_potential_great_holy_war_invalidation = {
 # Root is the great holy war
 on_great_holy_war_invalidation = {
 	events = {
-		# great_holy_war.0055 #Send notifications to players.
+		great_holy_war.0055 #Send notifications to players.
 	}
 }
 
@@ -723,7 +981,7 @@ on_great_holy_war_countdown_end = {
 	# 	ghw_attackers_strength >= third_of_defenders_strength
 	# }
 	events = {
-		# great_holy_war.0005
+		great_holy_war.0005
 	}
 }
 
@@ -733,6 +991,6 @@ on_great_holy_war_countdown_end = {
 # scope:replacement is the replacement character
 on_great_holy_war_participant_replaced = {
 	events = {
-		# great_holy_war.0027 #Refresh Beneficiary for AI.
+		great_holy_war.0027 #Refresh Beneficiary for AI.
 	}
 }

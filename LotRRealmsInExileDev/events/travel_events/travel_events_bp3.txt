@@ -8,6 +8,7 @@ scripted_trigger bp3_travel_event_default_trigger = {
 }
 
 scripted_trigger travel_events_bp3_1_character = {
+	age >= 12
 	OR = {
 		is_child_of = root
 		is_spouse_of = root
@@ -255,6 +256,12 @@ travel_events_bp3.5 = { # Caught Outside
 						terrain = desert
 						terrain = desert_mountains
 						terrain = drylands
+						#LotR added
+						terrain = red_desert
+						terrain = dune_sea
+						terrain = saltflats
+						terrain = halls
+						terrain = volcanic_plains
 					}
 				}
 			}
@@ -341,7 +348,7 @@ travel_events_bp3.5 = { # Caught Outside
 			current_travel_plan = {
 				every_entourage_character = {
 					limit = {
-						NOT = { this = root }
+						this != root
 					}
 					random = {
 						chance = {
@@ -437,6 +444,7 @@ travel_events_bp3.10 = { # Pilgrims on the Road
 			match = 0.50
 		}
 		bp3_travel_event_default_trigger = yes
+		NOT = { government_has_flag = government_is_celestial }
 		location.county = {
 			OR = {
 				any_county_province = {
@@ -595,6 +603,15 @@ travel_events_bp3.10 = { # Pilgrims on the Road
 	}
 
 	option = {
+		trigger = {
+			NAND = {
+				faith_is_good = yes
+				OR = {
+					is_elf = yes
+					cannot_be_killed = yes
+				}
+			}
+		}
 		name = {
 			trigger = {
 				exists = scope:holy_order_character
@@ -645,14 +662,14 @@ travel_events_bp3.10 = { # Pilgrims on the Road
 		}
 		if = {
 			limit = {
-				is_landless_adventurer = yes
+				has_government = landless_adventurer_government
 				NOT = { has_trait = gallowsbait }
 			}
 			add_trait = gallowsbait
 		}
 		else_if = {
 			limit = {
-				is_landless_adventurer = yes
+				has_government = landless_adventurer_government
 				has_trait = gallowsbait
 			}
 			add_trait_xp = {
@@ -730,7 +747,15 @@ travel_events_bp3.10 = { # Pilgrims on the Road
 				NOT = { exists = scope:holy_order_character }
 			}
 			scope:pilgrim_character = {
-				silent_dissapear_ai_if_not_hired = yes
+				silent_disappearance_ai_effect = yes
+			}
+		}
+		if = {
+			limit = {
+				exists = scope:holy_order_character
+			}
+			scope:holy_order_character = {
+				silent_disappearance_ai_effect = yes
 			}
 		}
 	}
@@ -851,7 +876,7 @@ travel_events_bp3.15 = { # The Stories of <X>
 
 	right_portrait = {
 		character = scope:bard_character
-		animation = lute_active
+		animation = storyteller
 	}
 
 	lower_right_portrait = scope:liege
@@ -862,7 +887,18 @@ travel_events_bp3.15 = { # The Stories of <X>
 			match = 0.50
 		}
 		bp3_travel_event_default_trigger = yes
-		NOT = { location.county.holder.top_liege = ROOT }
+		NOR = {
+			location.county.holder.top_liege = ROOT
+			location.county.title_province = {
+				OR = {
+					has_holding_type = nomad_holding
+					has_holding_type = herder_holding
+				}
+			}
+			# location.county.holder.top_liege = {
+			# 	has_title = title:h_china
+			# }
+		}
 		location.county.holder.top_liege = {
 			age > 16
 			bard_sinful_trait_trigger = yes
@@ -908,7 +944,7 @@ travel_events_bp3.15 = { # The Stories of <X>
 				}
 			}
 			scope:bard_character = {
-				silent_dissapear_ai_if_not_hired = yes
+				silent_disappearance_ai_effect = yes
 			}
 		}
 
@@ -1058,6 +1094,10 @@ travel_events_bp3.15 = { # The Stories of <X>
 
 	after = {
 		mp_resume_travel_plan = yes
+		
+		scope:bard_character = {
+			silent_disappearance_ai_effect = yes
+		}
 	}
 }
 
@@ -1116,6 +1156,7 @@ travel_events_bp3.20 = { # The <X> Guild
 				}
 			}
 		}
+		highest_held_title_tier < tier_empire
 	}
 
 	immediate = {
@@ -1222,7 +1263,7 @@ travel_events_bp3.20 = { # The <X> Guild
 		name = travel_events_bp3.20.c
 		if = {
 			limit = {
-				NOT = { location.culture = culture }
+				location.culture != culture
 			}
 			culture = {
 				change_cultural_acceptance = {
@@ -1252,7 +1293,7 @@ travel_events_bp3.20 = { # The <X> Guild
 	after = {
 		mp_resume_travel_plan = yes
 		scope:merchant_character = {
-			silent_dissapear_ai_if_not_hired = yes
+			silent_disappearance_ai_effect = yes
 		}
 	}
 }
@@ -1380,7 +1421,7 @@ travel_events_bp3.25 = { # The Toils of War
 		remove_short_term_gold = tiny_gold_value
 		if = {
 			limit = {
-				NOT = { location.culture = culture }
+				location.culture != culture
 			}
 			culture = {
 				change_cultural_acceptance = {
@@ -1518,7 +1559,7 @@ travel_events_bp3.25 = { # The Toils of War
 	after = {
 		mp_resume_travel_plan = yes
 		scope:soldier_character = {
-			silent_dissapear_ai_if_not_hired = yes
+			silent_disappearance_ai_effect = yes
 		}
 	}
 }
@@ -1554,6 +1595,8 @@ travel_events_bp3.30 = { # The Mercenaries of <X>
 		location = {
 			has_holding_type = castle_holding
 		}
+		highest_held_title_tier < tier_empire
+		maa_regiments_max_count > 0 #This is to ensure we don't fire the event for characters that are not allowed to have MAA at all
 	}
 
 	immediate = {
@@ -1562,13 +1605,17 @@ travel_events_bp3.30 = { # The Mercenaries of <X>
 			template = great_mercenary
 			culture = root.location.culture
 			faith = root.location.faith
-			gender = root
+			gender_female_chance = root_soldier_female_chance
 			location = root.location
 			save_scope_as = soldier_character
 
 			after_creation = {
 				add_character_flag = {
 					flag = need_military_outfit
+				}
+				if = {
+					limit = { NOT = { has_trait = lifestyle_blademaster } }
+					add_trait = lifestyle_blademaster
 				}
 				add_trait_xp = {
 					trait = lifestyle_blademaster
@@ -1828,11 +1875,11 @@ travel_events_bp3.30 = { # The Mercenaries of <X>
 			limit = {
 				OR = {
 					is_ai = yes
-					NOT = { scope:soldier_character = root }
+					scope:soldier_character != root
 				}
 			}
 			scope:soldier_character = {
-				silent_dissapear_ai_if_not_hired = yes
+				silent_disappearance_ai_effect = yes
 			}
 		}
 	}
@@ -2061,7 +2108,7 @@ travel_events_bp3.35 = { # The Teacher of Knights
 
 		hidden_effect = {
 			scope:soldier_character = {
-				silent_dissapear_ai_if_not_hired = yes
+				silent_disappearance_ai_effect = yes
 			}
 		}
 
@@ -2103,7 +2150,7 @@ travel_events_bp3.35 = { # The Teacher of Knights
 
 		hidden_effect = {
 			scope:soldier_character = {
-				silent_dissapear_ai_if_not_hired = yes
+				silent_disappearance_ai_effect = yes
 			}
 		}
 
@@ -2118,11 +2165,14 @@ travel_events_bp3.35 = { # The Teacher of Knights
 
 	after = {
 		mp_resume_travel_plan = yes
+		scope:soldier_character = {
+			silent_disappearance_ai_effect = yes
+		}
 	}
 }
 
 scripted_trigger travel_event_decent_combatant_trigger = {
-	NOT = { this = root }
+	this != root
 	can_be_combatant_based_on_gender_trigger = { ARMY_OWNER = root }
 	prowess >= 12
 }
@@ -2131,8 +2181,17 @@ travel_events_bp3.40 = { # The Local Champion
 	type = character_event
 	content_source = dlc_015
 	title = travel_events_bp3.40.t
-	desc = travel_events_bp3.40.desc
-
+	desc = {
+		desc = travel_events_bp3.40.desc
+		first_valid = {
+			triggered_desc = {
+				trigger = { exists = scope:challenger_character }
+				desc = travel_events_bp3.40.outro.challenger
+			}
+			desc = travel_events_bp3.40.fallback
+		}
+	}
+	
 	theme = travel
 
 	override_background = { reference = market }
@@ -2179,7 +2238,10 @@ travel_events_bp3.40 = { # The Local Champion
 			can_be_combatant_based_on_gender_trigger = { ARMY_OWNER = root }
 			current_travel_plan = {
 				any_entourage_character = {
+					NOT = { this = root }
+					is_adult = yes
 					travel_event_decent_combatant_trigger = yes
+					prowess >= 12
 				}
 			}
 		}
@@ -2204,25 +2266,15 @@ travel_events_bp3.40 = { # The Local Champion
 		}
 
 		current_travel_plan = {
-			if = {
+			ordered_entourage_character = { 
 				limit = {
-					any_entourage_character = {
-						NOT = { this = root }
-						can_be_combatant_based_on_gender_trigger = { ARMY_OWNER = root }
-						prowess >= 12
-					}
+					this != root
+					is_adult = yes
+					can_be_combatant_based_on_gender_trigger = { ARMY_OWNER = root }
+					prowess >= 12
 				}
-				ordered_entourage_character = {
-					order_by = prowess
-					check_range_bounds = no
-					limit = {
-						NOT = { this = root }
-						can_be_combatant_based_on_gender_trigger = { ARMY_OWNER = root }
-						prowess >= 12
-					}
-					position = 1
-					save_scope_as = challenger_character
-				}
+				order_by = prowess
+				save_scope_as = challenger_character
 			}
 		}
 	}
@@ -2416,7 +2468,7 @@ travel_events_bp3.40 = { # The Local Champion
 		scope:soldier_character = {
 			remove_character_flag = should_be_topless
 			remove_character_flag = no_hat
-			silent_dissapear_ai_if_not_hired = yes
+			silent_disappearance_ai_effect = yes
 		}
 	}
 }
@@ -2451,6 +2503,7 @@ travel_events_bp3.45 = { # The Wandering Knight
 		}
 		bp3_travel_event_default_trigger = yes
 		location = { has_holding_type = castle_holding }
+		has_government = feudal_government
 	}
 
 	immediate = {
@@ -2625,7 +2678,7 @@ travel_events_bp3.45 = { # The Wandering Knight
 		mp_resume_travel_plan = yes
 		scope:knight_character = {
 			remove_character_flag = no_hat
-			silent_dissapear_ai_if_not_hired = yes
+			silent_disappearance_ai_effect = yes
 		}
 	}
 }
@@ -2685,8 +2738,8 @@ travel_events_bp3.50 = { # A Band of Two
 		remove_short_term_gold = {
 			value = tiny_gold_value
 			divide = 2
-			min = 5
-			max = 50
+			min = 2
+			max = 7
 		}
 		add_piety = minor_piety_gain
 
@@ -2697,7 +2750,7 @@ travel_events_bp3.50 = { # A Band of Two
 
 		if = {
 			limit = {
-				NOT = { location.culture = culture }
+				location.culture != culture
 			}
 			culture = {
 				change_cultural_acceptance = {
@@ -2794,9 +2847,7 @@ travel_events_bp3.50 = { # A Band of Two
 		hidden_effect = {
 			scope:child_character = {
 				random_owned_story = {
-					limit = {
-						story_type = story_cycle_pet_dog
-					}
+					type = story_cycle_pet_dog
 					end_story = yes
 				}
 			}
@@ -2845,7 +2896,7 @@ travel_events_bp3.50 = { # A Band of Two
 	after = {
 		mp_resume_travel_plan = yes
 		scope:child_character = {
-			silent_dissapear_ai_if_not_hired = yes
+			silent_disappearance_ai_effect = yes
 		}
 	}
 }
@@ -3149,7 +3200,7 @@ travel_events_bp3.60 = { # A Small Deal
 		bp3_travel_event_default_trigger = yes
 		location = { 
 			has_holding_type = city_holding 
-			NOT = { this = root.capital_province }
+			this != root.capital_province
 		}
 	}
 
@@ -3232,7 +3283,7 @@ travel_events_bp3.60 = { # A Small Deal
 		mp_resume_travel_plan = yes
 		hidden_effect = {
 			scope:merchant_character = {
-				silent_dissapear_ai_if_not_hired = yes
+				silent_disappearance_ai_effect = yes
 			}
 		}
 	}
@@ -3246,7 +3297,7 @@ travel_events_bp3.65 = { # Purse Pursuit
 
 	theme = travel
 
-	override_background = { reference = alley_day }
+	override_background = market
 
 	cooldown = { years = 10 }
 
@@ -3257,7 +3308,7 @@ travel_events_bp3.65 = { # Purse Pursuit
 
 	right_portrait = {
 		character = scope:thief_character
-		animation = steward
+		animation = betting
 	}
 
 	trigger = {
@@ -3428,7 +3479,7 @@ travel_events_bp3.65 = { # Purse Pursuit
 	after = {
 		mp_resume_travel_plan = yes
 		scope:thief_character = {
-			silent_dissapear_ai_if_not_hired = yes
+			silent_disappearance_ai_effect = yes
 		}
 	}
 }
@@ -3480,7 +3531,7 @@ travel_events_bp3.70 = { # <X> Festival
 		bp3_travel_event_default_trigger = yes
 		location = { 
 			has_holding_type = city_holding 
-			NOT = { culture = root.culture }
+			culture != root.culture
 		}
 		NOT = { exists = var:special_culture }
 		prestige_level >= 4
@@ -3499,6 +3550,7 @@ travel_events_bp3.70 = { # <X> Festival
 				has_same_culture_heritage = root.location.culture
 			}
 		}
+		highest_held_title_tier < tier_empire
 	}
 
 	immediate = {
@@ -3618,7 +3670,9 @@ travel_events_bp3.75 = { # Dreams Brewing
 		}
 		bp3_travel_event_default_trigger = yes
 		NOT = { has_trait = paranoid }
-		location = { has_holding_type = church_holding }
+		location = { 
+			has_holding_type = church_holding
+		}
 		OR = {
 			root.culture = { has_cultural_parameter = allows_brewery }
 			root.faith = {
@@ -3673,7 +3727,7 @@ travel_events_bp3.75 = { # Dreams Brewing
 		if = {
 			limit = {
 				NOT = { exists = scope:barony }
-				faith = { 
+				root.faith = { 
 					OR = {
 						has_doctrine_parameter = allows_brewery 
 						# this = faith:catholic #LotR
@@ -3691,24 +3745,24 @@ travel_events_bp3.75 = { # Dreams Brewing
 				save_scope_as = target_barony
 			}
 		}
-		# if = { #LotR
-		# 	limit = {
-		# 		religion = religion:christianity_religion
-		# 		faith = {
-		# 			OR = {
-		# 				this = faith:catholic
-		# 				has_doctrine_parameter = allows_brewery
-		# 			}
-		# 		}
-		# 	}
-		# 	create_character = {
-		# 		template = monk_brewer_template
-		# 		culture = root.location.culture
-		# 		location = root.location
+		if = { #LotR
+			limit = {
+				# religion = religion:christianity_religion
+				faith = {
+					# OR = {
+					# 	this = faith:catholic
+						has_doctrine_parameter = allows_brewery
+					# }
+				}
+			}
+			create_character = {
+				template = monk_brewer_template
+				culture = root.location.culture
+				location = root.location
 
-		# 		save_scope_as = brewmaster_character
-		# 	}
-		# }
+				save_scope_as = brewmaster_character
+			}
+		}
 		else = {
 			create_character = {
 				template = merchant_template
@@ -3751,7 +3805,7 @@ travel_events_bp3.75 = { # Dreams Brewing
 	option = {
 		name = travel_events_bp3.75.a
 
-		remove_short_term_gold = tiny_gold_value
+		remove_treasury_or_gold = tiny_treasury_or_gold_value
 
 		scope:target_barony.title_province = {
 			add_building = breweries_01
@@ -3835,9 +3889,9 @@ travel_events_bp3.75 = { # Dreams Brewing
 		}
 		if = {
 			limit = {
-				NOT = { scope:brewmaster_character.liege = root }
+				scope:brewmaster_character.liege != root
 			}
-			scope:brewmaster_character ?= { silent_dissapear_ai_if_not_hired = yes } #LotR
+			scope:brewmaster_character = { silent_disappearance_ai_effect = yes }
 		}
 	}
 }
@@ -3948,7 +4002,7 @@ travel_events_bp3.80 = { # A Life of Service
 			OR = {
 				has_doctrine_parameter = take_vows_active
 				AND = {
-					any_faith_holy_order = { count >= 1 }
+					any_faith_holy_order = { }
 					scope:monk_character_temp = {
 						#is_adult = yes
 						is_lotr_adult = yes
@@ -4144,7 +4198,7 @@ travel_events_bp3.85 = { # Brewers of Fame
 		if = {
 			limit = {
 				any_held_title = {
-					tier = tier_county
+					title_tier = county
 					has_variable = brewery_counter_var
 				}
 			}
@@ -4366,7 +4420,7 @@ travel_events_bp3.90 = { # Patron of the <Temple/Mosque/Church>
 
 	after = {
 		mp_resume_travel_plan = yes
-		scope:priest_character ?= { silent_dissapear_ai_if_not_hired = yes }
+		scope:priest_character ?= { silent_disappearance_ai_effect = yes }
 	}
 }
 
@@ -4490,11 +4544,12 @@ travel_events_bp3.95 = { # A Pilgrim's Tale
 
 	after = {
 		mp_resume_travel_plan = yes
-		scope:pilgrim_character = { silent_dissapear_ai_if_not_hired = yes }
+		scope:pilgrim_character = { silent_disappearance_ai_effect = yes }
 	}
 }
 
 scripted_trigger bp3_good_relations_trigger = {
+	is_adult = yes
 	likes_character_trigger = { CHARACTER = root }
 	OR = {
 		is_close_family_of = root
@@ -4913,7 +4968,7 @@ travel_events_bp3.105 = { # A Woman/Man of Unusual Skills
 		current_travel_plan = {
 			random_entourage_character = {
 				limit = {
-					has_lifestyle_trait = yes
+					bp3_lifestyle_trait_trigger = yes
 				}
 				save_scope_as = lifestyle_character
 			}
@@ -5716,6 +5771,6 @@ travel_events_bp3.120 = { # The Wrecked Boat
 
 	after = {
 		mp_resume_travel_plan = yes
-		scope:merchant_character = { silent_dissapear_ai_if_not_hired = yes }
+		scope:merchant_character = { silent_disappearance_ai_effect = yes }
 	}
 }

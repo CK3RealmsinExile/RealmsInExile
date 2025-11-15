@@ -10,6 +10,63 @@
 ### CONTROL VALUES ###
 # These should be enough to change the balance of epidemics 
 
+# Outbreak
+
+outbreak_chance_base_extra_low = 0.0005
+outbreak_chance_base_very_low = 0.001
+outbreak_chance_base_low = 0.01
+outbreak_chance_base_medium = 0.02
+outbreak_chance_base_high = 0.04
+outbreak_chance_base_very_high = 0.12
+
+outbreak_increase_add_low = 0.004
+outbreak_increase_add_medium = 0.008
+outbreak_increase_add_high = 0.016
+outbreak_increase_add_very_high = 0.032
+outbreak_increase_add_extra_high = 0.064
+
+outbreak_decrease_add_low = -0.003
+outbreak_decrease_add_medium = -0.008
+outbreak_decrease_add_high = -0.016
+outbreak_decrease_add_very_high = -0.032
+outbreak_decrease_add_unlikely = -0.064
+
+outbreak_increase_mult_low = 0.1
+outbreak_increase_mult_medium = 0.2
+outbreak_increase_mult_high = 0.4
+outbreak_increase_mult_very_high = 0.8
+
+outbreak_decrease_mult_low = -0.2
+outbreak_decrease_mult_medium = -0.35
+outbreak_decrease_mult_high = -0.6
+outbreak_decrease_mult_very_high = -0.8
+outbreak_decrease_mult_unlikely = -0.995
+
+# Spread
+
+spread_chance_base_low = 3.5
+spread_chance_base_medium = 5
+spread_chance_base_high = 9 
+
+spread_increase_add_low = 2
+spread_increase_add_medium = 3
+spread_increase_add_high = 4
+
+spread_decrease_add_low = -0.5
+spread_decrease_add_medium = -1
+spread_decrease_add_high = -2
+spread_decrease_add_very_high = -3
+
+spread_increase_mult_low = 0.25
+spread_increase_mult_medium = 0.75
+spread_increase_mult_high = 1
+spread_increase_mult_very_high = 1.5
+
+spread_decrease_mult_low = -0.25
+spread_decrease_mult_medium = -0.5
+spread_decrease_mult_high = -0.75
+spread_decrease_mult_unlikely = -0.991
+
 lotr_race_outbreak_chance_epidemics_mult_value = {
 	value = 1
 	# outbreaks chance for elves and wastelands (wasteland holdings)
@@ -17,7 +74,6 @@ lotr_race_outbreak_chance_epidemics_mult_value = {
 		limit = {
 			OR = {
 				has_holding_type = wastelands_holding
-				has_holding_type = ruined_holding
 				county.culture = { is_elf_culture = yes }
 			}
 		}
@@ -85,7 +141,6 @@ lotr_race_spread_chance_epidemics_mult_value = {
 		limit = {
 			OR = {
 				has_holding_type = wastelands_holding
-				has_holding_type = ruined_holding
 				county.culture = { is_elf_culture = yes }
 			}
 		}
@@ -140,7 +195,6 @@ lotr_race_dwarf_spread_chance_epidemics_mult_value = {
 	else_if = {
 		limit = {
 			has_holding_type = wastelands_holding
-			has_holding_type = ruined_holding
 		}
 		multiply = 0.05
 	}
@@ -154,6 +208,335 @@ lotr_race_dwarf_spread_chance_epidemics_mult_value = {
 	}	
 }
 
+lotr_long_winter_spread_chance_epidemics_default_value = {
+
+	if = { #Should only use Apocalyptic, others for redundency
+		limit = {
+			scope:epidemic = {
+				outbreak_intensity = apocalyptic
+			}
+		}
+		add = 0
+	}
+
+	else_if = {
+		limit = {
+			scope:epidemic = {
+				outbreak_intensity = major
+			}
+		}
+		add = spread_increase_add_high
+	}
+	else = { #minor
+		add = 0
+	}
+	
+	#less patchy, add
+	if = {
+		limit = {
+			county = {
+				any_county_province = {
+					any_province_epidemic = { this.epidemic_type = scope:epidemic.epidemic_type }
+				}
+			}
+		}
+		add = 1000
+	}
+	#Terrain
+	if = { 
+		limit = {
+			OR = { # Mountains have more severe winter
+				terrain = desert_mountains
+				terrain = mountains
+				terrain = hills
+				terrain = taiga
+				terrain = arctic
+			}
+		}
+		add = spread_increase_add_high
+	}
+	else_if = { 
+		limit = {
+			OR = { # Opens lands have more severe winters
+				terrain = wetlands
+				terrain = farmlands
+				terrain = plains
+				terrain = steppe
+			}
+		}
+		add = spread_increase_add_medium
+	}
+	else_if = {
+		limit = {
+			OR = { # Forests are often more sheltered than plains, but still northern
+				terrain = forest
+				terrain = deep_forest
+				terrain = mallorn_forest
+			}
+		}
+		add = spread_increase_add_low
+	}
+	else_if = {
+		limit = {
+			OR = { # Hot plains have less severe winters
+				terrain = floodplains
+				terrain = red_desert
+				terrain = volcanic_plains
+				terrain = savanna
+			}
+		}
+		add = spread_decrease_add_medium
+	}
+	else_if = {
+		limit = {
+			OR = { # It shouldn't be snowing
+				terrain = jungle
+				terrain = desert
+				terrain = dune_sea 
+				terrain = drylands
+				terrain = oasis
+				terrain = halls
+			}
+		}
+		add = spread_decrease_add_very_high
+	}
+}
+
+lotr_long_winter_spread_chance_epidemics_mult_value = {
+	value = 1
+	min = 0.001
+
+	#less patchy, mult
+	if = {
+		limit = {
+			county = {
+				any_county_province = {
+					any_province_epidemic = {
+						this.epidemic_type = scope:epidemic.epidemic_type
+					}
+				}
+			}
+		}
+		add = spread_increase_mult_very_high
+	}
+
+	#Intensity mult
+
+	if = {
+		limit = { 
+			scope:epidemic = {
+				outbreak_intensity = apocalyptic
+			}
+		}
+		add = spread_increase_mult_high
+	}
+	else_if = {
+		limit = { 
+			scope:epidemic = {
+				outbreak_intensity = major
+			}
+		}
+		add = spread_increase_mult_medium
+	}
+
+	#Developed places
+	if = {
+		limit = {
+			has_holding = yes
+		}
+		add = spread_decrease_mult_low
+	}
+
+	# TODO - Winter Severity 
+	# Alt - Geographic region
+}
+
+# root = potential province
+# scope:epidemic = the epidemic
+lotr_long_winter_infection_spread_chance_value = {
+	value = 0
+	if = {
+		limit = { 
+			NOT = { has_variable = recovered_from_winter }
+			OR = {
+				geographical_region = special_long_winter_very_heavy_region
+				geographical_region = special_long_winter_heavy_region
+				geographical_region = special_long_winter_medium_region
+				geographical_region = special_long_winter_mild_region
+
+			}
+		}
+		add = 100000
+	}
+	else_if = {
+		limit = { 
+			NOT = { has_variable = recovered_from_winter }
+			geographical_region = special_long_winter_very_mild_region
+		}
+		add = 80
+	}
+}
+# root = infected province
+# scope:epidemic = the epidemic
+lotr_long_winter_infection_duration_value = {
+	value = 0
+	if = {
+		limit = { geographical_region = special_long_winter_very_heavy_region }
+		add = 8
+	}
+	else_if ={
+		limit = { geographical_region = special_long_winter_heavy_region }
+		add = 6
+	}
+	else_if ={
+		limit = { geographical_region = special_long_winter_medium_region }
+		add = 4
+	}
+	else_if ={
+		limit = { geographical_region = special_long_winter_mild_region }
+		add = 2
+	}
+	else_if ={
+		limit = { geographical_region = special_long_winter_very_mild_region }
+		add = 1
+	}
+
+	# #Terrain
+	if = { 
+		limit = {
+			OR = {
+				terrain = taiga
+				terrain = arctic
+			}
+		}
+		add = 3
+	}
+	else_if = { 
+		limit = {
+			OR = {
+				terrain = halls
+				terrain = mountains
+			}
+		}
+		add = 2
+	}
+	else_if = { 
+		limit = {
+			OR = {
+				terrain = hills
+			}
+		}
+		add = 1
+	}
+
+	# if = {
+	# 	limit = {
+	# 		geographical_region = special_long_winter_disease_central_region
+	# 		any_county_in_region = {
+	# 			region = special_long_winter_disease_southern_region
+	# 			any_county_province = { any_province_epidemic = { this = scope:epidemic } }
+	# 			percent <= 0.1
+	# 		}
+	# 	}
+	# 	add = 1
+	# } else_if = {
+	# 	limit = {
+	# 		geographical_region = special_long_winter_disease_northern_region
+	# 		any_county_in_region = {
+	# 			region = special_long_winter_disease_central_region
+	# 			any_county_province = { any_province_epidemic = { this = scope:epidemic } }
+	# 			percent <= 0.1
+	# 		}
+	# 	}
+	# 	add = 1
+	# }
+}
+
+# root = infected province
+# scope:epidemic = the epidemic
+lotr_long_winter_recovery_duration_value = {
+	value = 0
+	if = {
+		limit = { geographical_region = special_long_winter_very_heavy_region }
+		add = 8
+	}
+	else_if ={
+		limit = { geographical_region = special_long_winter_heavy_region }
+		add = 6
+	}
+	else_if ={
+		limit = { geographical_region = special_long_winter_medium_region }
+		add = 4
+	}
+	else_if ={
+		limit = { geographical_region = special_long_winter_mild_region }
+		add = 2
+	}
+	else_if ={
+		limit = { geographical_region = special_long_winter_very_mild_region }
+		add = 1
+	}
+	#Terrain
+	if = { 
+		limit = {
+			OR = { # Mountains have more severe winter
+				terrain = desert_mountains
+				terrain = mountains
+				terrain = hills
+				terrain = taiga
+				terrain = arctic
+			}
+		}
+		add = 3
+	}
+	else_if = { 
+		limit = {
+			OR = { # Opens lands have more severe winters
+				terrain = wetlands
+				terrain = farmlands
+				terrain = plains
+				terrain = steppe
+			}
+		}
+		add = 3
+	}
+	else_if = {
+		limit = {
+			OR = { # Forests are often more sheltered than plains, but still northern
+				terrain = forest
+				terrain = deep_forest
+				terrain = mallorn_forest
+			}
+		}
+		add = 2
+	}
+	else_if = {
+		limit = {
+			OR = { # Hot plains have less severe winters
+				terrain = floodplains
+				terrain = red_desert
+				terrain = volcanic_plains
+				terrain = savanna
+			}
+		}
+		add = 2
+	}
+	else_if = {
+		limit = {
+			OR = { # It shouldn't be snowing
+				terrain = jungle
+				terrain = desert
+				terrain = dune_sea 
+				terrain = drylands
+				terrain = oasis
+				terrain = halls
+			}
+		}
+		add = 1
+	}
+
+} 
+
 #### CHARACTER INFECTION CHANCE ###
 #Monthly chance for an epidemic to infect a character in the province
 
@@ -162,7 +545,7 @@ lotr_character_dwarf_infection_chance_mult_value = {
 	if = {
 		limit = {
 			OR = {
-				is_dwarf = no
+				NOT = { is_dwarf = yes }
 				has_game_rule = default_ai_behavior
 			}
 		}

@@ -100,7 +100,7 @@ PixelShader =
 		// MOD(lotr)
 		float LOTR_GetOverlayAlphaMultiplier(in float3 OverlayColor)
 		{
-			static const float3 DISCARDED_OVERLAY_COLOR     = float3(0.0f, 0.0f, 0.0f);
+			static const float3 DISCARDED_OVERLAY_COLOR     = float3(0.0313f, 0.0313f, 0.0313f);
 			static const float  DISCARDED_OVERLAY_TOLERANCE = 0.01f;
 
 			return step(DISCARDED_OVERLAY_TOLERANCE, distance(OverlayColor.rgb, DISCARDED_OVERLAY_COLOR));

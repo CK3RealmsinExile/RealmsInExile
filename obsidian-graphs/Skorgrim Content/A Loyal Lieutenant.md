@@ -1,0 +1,1 @@
+Grants Skorgrim Gundabad or other mountain holds as a vassal with a strong hook

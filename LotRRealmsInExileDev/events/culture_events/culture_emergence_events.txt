@@ -23,9 +23,10 @@ culture_emergence_events.0001 = {
 				CHARACTER = root
 			}
 		}
-		lotr_is_spirit_culture_trigger = no
+		cannot_be_killed = no
 		####
 		has_dlc_feature = hybridize_culture
+		NOT = { government_has_flag = government_is_herder }
 		NAND = {
 			is_ai = yes
 			has_game_rule = none_hybrid_culture_ai_frequency
@@ -34,13 +35,10 @@ culture_emergence_events.0001 = {
 			is_ai = yes
 			exists = global_var:has_ai_hybrid_event_cooldown
 		}
-		is_independent_ruler = yes
-		exists = capital_county
-		capital_county = {
+		top_liege = this
+		capital_county ?= {
 			holder = root
-			NOT = {
-				culture = root.culture
-			}
+			culture != root.culture
 			culture = {
 				OR = {
 					cultural_acceptance = { target = root.culture value >= hybridization_threshold_flat_number_value }
@@ -182,10 +180,10 @@ culture_emergence_events.0001 = {
 			root.culture = {
 				has_cultural_parameter = easier_to_hybridize
 			}
-			root.culture = culture:adornaen
+			root.culture = culture:adornaen # LOTR
 #			root.culture = culture:norse
 			root.capital_county = {
-				title_province = { geographical_region = special_dunland_t4a_kingdom }
+				title_province = { geographical_region = special_dunland_t4a_kingdom } # LOTR
 #				title_province = { geographical_region = world_europe_west_britannia }
 			}
 		}
@@ -217,6 +215,7 @@ culture_emergence_events.0001 = {
 		}
 		root = {
 			save_scope_as = hybridizer
+			culture = { save_scope_as = hybridizer_old_culture }
 		}
 		capital_county = {
 			save_scope_as = capital_county_scope
@@ -247,7 +246,7 @@ culture_emergence_events.0001 = {
 	option = {
 		name = culture_emergence_events.0001.a
 		
-		# limit = { lotr_is_spirit_culture_trigger = no } # This is throwing an error, so its not even firing
+		# limit = { cannot_be_killed = no } # This is throwing an error, so its not even firing
 
 		flavor = new_hybrid_culture_tt
 		
@@ -303,6 +302,26 @@ culture_emergence_events.0001 = {
 			base = 0
 		}
 	}
+	
+	after = {
+		if = {
+			limit = {
+				exists = domicile.domicile_culture
+				domicile.domicile_culture = scope:hybridizer_old_culture
+				domicile.domicile_culture != scope:hybridizer.culture
+			}
+			domicile = {
+				set_domicile_culture = scope:hybridizer.culture
+			}
+			every_held_title = {
+				limit = {
+					tier = tier_county
+					culture = scope:hybridizer_old_culture
+				}
+				set_county_culture = scope:hybridizer.culture
+			}
+		}
+	}
 }
 
 # Event for your culture to diverge
@@ -320,17 +339,17 @@ culture_emergence_events.0002 = {
 	}
 	
 	trigger = {
-		lotr_is_spirit_culture_trigger = no
+		cannot_be_killed = no #lotr
 		has_dlc_feature = diverge_culture
 		is_ai = no
-		exists = capital_county
-		capital_county = {
+		capital_county ?= {
 			culture = root.culture
 		}
 		primary_title = { # We don't want 'Caliphal' or 'Papal' culture appearing :D
 			any_in_de_jure_hierarchy = {
 				tier = tier_county
 			}
+			tier >= tier_duchy
 		}
 		culture = {
 			culture_age >= culture_divergence_cooldown
@@ -342,7 +361,7 @@ culture_emergence_events.0002 = {
 			}
 		}
 		any_sub_realm_county = {
-			count >= 4
+			count >= 5
 			culture = root.culture
 		}
 		NOT = {
@@ -358,9 +377,7 @@ culture_emergence_events.0002 = {
 				}
 			}
 		}
-		NOT = {
-			faith.religious_head = root
-		}
+		faith.religious_head != root
 	}
 	
 	weight_multiplier = {
@@ -405,7 +422,7 @@ culture_emergence_events.0002 = {
 				has_game_rule = relaxed_divergent_culture_ai_frequency
 			}
 			root = {
-				is_independent_ruler = no
+				top_liege != this
 				top_liege.culture = root.culture
 			}
 		}
@@ -434,6 +451,9 @@ culture_emergence_events.0002 = {
 	immediate = {
 		root = {
 			save_scope_as = diverger
+			culture = {
+				save_scope_as = diverger_old_culture
+			}
 		}
 		capital_county = {
 			save_scope_as = capital_county_scope
@@ -486,11 +506,30 @@ culture_emergence_events.0002 = {
 			base = 0
 		}
 	}
+	
+	after = {
+		if = {
+			limit = {
+				exists = domicile.domicile_culture
+				domicile.domicile_culture = scope:diverger_old_culture
+				domicile.domicile_culture != scope:diverger.culture
+			}
+			domicile = {
+				set_domicile_culture = scope:diverger.culture
+			}
+			every_held_title = {
+				limit = {
+					tier = tier_county
+					culture = scope:diverger_old_culture
+				}
+				set_county_culture = scope:diverger.culture
+			}
+		}
+	}
 }
 
 scripted_trigger valid_county_to_usurp = {
-	exists = holder
-	holder = {
+	holder ?= {
 		is_ai = yes
 		NOR = {
 			liege = {
@@ -507,9 +546,7 @@ scripted_trigger holder_valid_to_diverge = {
 	NOT = {
 		any_sub_realm_county = {
 			culture = scope:culture_check_2
-			NOT = {
-				duchy = scope:duchy_title
-			}
+			duchy != scope:duchy_title
 		}
 	}
 	primary_title = { # We don't want 'Caliphal' or 'Papal' culture appearing :D
@@ -521,9 +558,7 @@ scripted_trigger holder_valid_to_diverge = {
 		limit = {
 			exists = faith.religious_head
 		}
-		NOT = {
-			this = faith.religious_head
-		}
+		this != faith.religious_head
 	}
 	culture = scope:culture_check_2
 	capital_county = {
@@ -534,9 +569,7 @@ scripted_trigger holder_valid_to_diverge = {
 scripted_trigger holder_valid_to_diverge_except_culture = {
 	NOT = {
 		any_sub_realm_county = {
-			NOT = {
-				duchy = scope:duchy_title
-			}
+			duchy != scope:duchy_title
 		}
 	}
 	capital_county = {
@@ -574,9 +607,7 @@ culture_emergence_events.0003 = { # Emergent Divergences, based on adjacency to 
 				OR = {
 					any_neighboring_county = {
 						count >= 2
-						NOT = {
-							culture = scope:culture_check
-						}
+						culture != scope:culture_check
 						culture = {
 							culture_age >= culture_divergence_cooldown
 						}
@@ -629,9 +660,7 @@ culture_emergence_events.0003 = { # Emergent Divergences, based on adjacency to 
 									OR = {
 										any_neighboring_county = {
 											count >= 2
-											NOT = {
-												culture = scope:culture_weight_check
-											}
+											culture != scope:culture_weight_check
 											culture = {
 												culture_age >= culture_divergence_cooldown
 											}
@@ -646,13 +675,11 @@ culture_emergence_events.0003 = { # Emergent Divergences, based on adjacency to 
 										OR = {
 											AND = {
 												highest_held_title_tier <= tier_duchy
-												is_independent_ruler = yes
+												top_liege = this
 											}
 											AND = {
-												is_independent_ruler = no
-												NOT = {
-													culture = top_liege.culture
-												}
+												top_liege != this
+												culture != top_liege.culture
 											}
 										}
 									}
@@ -661,21 +688,21 @@ culture_emergence_events.0003 = { # Emergent Divergences, based on adjacency to 
 						}
 					}
 				}
-#				if = { # Covered by the Norse Culture Split
-#					multiply = 0
-#					limit = {
-#						this = culture:norse
-#						any_culture_county = {
-#							title_province = {
-#								OR = {
-#									geographical_region = custom_danish
-#									geographical_region = custom_norwegian
-#									geographical_region = custom_fennoscandia
-#								}
-#							}
-#						}
-#					}
-#				}
+				# if = { # Covered by the Norse Culture Split
+				# 	multiply = 0
+				# 	limit = {
+				# 		this = culture:norse
+				# 		any_culture_county = {
+				# 			title_province = {
+				# 				OR = {
+				# 					geographical_region = custom_danish
+				# 					geographical_region = custom_norwegian
+				# 					geographical_region = custom_fennoscandia
+				# 				}
+				# 			}
+				# 		}
+				# 	}
+				# }
 
 				if = {
 					limit = {
@@ -709,9 +736,7 @@ culture_emergence_events.0003 = { # Emergent Divergences, based on adjacency to 
 						OR = {
 							any_neighboring_county = {
 								count >= 2
-								NOT = {
-									culture = scope:culture_check_2
-								}
+								culture != scope:culture_check_2
 								culture = {
 									culture_age >= culture_divergence_cooldown
 								}
@@ -744,9 +769,7 @@ culture_emergence_events.0003 = { # Emergent Divergences, based on adjacency to 
 							OR = {
 								any_neighboring_county = {
 									count >= 2
-									NOT = {
-										culture = scope:culture_check_2
-									}
+									culture != scope:culture_check_2
 									culture = {
 										culture_age >= culture_divergence_cooldown
 									}
@@ -756,19 +779,16 @@ culture_emergence_events.0003 = { # Emergent Divergences, based on adjacency to 
 								}
 							}
 							culture = scope:culture_check_2
-							exists = holder
-							holder = {
+							holder ?= {
 								NOT = {
 									any_sub_realm_county = {
-										NOT = {
-											duchy = scope:county_check_weight.duchy
-										}
+										duchy != scope:county_check_weight.duchy
 									}
 								}
 								capital_county = {
 									duchy = scope:county_check_weight.duchy
 								}
-								is_independent_ruler = yes
+								top_liege = this
 								highest_held_title_tier <= tier_duchy
 							}
 							valid_county_to_usurp = yes
@@ -783,9 +803,7 @@ culture_emergence_events.0003 = { # Emergent Divergences, based on adjacency to 
 							OR = {
 								any_neighboring_county = {
 									count >= 2
-									NOT = {
-										culture = scope:culture_check_2
-									}
+									culture != scope:culture_check_2
 									culture = {
 										culture_age >= culture_divergence_cooldown
 									}
@@ -795,19 +813,16 @@ culture_emergence_events.0003 = { # Emergent Divergences, based on adjacency to 
 								}
 							}
 							culture = scope:culture_check_2
-							exists = holder
-							holder = {
+							holder ?= {
 								NOT = {
 									any_sub_realm_county = {
-										NOT = {
-											duchy = scope:county_check_weight.duchy
-										}
+										duchy != scope:county_check_weight.duchy
 									}
 								}
 								capital_county = {
 									duchy = scope:county_check_weight.duchy
 								}
-								is_independent_ruler = yes
+								top_liege = this
 							}
 							valid_county_to_usurp = yes
 						}
@@ -828,23 +843,21 @@ culture_emergence_events.0003 = { # Emergent Divergences, based on adjacency to 
 							scope:culture_check_2 = culture:silvan
 							scope:culture_check_2 = culture:galadhrim
 							scope:culture_check_2 = culture:rohirrim
-#							scope:culture_check_2 = culture:french
-#							scope:culture_check_2 = culture:persian
+							# scope:culture_check_2 = culture:french
+							# scope:culture_check_2 = culture:persian
 						}
-#						game_start_date >= 1066.10.15
+						# game_start_date >= 1066.10.15
 						years_from_game_start < 20
 					}
 					modifier = { # LotR: restricted cultures.
 						factor = 0
 						OR = {
-							scope:culture_check_2 = culture:valar
+							# scope:culture_check_2 = culture:valar
 							scope:culture_check_2 = culture:maiar
 							scope:culture_check_2 = culture:maiar_fallen
 							scope:culture_check_2 = culture:istari
 							scope:culture_check_2 = culture:istari_evil
 							scope:culture_check_2 = culture:ringwraith
-							scope:culture_check_2 = culture:morgulwight
-							scope:culture_check_2 = culture:barrowwight
 							scope:culture_check_2 = culture:wastelands
 						}
 					}
@@ -876,8 +889,7 @@ culture_emergence_events.0003 = { # Emergent Divergences, based on adjacency to 
 						any_in_de_jure_hierarchy = {
 							tier = tier_county
 							culture = scope:culture_check_2
-							exists = holder
-							holder = {
+							holder ?= {
 								holder_valid_to_diverge = yes
 							}
 							valid_county_to_usurp = yes
@@ -887,10 +899,9 @@ culture_emergence_events.0003 = { # Emergent Divergences, based on adjacency to 
 						limit = {
 							tier = tier_county
 							culture = scope:culture_check_2
-							exists = holder
-							holder = {
+							holder ?= {
 								holder_valid_to_diverge = yes
-								is_independent_ruler = yes
+								top_liege = this
 								highest_held_title_tier = tier_duchy
 							}
 							valid_county_to_usurp = yes
@@ -898,10 +909,9 @@ culture_emergence_events.0003 = { # Emergent Divergences, based on adjacency to 
 						alternative_limit = {
 							tier = tier_county
 							culture = scope:culture_check_2
-							exists = holder
-							holder = {
+							holder ?= {
 								holder_valid_to_diverge = yes
-								is_independent_ruler = yes
+								top_liege = this
 								highest_held_title_tier <= tier_duchy
 							}
 							valid_county_to_usurp = yes
@@ -909,18 +919,16 @@ culture_emergence_events.0003 = { # Emergent Divergences, based on adjacency to 
 						alternative_limit = {
 							tier = tier_county
 							culture = scope:culture_check_2
-							exists = holder
-							holder = {
+							holder ?= {
 								holder_valid_to_diverge = yes
-								is_independent_ruler = yes
+								top_liege = this
 							}
 							valid_county_to_usurp = yes
 						}
 						alternative_limit = {
 							tier = tier_county
 							culture = scope:culture_check_2
-							exists = holder
-							holder = {
+							holder ?= {
 								holder_valid_to_diverge = yes
 								highest_held_title_tier = tier_duchy
 							}
@@ -929,8 +937,7 @@ culture_emergence_events.0003 = { # Emergent Divergences, based on adjacency to 
 						alternative_limit = {
 							tier = tier_county
 							culture = scope:culture_check_2
-							exists = holder
-							holder = {
+							holder ?= {
 								holder_valid_to_diverge = yes
 							}
 							valid_county_to_usurp = yes
@@ -945,8 +952,7 @@ culture_emergence_events.0003 = { # Emergent Divergences, based on adjacency to 
 						any_in_de_jure_hierarchy = {
 							tier = tier_county
 							culture = scope:culture_check_2
-							exists = holder
-							holder = {
+							holder ?= {
 								holder_valid_to_diverge_except_culture = yes
 							}
 							valid_county_to_usurp = yes
@@ -956,10 +962,9 @@ culture_emergence_events.0003 = { # Emergent Divergences, based on adjacency to 
 						limit = {
 							tier = tier_county
 							culture = scope:culture_check_2
-							exists = holder
-							holder = {
+							holder ?= {
 								holder_valid_to_diverge_except_culture = yes
-								is_independent_ruler = yes
+								top_liege = this
 								primary_title.tier = tier_duchy
 							}
 							valid_county_to_usurp = yes
@@ -967,10 +972,9 @@ culture_emergence_events.0003 = { # Emergent Divergences, based on adjacency to 
 						alternative_limit = {
 							tier = tier_county
 							culture = scope:culture_check_2
-							exists = holder
-							holder = {
+							holder ?= {
 								holder_valid_to_diverge_except_culture = yes
-								is_independent_ruler = yes
+								top_liege = this
 								highest_held_title_tier <= tier_duchy
 							}
 							valid_county_to_usurp = yes
@@ -978,18 +982,16 @@ culture_emergence_events.0003 = { # Emergent Divergences, based on adjacency to 
 						alternative_limit = {
 							tier = tier_county
 							culture = scope:culture_check_2
-							exists = holder
-							holder = {
+							holder ?= {
 								holder_valid_to_diverge_except_culture = yes
-								is_independent_ruler = yes
+								top_liege = this
 							}
 							valid_county_to_usurp = yes
 						}
 						alternative_limit = {
 							tier = tier_county
 							culture = scope:culture_check_2
-							exists = holder
-							holder = {
+							holder ?= {
 								holder_valid_to_diverge_except_culture = yes
 							}
 							valid_county_to_usurp = yes
@@ -1111,9 +1113,7 @@ scripted_effect try_to_expand_one_more_duchy_effect = {
 						tier = tier_county
 						any_neighboring_county = {
 							count >= 1
-							NOT = {
-								culture = scope:culture_check_2
-							}
+							culture != scope:culture_check_2
 							culture = {
 								culture_age >= culture_divergence_cooldown
 							}
@@ -1141,9 +1141,7 @@ scripted_effect try_to_expand_one_more_duchy_effect = {
 						tier = tier_county
 						any_neighboring_county = {
 							count >= 1
-							NOT = {
-								culture = scope:culture_check_2
-							}
+							culture != scope:culture_check_2
 							culture = {
 								culture_age >= culture_divergence_cooldown
 							}
@@ -1176,8 +1174,7 @@ scripted_effect try_to_expand_one_more_duchy_effect = {
 					}
 					if = {
 						limit = {
-							exists = holder
-							holder = {
+							holder ?= {
 								culture = scope:culture_check_2
 								highest_held_title_tier = tier_barony
 							}
@@ -1230,9 +1227,7 @@ scripted_effect try_to_expand_one_more_duchy_effect = {
 								NOT = {
 									any_sub_realm_county = {
 										culture = scope:culture_check_2
-										NOT = {
-											duchy = scope:extra_duchy_check
-										}
+										duchy != scope:extra_duchy_check
 									}
 								}
 								highest_held_title_tier < tier_empire # Not emperors, though
@@ -1293,8 +1288,7 @@ culture_emergence_events.0004 = {
 				}
 				if = {
 					limit = {
-						exists = holder
-						holder = {
+						holder ?= {
 							culture = scope:culture_check_2
 							highest_held_title_tier = tier_barony
 						}
@@ -1419,3 +1413,97 @@ culture_emergence_events.0004 = {
 		#}
 	}
 }
+
+# Dynamic Romansh
+# culture_emergence_events.0005 = { #LotR
+# 	type = character_event
+# 	title = culture_emergence_events.0005.t
+# 	desc = culture_emergence_events.0005.desc
+# 	theme = travel_tour
+
+# 	left_portrait = {
+# 		character = root
+# 		animation = thinking
+# 		camera = camera_event_very_left
+# 	}
+# 	right_portrait = {
+# 		character = scope:rustic_peasant
+# 		animation = holding_staff
+# 	}
+
+# 	immediate = {
+# 		root = {
+# 			capital_county = {
+# 				save_scope_as = county_scope
+# 			}
+# 			culture = {
+# 				save_scope_as = new_culture_scope
+# 			}
+# 		}
+# 		create_character = {
+# 			location = scope:county_scope.title_province
+# 			template = generic_peasant_character
+# 			culture = scope:county_scope.culture
+# 			faith = scope:county_scope.faith
+# 			gender_female_chance = 50
+# 			save_scope_as = rustic_peasant
+# 		}
+# 	}
+
+# 	option = {
+# 		name = culture_emergence_events.0005.a
+
+# 		# hidden_effect = { #LotR
+# 		# 	root.culture = {
+# 		# 		set_name_list = name_list_romansh
+# 		# 	}
+# 		# }
+
+# 		custom_tooltip = culture_emergence_events.0005.a.tt
+
+# 		# If AI does this I want them to go Romansh every time
+# 		ai_chance = {
+# 			base = 100
+# 		}
+# 	}
+
+# 	option = {
+# 		name = culture_emergence_events.0005.b
+
+# 		# hidden_effect = { #LotR
+# 		# 	root.culture = {
+# 		# 		add_name_list = name_list_romansh
+# 		# 	}
+# 		# }
+
+# 		custom_tooltip = culture_emergence_events.0005.b.tt
+
+# 		ai_chance = {
+# 			base = 0
+# 		}
+# 	}
+
+# 	option = {
+# 		name = culture_emergence_events.0005.c
+
+# 		# nuthin'!
+
+# 		custom_tooltip = culture_emergence_events.0005.c.tt
+
+# 		ai_chance = {
+# 			base = 0
+# 		}
+# 	}
+
+# 	after = {
+# 		if = {
+# 			limit = {
+# 				scope:rustic_peasant = {
+# 					is_alive = yes
+# 					employer != root
+# 				}
+# 			}
+# 			scope:rustic_peasant = { silent_disappearance_effect = yes }
+# 		}
+# 	}
+# }

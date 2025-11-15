@@ -8,6 +8,13 @@
 	restart_on_finish = yes
 	highlight_own_realm = yes
 
+	asset = {
+		icon = "gfx/interface/icons/council_task_types/task_kurultai_raider.dds"
+		background = "gfx/interface/buttons/button_round_bg.dds"
+		frame = "gfx/interface/buttons/button_round_frame.dds"
+		glow = "gfx/particles/halo.dds"
+	}
+
 	is_shown = {
 		scope:councillor_liege = {
 			OR = {
@@ -202,7 +209,7 @@
 		scope:county = {
 			custom_tooltip = {
 				text = county_is_already_orcish
-				is_orc = no
+				NOT = { is_orc = yes }
 			}	
 			custom_tooltip = {
 				text = county_holder_is_not_orcish
@@ -326,6 +333,15 @@
 			else_if = {
 				limit = {
 					scope:councillor_liege = {
+						is_evil_istari = yes
+					}
+					scope:county = { NOT = { is_orc = yes } }
+				}
+				set_county_culture = culture:isengard_urukhai
+			}
+			else_if = {
+				limit = {
+					scope:councillor_liege = {
 						AND = {
 							OR = {
 								is_maiar_fallen = yes
@@ -334,7 +350,7 @@
 							capital_county = title:c_amon_lanc
 						}
 					}
-					scope:county = { is_orc = no }
+					scope:county = { NOT = { is_orc = yes } }
 				}
 				set_county_culture = culture:kazgumhoth
 			}
@@ -343,7 +359,7 @@
 					scope:councillor_liege = {
 						is_maiar_fallen = yes
 					}
-					scope:county = { is_orc = no }
+					scope:county = { NOT = { is_orc = yes } }
 				}
 				set_county_culture = culture:morlughai
 			}
@@ -352,21 +368,16 @@
 					scope:councillor_liege = {
 						is_nazgul = yes
 					}
-					scope:county = { is_orc = no }
+					scope:county = { NOT = { is_orc = yes } }
 				}
 				set_county_culture = culture:ungurhai
 			}
-			else_if = {
-				limit = {
-					scope:councillor_liege = {
-						is_evil_istari = yes
-					}
-					scope:county = { is_orc = no }
-				}
-				set_county_culture = culture:isengard_urukhai
-			}
 			set_county_faith = scope:councillor_liege.faith
 			change_development_level = this.half_county_development_reduction
+			remove_county_modifier = plundered_thorins_tomb_arkenstone_modifier
+			remove_county_modifier = plundered_thorins_tomb_orcrist_modifier
+			remove_county_modifier = thorins_tomb_modifier
+			every_county_province = { barony = { generate_coa = yes } }
 		}
 
 		scope:councillor = {
@@ -519,6 +530,13 @@ task_elven_settlement = {
 	task_progress = task_progress_percentage
 	restart_on_finish = yes
 	highlight_own_realm = yes
+
+	asset = {
+		icon = "gfx/interface/icons/council_task_types/task_elven_settlement.dds"
+		background = "gfx/interface/buttons/button_round_bg.dds"
+		frame = "gfx/interface/buttons/button_round_frame.dds"
+		glow = "gfx/particles/halo.dds"
+	}
 
 	is_shown = {
 		scope:councillor_liege = {
@@ -714,7 +732,13 @@ task_elven_settlement = {
 		}
 		trigger_if = {
 			limit = {
-				scope:councillor_liege = { is_ai = yes }
+				scope:councillor_liege = {
+					is_ai = yes
+					NAND = { # AI Directives override this
+						has_character_flag = vassal_directive_elven_settlement
+						vassal_is_valid_and_follows_directive_trigger = { VASSAL = this LIEGE = liege }
+					}
+				}
 			}
 			NOT = { scope:councillor_liege = { restricted_culture = yes } }
 			OR = {
@@ -734,25 +758,11 @@ task_elven_settlement = {
 				}
 			}
 			OR = {
-				is_independent_ruler = yes
-				scope:councillor_liege.primary_title.tier > tier_county
-				scope:councillor_liege.culture = { # All AI's are motivated to spread new Hybrid/Divergent cultures
-					OR = {
-						is_hybrid_culture = yes
-						is_divergent_culture = yes
-					}
-					any_parent_culture = {
-						this = scope:county.culture
-					}
-				}
-			}
-			OR = {
 				scope:county = {
 					any_neighboring_county = {
 						culture = scope:councillor_liege.culture # The AI only wants to convert counties bordering their own culture
 					}
 				}
-				
 				AND = {
 					NOT = {
 						scope:county = {
@@ -764,6 +774,33 @@ task_elven_settlement = {
 				}
 			}
 		}
+		trigger_else_if = { # But AI Directives should still try to look pretty
+			limit = {
+				scope:councillor_liege = {
+					is_ai = yes
+					has_character_flag = vassal_directive_elven_settlement
+					vassal_is_valid_and_follows_directive_trigger = { VASSAL = this LIEGE = liege }
+				}
+			}
+			trigger_if = {
+				limit = {
+					scope:county = {
+						any_neighboring_county = {
+							culture = scope:councillor_liege.culture
+						}
+					}
+				}
+				scope:county = {
+					any_neighboring_county = {
+						culture = scope:councillor_liege.culture # The AI only wants to convert counties bordering their own culture
+					}
+				}
+			}
+			trigger_else = {
+				always = yes
+			}
+		}
+		trigger_else = {}
 	}
 
 	on_finish_task_county = {

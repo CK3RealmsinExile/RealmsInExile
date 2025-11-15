@@ -84,20 +84,20 @@ balrog_struggle.0002 = {
 	desc = {
 		desc = balrog_struggle.0002.desc
 		triggered_desc = {
-			trigger = { scope:balrog_contender = character:linefinwe11 }
+			trigger = { scope:balrog_contender = character:lineoffeanor2 }
 			desc = balrog_struggle.0002.desc.maglor
 		}
 		triggered_desc = {
 			trigger = {
 				exists = global_var:balrog_slayer_dead
-				NOT = { scope:balrog_contender = character:linefinwe11 }
+				NOT = { scope:balrog_contender = character:lineoffeanor2 }
 			}
 			desc = balrog_struggle.0002.desc.dead
 		}
 		triggered_desc = {
 			trigger = {
 				NOT = { exists = global_var:balrog_slayer_dead }
-				NOT = { scope:balrog_contender = character:linefinwe11 }
+				NOT = { scope:balrog_contender = character:lineoffeanor2 }
 			}
 			desc = balrog_struggle.0002.desc.alive
 		}
@@ -199,6 +199,123 @@ balrog_struggle.0004 = {
 	}
 }
 
+##Maintenance event to spawn new involved rulers if everything in Moria goes extinct.
+#Evil creeps back in after Armageddon/Reduce Development wars reduce too much to wasteland.
+balrog_struggle.0100 = {
+	hidden = yes
+	#cooldown = { months = 6 }
+	trigger = { 
+		struggle:balrog_struggle = {
+			is_struggle_phase = struggle_balrog_phase_dormant
+			any_involved_ruler = {
+				is_landed = yes
+				count <= 4
+			}
+		}
+	}
+
+	immediate = {
+		random_province = {
+			limit = { 
+				#title_province = { terrain = halls }
+				#title_province = { has_holding_type = wastelands_holding  }
+				#title_province = { geographical_region = middleearth_mountains_misty_balrog_struggle_region }
+				terrain = halls
+				has_holding_type = wastelands_holding
+				geographical_region = middleearth_mountains_misty_balrog_struggle_region
+			}
+			save_scope_as = selected_province
+		}
+		random_list = { #Set culture
+			1 = { culture:hallroamer_goblin = { save_scope_as = gob_culture } }
+			1 = { culture:fangstealer_goblin = { save_scope_as = gob_culture } }
+			1 = { culture:gloomdrinker_goblin = { save_scope_as = gob_culture }  }
+			1 = { culture:shroombrewer_goblin = { save_scope_as = gob_culture }  }
+			1 = { culture:bellbreaker_goblin = { save_scope_as = gob_culture }  }
+			1 = { culture:clawscorcher_goblin = { save_scope_as = gob_culture }  }
+			1 = { culture:deepwalker_goblin = { save_scope_as = gob_culture }  }		
+		}
+			random_list = { #Set faith
+				2 = { faith:way_of_strength = { save_scope_as = gob_faith } }
+				3 = { faith:faith_balrog_cult = { save_scope_as = gob_faith } }
+				1 = { faith:faith_deep_cult = { save_scope_as = gob_faith } }
+				1 = { faith:faith_goblin_town = { save_scope_as = gob_faith } }
+			}
+		create_character = {
+			template = new_warrior_character
+			dynasty = generate
+			location = scope:selected_province
+			gender_female_chance = 0
+			save_scope_as = gob_leader
+			culture = scope:gob_culture
+			faith = scope:gob_faith
+			after_creation = {
+				scope:gob_leader = {
+					add_prowess_skill = 5
+					add_gold = 500
+					add_prestige = 1000
+					add_piety = 250
+					add_character_modifier = {
+						modifier = orc_adventurer_slave_influx
+						years = 2
+					}
+				}
+			}
+		}
+		scope:selected_province = {
+			set_holding_type = dwarven_holding
+		}	
+		scope:selected_province.county = {
+			set_county_faith = scope:gob_leader.faith
+			set_county_culture = scope:gob_leader.culture
+			change_development_level = 3
+			generate_coa = yes
+		}
+			
+		create_title_and_vassal_change = {
+			type = conquest
+			save_scope_as = title_change
+			add_claim_on_loss = yes
+		}
+		scope:selected_province.county = {
+			change_title_holder = {
+				holder = scope:gob_leader
+				change = scope:title_change
+				take_baronies = yes
+			}
+		}
+		scope:gob_leader = {
+			becomes_independent = { change = scope:title_change }
+		}
+			
+		resolve_title_and_vassal_change = scope:title_change
+				
+		hidden_effect = {
+			scope:gob_leader = {
+				change_government = tribal_government
+			}
+			scope:selected_province.county = {
+				generate_coa = yes
+			}
+		}
+		trigger_event = {	#loop until we have a solid population again
+			id = balrog_struggle.100
+			days = { 180 360 }
+		}
+		# if = {			
+			# limit = {
+				# any_involved_ruler = {
+					# is_landed = yes
+					# count <= 6
+				# }
+			# }
+			# trigger_event = {	#Moria Repopulation event
+				# id = balrog_struggle.100
+				# days = 5
+			# }
+		# }
+	}	
+}
 ## Decisions Events
 # Serve the Balrog ending decision event - attempt
 balrog_struggle.1001 = {
@@ -386,10 +503,7 @@ balrog_struggle.1011 = {
 		random_list = {
 			# You survive.
 			0 = {
-				modifier = { add = held_counties_value }
-				modifier = { add = friends_with_elves } # Works
-				modifier = { add = prowess_martial_value } # Works
-				modifier = { add = durins_helm_value } # Works
+				modifier = { add = kill_balrog_chance_value }
 				
 				desc = balrog_struggle.1011.tt.success
 				kill_balrog_decision_effect = yes
@@ -412,10 +526,7 @@ balrog_struggle.1011 = {
 			}
 			# You perish.
 			100 = {	
-				modifier = { add = held_counties_value.neg }
-				modifier = { add = friends_with_elves.neg } # Works
-				modifier = { add = prowess_martial_value.neg } # Works
-				modifier = { add = durins_helm_value.neg } # Works
+				modifier = { add = kill_balrog_chance_value.neg }
 				
 				death = { death_reason = death_durins_bane }
 				
@@ -428,6 +539,11 @@ balrog_struggle.1011 = {
 	}
 	option = { # Nevermind, lets not do it
 		name = balrog_struggle.1011.b
+		custom_tooltip = {
+			text = refunded_decision_cost
+			add_prestige = 2000
+			add_prestige_experience = -2000
+		}
 	}
 }
 
@@ -579,7 +695,7 @@ balrog_struggle.2021 = { # Path of Destruction
 				num_buildings > 1
 				terrain = halls
 			}
-			title_province = { geographical_region = middleearth_misty_mountains_balrog_struggle_region }
+			title_province = { geographical_region = middleearth_mountains_misty_balrog_struggle_region }
 		}
 	}
 
@@ -591,7 +707,7 @@ balrog_struggle.2021 = { # Path of Destruction
 					num_buildings > 1
 					terrain = halls
 				}
-				title_province = { geographical_region = middleearth_misty_mountains_balrog_struggle_region }
+				title_province = { geographical_region = middleearth_mountains_misty_balrog_struggle_region }
 			}
 			save_scope_as = selected_county
 		}
@@ -676,7 +792,7 @@ balrog_struggle.2031 = { # A New Life
 					NOT = {
 						any_held_title = {
 							tier = tier_county
-							title_province = { geographical_region = middleearth_misty_mountains_balrog_struggle_region }
+							title_province = { geographical_region = middleearth_mountains_misty_balrog_struggle_region }
 						}
 					}
 					NOT = {
@@ -712,7 +828,7 @@ balrog_struggle.2031 = { # A New Life
 		}
 		else_if = {
 			limit = {
-				is_orc = no
+				NOT = { is_orc = yes }
 			}
 			random_ruler = {
 				limit = {
@@ -721,7 +837,7 @@ balrog_struggle.2031 = { # A New Life
 					NOT = {
 						any_held_title = {
 							tier = tier_county
-							title_province = { geographical_region = middleearth_misty_mountains_balrog_struggle_region }
+							title_province = { geographical_region = middleearth_mountains_misty_balrog_struggle_region }
 						}
 					}
 					NOT = {
@@ -999,7 +1115,7 @@ balrog_struggle.2051 = { # Movement in the Dark
 				num_buildings > 1
 				terrain = halls
 			}
-			title_province = { geographical_region = middleearth_misty_mountains_balrog_struggle_region }
+			title_province = { geographical_region = middleearth_mountains_misty_balrog_struggle_region }
 		}
 	}
 
@@ -1010,7 +1126,7 @@ balrog_struggle.2051 = { # Movement in the Dark
 					num_buildings > 1
 					terrain = halls
 				}
-				title_province = { geographical_region = middleearth_misty_mountains_balrog_struggle_region }
+				title_province = { geographical_region = middleearth_mountains_misty_balrog_struggle_region }
 			}
 			save_scope_as = selected_county
 		}
@@ -1072,7 +1188,7 @@ balrog_struggle.2061 = { # The Shuddering Earth
 				terrain = halls
 			}
 			title_province = { NOT = { has_holding_type = settlement_holding } }
-			title_province = { geographical_region = middleearth_misty_mountains_balrog_struggle_region }
+			title_province = { geographical_region = middleearth_mountains_misty_balrog_struggle_region }
 			NOT = {
 				has_county_modifier = lotr_balrog_stronger_foundations_county_modifier
 			}
@@ -1086,7 +1202,7 @@ balrog_struggle.2061 = { # The Shuddering Earth
 					num_buildings > 1
 					terrain = halls
 				}
-				title_province = { geographical_region = middleearth_misty_mountains_balrog_struggle_region }
+				title_province = { geographical_region = middleearth_mountains_misty_balrog_struggle_region }
 				NOT = {
 					has_county_modifier = lotr_balrog_stronger_foundations_county_modifier
 				}
@@ -1166,7 +1282,7 @@ balrog_struggle.2071 = { # Enigmatic Scrawl
 
 	trigger = { 
 		is_wastelands = no
-		any_held_county = { title_province = { geographical_region = middleearth_misty_mountains_balrog_struggle_region } } 
+		any_held_county = { title_province = { geographical_region = middleearth_mountains_misty_balrog_struggle_region } } 
 		is_dwarf = yes
 		any_courtier_or_guest = { count > 0 }
 	}
@@ -1306,7 +1422,7 @@ balrog_struggle.2081 = { # Refusal to Work
 
 	trigger = { 
 		is_wastelands = no
-		any_held_county = { title_province = { geographical_region = middleearth_misty_mountains_balrog_struggle_region } } 
+		any_held_county = { title_province = { geographical_region = middleearth_mountains_misty_balrog_struggle_region } } 
 		is_dwarf = yes
 	}
 
@@ -1314,7 +1430,7 @@ balrog_struggle.2081 = { # Refusal to Work
 		random_held_county = {
 			limit = { 
 				title_province = { terrain = halls }
-				title_province = { geographical_region = middleearth_misty_mountains_balrog_struggle_region }
+				title_province = { geographical_region = middleearth_mountains_misty_balrog_struggle_region }
 			}
 			save_scope_as = selected_county
 		}
@@ -1400,7 +1516,7 @@ balrog_struggle.2091 = { # Distant Roaring
 				num_buildings > 1
 				terrain = halls
 			}
-			title_province = { geographical_region = middleearth_misty_mountains_balrog_struggle_region }
+			title_province = { geographical_region = middleearth_mountains_misty_balrog_struggle_region }
 		}
 	}
 
@@ -1411,7 +1527,7 @@ balrog_struggle.2091 = { # Distant Roaring
 					num_buildings > 1
 					terrain = halls
 				}
-				title_province = { geographical_region = middleearth_misty_mountains_balrog_struggle_region }
+				title_province = { geographical_region = middleearth_mountains_misty_balrog_struggle_region }
 			}
 			save_scope_as = selected_county
 		}
@@ -1456,7 +1572,7 @@ balrog_struggle.2101 = { # Nightly Disappearances
 
 	trigger = { 
 		is_wastelands = no
-		any_held_county = { title_province = { geographical_region = middleearth_misty_mountains_balrog_struggle_region } } 
+		any_held_county = { title_province = { geographical_region = middleearth_mountains_misty_balrog_struggle_region } } 
 		is_dwarf = yes
 	}
 
@@ -1464,7 +1580,7 @@ balrog_struggle.2101 = { # Nightly Disappearances
 		random_held_county = {
 			limit = { 
 				title_province = {terrain = halls}
-				title_province = { geographical_region = middleearth_misty_mountains_balrog_struggle_region }
+				title_province = { geographical_region = middleearth_mountains_misty_balrog_struggle_region }
 			}
 			save_scope_as = selected_county
 		}
@@ -1541,7 +1657,7 @@ balrog_struggle.2111 = { # Choked Water Supply
 
 	trigger = { 
 		is_wastelands = no
-		any_held_county = { title_province = { geographical_region = middleearth_misty_mountains_balrog_struggle_region } }
+		any_held_county = { title_province = { geographical_region = middleearth_mountains_misty_balrog_struggle_region } }
 		any_courtier_or_guest = { count > 0 }
 	}
 
@@ -1549,7 +1665,7 @@ balrog_struggle.2111 = { # Choked Water Supply
 		random_held_county = {
 			limit = { 
 				title_province = {terrain = halls}
-				title_province = { geographical_region = middleearth_misty_mountains_balrog_struggle_region }
+				title_province = { geographical_region = middleearth_mountains_misty_balrog_struggle_region }
 			}
 			save_scope_as = selected_county
 		}
@@ -1642,7 +1758,7 @@ balrog_struggle.2121 = { # Clandestine Cult
 
 	trigger = { 
 		is_wastelands = no
-		any_held_county = { title_province = { geographical_region = middleearth_misty_mountains_balrog_struggle_region } } 
+		any_held_county = { title_province = { geographical_region = middleearth_mountains_misty_balrog_struggle_region } } 
 		is_dwarf = yes
 		NOT = { faith = faith:faith_balrog_cult }
 		any_courtier_or_guest = { count > 0 }
@@ -1738,7 +1854,7 @@ balrog_struggle.2131 = { # Broken Artifacts
 
 	trigger = { 
 		is_wastelands = no
-		any_held_county = { title_province = { geographical_region = middleearth_misty_mountains_balrog_struggle_region } } 
+		any_held_county = { title_province = { geographical_region = middleearth_mountains_misty_balrog_struggle_region } } 
 		is_dwarf = yes
 		any_courtier_or_guest = { count > 0 }
 	}
@@ -1799,7 +1915,7 @@ balrog_struggle.2141 = { # Shattered Statues
 
 	trigger = { 
 		is_wastelands = no
-		any_held_county = { title_province = { geographical_region = middleearth_misty_mountains_balrog_struggle_region } } 
+		any_held_county = { title_province = { geographical_region = middleearth_mountains_misty_balrog_struggle_region } } 
 		is_dwarf = yes
 	}
 
@@ -1807,7 +1923,7 @@ balrog_struggle.2141 = { # Shattered Statues
 		random_held_county = {
 			limit = { 
 				title_province = {terrain = halls}
-				title_province = { geographical_region = middleearth_misty_mountains_balrog_struggle_region }
+				title_province = { geographical_region = middleearth_mountains_misty_balrog_struggle_region }
 			}
 			save_scope_as = selected_county
 		}
@@ -1863,7 +1979,7 @@ balrog_struggle.2151 = { # Lost Expedition
 
 	trigger = {
 		is_wastelands = no
-		any_held_county = { title_province = { geographical_region = middleearth_misty_mountains_balrog_struggle_region } }
+		any_held_county = { title_province = { geographical_region = middleearth_mountains_misty_balrog_struggle_region } }
 		is_dwarf = yes
 	}
 
@@ -1928,7 +2044,7 @@ balrog_struggle.2161 = { # Eerie Dreams
 
 	trigger = {
 		is_wastelands = no
-		any_held_county = { title_province = { geographical_region = middleearth_misty_mountains_balrog_struggle_region } }
+		any_held_county = { title_province = { geographical_region = middleearth_mountains_misty_balrog_struggle_region } }
 		any_courtier_or_guest = { count > 0 }
 	}
 
@@ -2060,7 +2176,7 @@ balrog_struggle.2171 = { # Conflagration
 				num_buildings > 1
 				terrain = halls
 			}
-			title_province = { geographical_region = middleearth_misty_mountains_balrog_struggle_region }
+			title_province = { geographical_region = middleearth_mountains_misty_balrog_struggle_region }
 		}
 	}
 
@@ -2071,7 +2187,7 @@ balrog_struggle.2171 = { # Conflagration
 					num_buildings > 1
 					terrain = halls
 				}
-				title_province = { geographical_region = middleearth_misty_mountains_balrog_struggle_region }
+				title_province = { geographical_region = middleearth_mountains_misty_balrog_struggle_region }
 			}
 			save_scope_as = selected_county
 		}
@@ -2079,6 +2195,7 @@ balrog_struggle.2171 = { # Conflagration
 			flag = immune_from_balrog_building_anger
 			days = 2
 		}
+		save_scope_as = root_char
 	}
 	
 	option = { # try and save it
@@ -2173,7 +2290,7 @@ balrog_struggle.3001 = { # Lost to Fire and Flame
 				is_landless_ruler = no
 				location = {
 					terrain = halls
-					geographical_region = middleearth_misty_mountains_balrog_struggle_region
+					geographical_region = middleearth_mountains_misty_balrog_struggle_region
 				}
 			}
 			any_close_or_extended_family_member = {
@@ -2182,7 +2299,7 @@ balrog_struggle.3001 = { # Lost to Fire and Flame
 				is_landless_ruler = no
 				location = {
 					terrain = halls
-					geographical_region = middleearth_misty_mountains_balrog_struggle_region
+					geographical_region = middleearth_mountains_misty_balrog_struggle_region
 				}
 			}
 			any_knight = {
@@ -2192,7 +2309,7 @@ balrog_struggle.3001 = { # Lost to Fire and Flame
 				is_landless_ruler = no
 				location = {
 					terrain = halls
-					geographical_region = middleearth_misty_mountains_balrog_struggle_region
+					geographical_region = middleearth_mountains_misty_balrog_struggle_region
 				}
 			}
 		}
@@ -2210,7 +2327,7 @@ balrog_struggle.3001 = { # Lost to Fire and Flame
 						is_landless_ruler = no
 						location = {
 							terrain = halls
-							geographical_region = middleearth_misty_mountains_balrog_struggle_region
+							geographical_region = middleearth_mountains_misty_balrog_struggle_region
 						}
 					}
 				}
@@ -2221,7 +2338,7 @@ balrog_struggle.3001 = { # Lost to Fire and Flame
 						is_landless_ruler = no
 						location = {
 							terrain = halls
-							geographical_region = middleearth_misty_mountains_balrog_struggle_region
+							geographical_region = middleearth_mountains_misty_balrog_struggle_region
 						}
 					}
 					weight = {
@@ -2243,7 +2360,7 @@ balrog_struggle.3001 = { # Lost to Fire and Flame
 						is_landless_ruler = no
 						location = {
 							terrain = halls
-							geographical_region = middleearth_misty_mountains_balrog_struggle_region
+							geographical_region = middleearth_mountains_misty_balrog_struggle_region
 						}
 					}
 				}	
@@ -2254,7 +2371,7 @@ balrog_struggle.3001 = { # Lost to Fire and Flame
 						is_landless_ruler = no
 						location = {
 							terrain = halls
-							geographical_region = middleearth_misty_mountains_balrog_struggle_region
+							geographical_region = middleearth_mountains_misty_balrog_struggle_region
 						}
 					}
 					save_scope_as = victim
@@ -2269,7 +2386,7 @@ balrog_struggle.3001 = { # Lost to Fire and Flame
 						is_landless_ruler = no
 						location = {
 							terrain = halls
-							geographical_region = middleearth_misty_mountains_balrog_struggle_region
+							geographical_region = middleearth_mountains_misty_balrog_struggle_region
 						}
 					}
 				}
@@ -2368,7 +2485,7 @@ balrog_struggle.3011 = { # The Exodus
 					NOT = {
 						any_held_title = {
 							tier = tier_county
-							title_province = { geographical_region = middleearth_misty_mountains_balrog_struggle_region }
+							title_province = { geographical_region = middleearth_mountains_misty_balrog_struggle_region }
 						}
 					}
 					NOT = {
@@ -2404,7 +2521,7 @@ balrog_struggle.3011 = { # The Exodus
 		}
 		else_if = {
 			limit = {
-				is_orc = no
+				NOT = { is_orc = yes }
 			}
 			random_ruler = {
 				limit = {
@@ -2413,7 +2530,7 @@ balrog_struggle.3011 = { # The Exodus
 					NOT = {
 						any_held_title = {
 							tier = tier_county
-							title_province = { geographical_region = middleearth_misty_mountains_balrog_struggle_region }
+							title_province = { geographical_region = middleearth_mountains_misty_balrog_struggle_region }
 						}
 					}
 					NOT = {
@@ -2451,14 +2568,14 @@ balrog_struggle.3011 = { # The Exodus
 			limit = {
 				any_held_title = {
 					tier = tier_county
-					title_province = { geographical_region = middleearth_misty_mountains_balrog_struggle_region }
+					title_province = { geographical_region = middleearth_mountains_misty_balrog_struggle_region }
 					development_level > 1
 				}
 			}
 			random_held_title = {
 				limit = {
 					tier = tier_county
-					title_province = { geographical_region = middleearth_misty_mountains_balrog_struggle_region }
+					title_province = { geographical_region = middleearth_mountains_misty_balrog_struggle_region }
 					development_level > 1
 				}
 				change_development_level = -1
@@ -2630,7 +2747,7 @@ balrog_struggle.3031 = { # Wanton Destruction
 				num_buildings > 1
 				terrain = halls
 			}
-			title_province = { geographical_region = middleearth_misty_mountains_balrog_struggle_region }
+			title_province = { geographical_region = middleearth_mountains_misty_balrog_struggle_region }
 			NOT = {
 				has_county_modifier = lotr_balrog_stronger_foundations_county_modifier
 			}
@@ -2645,7 +2762,7 @@ balrog_struggle.3031 = { # Wanton Destruction
 					num_buildings > 1
 					terrain = halls
 				}
-				title_province = { geographical_region = middleearth_misty_mountains_balrog_struggle_region }
+				title_province = { geographical_region = middleearth_mountains_misty_balrog_struggle_region }
 				NOT = {
 					has_county_modifier = lotr_balrog_stronger_foundations_county_modifier
 				}
@@ -2688,7 +2805,7 @@ balrog_struggle.3041 = { # Preying on the Weak
 			title_province = {
 				has_holding_type = settlement_holding
 			}
-			title_province = { geographical_region = middleearth_misty_mountains_balrog_struggle_region }
+			title_province = { geographical_region = middleearth_mountains_misty_balrog_struggle_region }
 		}
 	}
 
@@ -2699,7 +2816,7 @@ balrog_struggle.3041 = { # Preying on the Weak
 				title_province = {
 					has_holding_type = settlement_holding
 				}
-				title_province = { geographical_region = middleearth_misty_mountains_balrog_struggle_region }
+				title_province = { geographical_region = middleearth_mountains_misty_balrog_struggle_region }
 			}
 			save_scope_as = selected_county
 		}
@@ -2749,7 +2866,7 @@ balrog_struggle.3051 = { # Under Attack
 				terrain = halls
 				has_building_or_higher = dwarven_depths_02
 			}
-			title_province = { geographical_region = middleearth_misty_mountains_balrog_struggle_region }
+			title_province = { geographical_region = middleearth_mountains_misty_balrog_struggle_region }
 		}
 	}
 
@@ -2761,7 +2878,7 @@ balrog_struggle.3051 = { # Under Attack
 					terrain = halls
 					has_building_or_higher = dwarven_depths_02
 				}
-				title_province = { geographical_region = middleearth_misty_mountains_balrog_struggle_region }
+				title_province = { geographical_region = middleearth_mountains_misty_balrog_struggle_region }
 			}
 			save_scope_as = selected_county
 		}
@@ -2807,7 +2924,7 @@ balrog_struggle.3061 = { # Economic Shutdown
 			title_province = {
 				terrain = halls
 			}
-			title_province = { geographical_region = middleearth_misty_mountains_balrog_struggle_region }
+			title_province = { geographical_region = middleearth_mountains_misty_balrog_struggle_region }
 			NOT = {
 				has_county_modifier = lotr_balrog_economic_shutdown_county_modifier
 			}
@@ -2820,7 +2937,7 @@ balrog_struggle.3061 = { # Economic Shutdown
 				title_province = {
 					terrain = halls
 				}
-				title_province = { geographical_region = middleearth_misty_mountains_balrog_struggle_region }
+				title_province = { geographical_region = middleearth_mountains_misty_balrog_struggle_region }
 				NOT = {
 					has_county_modifier = lotr_balrog_economic_shutdown_county_modifier
 				}
@@ -2957,7 +3074,7 @@ balrog_struggle.4001 = { # The End is Nigh!
 			title_province = {
 				terrain = halls
 			}
-			title_province = { geographical_region = middleearth_misty_mountains_balrog_struggle_region }
+			title_province = { geographical_region = middleearth_mountains_misty_balrog_struggle_region }
 		}
 	}
 
@@ -2968,7 +3085,7 @@ balrog_struggle.4001 = { # The End is Nigh!
 				title_province = {
 					terrain = halls
 				}
-				title_province = { geographical_region = middleearth_misty_mountains_balrog_struggle_region }
+				title_province = { geographical_region = middleearth_mountains_misty_balrog_struggle_region }
 			}
 			save_scope_as = selected_county
 		}

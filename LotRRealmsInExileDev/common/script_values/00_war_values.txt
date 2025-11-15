@@ -46,6 +46,14 @@ standard_truce_duration_days = {
 		}
 		add = 900
 	}
+	## Shorter truce if both sides are nomads
+	if = {
+		limit = {
+			scope:attacker = { government_has_flag = government_is_nomadic }
+			scope:defender = { government_has_flag = government_is_nomadic }
+		}
+		subtract = 730
+	}
 	# A truce should at least give a 2-year breather.
 	min = 730
 	# if = { #LotR
@@ -112,7 +120,7 @@ viking_conquest_ai_score_value = {
 				can_use_viking_invasion_cbs_trigger = yes
 			}
 			if = {
-				limit = { NOT = { culture = scope:defender.culture } }
+				limit = { culture != scope:defender.culture }
 				add = 0.5
 				if = {
 					limit = {
@@ -122,10 +130,10 @@ viking_conquest_ai_score_value = {
 				}
 			}
 			if = {
-				limit = { NOT = { faith = scope:defender.faith } }
+				limit = { faith != scope:defender.faith }
 				add = 0.5
 				if = {
-					limit = { NOT = { faith.religion = scope:defender.faith.religion } }
+					limit = { faith.religion != scope:defender.faith.religion }
 					add = 0.5
 				}
 			}
@@ -155,7 +163,7 @@ viking_conquest_ai_score_value = {
 			limit = {
 				scope:attacker = {
 					capital_province = {
-						geographical_region = middleearth_haradwaith
+						geographical_region = middleearth_harad
 #						geographical_region = world_europe_east
 					}
 					NOT = {
@@ -267,14 +275,14 @@ struggle_conquest_ai_score_value = {
 		# Are they a different faith than me?
 		if = {
 			limit = {
-				NOT = { faith = scope:defender.faith }
+				faith != scope:defender.faith
 			}
 			add = 1
 		}
 		# Are they a different culture than me?
 		if = {
 			limit = {
-				NOT = { culture = scope:defender.culture }
+				culture != scope:defender.culture
 			}
 			add = 1
 		}
@@ -639,6 +647,54 @@ artifact_war_ai_score_value = {
 	}
 }
 
+chinese_consolidation_ai_score_value = {
+	value = 1
+	scope:attacker = {
+		# Are they a different faith than me?
+		if = {
+			limit = {
+				NOT = { faith = scope:defender.faith }
+			}
+			add = 1
+		}
+		# Are they a different culture than me?
+		if = {
+			limit = {
+				NOT = { culture = scope:defender.culture }
+			}
+			add = 1
+		}
+		# Do I have a negative relationship with them?
+		if = {
+			limit = { has_relation_nemesis = scope:defender }
+			add = 2
+		}
+		else_if = {
+			limit = {
+				has_any_bad_relationship_with_character_trigger = { CHARACTER = scope:defender }
+			}
+			add = 1
+		}
+		# Do I have a positive relationship with them?
+		if = {
+			limit = {
+				OR = {
+					has_relation_soulmate = scope:defender
+					has_relation_best_friend = scope:defender
+				}
+			}
+			add = -5
+		}
+		else_if = {
+			limit = {
+				has_any_good_relationship_with_character_trigger = { CHARACTER = scope:defender }
+			}
+			add = -1
+		}
+	}
+
+}
+
 #############
 # Vassalization CB
 #############
@@ -704,9 +760,16 @@ siege_base_capture_chance = {
 	if = {
 		limit = {
 			scope:occupant = {
-				exists = dynasty
-				dynasty = { has_dynasty_perk = fp1_pillage_legacy_3 }
+				dynasty ?= { has_dynasty_perk = fp1_pillage_legacy_3 }
 			}
+		}
+		add = 20
+	}
+	# peasants capture and kill more nobles
+	if = {
+		limit = {
+			scope:occupant = { has_variable = rebel_leader_peasants }
+			is_lowborn = no
 		}
 		add = 20
 	}
@@ -722,7 +785,7 @@ siege_base_capture_chance = {
 			# Ransoms or no, the primary participants & their heirs know better than to surrender.
 			character_is_potential_valuable_prisoner = no
 			# And independent characters likewise have no incentive.
-			is_independent_ruler = no
+			top_liege != this
 		}
 		add = 50
 	}
@@ -755,7 +818,7 @@ raid_base_capture_chance = {
 	}
 	# LotR - Nazgûl and Maiar cannot be captured
 	if = {
-		limit = { cannot_be_killed = no }
+		limit = { cannot_be_killed = yes }
 		multiply = 0
 	}
 }
@@ -767,8 +830,7 @@ county_control_loss_value = {
 	if = {
 		limit = {
 			root = {
-				exists = dynasty
-				dynasty = { has_dynasty_perk = fp1_pillage_legacy_5 }
+				dynasty ?= { has_dynasty_perk = fp1_pillage_legacy_5 }
 			}
 		}
 		add = -40
@@ -782,8 +844,7 @@ raid_county_control_loss_value = {
 	if = {
 		limit = {
 			scope:raider ?= {
-				exists = dynasty
-				dynasty = { has_dynasty_perk = fp1_pillage_legacy_5 }
+				dynasty ?= { has_dynasty_perk = fp1_pillage_legacy_5 }
 			}
 		}
 		add = -20
@@ -1000,14 +1061,19 @@ scale_10_war_defender_win = {
 ######################
 # AI Decision Making #
 ######################
-# The two effects below are to be used in combination as "root_military_strength_higher_than_value > target_military_strength_root_value" to check player vs enemy strength
-root_military_strength_higher_than_value = { # Once again joe saves the day or erm, script.
+
+# Compute military strength against *scope:target_military*.
+#
+# This script value and the one after it are to be used in combination as
+# "root_military_strength_higher_than_military_target_value > target_military_strength_root_value"
+# to check player vs enemy strength.
+root_military_strength_higher_than_military_target_value = {
 	value = 0
 	add = max_military_strength # Add num of troops
 	if = {
 		limit = {
 			any_ally = {
-				NOT = { has_truce = scope:target_military } 
+				NOT = { has_truce = scope:target_military }
 			}
 		}
 		every_ally = {
@@ -1023,20 +1089,63 @@ root_military_strength_higher_than_value = { # Once again joe saves the day or e
 	}
 }
 
-target_military_strength_root_value = { # One above calcs player strength (plus multiplier), this one is enemy strenth
+# One above calcs player strength (plus multiplier), this one is enemy strength.
+target_military_strength_root_value = {
 	value = 0
-	add = scope:target_military.max_military_strength # this should be a character, probably a top liege
+	if = {
+		limit = { exists = scope:target_military }
+		add = scope:target_military.max_military_strength # this should be a character, probably a top liege
+		scope:target_military = {
+			every_ally = {
+				limit =	{
+					NOT = { has_truce = root }
+				}
+				add = max_military_strength
+			}
+		}
+	}
+}
+
+# Compute military strength against *scope:recipient*.
+#
+# This script value and the one after it are to be used in combination as
+# "root_military_strength_higher_than_recipient_value  > recipient_strength_root_value"
+# to check player vs enemy strength.
+root_military_strength_higher_than_recipient_value = {
+	value = 0
+	add = max_military_strength # Add num of troops
 	if = {
 		limit = {
 			any_ally = {
-				NOT = { has_truce = root } 
+				NOT = { has_truce = scope:recipient }
 			}
 		}
 		every_ally = {
-			limit =	{
-				NOT = { has_truce = root }
+			limit = {
+				NOT = { has_truce = scope:recipient }
 			}
 			add = max_military_strength
+		}
+	}
+	if = {
+		limit = { exists = var:ai_strength_multiplier }
+		multiply = var:ai_strength_multiplier  # 1.25 == 25% stronger than, remember to potty train your script and have it remove the variable after usage!!
+	}
+}
+
+# One above calcs player strength (plus multiplier), this one is enemy strength.
+recipient_strength_root_value = {
+	value = 0
+	if = {
+		limit = { exists = scope:recipient }
+		add = scope:recipient.max_military_strength # this should be a character, probably a top liege
+		scope:recipient = {
+			every_ally = {
+				limit =	{
+					NOT = { has_truce = root }
+				}
+				add = max_military_strength
+			}
 		}
 	}
 }
@@ -1118,6 +1227,11 @@ war_total_participants_current_strength_value = {
 	every_war_participant = { add = current_military_strength }
 }
 
+war_total_participants_max_strength_value = {
+	value = 0
+	every_war_participant = { add = max_military_strength }
+}
+
 total_war_attacker_strength_value = {
 	value = 0
 	every_character_war = {
@@ -1129,4 +1243,72 @@ total_war_attacker_strength_value = {
 total_war_enemy_strength_value = {
 	value = 0
 	every_war_enemy = { add = current_military_strength }
+}
+
+house_relation_ai_score_value = {
+	value = 0
+	scope:attacker.house ?= {
+		if = {
+			limit = {
+				scope:defender.house ?= {
+					NOT = { this = scope:attacker.house }
+					has_house_relation_with = scope:attacker.house
+				}
+			}
+			every_house_relation = {
+				limit = {
+					any_relation_house = { scope:defender.house ?= this }
+				}
+				if = {
+					limit = { has_house_relation_parameter = less_likely_war_target }
+					add = house_relation_less_likely_war_target_value
+				}
+				else_if = {
+					limit = { has_house_relation_parameter = more_likely_war_target }
+					add = house_relation_more_likely_war_target_value
+				}
+			}
+		}
+	}
+}
+house_relation_less_likely_war_target_value = -150
+house_relation_more_likely_war_target_value = 150
+
+frankokratia_leader_protection_value = {
+	#Added at the end of every ai_score_mult in all CBs for now.
+
+	#Fourth Crusade flavor:
+	#We protect the Frankokratia leader to avoid breaking the story cycle.
+	if = {
+		limit = {
+			scope:defender = {
+				any_owned_story = {
+					type = frankokratia_story
+					NOT = { has_variable = franko_war_complete }
+				}
+			}
+		}
+		multiply = 0
+	}
+}
+
+### Overlord join probability (fixed point between 0 and 1)
+# fallback value if the value is not defined in the selected casus belli.
+# Uses same logic and scope as the same field defined in casus_belli.
+ai_overlord_defensive_power_impact = {
+	value = 0.75
+
+	if = {
+		limit = { primary_title.tier = tier_hegemony }
+		multiply = 0
+	}
+	else_if = {
+		limit = { primary_title.tier = tier_empire }
+		add = -0.1
+	}
+	else_if = {
+		limit = { primary_title.tier = tier_kingdom }
+		add = -0.2
+	}
+	else = {}
 }

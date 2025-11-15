@@ -1,0 +1,1 @@
+If defeated, you are captured and excecuted

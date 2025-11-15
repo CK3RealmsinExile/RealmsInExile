@@ -11,123 +11,204 @@
 	}
 }
 
-lotr_valid_for_contracts = {
-	has_variable = bountig_start_story
+lotr_valid_for_story_contracts = {
+	has_variable = lotr_story_content
 }
 
 lotr_can_recruit_in_laamp = {
-	cannot_be_killed = no
-	is_wastelands = no
-	#Elves won't take on evil characters
-	trigger_if = {
-		limit = { ROOT = { is_elf = yes } }
-		faith_is_evil = no
-	}
+	lotr_race_and_alignment_compatibility_trigger = { CHARACTER = ROOT } #Basic race and alignment triggers
 	#Elves won't join just any camp
-	trigger_else = {
-		is_elf = no
+	trigger_if = {
+		limit = { ROOT = { is_elf = no } }
+		NOT = { is_elf = yes }
 	}
 	
-	#Orcs only take on evil characters or other Orcs
+	#AI Orcs only take on other Orcs
 	trigger_if = {
-		limit = { ROOT = { is_orc = yes } }
-		OR = {
-			faith_is_evil = yes
-			is_orc = yes
-		}
-		#AI Orcs only take on other Orcs
-		trigger_if = {
-			limit = { is_ai = yes }
-			is_orc = yes
-		}
-	}
-	#Only evil characters or Orcs will take on Orcs
-	trigger_if = {
-		limit = { is_orc = yes }
-		ROOT = {
-			OR = {
-				faith_is_evil = yes
+		limit = { 
+			ROOT = { 
 				is_orc = yes
+				is_ai = yes
+			} 
+		}
+		is_orc = yes
+	}
+}
+
+
+lotr_valid_laamp_for_employer = {
+	lotr_race_and_alignment_compatibility_trigger = { CHARACTER = $CHARACTER$ } #Basic racial and alignment compatibility
+	trigger_if = {
+		limit = { faith_is_evil = yes } #Evil employers won't hire any Elves or Maiar, even if they're Evil (they have no way to know your alignment isn't good, at first glance)
+		$CHARACTER$ = {
+			NOR = {
+				is_elf = yes
+				is_maiar = yes
 			}
 		}
-		trigger_if = {
-			limit = { ROOT = { is_ai = yes } }
-			ROOT = { is_orc = yes }
+	}
+	trigger_else = { #Non-Evil employers won't hire any Orcs, Nazgûl or Umaiar. They're spooky
+		$CHARACTER$ = {
+			NOR = {
+				is_orc = yes
+				is_nazgul = yes
+				is_maiar_fallen = yes
+			}
 		}
+	}
+	
+	trigger_if = {
+		limit = { #Good Elves and Maiar employers won't hire any Orcs, Nazgûl or Umaiar. Obviously
+			faith_is_good = yes #Just in case they aren't good, this will disable the limitation
+			OR = {
+				is_elf = yes 
+				is_maiar = yes
+			}
+		}
+		$CHARACTER$ = {
+			NOR = {
+				is_orc = yes
+				is_maiar_fallen = yes
+				is_nazgul = yes
+			}
+		}
+	}
+	trigger_if = {
+		limit = { #Orcs, Nazgûl and Umaiar employers won't hire non-Evil characters.
+			faith_is_evil = yes #Just in case they aren't evil, this will disable the limitation
+			OR = {
+				is_orc = yes
+				is_maiar_fallen = yes
+				is_nazgul = yes
+			}
+		}
+		$CHARACTER$ = { faith_is_evil = yes }
 	}
 }
 
 lotr_location_can_spawn_laamp_courtiers = {
 	NOT = { location.culture = culture:wastelands }
 	trigger_if = {
-		limit = { ROOT = { is_elf = yes } }
+		limit = { 
+			OR = {
+				is_elf = yes
+				cannot_be_killed = yes
+			}
+		}
 		location = {
-			faith_is_evil = no
-			is_orc = no
+			NOT = { opposite_alignment = { TARGET = ROOT } }
 		}
 	}
 	trigger_if = {
-		limit = { ROOT = { is_orc = yes } }
+		limit = { is_orc = yes }
 		location = {
-			OR = {
-				faith_is_evil = yes
-				is_orc = yes
+			same_alignment = { TARGET = ROOT }
+		}
+		trigger_if = {
+			limit = { is_ai = yes }
+			is_orc = yes
+		}
+	}
+	location = {
+		trigger_if = {
+			limit = { is_elf = yes }
+			same_alignment = { TARGET = ROOT }
+			ROOT = { 
+				OR = {
+					is_elf = yes
+					cannot_be_killed = yes
+				}
 			}
 		}
 		trigger_if = {
-			limit = { ROOT = { is_ai = yes } }
-			is_orc = yes
+			limit = { is_orc = yes }
+			same_alignment = { TARGET = ROOT }
+			trigger_if = {
+				limit = { ROOT = { is_ai = yes } }
+				ROOT = { is_orc = yes }
+			}
 		}
 	}
 }
 
-lotr_appropriate_contract_employer_trigger = {
-	is_wastelands = no
-	trigger_if = {
-		limit = { $CHARACTER$ =  { faith_is_evil = yes } }
-		NOR = {
-			is_elf = yes
-			is_maiar = yes
+valid_hostile_laamp_basic_trigger = {
+	custom_description = {
+		text = adventurer_not_famous_or_patron_trigger_tt
+		object = $EMPLOYER$
+		value = $EMPLOYER$.highest_held_title_tier
+		OR = {
+			$EMPLOYER$.highest_held_title_tier <= tier_county
+			$EMPLOYER$.highest_held_title_tier <= $LAAMP$.prestige_level
+			$EMPLOYER$ = { is_contact_of = $LAAMP$ }
+			$LAAMP$ = { lotr_valid_for_story_contracts = yes } #LotR
 		}
 	}
-	trigger_else = {
-		NOR = {
-			is_orc = yes
-			is_undead = yes
-			is_maiar_fallen = yes
+	$EMPLOYER$ = {
+		# Players shouldn't get tangled up in contracts, ever.
+		is_ai = yes
+		# Plus some standard stuff.
+		is_alive = yes
+		trigger_if = { #LotR
+			limit = { $LAAMP$ = { is_alive = yes } NOT = { $LAAMP$ = { has_variable = lotr_story_content } } }
+			is_lotr_adult = yes
+		}
+	}
+	$EMPLOYER$ = { is_incapable = no }
+	# Laamps shouldn't offer contracts in their local area, ever.
+	$EMPLOYER$ = {
+		OR = {
+			employer = $LAAMP$
+			NOT = { government_has_flag = government_is_landless_adventurer }
 		}
 	}
 	
-	trigger_if = {
-		limit = { 
-			$CHARACTER$ = { 
-				OR = {
-					is_elf = yes 
-					is_maiar = yes
-				}
-			}
-		}
-		NOR = {
-			faith_is_evil = yes
-			is_orc = yes
-			is_maiar_fallen = yes
-			is_undead = yes
+	$LAAMP$ = { government_has_flag = government_is_landless_adventurer }
+	$LAAMP$ = {
+		trigger_if = {
+			limit = { is_at_war = no }
+			is_commanding_army = no
 		}
 	}
-	trigger_if = {
-		limit = { 
-			$CHARACTER$ = { 
-				OR = {
-					is_orc = yes
-					is_maiar_fallen = yes
-					is_undead = yes
-				}
-			}
+}
+
+valid_hostile_ranger_laamp_basic_trigger = {
+	custom_description = {
+		text = adventurer_not_famous_or_patron_trigger_tt
+		object = $EMPLOYER$
+		OR = {
+			$EMPLOYER$.highest_held_title_tier <= tier_county
+			$EMPLOYER$.highest_held_title_tier <= {
+				value = $LAAMP$.prestige_level
+				add = 2
+			} 
+			$EMPLOYER$ = { is_contact_of = $LAAMP$ }
+			$LAAMP$ = { lotr_valid_for_story_contracts = yes } #LotR
 		}
-		faith_is_evil = yes
-		NOR = {
-			is_elf = yes
-			is_maiar = yes
+	}
+	$EMPLOYER$ = {
+		# Players shouldn't get tangled up in contracts, ever.
+		is_ai = yes
+		# Plus some standard stuff.
+		is_alive = yes
+		trigger_if = { #LotR
+			limit = { $LAAMP$ = { is_alive = yes } NOT = { $LAAMP$ = { has_variable = lotr_story_content } } }
+			is_lotr_adult = yes
+		}
+	}
+	$EMPLOYER$ = { is_incapable = no }
+	# Laamps shouldn't offer contracts in their local area, ever.
+	$EMPLOYER$ = {
+		OR = {
+			employer = $LAAMP$
+			NOT = { government_has_flag = government_is_landless_adventurer }
+		}
+	}
+	
+	$LAAMP$ = { government_has_flag = government_is_landless_adventurer }
+	$LAAMP$ = {
+		trigger_if = {
+			limit = { is_at_war = no }
+			is_commanding_army = no
 		}
 	}
 }
@@ -136,10 +217,7 @@ lotr_laamp_can_visit_location = {
 	trigger_if = { #Wastelands
 		limit = { 
 			location = {
-				OR = {
-					has_holding_type = wastelands_holding
-					has_holding_type = ruined_holding
-				}
+				has_holding_type = wastelands_holding
 			}
 		}
 		always = no
@@ -211,7 +289,7 @@ lotr_laamp_can_visit_location = {
 			limit = { is_ai = yes }
 			OR = {
 				is_orc = yes
-				is_undead = yes
+				is_nazgul = yes
 				is_maiar_fallen = yes
 			}
 		}
@@ -252,16 +330,18 @@ lotr_laamp_can_visit_location = {
 		limit = { location.culture = { is_elf_culture = yes } }
 		NOT = { faith_is_evil = yes }
 		NOT = { is_orc = yes }
-		OR = {
-			is_elf = yes
-			is_maiar = yes
+		trigger_if = {
+			limit = {
+				NOT = { is_elf = yes }
+				is_maiar = no
+				NAND = {
+					location.county.holder.top_liege = title:k_imladris.holder
+					culture = culture:dunedain_ranger
+				}
+			}
 			custom_tooltip = {
 				text = need_one_racial_patron
 				any_contact = { is_elf = yes } #Have an Elven patron
-			}
-			trigger_if = { #Rangers are welcome in Imladris
-				limit = { location.county.holder.top_liege = title:k_imladris.holder }
-				culture = culture:dunedain_ranger
 			}
 		}
 	}
@@ -287,10 +367,12 @@ lotr_valid_laamp_contract_foe_trigger = {
 		trigger_if = {
 			limit = { exists = scope:task_contract }
 			has_any_good_relationship_with_character_trigger = { CHARACTER = scope:task_contract.task_contract_employer }
-		} trigger_else_if = {
+		} 
+		trigger_else_if = {
 			limit = { exists = scope:employer }
 			has_any_good_relationship_with_character_trigger = { CHARACTER = scope:employer }
-		} trigger_else = { always = no }
+		} 
+		trigger_else = { always = no }
 		# Plus don't include anything connected to a player.
 		save_temporary_scope_as = char_temp
 		any_player = {
@@ -305,10 +387,79 @@ lotr_valid_laamp_contract_foe_trigger = {
 	trigger_if = {
 		limit = { exists = scope:task_contract }
 		in_diplomatic_range = scope:task_contract.task_contract_employer
-	} trigger_else_if = {
+	} 
+	trigger_else_if = {
 		limit = { exists = scope:employer }
 		in_diplomatic_range = scope:employer
-	} trigger_else = { always = no }
+	} 
+	trigger_else = { always = no }
 }
 		
-			
+disable_interaction_for_bountig_trigger = {
+	trigger_if = {
+		limit = { scope:recipient = character:bountigmedlokan }
+		custom_tooltip = {
+			text = owns_a_story_trigger
+			NOT = { scope:recipient = { owns_story_of_type = story_cycle_bountig_medlokan } }
+		}
+	}
+}
+
+ranger_can_swear_fealty_to_trigger = {
+	same_alignment = { TARGET = $CHARACTER$ }
+	trigger_if = { #Orcs can only have Orcish or Undying lieges
+		limit = { is_orc = yes }
+		$CHARACTER$ = {
+			OR = {
+				is_orc = yes
+				cannot_be_killed = yes
+			}
+		}
+	}
+	trigger_else_if = { #Elves can only have Elven or Maiar lieges
+		limit = { 
+			OR = {
+				is_elf = yes 
+				is_maiar = yes
+			}
+		}
+		$CHARACTER$ = {
+			OR = {
+				is_elf = yes
+				is_maiar = yes
+			}
+		}
+	}
+	trigger_else_if = { #Dwarves can't have Elven or Orcish lieges
+		limit = {
+			is_dwarf = yes
+		}
+		$CHARACTER$ = {
+			NOR = { 
+				is_elf = yes
+				is_orc = yes
+			}
+		}
+		trigger_if = {
+			limit = { $CHARACTER$ = { is_dwarf = no } }
+			any_contact = { this = $CHARACTER$ }
+		}
+	}
+	trigger_else = { #Humans, Hobbits and Druedain
+		NOT = { is_orc = yes }
+		trigger_if = {
+			limit = {
+				$CHARACTER$ = { is_elf = yes}
+			}
+			has_relation_friend = $CHARACTER$
+			any_contact = { this = $CHARACTER$ }
+		}
+		trigger_else_if = {
+			limit = {
+				$CHARACTER$ = { is_dwarf = yes}
+			}
+			any_contact = { this = $CHARACTER$ }
+		}
+		trigger_else = {}
+	}
+}

@@ -1,0 +1,1 @@
+Decision for the Witch-King to return the rings to Sauron if Sauron is available

@@ -2,24 +2,50 @@
 	
 	on_setup = {
 		title:k_south_rhovanion = { # Start a war between a Ioriag duke and Rohan
-			random_de_jure_county_holder = {
+			random_de_jure_county = {
 				limit = {
 					is_wastelands = no
 					culture = { has_cultural_pillar = heritage_ioriag }
-					highest_held_title_tier = tier_duchy
+					holder = { highest_held_title_tier > tier_county }
+					holder = { is_at_war = no }
 				}
-				save_scope_as = rhun_attacker
-				set_variable = bountig_start_story
+				title_province = { save_scope_as = bountig_story_location }
+				holder = { save_scope_as = employer }
+			}
+			if = { #Fallback #1
+				limit = { NOT = { exists = scope:bountig_story_location } }
+				random_de_jure_county = {
+					limit = {
+						is_wastelands = no
+						culture = { has_cultural_pillar = heritage_ioriag }
+						holder = { highest_held_title_tier > tier_barony }
+						holder = { is_at_war = no }
+					}
+					title_province = { save_scope_as = bountig_story_location }
+					holder = { save_scope_as = employer }
+				}
+			}
+			if = { #Fallback #2
+				limit = { NOT = { exists = scope:bountig_story_location } }
+				random_de_jure_county = {
+					limit = {
+						is_wastelands = no
+						culture = { has_cultural_pillar = heritage_ioriag }
+						holder = { highest_held_title_tier > tier_county }
+					}
+					title_province = { save_scope_as = bountig_story_location }
+					holder = { save_scope_as = employer }
+				}
 			}
 		}
-		story_owner = { 
+		story_owner = {
 			create_task_contract = {
-				task_contract_type = lotr_story
-				location = scope:rhun_attacker.location
-				task_contract_employer = scope:rhun_attacker.location.county.holder
-				task_contract_tier = 1
+				task_contract_type = lotr_bountig_story_eastern_rhovanion_war
+				task_contract_employer = scope:employer
+				location = scope:bountig_story_location
+				task_contract_tier = 4
+				save_scope_as = created_contract
 			}
-			pan_camera_to_province = scope:rhun_attacker.location
 		}
 	}
 
@@ -28,65 +54,959 @@
 
 	on_owner_death = {
 		end_story = yes
+		story_owner = {
+			if = {
+				limit = { 
+					exists = global_var:bountig_won_final_war
+					has_title = title:e_golden_realm_rhun
+					NOT = { exists = global_var:bountig_found_asterel }
+					NOT = { title:e_golden_realm_rhun = { has_title_Law = aristocratic_elective_succession_law } }
+					NOT = { has_trait = cannot_marry }
+				}
+				title:e_golden_realm_rhun = { add_title_law = aristocratic_elective_succession_law }
+			}
+		}
 	}
 
-	effect_group = { # Check every 3 months if contract is still valid
-		months = 3
+	effect_group = { #Spawn easterling war contract in-case it wasn't accepted around game start
+		days = 7
+		trigger = {
+			NOT = { any_task_contract = { has_task_contract_type = lotr_bountig_story_eastern_rhovanion_war } }
+			NOT = { story_owner = { has_character_flag = taken_easterling_contract } }
+		}
 		triggered_effect = {
-			trigger = {
-				NOT = { story_owner = { has_variable = started_bountig_story } }
-				NOT = { any_task_contract = { has_task_contract_type = lotr_story } }
-			}
 			effect = {
 				title:k_south_rhovanion = { # Start a war between a Ioriag duke and Rohan
-					random_de_jure_county_holder = {
+					random_de_jure_county = {
 						limit = {
 							is_wastelands = no
 							culture = { has_cultural_pillar = heritage_ioriag }
-							highest_held_title_tier = tier_duchy
-							any_sub_realm_county = { any_neighboring_county = { culture = culture:wastelands } }
+							holder = { highest_held_title_tier > tier_county }
+							holder = { is_at_war = no }
 						}
-						save_scope_as = rhun_attacker
-						set_variable = bountig_start_story
+						alternative_limit = {
+							is_wastelands = no
+							culture = { has_cultural_pillar = heritage_ioriag }
+							holder = { highest_held_title_tier > tier_county }
+						}
+						title_province = { save_scope_as = bountig_story_location }
+						holder = { save_scope_as = employer }
+					}
+
+					if = { #Fallback #1
+						limit = { NOT = { exists = scope:bountig_story_location } }
+						random_de_jure_county = {
+							limit = {
+								is_wastelands = no
+								culture = { has_cultural_pillar = heritage_ioriag }
+								holder = { highest_held_title_tier > tier_barony }
+								holder = { is_at_war = no }
+							}
+							title_province = { save_scope_as = bountig_story_location }
+							holder = { save_scope_as = employer }
+						}
+					}
+					if = { #Fallback #2
+						limit = { NOT = { exists = scope:bountig_story_location } }
+						random_de_jure_county = {
+							limit = {
+								is_wastelands = no
+								culture = { has_cultural_pillar = heritage_ioriag }
+								holder = { highest_held_title_tier > tier_county }
+							}
+							title_province = { save_scope_as = bountig_story_location }
+							holder = { save_scope_as = employer }
+						}
 					}
 				}
-				story_owner = { 
+				story_owner = {
 					create_task_contract = {
-						task_contract_type = lotr_story
-						location = scope:rhun_attacker.location
-						task_contract_employer = scope:rhun_attacker.location.county.holder
-						task_contract_tier = 1
-						destination = scope:rhun_attacker.location
-						save_scope_as = task_contract
+						task_contract_type = lotr_bountig_story_eastern_rhovanion_war
+						task_contract_employer = scope:employer
+						location = scope:bountig_story_location
+						task_contract_tier = 4
+						save_scope_as = created_contract
 					}
-					scope:task_contract = { set_variable = bountig_story }
-					trigger_event = bountig_event_chain.0001 # Foce camera to pan to province, in-case of intercepting event
+				}
+			}
+		}
+	}
+
+	effect_group = { # Spawns contracts
+		months = { 8 12 }
+		trigger = {
+			exists = story_owner.domicile
+			story_owner = {
+				OR = {
+					title:c_minas_tirith.empire = { is_de_jure_liege_or_above_target = root.story_owner.domicile.domicile_location.county }
+					title:c_amrun.empire = { is_de_jure_liege_or_above_target = root.story_owner.domicile.domicile_location.county }
+					title:c_umbar.kingdom = { is_de_jure_liege_or_above_target = root.story_owner.domicile.domicile_location.county }
+				}
+			}
+		}
+		triggered_effect = {  #Gondor
+			trigger = {
+				story_owner = {
+					title:c_minas_tirith.empire = { is_de_jure_liege_or_above_target = root.story_owner.domicile.domicile_location.county }
+					# Make sure we don't do this if we've got lots of contracts already spawned here.
+					any_character_task_contract = {
+						count < 6
+						task_contract_location = { "squared_distance(root.story_owner.domicile.domicile_location)" <= squared_distance_medium }
+					}
+				}
+			}
+			effect = {
+				story_owner = {
+					# Spawn some contracts.
+					lotr_special_bountig_contract_passive_spawn_effect = {
+						SPAWN_CONTRACTS = 2
+					}
+					# And fire us again in a bit.
+					trigger_event = {
+						id = bountig_event_chain.4000
+						months = { 8 12 }
+					}
+				}
+			}
+		}
+		triggered_effect = { #Harwan
+			trigger = {
+				story_owner = {
+					title:c_amrun.empire = { is_de_jure_liege_or_above_target = root.story_owner.domicile.domicile_location.county }
+					# Make sure we don't do this if we've got lots of contracts already spawned here.
+					any_character_task_contract = {
+						count < 6
+						task_contract_location = { "squared_distance(root.story_owner.domicile.domicile_location)" <= squared_distance_medium }
+					}
+				}
+			}
+			effect = {
+				story_owner = {
+					# Spawn some contracts.
+					lotr_special_bountig_contract_passive_spawn_effect = {
+						SPAWN_CONTRACTS = 2
+					}
+					# And fire us again in a bit.
+					trigger_event = {
+						id = bountig_event_chain.4000
+						months = { 8 12 }
+					}
+				}
+			}
+		}
+		triggered_effect = { #Umbar
+			trigger = {
+				story_owner = {
+					title:c_umbar.kingdom = { is_de_jure_liege_or_above_target = root.story_owner.domicile.domicile_location.county }
+					# Make sure we don't do this if we've got lots of contracts already spawned here.
+					any_character_task_contract = {
+						count < 6
+						task_contract_location = { "squared_distance(root.story_owner.domicile.domicile_location)" <= squared_distance_medium }
+					}
+				}
+			}
+			effect = {
+				story_owner = {
+					# Spawn some contracts.
+					lotr_special_bountig_contract_passive_spawn_effect = {
+						SPAWN_CONTRACTS = 2
+					}
+					# And fire us again in a bit.
+					trigger_event = {
+						id = bountig_event_chain.4000
+						months = { 8 12 }
+					}
+				}
+			}
+		}
+	}
+
+	effect_group = { # Give appropriate XP 
+		months = 9
+		trigger = {
+			exists = root.story_owner.domicile
+			story_owner = {
+				OR = {
+					title:c_minas_tirith.empire = { is_de_jure_liege_or_above_target = root.story_owner.domicile.domicile_location.county }
+					title:c_amrun.empire = { is_de_jure_liege_or_above_target = root.story_owner.domicile.domicile_location.county }
+					title:c_umbar.kingdom = { is_de_jure_liege_or_above_target = root.story_owner.domicile.domicile_location.county }
+				}
+			}
+		}
+		triggered_effect = {  #Gondor
+			trigger = {
+				story_owner = {
+					NOT = {
+						has_trait_xp = {
+							trait = bountig_story_trait
+							track = gondor_cities
+							value >= 100
+						}
+					}
+					title:c_minas_tirith.empire = { is_de_jure_liege_or_above_target = root.story_owner.domicile.domicile_location.county }
+				}
+			}
+			effect = {
+				story_owner = {
+					save_scope_as = bountig
+					send_interface_message = {
+						type = event_generic_good_with_text
+						title = bountig_gains_xp_in_special_trait.t
+						desc = bountig_gains_xp_in_special_trait.desc
+						add_trait_xp = { trait = bountig_story_trait track = gondor_cities value = 10 }
+					}
+				}
+			}
+		}
+		triggered_effect = { #Harwan
+			trigger = {
+				story_owner = {
+					NOT = {
+						has_trait_xp = {
+							trait = bountig_story_trait
+							track = haruzan_cities
+							value >= 100
+						}
+					}
+					title:c_amrun.empire = { is_de_jure_liege_or_above_target = root.story_owner.domicile.domicile_location.county }
+				}
+			}
+			effect = {
+				story_owner = {
+					save_scope_as = bountig
+					send_interface_message = {
+						type = event_generic_good_with_text
+						title = bountig_gains_xp_in_special_trait.t
+						desc = bountig_gains_xp_in_special_trait.desc
+						add_trait_xp = { trait = bountig_story_trait track = haruzan_cities value = 10 }
+					}
+				}
+			}
+		}
+		triggered_effect = { #Umbar
+			trigger = {
+				story_owner = {
+					NOT = {
+						has_trait_xp = {
+							trait = bountig_story_trait
+							track = umbar_cities
+							value >= 100
+						}
+					}
+					title:c_umbar.kingdom = { is_de_jure_liege_or_above_target = root.story_owner.domicile.domicile_location.county }
+				}
+			}
+			effect = {
+				story_owner = {
+					save_scope_as = bountig
+					send_interface_message = {
+						type = event_generic_good_with_text
+						title = bountig_gains_xp_in_special_trait.t
+						desc = bountig_gains_xp_in_special_trait.desc
+						add_trait_xp = { trait = bountig_story_trait track = umbar_cities value = 10 }
+					}
+				}
+			}
+		}
+	}
+
+	effect_group = { #Generate visit city contract
+		months = { 2 4 }
+		trigger = {
+			exists = story_owner.domicile
+			OR = {
+				title:c_minas_tirith.empire = { is_de_jure_liege_or_above_target = root.story_owner.domicile.domicile_location.county }
+				title:c_amrun.empire = { is_de_jure_liege_or_above_target = root.story_owner.domicile.domicile_location.county }
+				title:c_umbar.kingdom = { is_de_jure_liege_or_above_target = root.story_owner.domicile.domicile_location.county }
+			}
+		}
+		triggered_effect = { #Gondor
+			trigger = {
+				title:c_minas_tirith.empire = { is_de_jure_liege_or_above_target = root.story_owner.domicile.domicile_location.county }
+				NOT = { any_task_contract = { has_task_contract_type = lotr_bountig_story_gondor_cities } }
+				story_owner = { NOT = { has_character_flag = first_time_in_amrun } }
+			}
+			effect = {
+				title:c_minas_tirith.empire = {
+					random_de_jure_county = {
+						limit = {
+							OR = {
+								holder = { is_vassal_or_below_of = title:c_minas_tirith.holder }
+								holder = title:c_minas_tirith.holder
+							}
+							title_province = { has_special_building = yes }
+							title_province = { save_temporary_scope_as = check_title_province }
+							trigger_if = {
+								limit = { root.story_owner = { has_variable_list = gondor_cities_visited } }
+								NOT = {
+									root.story_owner = {
+										is_target_in_variable_list = {
+											name = gondor_cities_visited
+											target = scope:check_title_province
+										}
+									}
+								}
+							}
+							OR = {
+								this = empire.title_capital_county
+								this = kingdom.title_capital_county
+								this = duchy.title_capital_county
+							}
+						}
+						title_province = { save_scope_as = bountig_story_location }
+					}
+				}
+				if = {
+					limit = { exists = scope:bountig_story_location }
+					root.story_owner = {
+						add_to_variable_list = {
+							name = gondor_cities_visited
+							target = scope:bountig_story_location
+						}
+						set_variable = { name = gondor_target_province value = scope:bountig_story_location }
+						create_task_contract = {
+							task_contract_type = lotr_bountig_story_gondor_cities
+							task_contract_employer = scope:bountig_story_location.county.holder
+							location = scope:bountig_story_location
+							task_contract_tier = 4
+							save_scope_as = created_contract
+						}
+						scope:created_contract = { set_variable = { name = gondor_target_province value = scope:bountig_story_location } }
+					}
+				}
+			}
+		}
+		triggered_effect = { #Haruzan
+			trigger = {
+				title:c_amrun.empire = { is_de_jure_liege_or_above_target = root.story_owner.domicile.domicile_location.county }
+				NOT = { any_task_contract = { has_task_contract_type = lotr_bountig_story_harwan_cities } }
+				story_owner = { NOT = { has_character_flag = first_time_in_umbar } }
+			}
+			effect = {
+				title:c_amrun.empire = {
+					random_de_jure_county = {
+						limit = {
+							OR = {
+								holder = { is_vassal_or_below_of = title:c_amrun.holder }
+								holder = title:c_amrun.holder
+							}
+							title_province = { has_special_building = yes }
+							title_province = { save_temporary_scope_as = check_title_province }
+							trigger_if = {
+								limit = { root.story_owner = { has_variable_list = harwan_cities_visited } }
+								NOT = {
+									root.story_owner = {
+										is_target_in_variable_list = {
+											name = harwan_cities_visited
+											target = scope:check_title_province
+										}
+									}
+								}
+							}
+							OR = {
+								this = empire.title_capital_county
+								this = kingdom.title_capital_county
+								this = duchy.title_capital_county
+							}
+						}
+						title_province = { save_scope_as = bountig_story_location }
+					}
+				}
+				if = {
+					limit = { exists = scope:bountig_story_location }
+					root.story_owner = {
+						add_to_variable_list = {
+							name = harwan_cities_visited
+							target = scope:bountig_story_location
+						}
+						set_variable = { name = harwan_target_province value = scope:bountig_story_location }
+						create_task_contract = {
+							task_contract_type = lotr_bountig_story_harwan_cities
+							task_contract_employer = scope:bountig_story_location.county.holder
+							location = scope:bountig_story_location
+							task_contract_tier = 4
+							save_scope_as = created_contract
+						}
+						scope:created_contract = { set_variable = { name = harwan_target_province value = scope:bountig_story_location } }
+					}
+				}
+			}
+		}
+		triggered_effect = { #Umbar
+			trigger = {
+				title:c_umbar.kingdom = { is_de_jure_liege_or_above_target = root.story_owner.domicile.domicile_location.county }
+				NOT = { any_task_contract = { has_task_contract_type = lotr_bountig_story_umbar_cities } }
+			}
+			effect = {
+				title:c_umbar.kingdom = {
+					random_de_jure_county = {
+						limit = {
+							OR = {
+								holder = { is_vassal_or_below_of = title:c_umbar.holder }
+								holder = title:c_umbar.holder
+							}
+							title_province = { has_special_building = yes }
+							title_province = { save_temporary_scope_as = check_title_province }
+							trigger_if = {
+								limit = { root.story_owner = { has_variable_list = umbar_cities_visited } }
+								NOT = {
+									root.story_owner = {
+										is_target_in_variable_list = {
+											name = umbar_cities_visited
+											target = scope:check_title_province
+										}
+									}
+								}
+							}
+						}
+						title_province = { save_scope_as = bountig_story_location }
+					}
+				}
+				if = {
+					limit = { exists = scope:bountig_story_location }
+					root.story_owner = {
+						add_to_variable_list = {
+							name = umbar_cities_visited
+							target = scope:bountig_story_location
+						}
+						set_variable = { name = umbar_target_province value = scope:bountig_story_location }
+						create_task_contract = {
+							task_contract_type = lotr_bountig_story_umbar_cities
+							task_contract_employer = scope:bountig_story_location.county.holder
+							location = scope:bountig_story_location
+							task_contract_tier = 4
+							save_scope_as = created_contract
+						}
+						scope:created_contract = { set_variable = { name = umbar_target_province value = scope:bountig_story_location } }
+					}
+				}
+			}
+		}
+	}
+
+	effect_group = { #Set the appropriate modifiers on the unifier of Khand
+		months = 2
+		trigger = { 
+			OR = {
+				exists = title:k_upper_khand.holder
+				exists = title:k_lower_khand.holder
+				exists = title:e_khand.holder
+			}
+		}
+		triggered_effect = {
+			trigger = { 
+				exists = title:e_khand.holder
+				title:e_khand.holder = { is_human = yes}
+				NOT = { title:e_khand.holder = { has_character_flag = ovatha_ready_for_war } }
+			}
+			effect = {
+				title:e_khand = {
+					every_de_jure_county_holder = {
+						limit = { 
+							OR = {
+								has_character_flag = ovatha_ready_for_war
+								has_character_flag = ovatha_unite_upper_khand
+								has_character_flag = ovatha_unite_empire_khand
+							}
+						}
+						remove_character_flag = ovatha_ready_for_war
+						remove_character_flag = ovatha_unite_upper_khand
+						remove_character_flag = ovatha_unite_upper_khand
+						remove_character_modifier = khand_heir_5_successes
+						remove_character_modifier = lotr_ovatha_VIII_uniting_khand
+					}
+				}
+				title:e_khand.holder = { 
+					if = {
+						limit = { culture != culture:variag }
+						set_culture = culture:variag
+					}
+					if = {
+						limit = { prestige_level < 4 }
+						add_prestige = 8000
+					}
+					add_character_flag = ovatha_ready_for_war 
+					add_character_modifier = { modifier = khand_heir_5_successes years = 10 }
+					add_character_modifier = { modifier = lotr_ovatha_VIII_uniting_khand years = 5 }
+				}
+			}
+		}
+		triggered_effect = {
+			trigger = { 
+				title:k_upper_khand.holder = { is_human = yes}
+				NOT = { exists = title:e_khand.holder }
+				exists = title:k_upper_khand.holder
+			}
+			effect = {
+				title:e_khand = {
+					every_de_jure_county_holder = {
+						limit = { 
+							OR = {
+								has_character_flag = ovatha_ready_for_war
+								has_character_flag = ovatha_unite_upper_khand
+								has_character_flag = ovatha_unite_empire_khand
+							}
+						}
+						remove_character_flag = ovatha_ready_for_war
+						remove_character_flag = ovatha_unite_upper_khand
+						remove_character_modifier = khand_heir_5_successes
+						remove_character_modifier = lotr_ovatha_VIII_uniting_khand
+					}
+				}
+				title:k_upper_khand.holder = { 
+					if = {
+						limit = { culture != culture:variag }
+						set_culture = culture:variag
+					}
+					if = {
+						limit = { prestige_level < 4 }
+						add_prestige = 8000
+					}
+					add_character_flag = ovatha_unite_empire_khand
+					add_character_modifier = { modifier = khand_heir_5_successes years = 10 }
+					add_character_modifier = { modifier = lotr_ovatha_VIII_uniting_khand years = 5 }
+					trigger_event = {
+						id = bountig_event_chain.9998
+						years = 3
+					}
+					trigger_event = {
+						id = bountig_event_chain.9997
+						years = 6
+					}
+				}
+			}
+		}
+		triggered_effect = {
+			trigger = { 
+				exists = title:k_lower_khand.holder
+				title:k_lower_khand.holder = { is_human = yes}
+				NOT = { exists = title:e_khand.holder }
+			}
+			effect = {
+				title:e_khand = {
+					every_de_jure_county_holder = {
+						limit = { 
+							OR = {
+								has_character_flag = ovatha_ready_for_war
+								has_character_flag = ovatha_unite_upper_khand
+								has_character_flag = ovatha_unite_empire_khand
+							}
+						}
+						remove_character_flag = ovatha_ready_for_war
+						remove_character_flag = ovatha_unite_upper_khand
+						remove_character_flag = ovatha_unite_empire_khand
+						remove_character_modifier = khand_heir_5_successes
+						remove_character_modifier = lotr_ovatha_VIII_uniting_khand
+					}
+				}
+				title:k_lower_khand.holder = { 
+					if = {
+						limit = { culture != culture:variag }
+						set_culture = culture:variag
+					}
+					if = {
+						limit = { prestige_level < 4 }
+						add_prestige = 8000
+					}
+					add_character_flag = ovatha_unite_empire_khand
+					add_character_modifier = { modifier = khand_heir_5_successes years = 10 }
+					add_character_modifier = { modifier = lotr_ovatha_VIII_uniting_khand years = 5 }
+					trigger_event = {
+						id = bountig_event_chain.9998
+						years = 3
+					}
+					trigger_event = {
+						id = bountig_event_chain.9996
+						years = 6
+					}
+				}
+			}
+		}
+	}
+
+	effect_group = { #Set the initial contract in Gondor/Harwan/Umbar
+		days = 1
+		triggered_effect = { #Gondor
+			trigger = {
+				exists = root.story_owner.domicile
+				title:c_minas_tirith.empire = { is_de_jure_liege_or_above_target = root.story_owner.domicile.domicile_location.county }
+				story_owner = { NOT = { has_character_flag = first_time_in_gondor } }
+				NOT = { any_task_contract = { has_task_contract_type = lotr_bountig_story_gondor_cities } }
+			}
+			effect = {
+				title:c_minas_tirith.title_province = { save_scope_as = bountig_story_location }
+				root.story_owner = {
+					add_to_variable_list = {
+						name = gondor_cities_visited
+						target = scope:bountig_story_location
+					}
+					add_character_flag = first_time_in_gondor
+					set_variable = { name = gondor_target_province value = scope:bountig_story_location }
+					create_task_contract = {
+						task_contract_type = lotr_bountig_story_gondor_cities
+						task_contract_employer = scope:bountig_story_location.county.holder
+						location = scope:bountig_story_location
+						task_contract_tier = 4
+						save_scope_as = created_contract
+					}
+					scope:created_contract = { set_variable = { name = gondor_target_province value = scope:bountig_story_location } }
+				}
+			}
+		}
+		triggered_effect = { #Set the initial contract in Harwan
+			trigger = {
+				#Generate when Bountig in Gondor
+				exists = root.story_owner.domicile
+				title:c_minas_tirith.empire = { is_de_jure_liege_or_above_target = root.story_owner.domicile.domicile_location.county }
+				story_owner = { NOT = { has_character_flag = first_time_in_amrun } }
+				NOT = { any_task_contract = { has_task_contract_type = lotr_bountig_story_harwan_cities } }
+			}
+			effect = {
+				if = {
+					limit = {
+						AND = {
+							title:c_harnen.title_province = { is_occupied = no }
+							title:c_harnen.title_province = {
+								trigger_if = {
+									limit = { any_army_in_location = { count > 0 } }
+									any_army_in_location = { is_army_in_siege = no }
+								}
+							}
+						}
+					}
+					title:c_harnen.title_province = { save_scope_as = bountig_story_location }
+					root.story_owner = {
+						add_to_variable_list = {
+							name = harwan_cities_visited
+							target = scope:bountig_story_location
+						}
+						set_variable = { name = harwan_target_province value = scope:bountig_story_location }
+						create_task_contract = {
+							task_contract_type = lotr_bountig_story_harwan_cities
+							task_contract_employer = scope:bountig_story_location.county.holder
+							location = scope:bountig_story_location
+							task_contract_tier = 4
+							save_scope_as = created_contract
+						}
+						scope:created_contract = { set_variable = { name = harwan_target_province value = scope:bountig_story_location } }
+					}
+				}
+			}
+		}
+		triggered_effect = {  #Set the initial contract in Umbar
+			trigger = {
+				#Generate when Bountig in Amrun
+				exists = root.story_owner.domicile
+				title:c_amrun.empire = { is_de_jure_liege_or_above_target = root.story_owner.domicile.domicile_location.county }
+				story_owner = { NOT = { has_character_flag = first_time_in_umbar } }
+				NOT = { any_task_contract = { has_task_contract_type = lotr_bountig_story_umbar_cities } }
+			}
+			effect = {
+				if = {
+					limit = {
+						AND = {
+							title:b_minasthalion.title_province = { is_occupied = no }
+							title:b_minasthalion.title_province = {
+								trigger_if = {
+									limit = { any_army_in_location = { count > 0 } }
+									any_army_in_location = { is_army_in_siege = no }
+								}
+							}
+						}
+					}
+					title:b_minasthalion.title_province = { save_scope_as = bountig_story_location }
+					root.story_owner = {
+						add_to_variable_list = {
+							name = umbar_cities_visited
+							target = scope:bountig_story_location
+						}
+						set_variable = { name = umbar_target_province value = scope:bountig_story_location }
+						create_task_contract = {
+							task_contract_type = lotr_bountig_story_umbar_cities
+							task_contract_employer = scope:bountig_story_location.county.holder
+							location = scope:bountig_story_location
+							task_contract_tier = 4
+							save_scope_as = created_contract
+						}
+						scope:created_contract = { set_variable = { name = umbar_target_province value = scope:bountig_story_location } }
+					}
+				}
+				if = {
+					limit = {
+						NOT = { exists = scope:bountig_story_location }
+						AND = {
+							title:b_minas_naro.title_province = { is_occupied = no }
+							title:b_minas_naro.title_province = {
+								trigger_if = {
+									limit = { any_army_in_location = { count > 0 } }
+									any_army_in_location = { is_army_in_siege = no }
+								}
+							}
+						}
+					}
+					title:b_minas_naro.title_province = { save_scope_as = bountig_story_location }
+					root.story_owner = {
+						add_to_variable_list = {
+							name = umbar_cities_visited
+							target = scope:bountig_story_location
+						}
+						set_variable = { name = umbar_target_province value = scope:bountig_story_location }
+						create_task_contract = {
+							task_contract_type = lotr_bountig_story_umbar_cities
+							task_contract_employer = scope:bountig_story_location.county.holder
+							location = scope:bountig_story_location
+							task_contract_tier = 4
+							save_scope_as = created_contract
+						}
+						scope:created_contract = { set_variable = { name = umbar_target_province value = scope:bountig_story_location } }
+					}
+				}
+				if = {
+					limit = {
+						NOT = { exists = scope:bountig_story_location }
+						AND = {
+							title:b_adira.title_province = { is_occupied = no }
+							title:b_adira.title_province = {
+								trigger_if = {
+									limit = { any_army_in_location = { count > 0 } }
+									any_army_in_location = { is_army_in_siege = no }
+								}
+							}
+						}
+					}
+					title:b_adira.title_province = { save_scope_as = bountig_story_location }
+					root.story_owner = {
+						add_to_variable_list = {
+							name = umbar_cities_visited
+							target = scope:bountig_story_location
+						}
+						set_variable = { name = umbar_target_province value = scope:bountig_story_location }
+						create_task_contract = {
+							task_contract_type = lotr_bountig_story_umbar_cities
+							task_contract_employer = scope:bountig_story_location.county.holder
+							location = scope:bountig_story_location
+							task_contract_tier = 4
+							save_scope_as = created_contract
+						}
+						scope:created_contract = { set_variable = { name = umbar_target_province value = scope:bountig_story_location } }
+					}
+				}
+			}
+		}
+	}
+	#AI Management
+	effect_group = {
+		days = 7
+		trigger = { story_owner = { is_ai = yes } }
+		triggered_effect = { 
+			trigger = { any_task_contract = { has_task_contract_type = lotr_bountig_story_eastern_rhovanion_war } }
+			effect = {
+				random_task_contract = {
+					limit = { has_task_contract_type = lotr_bountig_story_eastern_rhovanion_war }
+					save_scope_as = story_contract
+					root.story_owner = { accept_task_contract = scope:story_contract }
+				}
+			}
+		}
+		triggered_effect = { 
+			trigger = { story_owner = { any_task_contract = { has_task_contract_type = lotr_bountig_story_gondor_cities } } }
+			effect = {
+				random_task_contract = {
+					limit = { has_task_contract_type = lotr_bountig_story_gondor_cities }
+					save_scope_as = story_contract
+					root.story_owner = { accept_task_contract = scope:story_contract }
+				}
+			}
+		}
+		triggered_effect = { 
+			trigger = { 
+				story_owner  = { 
+					any_task_contract = { has_task_contract_type = lotr_bountig_story_harwan_cities }
+					has_trait_xp = {
+						trait = bountig_story_trait
+						track = gondor_cities
+						value >= 50
+					}
+				}
+			}
+			effect = {
+				random_task_contract = {
+					limit = { has_task_contract_type = lotr_bountig_story_harwan_cities }
+					save_scope_as = story_contract
+					root.story_owner = { accept_task_contract = scope:story_contract }
+				}
+			}
+		}
+		triggered_effect = { 
+			trigger = { 
+				story_owner  = { 
+					any_task_contract = { has_task_contract_type = lotr_bountig_story_umbar_cities }
+					has_trait_xp = {
+						trait = bountig_story_trait
+						track = haruzan_cities
+						value >= 50
+					}
+				}
+			}
+			effect = {
+				random_task_contract = {
+					limit = { has_task_contract_type = lotr_bountig_story_umbar_cities }
+					save_scope_as = story_contract
+					root.story_owner = { accept_task_contract = scope:story_contract }
+				}
+			}
+		}
+		triggered_effect = {
+			trigger = {
+				NOT = {
+					story_owner = {
+						has_trait_xp = {
+							trait = bountig_story_trait
+							track = gondor_cities
+							value >= 50
+						}
+						has_trait_xp = {
+							trait = bountig_story_trait
+							track = haruzan_cities
+							value >= 50
+						}
+						has_trait_xp = {
+							trait = bountig_story_trait
+							track = umbar_cities
+							value >= 50
+						}
+					}
+				}
+			}
+			effect = {
+				story_owner = {
+					current_travel_plan ?= { abort_travel_plan = yes }
+					if = {
+						limit = {
+							has_trait_xp = {
+								trait = bountig_story_trait
+								track = gondor_cities
+								value < 50
+							}
+						}
+						domicile ?= { move_domicile = title:c_minas_tirith.title_province }
+					} 
+					else_if = {
+						limit = {
+							has_trait_xp = {
+								trait = bountig_story_trait
+								track = haruzan_cities
+								value < 50
+							}
+						}
+						domicile ?= { move_domicile = title:c_amrun.title_province }
+					} 
+					else_if = {
+						limit = {
+							has_trait_xp = {
+								trait = bountig_story_trait
+								track = umbar_cities
+								value < 50
+							}
+						}
+						domicile ?= { move_domicile = title:c_umbar.title_province }
+					}
+				}
+			}
+		}
+		triggered_effect = {
+			trigger = {
+				exists = title:e_khand.holder
+				NOT = {
+					story_owner = { is_landed = yes }
+				}
+			}
+			effect = {
+				story_owner = {
+					current_travel_plan ?= { abort_travel_plan = yes }
+					domicile ?= { move_domicile = title:c_mistrand.title_province }
+				}
+			}
+		}
+		triggered_effect = {
+			trigger = {
+				OR = {
+					story_owner = { any_character_active_contract = { has_task_contract_type = lotr_bountig_story_gondor_cities } }
+					story_owner = { any_character_active_contract = { has_task_contract_type = lotr_bountig_story_harwan_cities } }
+					story_owner = { any_character_active_contract = { has_task_contract_type = lotr_bountig_story_umbar_cities } }
+				}
+			}
+			effect = {
+				story_owner = {
+					random_character_active_contract = { limit = { has_task_contract_type = lotr_bountig_story_gondor_cities } complete_task_contract = success_standard }
+					random_character_active_contract = { limit = { has_task_contract_type = lotr_bountig_story_harwan_cities } complete_task_contract = success_standard }
+					random_character_active_contract = { limit = { has_task_contract_type = lotr_bountig_story_umbar_cities } complete_task_contract = success_standard }
+				}
+			}
+		}
+	}
+	effect_group = {
+		months = 3
+		trigger = { story_owner = { is_ai = yes  } }
+
+		triggered_effect = {
+			trigger = {
+				exists = story_owner.domicile
+				story_owner = {
+					any_character_task_contract = {
+						count < 6
+						task_contract_location = { "squared_distance(root.story_owner.domicile.domicile_location)" <= squared_distance_medium }
+					}
+				}
+			}
+			effect = {
+				story_owner = {
+					# Spawn some contracts.
+					lotr_special_bountig_contract_passive_spawn_effect = {
+						SPAWN_CONTRACTS = 2
+					}
+					# And fire us again in a bit.
+					trigger_event = {
+						id = bountig_event_chain.4000
+						months = { 8 12 }
+					}
 				}
 			}
 		}
 	}
 
 	effect_group = {
-		days = 1
+		years = 1
+		trigger = { 
+			exists = story_owner.domicile
+			story_owner = { is_ai = yes }
+		}
 		triggered_effect = {
 			trigger = {
-				story_owner = { has_variable = bountig_story_visit_minas_tirith }
-				NOT = { any_task_contract = { has_task_contract_type = lotr_story } }
+				story_owner = {
+					age > 24
+					NOT = { title:c_mistrand.empire = { is_de_jure_liege_or_above_target = root.story_owner.domicile.domicile_location.county } }
+					has_trait_xp = {
+						trait = bountig_story_trait
+						track = gondor_cities
+						value >= 50
+					}
+					has_trait_xp = {
+						trait = bountig_story_trait
+						track = haruzan_cities
+						value >= 50
+					}
+					has_trait_xp = {
+						trait = bountig_story_trait
+						track = umbar_cities
+						value >= 50
+					}
+				}
 			}
 			effect = {
-				story_owner = { save_scope_as = bountig }
-				title:c_minas_tirith.title_province = { save_scope_as = main_province }
-				scope:bountig = { 
-					create_task_contract = {
-						task_contract_type = lotr_story
-						location = scope:main_province
-						task_contract_employer = scope:main_province.county.holder
-						task_contract_tier = 1
-						save_scope_as = task_contract
-					}
-					trigger_event = bountig_event_chain.0002 # Foce camera to pan to province, in-case of intercepting event
+				story_owner = {
+					every_character_active_contract = { complete_task_contract = success_standard }
 				}
-				scope:bountig = { remove_variable = bountig_story_visit_minas_tirith }
 			}
 		}
 	}

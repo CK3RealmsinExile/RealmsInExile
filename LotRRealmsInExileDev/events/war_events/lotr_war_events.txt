@@ -7,6 +7,10 @@ lotr_war_events.0001 = {
 	desc = lotr_war_events.0001.desc
 	sender = scope:defender
 
+    trigger = {
+        exists = scope:defender
+    }
+
     immediate = {
         scope:defender = {
             random_character_war = {
@@ -17,7 +21,41 @@ lotr_war_events.0001 = {
     }
 
     option = { # Join the war on the side of the defender
-        name = lotr_war_events.0001.a
+        name = {
+			text = {
+				first_valid = {
+					triggered_desc ={
+						trigger = { scope:interested_war ?= { using_cb = peasant_war } }
+						desc = lotr_war_events.0001.a.peasant_war
+					}
+					triggered_desc ={
+						trigger = {
+                            OR = {
+                                scope:interested_war ?= { using_cb = independence_faction_war }
+                                scope:interested_war ?= { using_cb = nation_fracturing_faction_war }
+                            }
+                        }
+						desc = lotr_war_events.0001.a.independence_faction_war
+					}
+					triggered_desc ={
+						trigger = {
+                            OR = {
+                                scope:interested_war ?= { using_cb = liberty_faction_war }
+                                scope:interested_war ?= { using_cb = depose_war }
+                                scope:interested_war ?= { using_cb = refused_liege_demand_war }
+                            }
+                        }
+						desc = lotr_war_events.0001.a.liberty_faction_war
+					}
+					triggered_desc ={
+						trigger = { scope:interested_war ?= { using_cb = populist_war } }
+						desc = lotr_war_events.0001.a.populist_war
+					}
+                    desc = lotr_war_events.0001.a
+                }
+            }
+        }
+        trigger = { exists = scope:interested_war }
 
         scope:interested_war = {
 			hidden_effect = { set_called_to = root }
@@ -61,6 +99,7 @@ lotr_war_events.0001 = {
                     is_allied_to = scope:attacker
                     is_defensive_allied_to = { RECIPIENT = scope:attacker }
                     scope:interested_war = { any_war_attacker = { this = root } }
+                    is_tributary_of = scope:attacker
                 }
                 factor = 0
             }
@@ -78,12 +117,31 @@ lotr_war_events.0001 = {
                 }
                 factor = 0.5
             }
+
+            modifier = { # Defender is my rival?
+                scope:defender ?= { has_relation_rival = root }
+                add = -20
+            }
+
+            modifier = { # Attacker is my rival?
+                scope:attacker ?= { has_relation_rival = root }
+                add = 20
+            }
+
+			opinion_modifier = { # -25 to +25 based on Opinion
+				opinion_target = scope:defender
+				multiplier = 0.25
+			}
 		}
     }
 
     option = { # Don't join the war of the defender
         name = lotr_war_events.0001.b
-
+		reverse_add_opinion = {
+			target = scope:defender
+			modifier = upset_opinion
+			opinion = -20
+		}
 		ai_chance = { 
             base = 10
         }
@@ -179,7 +237,7 @@ scripted_effect spawn_valinorian_army_effect = {
                 target_title = title:d_nykkea
                 target_title = title:d_narik_zadan
                 target_title = title:d_khasmanakor
-                target_title = title:d_zinrenzil
+                target_title = title:d_zimrenzil
                 target_title = title:d_khibilkadar
                 target_title = title:d_dhajran
                 # Gondor
@@ -241,7 +299,7 @@ scripted_effect spawn_valinorian_army_effect = {
                     this = $TARGET_COUNTY$
                 }
                 any_county_in_region = {
-                    region = middleearth_blue_mountains
+                    region = middleearth_mountains_blue
                     this = $TARGET_COUNTY$
                 }
             }
@@ -282,7 +340,7 @@ scripted_effect spawn_valinorian_army_effect = {
                 target_title = title:d_ethir_gwathlo
                 target_title = title:d_eryn_vorn
                 target_title = title:d_girithlin
-                target_title = title:d_tyrn_hodhath
+                target_title = title:d_tyrn_gorthad
                 target_title = title:d_dyr_maenason
                 target_title = title:d_faerdor
                 ## Rhuduar
@@ -406,19 +464,19 @@ lotr_war_events.0004 = {
                     holder = { is_vassal_or_below_of = character:lineofsauron } # Sauron
                     holder = { is_vassal_or_below_of = title:k_wastelands.holder } # Tom Bombadil
                     trigger_if = { # Tributary
-                        limit = { holder = { has_variable = my_suzerain } }
-                        holder.var:my_suzerain = character:lineofsauron
+                        limit = { holder = { is_tributary = yes } }
+                        holder.suzerain = character:lineofsauron
                     } 
                     trigger_if = { # My suzerain's suzerain is Sauron
                         limit = {
-                            holder = { has_variable = my_suzerain }
-                            holder.var:my_suzerain = { has_variable = my_suzerain }
+                            holder = { is_tributary = yes  }
+                            holder.suzerain = { is_tributary = yes }
                         }
-                        holder.var:my_suzerain.var:my_suzerain = character:lineofsauron
+                        holder.suzerain.suzerain = character:lineofsauron
                     }
                     trigger_if = { # Tributary
-                        limit = { holder.top_liege = { has_variable = my_suzerain } }
-                        holder.top_liege.var:my_suzerain = character:lineofsauron
+                        limit = { holder.top_liege = { is_tributary = yes } }
+                        holder.top_liege.suzerain = character:lineofsauron
                     } 
                 }
                 percent >= 0.70
@@ -434,19 +492,19 @@ lotr_war_events.0004 = {
                     holder = { is_vassal_or_below_of = character:lineofsauron } # Sauron
                     holder = { is_vassal_or_below_of = title:k_wastelands.holder } # Tom Bombadil
                     trigger_if = { # Tributary
-                        limit = { holder = { has_variable = my_suzerain } }
-                        holder.var:my_suzerain = character:lineofsauron
+                        limit = { holder = { is_tributary = yes } }
+                        holder.suzerain = character:lineofsauron
                     } 
                     trigger_if = { # My suzerain's suzerain is Sauron
                         limit = {
-                            holder = { has_variable = my_suzerain }
-                            holder.var:my_suzerain = { has_variable = my_suzerain }
+                            holder = { is_tributary = yes }
+                            holder.suzerain = { is_tributary = yes }
                         }
-                        holder.var:my_suzerain.var:my_suzerain = character:lineofsauron
+                        holder.suzerain.suzerain = character:lineofsauron
                     }
                     trigger_if = { # Tributary
-                        limit = { holder.top_liege = { has_variable = my_suzerain } }
-                        holder.top_liege.var:my_suzerain = character:lineofsauron
+                        limit = { holder.top_liege = { is_tributary = yes } }
+                        holder.top_liege.suzerain = character:lineofsauron
                     } 
                 }
                 percent >= 0.50
@@ -462,19 +520,19 @@ lotr_war_events.0004 = {
                     holder = { is_vassal_or_below_of = character:lineofsauron } # Sauron
                     holder = { is_vassal_or_below_of = title:k_wastelands.holder } # Tom Bombadil
                     trigger_if = { # Tributary
-                        limit = { holder = { has_variable = my_suzerain } }
-                        holder.var:my_suzerain = character:lineofsauron
+                        limit = { holder = { is_tributary = yes } }
+                        holder.suzerain = character:lineofsauron
                     } 
                     trigger_if = { # My suzerain's suzerain is Sauron
                         limit = {
-                            holder = { has_variable = my_suzerain }
-                            holder.var:my_suzerain = { has_variable = my_suzerain }
+                            holder = { is_tributary = yes }
+                            holder.suzerain = { is_tributary = yes }
                         }
-                        holder.var:my_suzerain.var:my_suzerain = character:lineofsauron
+                        holder.suzerain.suzerain = character:lineofsauron
                     }
                     trigger_if = { # Tributary
-                        limit = { holder.top_liege = { has_variable = my_suzerain } }
-                        holder.top_liege.var:my_suzerain = character:lineofsauron
+                        limit = { holder.top_liege = { is_tributary = yes } }
+                        holder.top_liege.suzerain = character:lineofsauron
                     } 
                 }
                 percent >= 0.90
@@ -495,8 +553,7 @@ lotr_war_events.0004 = {
                     OR = {
                         holder = character:lineofsauron
                         holder = { is_vassal_or_below_of = character:lineofsauron }
-                        is_tributary_of = { SUZERAIN = character:lineofsauron TRIBUTARY = holder }
-                        is_tributary_of = { SUZERAIN = character:lineofsauron TRIBUTARY = holder.top_liege }
+                        holder = { is_tributary_of = character:lineofsauron }
                     }
                 }
                 order_by = {
@@ -531,8 +588,7 @@ lotr_war_events.0004 = {
                     OR = {
                         this = character:lineofsauron
                         this = { is_vassal_or_below_of = character:lineofsauron }
-                        is_tributary_of = { SUZERAIN = character:lineofsauron TRIBUTARY = this }
-                        is_tributary_of = { SUZERAIN = character:lineofsauron TRIBUTARY = holder.top_liege }
+                        is_tributary_of = character:lineofsauron
                     }
                 }
             }
@@ -545,8 +601,7 @@ lotr_war_events.0004 = {
                     OR = {
                         this = character:lineofsauron
                         this = { is_vassal_or_below_of = character:lineofsauron }
-                        is_tributary_of = { SUZERAIN = character:lineofsauron TRIBUTARY = this }
-                        is_tributary_of = { SUZERAIN = character:lineofsauron TRIBUTARY = holder.top_liege }
+                        is_tributary_of = character:lineofsauron
                     }
                 }
             }
@@ -562,8 +617,7 @@ lotr_war_events.0004 = {
                         OR = {
                             holder = character:lineofsauron
                             holder = { is_vassal_or_below_of = character:lineofsauron }
-                            is_tributary_of = { SUZERAIN = character:lineofsauron TRIBUTARY = holder }
-                            is_tributary_of = { SUZERAIN = character:lineofsauron TRIBUTARY = holder.top_liege }
+                            holder = { is_tributary_of = character:lineofsauron }
                         }
                     }
                     order_by = {
@@ -589,8 +643,7 @@ lotr_war_events.0004 = {
                         OR = {
                             holder = character:lineofsauron
                             holder = { is_vassal_or_below_of = character:lineofsauron }
-                            is_tributary_of = { SUZERAIN = character:lineofsauron TRIBUTARY = holder }
-                            is_tributary_of = { SUZERAIN = character:lineofsauron TRIBUTARY = holder.top_liege }
+                            holder = { is_tributary_of = character:lineofsauron }
                         }
                     }
                     order_by = {
@@ -613,7 +666,8 @@ lotr_war_events.0004 = {
                 lotr_sunset_invasion_adventurer_effect = { REASON = flag:voluntary }
             }
             
-        } else = {
+        } 
+        else = {
             scope:landing_county = {
                 set_county_faith = faith:faith_eldar
                 set_county_culture = culture:noldor
@@ -696,8 +750,8 @@ lotr_war_events.0004 = {
  		}
 
         if = { #Ingwion
-            limit = { title:c_tol_eressea.holder = character:lineofingwe5 } 
-            character:lineofingwe5 = {
+            limit = { title:c_tol_eressea.holder = character:lineofingwe4 } 
+            character:lineofingwe4 = {
                 save_scope_as = ingwion
                 set_variable = override_valinor_trigger
                 remove_trait = sailed_west
@@ -709,7 +763,7 @@ lotr_war_events.0004 = {
             }
             title:c_tol_eressea = {
                 change_title_holder = {
-                    holder = character:lineofingwe6
+                    holder = character:lineofingwe5
                     change = scope:change
                 }
             }
@@ -806,8 +860,8 @@ lotr_war_events.0004 = {
         }
 
         if = { #Finrod Felagund
-            limit = { character:linefinwe33 = { is_alive = yes } } 
-            character:linefinwe33 = {
+            limit = { character:lineoffinarfin1 = { is_alive = yes } } 
+            character:lineoffinarfin1 = {
                 save_scope_as = finrod_felagund
                 set_variable = override_valinor_trigger
                 remove_trait = sailed_west
@@ -843,7 +897,7 @@ lotr_war_events.0004 = {
         }
 
         if = { #Finrod Felagund
-            limit = { character:linefinwe33 = { is_alive = yes } } 
+            limit = { character:lineoffinarfin1 = { is_alive = yes } } 
             character:lineofolwe3 = {
                 save_scope_as = earwe
                 set_variable = override_valinor_trigger

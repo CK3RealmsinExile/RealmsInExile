@@ -14,15 +14,20 @@
 
 	is_shown = {
 		scope:actor = {
-			culture = {
-				has_cultural_parameter = can_use_sparring_duel
+			OR = {
+				culture = {
+					has_cultural_parameter = can_use_sparring_duel
+				}
+				top_participant_group:dynastic_cycle ?= {
+					participant_group_type = expansion_movement
+				}				
 			}
 		}
 		scope:recipient = {
 			is_knight_of = scope:actor
 		}
 		# Can't duel yourself.
-		NOT = { scope:actor = scope:recipient }
+		scope:actor != scope:recipient
 	}
 
 	is_valid_showing_failures_only = {
@@ -141,7 +146,6 @@
 		is_imprisoned = no
 		can_start_single_combat_trigger = yes
 		number_of_knights > 0
-		primary_title.tier > tier_barony
 	}
 	
 	ai_target_quick_trigger = {
@@ -156,7 +160,14 @@
 		max = 10
 	}
 
-	ai_frequency = 60
+	ai_frequency_by_tier = {
+		barony = 0
+		county = 72
+		duchy = 72
+		kingdom = 36
+		empire = 36
+		hegemony = 36
+	}
 
 	ai_will_do = {
 		base = -25
@@ -188,10 +199,11 @@
 	}
 }
 
+
 #Appointing a Podesta over a Commune - Turning a one county holder into a Republican Vassal
 #Local culture must have the parameter, as does the granting character.
 #Recipient does not need to have local culture.
-appoint_oligarch_interaction = {
+appoint_podesta_interaction = {
 	icon = grant_titles_interaction
 	interface_priority = 30
 	common_interaction = yes
@@ -200,16 +212,16 @@ appoint_oligarch_interaction = {
 	ai_max_reply_days = 0
 	popup_on_receive = yes
 	pause_on_receive = yes
-	desc = appoint_oligarch_desc
+	desc = appoint_podesta_desc
 
 	greeting = positive
 	notification_text = REQUEST_REPUBLIC_TEXT
 
 	is_shown = {
-		NOT = { scope:actor = scope:recipient } # Can't make yourself a Podesta.
+		scope:actor != scope:recipient # Can't make yourself a Podesta.
 		scope:actor = {
 			culture = {
-				has_cultural_parameter = can_make_oligarch_vassals
+				has_cultural_parameter = can_make_republican_vassals
 			}
 			any_held_title = {
 				count > 1
@@ -228,55 +240,55 @@ appoint_oligarch_interaction = {
 		scope:recipient = { can_be_granted_titles_by = { RULER = scope:actor } }
 		NOT = { scope:actor = { is_at_war_with = scope:recipient } }
 
-		#custom_description = {
-		#	text = too_many_republics
-		#	scope:actor = {
-		#		any_vassal = {
-		#			count < 4 #Use Script Value
-		#			highest_held_title_tier >= tier_county
-		#			government_has_flag = government_is_republic
-		#		}
-		#	}
-		#}
+		custom_description = {
+			text = too_many_republics
+			scope:actor = {
+				any_vassal = {
+					count < 4 #Use Script Value
+					highest_held_title_tier >= tier_county
+					government_has_flag = government_is_republic
+				}
+			}
+		}
 
 		
 		scope:recipient = {
 			target_is_liege_or_above = scope:actor
 			NOT = { government_has_flag = government_is_republic }
-			#is_claimant = no
+			is_claimant = no
 
 			custom_description = {
 				text = must_be_one_county_count
 				any_held_title = {
 					count = 1
-					tier = tier_county
+					title_tier = county
 				}
 			}
 
-			#custom_description = {
-			#	text = must_not_have_landed_relatives
-			#	NOT = {
-			#		any_close_or_extended_family_member = {
-			#			is_landed = yes
-			#		}
-			#	}
-			#}
+			custom_description = {
+				text = must_not_have_landed_relatives
+				NOT = {
+					any_close_or_extended_family_member = {
+						is_landed_or_landless_administrative = yes
+					}
+				}
+			}
 			
-			#custom_description = {
-			#	text = must_not_be_heir_to_any_title
-			#	scope:recipient = {
-			#		any_heir_title = {
-			#			count < 1
-			#			tier >= tier_county
-			#		}
-			#	}
-			#}
+			custom_description = {
+				text = must_not_be_heir_to_any_title
+				scope:recipient = {
+					any_heir_title = {
+						count < 1
+						tier >= tier_county
+					}
+				}
+			}
 
 			custom_description = {	#The county must be developed or have at least one city
 				text = county_must_have_city
 				any_held_title = {
 					count = 1
-					tier = tier_county
+					title_tier = county
 					OR = {
 						any_county_province = {
 							has_holding_type = city_holding
@@ -289,17 +301,16 @@ appoint_oligarch_interaction = {
 				text = county_must_have_culture
 				any_held_title = {
 					count = 1
-					tier = tier_county
+					title_tier = county
 					any_county_province = {
 						culture = {
-							has_cultural_parameter = can_make_oligarch_vassals
+							has_cultural_parameter = can_make_republican_vassals
 						}
 					}
 				}
 			}			
 		}
 
-		scope:recipient = { is_busy_in_events_localised = yes }
 		trigger_if = {
 			limit = {
 				scope:recipient = {
@@ -328,10 +339,7 @@ appoint_oligarch_interaction = {
 
 					scope:recipient = {
 						show_as_tooltip = {
-							change_government = oligarchy_government
-							every_held_title = { 
-								add_title_law = oligarchic_elective_succession_law
-							}
+							change_government = republic_government
 							create_title_and_vassal_change = {
 								type = returned
 								save_scope_as = change
@@ -356,11 +364,7 @@ appoint_oligarch_interaction = {
 			}
 		}
 		scope:recipient = {
-			change_government = oligarchy_government
-			
-			every_held_title = { 
-				add_title_law = oligarchic_elective_succession_law
-			}
+			change_government = republic_government
 			create_title_and_vassal_change = {
 				type = returned
 				save_scope_as = change
@@ -396,7 +400,7 @@ appoint_oligarch_interaction = {
 	# AI
 	ai_potential = {
 		culture = {
-			has_cultural_parameter = can_make_oligarch_vassals
+			has_cultural_parameter = can_make_republican_vassals
 			has_cultural_era_or_later = culture_era_high_medieval
 		}
 		primary_title.tier > tier_county
@@ -409,7 +413,14 @@ appoint_oligarch_interaction = {
 		ai_recipients = vassals
 	}
 
-	ai_frequency = 240
+	ai_frequency_by_tier = {
+		barony = 0
+		county = 0
+		duchy = 240
+		kingdom = 60
+		empire = 60
+		hegemony = 60
+	}
 
 	ai_will_do = {
 		base = 100

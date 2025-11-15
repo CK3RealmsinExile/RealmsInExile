@@ -4,15 +4,13 @@
 	desc = murder_desc_general
 	success_desc = "MURDER_SUCCESS_DESC"
 	discovery_desc = "MURDER_DISCOVERY_DESC"
-	icon = icon_scheme_hostile
+	icon = icon_scheme_murder
 	illustration = "gfx/interface/illustrations/event_scenes/corridor.dds"
 	category = hostile
 	target_type = character
 	is_secret = yes
 	maximum_breaches = 5
 	cooldown = { years = 10 }
-
-	minimum_success = 0
 
 	# Parameters
 	speed_per_skill_point = t2_spsp_owner_value
@@ -27,6 +25,9 @@
 	allow = {
 		age >= 14
 		is_imprisoned = no
+		any_held_title = {
+			tier >= tier_barony
+		}
 	}
 	valid = {
 		is_incapable = no
@@ -43,7 +44,7 @@
 			object = scope:target
 			text = "I_have_imprisoned_target"
 			scope:target = {
-				NOT = { imprisoner = scope:owner }
+				imprisoner != scope:owner
 			}
 		}
 		custom_description = {
@@ -75,6 +76,11 @@
 				}
 			}
 		}
+		# Events
+		custom_tooltip = {
+			text = guilt_fever_tt
+			NOT = { has_character_flag = guilt_fever_murder_cd }
+		}
 	}
 
 	# Agents
@@ -94,6 +100,7 @@
 		add = odds_skill_contribution_intrigue_value
 		add = agent_groups_owner_perspective_value
 		add = agent_groups_target_character_perspective_value
+		add = odds_variables_contribution_murder
 		add = odds_murder_scheme_misc_value
 		min = 0
 	}
@@ -107,6 +114,28 @@
 
 		# Countermeasures.
 		apply_calculated_scheme_success_chance_adjustments_modifier = yes
+		
+		# Your dark arts advisor is helping you out
+		modifier = {
+			add = 15
+			desc = "ACHMACH_MURDER_BONUS"
+			scope:owner = {
+				has_variable = achmach_murder_help_var
+				any_councillor = {
+					has_variable = achmach_murder_help_councillor_var
+				}
+			}
+		}
+		
+		# As Temüjin, you swore to murder Jamukha
+		modifier = {
+			add = 50
+			desc = "TEMUJIN_JAMUKHA_MURDER_BONUS"
+			scope:owner = {
+				exists = var:temujin_jamukha_murder_var
+				var:temujin_jamukha_murder_var = scope:target
+			}
+		}
 
 		# Imaginary friend told you to kill them
 		modifier = {
@@ -185,8 +214,7 @@
 					has_doctrine = doctrine_spiritual_head
 				}
 				faith = {
-					exists = religious_head
-					religious_head = {
+					religious_head ?= {
 			 			this = scope:target
 			 		}
 				}
@@ -198,54 +226,12 @@
 			add = -25
 			desc = target_has_sponsored_inspiration
 			scope:target = {
-				exists = inspiration
-				inspiration = { exists = inspiration_sponsor }
+				inspiration ?= { exists = inspiration_sponsor }
 			}
 		}
 
 		# Family Feud
 		house_feud_hostile_scheme_success_modifier = yes
-
-		#LotR - Elves will not scheme against other elves
-		modifier = {
-			add = -1000
-			scope:owner = { is_elf = yes }
-			scope:target = { is_elf = yes }
-			desc = "SCHEME_MURDER_ELF_VS_ELF"
-		}
-
-		#LotR - Elves will very rarely scheme against good-aligned non-elf characters
-		modifier = {
-			add = -200
-			scope:owner = { is_elf = yes }
-			scope:target = { 
-				is_elf = no
-				faith_is_good = yes
-			}
-			desc = "SCHEME_MURDER_ELF_VS_GOOD"
-		}
-
-		#LotR - Elves will rarely scheme against neutral-aligned non-elf characters
-		modifier = {
-			add = -100
-			scope:owner = { is_elf = yes }
-			scope:target = { 
-				is_elf = no
-				faith_is_neutral = yes
-			}
-			desc = "SCHEME_MURDER_ELF_VS_NEUTRAL"
-		}
-
-		#LotR - Elves will even be reluctant to scheme against evil-aligned non-elf characters
-		modifier = {
-			add = -20
-			scope:owner = { is_elf = yes }
-			scope:target = { 
-				is_elf = no
-				faith_is_evil = yes
-			}
-			desc = "SCHEME_MURDER_ELF_VS_EVIL"
-		}
 		
 		# At War
 		first_valid = {
@@ -260,8 +246,7 @@
 				add = -25
 				scope:target = {
 					is_playable_character = no
-					exists = liege
-					liege = {
+					liege ?= {
 						is_at_war_with = scope:owner
 					}
 				}
@@ -271,8 +256,7 @@
 				add = -25
 				scope:target = {
 					is_playable_character = yes
-					exists = liege
-					liege = {
+					liege ?= {
 						is_at_war_with = scope:owner
 					}
 				}
@@ -301,7 +285,7 @@
 			desc = feast_learnt_habits_modifier.tt
 			scope:owner = {
 				any_scheme = {
-					scheme_type = murder
+					type = murder
 					scheme_target_character = scope:target
 					has_scheme_modifier = feast_learnt_habits_modifier
 				}
@@ -332,6 +316,20 @@
 				has_character_modifier = cant_poison_soup_modifier
 			}
 			desc = cant_poison_soup_modifier_value
+		}
+
+		modifier = {
+			scope:target = {
+				exists = court_owner
+				court_owner = {
+					has_character_flag = keeper_of_the_harem_maintaining_decorum
+				}
+				is_consort_of = court_owner
+				NOT = {
+					is_consort_of = scope:owner
+				}
+			}
+			add = -50
 		}
 	}
 	base_secrecy = {
@@ -384,6 +382,7 @@
 				scheme_owner = { is_ai = yes }
 			}
 			murder_scheme_prep_effect = yes
+			purge_ai_scheme_slots_effect = yes
 		}
 	}
 	on_monthly = {
@@ -411,7 +410,7 @@
 			limit = {
 				scope:target = {
 					is_alive = no
-					NOT = { killer = scope:owner }
+					killer != scope:owner
 				}
 				scope:owner = { var:imaginary_friend_murder_target ?= scope:target }
 			}
@@ -424,7 +423,7 @@
 				limit = {
 					scope:target = {
 						is_alive = no
-						NOT = { killer = scope:owner }
+						killer != scope:owner
 					}
 				}
 				scope:owner = {

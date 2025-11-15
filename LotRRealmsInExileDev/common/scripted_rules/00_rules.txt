@@ -26,7 +26,7 @@ faith_creation = {
 	trigger_if = {
 		limit = {
 			highest_held_title_tier = tier_county
-			is_independent_ruler = no
+			top_liege != this
 		}
 		custom_description = {
 			text = "faith_creation_duchy_or_higher"
@@ -60,7 +60,7 @@ faith_creation = {
 		limit = {
 			faith = { has_doctrine_parameter = unreformed }
 		}
-		
+
 		NOT = {
 			custom_description = {
 				text = faith_has_been_reformed
@@ -96,13 +96,10 @@ faith_creation = {
 # Root is the faith creator
 # scope:new_faith is the faith they want to convert to
 faith_conversion = {
+	NOT = { has_culture = culture:wastelands } #LotR
+	NOT = { scope:new_faith = faith:faith_wastelands_pagan } #LotR
 	is_adult = yes
-	NOT = { faith.religious_head = root }
-	NOT = { has_culture = culture:wastelands }
-	
-	NOT = {
-		scope:new_faith = faith:faith_wastelands_pagan
-	}
+	faith.religious_head != root
 	is_in_ongoing_great_holy_war = no
 	# Can't (or shouldn't) convert to faiths that are meant to be resurrected via decision, event, etc.
 	custom_tooltip = {
@@ -131,16 +128,12 @@ should_mother_give_house_to_bastard = {
 can_be_knight = {
 	trigger_if = {
 		limit = {
-			OR = {
-				is_playable_character = no
-				root = root.court_owner 
-			}
-			NOT = { exists = liege } 
+			exists = liege
 		}
-		can_be_knight_trigger = { ARMY_OWNER = root.court_owner }
+		can_be_knight_trigger = { ARMY_OWNER = liege }
 	}
 	trigger_else = {
-		can_be_knight_trigger = { ARMY_OWNER = liege }
+		can_be_knight_trigger = { ARMY_OWNER = root.court_owner }
 	}
 }
 
@@ -167,32 +160,39 @@ allowed_to_be_granted_titles_by = {
 	trigger_else = {
 		can_be_granted_titles_by = { RULER = scope:liege }
 	}
-
-	trigger_if = {
+	trigger_if = { #Only grant Settlement counties away if they have other titles
 		limit = {
-			scope:landed_title.tier = tier_barony
-		}
-		NOT = { scope:landed_title.title_province ?= { has_holding_type = ruined_holding } }
-	}
-	trigger_else_if = { #Only grant Settlement counties away if they have other titles
-		limit = {
-			scope:landed_title.tier = tier_county
+			NOT = { scope:liege = { any_owned_story = { story_type = story_conqueror } } }
+			scope:landed_title.tier <= tier_county
 			scope:landed_title.title_province ?= { has_holding_type = settlement_holding }
 			is_landed = yes
 		}
+		root = { save_temporary_scope_as = target_char }
 		trigger_if = {
 			limit = { highest_held_title_tier = tier_empire has_variable = num_settled_wilderness }
-			var:num_settled_wilderness < 3
+			custom_tooltip = {
+				text = cant_have_more_settlements_above_title_tier
+				var:num_settled_wilderness < 4
+			}
 		} trigger_else_if = {
 			limit = { highest_held_title_tier = tier_kingdom has_variable = num_settled_wilderness }
-			var:num_settled_wilderness < 2
+			custom_tooltip = {
+				text = cant_have_more_settlements_above_title_tier
+				var:num_settled_wilderness < 3
+			}
 		} trigger_else_if = {
 			limit = { highest_held_title_tier = tier_duchy has_variable = num_settled_wilderness }
-			var:num_settled_wilderness < 1
+			custom_tooltip = {
+				text = cant_have_more_settlements_above_title_tier
+				var:num_settled_wilderness < 2
+			}
 		} trigger_else = {
 			trigger_if = {
 				limit = { has_variable = num_settled_wilderness }
-				var:num_settled_wilderness < 0
+				custom_tooltip = {
+					text = cant_have_more_settlements_above_title_tier
+					var:num_settled_wilderness < 1
+				}
 			}
 		}
 	}
@@ -225,6 +225,15 @@ allowed_to_be_granted_titles_by = {
 			}
 		}
 	}
+
+	trigger_if = { #Nhazadh cannot give away their title - they serve until death
+		limit = { scope:landed_title = title:d_nhazadh }
+		scope:liege = {
+			NOT = {
+				has_title = title:d_nhazadh
+			}
+		}
+	}
 }
 
 # Is a character allowed to be a player
@@ -234,7 +243,6 @@ is_character_allowed_to_be_player = {
 		limit = {
 			scope:will_override_government = no
 		}
-		
 		custom_description = {
 			text = "GAME_OVER_CANNOT_PLAY_THEOCRACY"
 			NOT = { government_has_flag = government_is_theocracy }
@@ -244,12 +252,12 @@ is_character_allowed_to_be_player = {
 			text = "GAME_OVER_CANNOT_PLAY_REPUBLIC"
 			NOT = { government_has_flag = government_is_republic }
 		}
-		
+
 		custom_description = {
 			text = "GAME_OVER_CANNOT_PLAY_MERCENARY"
 			NOT = { government_has_flag = government_is_mercenary }
 		}
-		
+
 		custom_description = {
 			text = "GAME_OVER_CANNOT_PLAY_HOLY_ORDER"
 			NOT = { government_has_flag = government_is_holy_order }
@@ -268,7 +276,7 @@ is_character_allowed_to_be_player = {
 		# We cannot become landless adventurers
 		trigger_if = {
 			limit = {
-				NOT = { has_dlc_feature = landless_playable }
+				NOT = { has_dlc_feature = roads_to_power }
 			}
 			custom_description = {
 				text = "GAME_OVER_CANNOT_PLAY_ADVENTURER"
@@ -292,9 +300,7 @@ is_character_allowed_to_be_player = {
 				}
 				is_playable_character = yes # General catch-all, we can continue playing
 			}
-			NOT = { has_character_flag = declined_become_laamp }
 		}
-
 		custom_tooltip = { #LotR
 			text = "GAME_OVER_CANNOT_PLAY_WASTELANDS"
 			NOT = { government_has_flag = government_is_wastelands }
@@ -304,7 +310,7 @@ is_character_allowed_to_be_player = {
 			text = "GAME_OVER_CANNOT_PLAY_VALINOR"
 			any_held_title = {
 				NOR = { 
-					empire = title:e_valinor
+					empire ?= title:e_valinor
 					this = title:k_alqualonde
 					this = title:k_tirion
 					this = title:k_valimar
@@ -334,14 +340,14 @@ is_secret_available_for_blackmail = {
 passes_faction_hard_block = {
 	custom_description = {
 		text = "FACTION_CANT_JOIN_IF_TARGET"
-		NOT = { root = scope:target }
+		root != scope:target
 	}
 
 	custom_description = {
 		text = "FACTION_CANT_JOIN_CREATE_ADULT"
 		is_adult = yes
 	}
-	
+
 	custom_description = {
 		text = "FACTION_CANT_JOIN_CREATE_ALLIED"
 		trigger_if = {
@@ -359,7 +365,7 @@ passes_faction_hard_block = {
 			limit = { exists = scope:target }
 			scope:target = {
 				NOT = { has_strong_hook = root }
-			}		
+			}
 		}
 	}
 
@@ -367,16 +373,15 @@ passes_faction_hard_block = {
 		text = "FACTION_CANT_JOIN_CREATE_IMPRISONED"
 		trigger_if = {
 			limit = {
-				exists = joined_faction
-				joined_faction = {
+				joined_faction ?= {
 					faction_is_at_war = yes
 				}
 			}
 		}
 		trigger_else = {
-			is_imprisoned = no		
+			is_imprisoned = no
 		}
-	}	
+	}
 
 	custom_description = {
 		text = "FACTION_CANT_JOIN_CREATE_INCAPABLE"
@@ -429,6 +434,7 @@ is_dangerous_faction = {
 # Root = First character of alliance reason
 # scope:second = Second character of alliance reason
 is_alliance_valid = {
+	highest_held_title_tier < tier_hegemony
 	OR = {
 		any_spouse = {
 			this = scope:second
@@ -443,16 +449,17 @@ is_alliance_valid = {
 		is_great_grandchild_of = scope:second
 		is_uncle_or_aunt_of = scope:second
 		is_nibling_of = scope:second
+		has_relation_blood_brother = scope:second
 		scope:second = {
 			OR = {
-			has_opinion_modifier = {
-				modifier = perk_negotiated_alliance_opinion
-				target = root
-			}
-			has_opinion_modifier = {
+				has_opinion_modifier = {
+					modifier = perk_negotiated_alliance_opinion
+					target = root
+				}
+				has_opinion_modifier = {
 					modifier = event_negotiated_alliance_opinion
 					target = root
-			}
+				}
 			}
 		}
 		#childhood friendship with hostage event, where they swear to be friends forever
@@ -463,12 +470,12 @@ is_alliance_valid = {
 			}
 			OR = {
 				any_memory = {
-					has_memory_type = hostage_oath_of_friendship
+					memory_type = hostage_oath_of_friendship
 					has_memory_participant = scope:second
 				}
 				scope:second = {
 					any_memory = {
-						has_memory_type = hostage_oath_of_friendship
+						memory_type = hostage_oath_of_friendship
 						has_memory_participant = root
 					}
 				}
@@ -496,7 +503,7 @@ can_designate_heir = {
 # Does the character care about having a council position? Used for powerful vassals that have no council position for whether they should get the opinion penalty
 cares_about_powerful_vassal_council_position = {
 	can_be_councillor_basics_trigger = yes
-	NOT = { this = liege.diarch }
+	this != liege.diarch
 	is_designated_diarch = no
 }
 
@@ -584,7 +591,7 @@ can_fire_councillor = {
 				scope:councillor = {
 					is_blocked_from_being_fired_from_council_trigger = { COURT_OWNER = root }
 				}
-			}	
+			}
 		}
 	}
 }
@@ -599,6 +606,14 @@ can_raid = {
 # Can this character start a new raid right now? (can_raid will always get checked first)
 # root: the potential raider
 can_start_raid = {
+	is_at_war = no
+}
+
+# Can this character start bartering right now? (can_barter will always get checked first)
+# root: the potential bartering character
+can_start_bartering = {
+	# Minimum barter goods required for AI to start bartering is governed by the MIN_BARTER_GOODS_TO_START_BARTERING define in defines/ai/00_ai.txt
+	government_allows = barter
 	is_at_war = no
 }
 
@@ -617,10 +632,9 @@ can_traverse_river = {
 				has_innovation = innovation_daen_shipbuilding
 			}
 		}
-		AND = {
-			exists = dynasty
-			dynasty = { has_dynasty_modifier = fp1_legacy_of_piracy_modifier }
-		}
+		government_has_flag = government_enables_river_travel
+		dynasty ?= { has_dynasty_modifier = fp1_legacy_of_piracy_modifier }
+
 		AND = { # LOTR - Blessing of Ulmo Perk
 			is_elf = yes
 			has_perk = know_thyself_perk
@@ -763,7 +777,7 @@ ai_wants_matrilineal_marriage = {
 			}
 		}
 	}
-	trigger_else = { # Default rules	
+	trigger_else = { # Default rules
 		OR = { # Either Matrilineal Marriages are the norm
 			has_realm_law = female_only_law
 			has_realm_law = female_preference_law
@@ -814,8 +828,7 @@ ai_wants_matrilineal_marriage = {
 						dynasty = { dynasty_prestige_level >= 4 }
 						has_realm_law = equal_law
 						any_player = { # Very close to a player
-							exists = dynasty
-							dynasty = scope:secondary_actor.dynasty
+							dynasty ?= scope:secondary_actor.dynasty
 							is_close_family_of = scope:secondary_actor
 						}
 					}
@@ -892,7 +905,7 @@ ai_wants_grand_wedding_promise = {
 	scope:actor = { gold >= ai_wedding_promise_gold_actor }
 	scope:actor = {
 		OR = {
-			# You're getting at least an alliance out of it 
+			# You're getting at least an alliance out of it
 			yields_alliance = {
 				candidate = scope:secondary_actor
 				target = scope:recipient
@@ -942,10 +955,8 @@ can_potentially_call_ally = {
 		WARRIOR = root
 		JOINER = scope:ally
 	}
-	NOT = { has_culture = culture:wastelands }
-	scope:ally = {
-		NOT = { has_culture = culture:wastelands }
-	}
+	NOT = { has_culture = culture:wastelands } #LotR
+	scope:ally = { NOT = { has_culture = culture:wastelands } } #LotR
 }
 
 # Is this character allowed to hybridize their culture with the target culture?
@@ -956,7 +967,7 @@ can_hybridize_culture = {
 		CULTURE = scope:culture
 		CHARACTER = root
 	}
-	NOT = { has_culture = culture:wastelands }	
+	NOT = { has_culture = culture:wastelands } #LotR
 }
 
 # Is this character allowed to diverge their culture?
@@ -970,8 +981,8 @@ can_diverge_culture = {
 		}
 	}
 	culture = { NOT = { has_cultural_tradition = tradition_variag_succession } } #LotR
-	NOT = { has_culture = culture:wastelands }
-	NAND = {
+	NOT = { has_culture = culture:wastelands } #LotR
+	NAND = { #LotR
 		is_ai = yes
 		is_elf = yes
 	}
@@ -986,15 +997,14 @@ can_add_tradition = {
 			NOT = { has_variable = tradition_cooldown }
 		}
 	}
-	NOT = { has_culture = culture:wastelands }	
+	NOT = { has_culture = culture:wastelands } #LotR	
 }
 
 # Is this character allowed to replace a pillar of their culture?
 # root: Character
 can_replace_pillar = {
-	NOT = { has_culture = culture:wastelands }	
+	NOT = { has_culture = culture:wastelands } #LotR
 }
-
 
 # Can we rename a character?
 # Root is the renamer (E.G., the player)
@@ -1017,7 +1027,7 @@ can_name_after_birth = {
 # scope:checking_native_language = are we scoring our own language?
 can_adopt_court_language = {
 	in_diplomatic_range = scope:target
-	NOT = { 
+	NOT = { #LotR
 		is_sauron = yes
 		has_trait = nazgul
 		is_elf = yes
@@ -1067,6 +1077,9 @@ can_be_activity_guest = {
 			NOR = {
 				has_promised_a_grand_wedding = yes
 				has_been_promised_grand_wedding = yes
+				liege = {
+					has_diarchy_type = grand_secretariat
+				}
 			}
 		}
 		scope:host.involved_activity.activity_location.county.holder ?= {
@@ -1175,7 +1188,7 @@ can_promote_legend = {
 # root = the character creating a legend
 # scope:num_legends = The number of existing legends this character could support
 ai_wants_to_create_own_legend = {
-	is_independent_ruler = yes
+	top_liege = this
 	highest_held_title_tier >= tier_kingdom
 	scope:num_legends <= 5
 }
@@ -1198,11 +1211,11 @@ is_dominant_family = {
 #	3. Root's government has the mercenary company government rule.
 #	4. This scripted trigger.
 #
-# Code also checks if the character is available by looking at what 
+# Code also checks if the character is available by looking at what
 # wars they are involved in, where root only will be available if they
-# are not in a war already. 
+# are not in a war already.
 #
-# Supported scopes: 
+# Supported scopes:
 #	root ( character )
 #		Hireable ruler
 #
@@ -1213,25 +1226,24 @@ is_hireable_ruler_trigger = {
 
 ### Brief: can_hire_hireable_ruler_trigger
 # Can the scoped ruler hire the target hireable ruler? Referenced in
-# code. Use of this trigger assumes the hireable ruler already has 
-# passed the is_hireable_ruler_trigger and they are not already 
+# code. Use of this trigger assumes the hireable ruler already has
+# passed the is_hireable_ruler_trigger and they are not already
 # involved in a war.
 #
-# Supported scopes: 
-#	root ( character ) 
+# Supported scopes:
+#	root ( character )
 #		Prospective employer
 # 	scope:candidate ( character )
 #		Hireable ruler
 #
 can_hire_hireable_ruler_trigger = {
- 	# TODO_DESIGN: Replace with something appropriate
 	is_at_war = yes
 	any_character_war = {
 		is_war_leader = root
 	}
 }
 
-# Supported scopes: 
+# Supported scopes:
 #	root ( province )
 #		Destination province
 #   scope:owner = the domicile owner
@@ -1243,7 +1255,13 @@ can_move_domicile = {
 		scope:owner.domicile ?= {
 			# Estate
 			trigger_if = {
-				limit = { is_domicile_type = estate }
+				limit = {
+					OR = {
+						is_domicile_type = estate
+						is_domicile_type = east_asian_estate
+						is_domicile_type = japanese_manor
+					}
+				}
 				# Cannot move estate outside top_liege realm
 				scope:province_temp.county.holder.top_liege ?= {
 					custom_tooltip = {
@@ -1267,6 +1285,11 @@ can_move_domicile = {
 						}
 					}
 				}
+				# Cannot move estate to its current location
+				custom_tooltip = {
+					text = can_move_domicile_estate_same_location_tt
+					scope:owner.domicile.domicile_location != scope:province_temp
+				}
 			}
 			trigger_if = {
 				limit = { is_domicile_type = camp }
@@ -1285,4 +1308,214 @@ can_move_domicile = {
 		}
 	}
 	trigger_else = { exists = county } #This will exclude sea provinces, impassable provinces, river provinces, etc
+}
+
+# Supported scopes:
+#	root ( character )
+#		Ruler
+#	scope:situation ( situation )
+#		If exists, will always be 'the_great_steppe'
+#	scope:situation_sub_region ( situation_sub_region )
+#		In which sub_region root character has their capital
+#	scope:disobedient_kurultai ( character list )
+#		List all disobedient characters part of the Kurultai Election (both Council and Children)
+#
+is_kurultai_succession_chaotic = {
+	trigger_if = {
+		limit = {
+			exists = scope:situation_sub_region
+		}
+		scope:situation_sub_region = {
+			save_temporary_scope_as = subregion
+		}
+	}
+	trigger_if = {
+		limit = {
+			has_chaotic_succession_trigger_action = yes
+		}
+		has_chaotic_succession_trigger_action = yes
+	}
+	trigger_else = {
+		always = no
+	}
+}
+
+# Supported scopes:
+#	root ( character )
+#		nomad that considers migration
+#	scope:domain_fertility ( fixed point ) average domain fertility, between 0 and 1
+#
+ai_wants_to_migrate = {
+	trigger_if = { # If AI is in the middle of a Mongol Invasion they should _never_ migrate
+		limit = {
+			OR = {
+				any_owned_story = {
+					OR = {
+						story_type = story_mongol_invasion
+						story_type = story_greatest_of_khans
+						
+					}
+				}
+				mpo_has_gok_mongol_empire_trigger = yes
+			}
+		}
+		always = no
+	}
+	trigger_else_if = {
+		limit = {
+			capital_county = {
+				any_county_situation_sub_region = {
+					sub_region_current_phase = situation_steppe_havsarsan_zud_season
+				}
+			}
+		}
+		always = yes
+	}
+	trigger_else_if = {
+		limit = {
+			OR = {
+				has_realm_law = nomadic_authority_3
+				has_realm_law = nomadic_authority_4
+				has_realm_law = nomadic_authority_5
+			}
+			primary_title.tier < tier_kingdom
+		}
+		always = yes
+	}
+	trigger_else_if = {
+		limit = {
+			is_landed = no
+		}
+		always = yes
+	}
+	trigger_else = {
+		trigger_if = {
+			limit = {
+				is_confederation_member = yes
+			}
+			scope:domain_fertility < 0.15
+		}
+		trigger_else = {
+			scope:domain_fertility < 0.3
+		}
+		NOT = { has_variable = migration_cooldown }
+	}
+}
+
+# Used when checking if a character can raze holdings at all
+#
+# Supported scopes:
+#	root ( character )
+#		nomad that considers razing a holding
+#
+can_raze = {
+	is_nomad = yes
+	highest_held_title_tier >= tier_county
+	trigger_if = {
+		limit = {
+			is_ai = yes
+		}
+		top_liege = { is_nomad = yes }
+	}
+}
+
+# Used when checking if a character can raze a holding in a province they own
+#
+# Supported scopes:
+#	root ( character )
+#		nomad that considers razing a holding
+#	scope:province ( province )
+#		the province with the holding that is considered for razing
+#
+can_raze_own_holding = {
+	completely_controls = scope:province.barony
+	trigger_if = { # The AI only razes holdings that border a nomad holding
+		limit = {
+			is_ai = yes
+		}
+		scope:province.county = {
+			any_neighboring_county = {
+				title_province = {
+					OR = {
+						has_holding_type = nomad_holding
+						has_holding_type = herder_holding
+					}
+				}
+			}
+		}
+		# trigger_if = { #LotR
+		# 	limit = {
+		# 		religion = religion:islam_religion
+		# 	}
+		# 	scope:province.county != title:c_mecca
+		# 	scope:province.county != title:c_medina
+		# 	trigger_if = {
+		# 		limit = {
+		# 			culture = {
+		# 				NOR = {
+		# 					has_cultural_pillar = heritage_mongolic
+		# 					has_cultural_pillar = heritage_turkic
+		# 				}
+		# 			}
+		# 		}
+		# 		scope:province.county.religion != religion:islam_religion
+		# 	}
+		# }
+	}
+}
+
+# check if the AI ruler in scope should evaluate creating the target title. Available scope:
+#	root: the ruler that could create the title
+# 	scope:title the title to create
+ai_should_create_title = {
+	# emperors should not create kingdoms / empires
+	nand = {
+		root.primary_title.tier = tier_empire
+		scope:title.tier >= tier_kingdom
+		scope:title.tier <= tier_empire
+	}
+	
+	# hegemons should not create empires / hegemonies
+	nand = {
+		root.primary_title.tier = tier_hegemony
+		scope:title.tier >= tier_empire
+	}
+}
+
+# Check if an AI ruler should increase the size of their Title MaA (or otherwise try and increase Personal MaA).
+# (Still has to pass the `ai_men_at_arms_expense_*_min/_max/_ideal` check too)
+#
+# Scopes:
+#	root: the ruler that is considering to hire MaA
+#	title: the title which we'll be buying for (the title with the lowest current title MaA maintenance, with space)
+#   scope:can_afford_personal_maa If we can afford any personal MaA initial buy cost
+#   scope:has_personal_maa_space If we have space for personal MaA
+#   scope:personal_maa_maintenance Total current personal MaA maintenance cost (of any currency)
+#   scope:title_maa_maintenance Total current title MaA maintenance cost (of any currency)
+#   scope:personal_maa_cap Current regiment cap for personal MaA
+#   scope:title_maa_cap Current regiment cap for title MaA
+ai_should_hire_title_maa = {
+	OR = {
+		scope:personal_maa_cap = 0 # if we are allowed no personal MaA, always try and buy title MaA
+
+		AND = { # Always invest in Title MaA first, if that's the main army
+			scope:title_maa_cap > scope:personal_maa_cap
+			OR = {
+				scope:can_afford_personal_maa = no
+				scope:title_maa_maintenance <= scope:personal_maa_maintenance
+			}
+		}
+
+		AND = {
+			# If personal MaA are the main army size, invest 50% more in Personal MaA
+			scope:title_maa_cap <= scope:personal_maa_cap
+			OR = {
+				scope:can_afford_personal_maa = no
+				scope:title_maa_maintenance <= {
+					value = scope:personal_maa_maintenance
+					multiply = 1.5
+				}
+			}
+		}
+	}
 }

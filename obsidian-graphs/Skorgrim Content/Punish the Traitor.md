@@ -1,0 +1,1 @@
+Decision, launches a war to nuke Skorgrim's realm, wherever it is, capture him and the rings.

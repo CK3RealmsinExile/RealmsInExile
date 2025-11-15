@@ -3,9 +3,6 @@
 ##################################################
 
 create_landless_adventurer_title_history_effect = {
-	# TODO_CD_EP3: currently causes errors for history titles
-	#set_destroy_on_gain_same_tier = yes
-	#set_delete_on_destroy = yes
 	holder ?= {
 		if = {
 			limit = {
@@ -37,6 +34,30 @@ create_landless_adventurer_title_effect = {
 	$FLAVOR_CHAR$ = { save_scope_as = adventurer_flavor_char }
 	hidden_effect = {
 		random_list = {
+			1000 = {
+				trigger = {
+					scope:warrior_youth ?= scope:new_landless_adventurer
+				}
+				create_adventurer_title = {
+					name = adventurer_name_free_warriors
+					holder = scope:new_landless_adventurer
+					article = DEFAULT_TITLE_NAME_ARTICLE
+					save_scope_as = new_title
+				}
+			}
+			1000 = {
+				trigger = {
+					scope:warrior_youth ?= scope:new_landless_adventurer
+					age <= 20
+					exists = scope:host.house
+				}
+				create_adventurer_title = {
+					name = adventurer_name_youths
+					holder = scope:new_landless_adventurer
+					article = DEFAULT_TITLE_NAME_ARTICLE
+					save_scope_as = new_title
+				}
+			}
 			10 = {
 				create_adventurer_title = {
 					name = adventurer_name_001
@@ -365,11 +386,7 @@ create_landless_adventurer_title_effect = {
 				}
 			}
 		}
-		create_title_and_vassal_change = {
-			type = created
-			save_scope_as = change
-			add_claim_on_loss = no
-		}
+
 		scope:new_title ?= {
 			create_landless_adventurer_title_history_effect = yes
 			set_variable = {
@@ -380,12 +397,8 @@ create_landless_adventurer_title_effect = {
 				name = adventurer_flavor_char
 				value = scope:adventurer_flavor_char
 			}
-			change_title_holder = {
-				holder = scope:new_landless_adventurer
-				change = scope:change
-			}
 		}
-		resolve_title_and_vassal_change = scope:change
+
 		scope:new_title = { save_scope_as = new_landless_adventurer_title }
 		scope:new_landless_adventurer = {
 			if = {
@@ -445,6 +458,7 @@ create_landless_adventurer_title_effect = {
 					flag:runaway_allowed = { custom_tooltip = nearby_landless_adventurer_created_message_runaway_allowed_tt }
 					flag:runaway_forbidden = { custom_tooltip = nearby_landless_adventurer_created_message_runaway_forbidden_tt }
 					flag:wanderer = { custom_tooltip = nearby_landless_adventurer_created_message_wanderer_tt }
+					flag:eradicate = { custom_tooltip = nearby_landless_adventurer_created_message_eradicate_tt }
 					fallback = { custom_tooltip = nearby_landless_adventurer_created_message_fallback_tt }
 				}
 			}
@@ -458,9 +472,10 @@ create_landless_adventurer_title_effect = {
 				scope:adventurer_creation_reason = flag:conquest
 				scope:adventurer_creation_reason = flag:exile
 			}
+			NOT = { this = scope:adventurer_flavor_char }
 		}
 		add_opinion = {
-			target = $FLAVOR_CHAR$
+			target = scope:adventurer_flavor_char
 			modifier = demanded_eviction_opinion
 		}
 		remove_laamp_from_exiled_county_automatically_effect = {
@@ -593,7 +608,6 @@ laamp_game_over_option_effect = {
 		limit = { exists = scope:new_landless_adventurer_title }
 		hidden_effect = { destroy_title = scope:new_landless_adventurer_title }
 	}
-	add_character_flag = declined_become_laamp
 }
 
 destroy_laamp_effect = {
@@ -676,9 +690,18 @@ destroy_laamp_effect = {
 		# Ironically, we only want to use this effect if you're _not_ admin — it'll reset you nicely to the best government for you, but if you're admin, you should stay admin.
 		if = {
 			limit = {
-				NOT = { government_has_flag = government_is_administrative }
+				NOR = {
+					government_has_flag = government_is_administrative
+					government_has_flag = government_is_nomadic
+					government_has_flag = government_is_steppe_admin
+					government_has_flag = government_is_wanua
+					government_has_flag = government_is_mandala
+					government_has_flag = government_is_celestial
+					government_has_flag = government_is_meritocratic
+					government_has_flag = japan_feudal_government
+				}
 			}
-			admin_government_reset_effect = yes
+			admin_government_reset_effect = yes #this only contains Clan, Tribal, Nomadic and Feudal
 		}
 		# Clean up story no-movement flags.
 		remove_character_flag = laamp_stay_same_kingdom
@@ -740,7 +763,7 @@ ep3_become_landed_save_liege_effect = {
 	}
 	else_if = {
 		limit = {
-			scope:ruler = { is_independent_ruler = no }
+			scope:ruler = { top_liege != this }
 			any_in_list = {
 				list = $TITLE_LIST$
 				tier = scope:ruler.highest_held_title_tier
@@ -810,7 +833,10 @@ ep3_become_landed_transfer_no_ennobled_modifier_effect = {
 				government_is_tribal = {
 					save_scope_value_as = { name = old_government value = flag:tribal }
 				}
-				government_is_elven = {
+				government_is_nomadic = {
+					save_scope_value_as = { name = old_government value = flag:nomad }
+				}
+				government_is_elven = { # LOTR
 					save_scope_value_as = { name = old_government value = flag:elven }
 				}
 			}
@@ -853,8 +879,25 @@ ep3_become_landed_transfer_no_ennobled_modifier_effect = {
 	resolve_title_and_vassal_change = scope:title_change2
 	$TITLE_RECEIVER$ = {
 		# Change our government according to the government of our liege.
-		## Administrative.
+		## Nomad.
 		if = {
+			limit = {
+				OR = {
+					government_has_flag = government_is_nomadic
+					scope:new_liege ?= { government_has_flag = government_is_nomadic }
+					scope:old_government ?= flag:nomad
+					scope:new_capital.capital_province = {
+						OR = {
+							has_holding_type = nomad_holding
+							has_holding_type = herder_holding
+						}
+					}
+				}
+			}
+			change_government = nomad_government
+		}
+		## Administrative.
+		else_if = {
 			limit = {
 				OR = {
 					scope:new_liege ?= { government_has_flag = government_is_administrative }
@@ -931,6 +974,30 @@ ep3_become_landed_transfer_effect = {
 			government_is_tribal = {
 				save_scope_value_as = { name = old_government value = flag:tribal }
 			}
+			government_is_wanua = {
+				save_scope_value_as = { name = old_government value = flag:wanua }
+			}
+			government_is_nomadic = {
+				save_scope_value_as = { name = old_government value = flag:nomad }
+			}
+			government_is_celestial = {
+				save_scope_value_as = { name = old_government value = flag:admin }
+			}
+			government_is_steppe_admin = {
+				save_scope_value_as = { name = old_government value = flag:admin }
+			}
+			government_is_meritocratic = {
+				save_scope_value_as = { name = old_government value = flag:admin }
+			}
+			government_is_japan_administrative = {
+				save_scope_value_as = { name = old_government value = flag:admin }
+			}
+			government_is_japan_feudal = {
+				save_scope_value_as = { name = old_government value = flag:japan_feudal }
+			}
+			government_is_mandala = {
+				save_scope_value_as = { name = old_government value = flag:mandala }
+			}
 			government_is_elven = {
 				save_scope_value_as = { name = old_government value = flag:elven }
 			}
@@ -977,8 +1044,8 @@ ep3_become_landed_transfer_effect = {
 		}
 	}
 	if = {
-		limit = { 
-			exists = scope:new_liege 
+		limit = {
+			exists = scope:new_liege
 			trigger_if = {
 				limit = {
 					exists = scope:ascended_throne_value
@@ -994,22 +1061,42 @@ ep3_become_landed_transfer_effect = {
 		}
 	}
 	else_if = {
-		limit = { is_independent_ruler = no }
+		limit = { top_liege != this }
 		becomes_independent = { change = scope:title_change }
 	}
 	resolve_title_and_vassal_change = scope:title_change
 	$TITLE_RECEIVER$ = {
 		# Change our government according to the government of our liege.
-		## Administrative.
+		## Nomad.
 		if = {
 			limit = {
-				scope:new_primary_title = { tier > tier_duchy }
 				OR = {
-					scope:new_liege ?= { government_has_flag = government_is_administrative }
+					government_has_flag = government_is_nomadic
+					scope:new_liege ?= { government_has_flag = government_is_nomadic }
+					scope:old_government ?= flag:nomad
+					scope:new_capital.title_province = {
+						OR = {
+							has_holding_type = nomad_holding
+							has_holding_type = herder_holding
+						}
+					}
+				}
+			}
+			change_government = nomad_government
+		}
+		## Administrative.
+		## Celestial.
+		## Steppe admin.
+		## Meritocratic.
+		## Soryo.
+		else_if = {
+			limit = {
+				OR = {
+					scope:new_liege ?= { government_allows = administrative }
 					scope:old_government ?= flag:admin
 				}
 			}
-			change_government = administrative_government
+			change_to_administrative_effect = yes
 		}
 		## Clan.
 		else_if = {
@@ -1019,7 +1106,7 @@ ep3_become_landed_transfer_effect = {
 					scope:old_government ?= flag:clan
 					AND = {
 						ep3_is_clan_inclined_trigger = yes
-						is_independent_ruler = yes
+						top_liege = this
 					}
 				}
 			}
@@ -1034,6 +1121,36 @@ ep3_become_landed_transfer_effect = {
 				}
 			}
 			change_government = tribal_government
+		}
+		## Wanua.
+		else_if = {
+			limit = {
+				OR = {
+					scope:new_liege ?= { government_has_flag = government_is_wanua }
+					scope:old_government ?= flag:wanua
+				}
+			}
+			change_government = wanua_government
+		}
+		## Ritsuryo.
+		else_if = {
+			limit = {
+				OR = {
+					scope:new_liege ?= { government_has_flag = government_is_japan_feudal }
+					scope:old_government ?= flag:japan_feudal
+				}
+			}
+			change_government = japan_feudal_government
+		}
+		## Mandala.
+		else_if = {
+			limit = {
+				OR = {
+					scope:new_liege ?= { government_has_flag = government_is_mandala }
+					scope:old_government ?= flag:mandala
+				}
+			}
+			change_government = mandala_government
 		}
 		## Elven
 		else_if = {
@@ -1092,7 +1209,7 @@ ep3_become_landed_transfer_effect = {
 			limit = {
 				calc_true_if = {
 					amount = 1
-					prestige_level <= 3 
+					prestige_level <= 3
 					scope:new_capital.culture ?= {
 						NOR = {
 							$TITLE_RECEIVER$.culture ?= this
@@ -1141,7 +1258,7 @@ ep3_become_landed_cleanup_effect = {
 	else = {
 		if = {
 			limit = {
-				is_independent_ruler = no
+				top_liege != this
 				NOT = { exists = scope:new_liege }
 			}
 			create_title_and_vassal_change = {
@@ -1171,7 +1288,7 @@ purchase_land_interaction_effect = {
 	# scope:actor = adventurer
 	# scope:recipient = seller
 	# purchased_titles = titles
-	
+
 	hidden_effect = {
 		scope:actor = {
 			# if = { #LotR
@@ -1292,7 +1409,7 @@ purchase_land_interaction_shortened_effect = {
 			limit = {
 				calc_true_if = {
 					amount = 3
-					prestige_level <= 3 
+					prestige_level <= 3
 					OR = {
 						scope:new_primary_title.culture != culture
 						primary_spouse ?= {
@@ -1316,7 +1433,7 @@ purchase_land_interaction_shortened_effect = {
 			limit = {
 				calc_true_if = {
 					amount = 2
-					prestige_level <= 3 
+					prestige_level <= 3
 					OR = {
 						scope:new_primary_title.culture != culture
 						primary_spouse ?= {
@@ -1341,7 +1458,7 @@ purchase_land_interaction_shortened_effect = {
 			limit = {
 				calc_true_if = {
 					amount = 1
-					prestige_level <= 3 
+					prestige_level <= 3
 					OR = {
 						scope:new_primary_title.culture != culture
 						primary_spouse ?= {
@@ -1368,17 +1485,9 @@ purchase_land_interaction_shortened_effect = {
 
 procure_estate_interaction_effect = {
 	if = {
-		limit = {
-			scope:piety_option = yes
-		}
+		limit = { scope:piety_option = yes }
 		if = {
-			limit = {
-				faith = {
-					NOT = {
-						this = scope:recipient.faith
-					}
-				}
-			}
+			limit = { faith != scope:recipient.faith }
 			set_character_faith = scope:recipient.faith
 			add_character_flag = {
 				flag = procure_estate_conversion
@@ -1393,9 +1502,7 @@ procure_estate_interaction_effect = {
 		}
 	}
 	else_if = {
-		limit = {
-			scope:gold_option = yes
-		}
+		limit = { scope:gold_option = yes }
 		show_as_tooltip = {
 			pay_short_term_gold = {
 				target = scope:recipient
@@ -1407,8 +1514,12 @@ procure_estate_interaction_effect = {
 		}
 	}
 	else_if = {
-		limit = {
-			scope:hook = yes
+		limit = { scope:hook = yes }
+		scope:recipient = {
+			add_hook = {
+				target = scope:actor
+				type = favor_hook
+			}
 		}
 	}
 	else = {
@@ -1419,25 +1530,15 @@ procure_estate_interaction_effect = {
 			}
 		}
 	}
-	scope:recipient = {
-		change_influence = medium_influence_loss
-		add_hook = {
-			target = scope:actor
-			type = favor_hook
-		}
-	}
+	scope:recipient = { change_influence = medium_influence_loss }
 	#Scope:actor becomes ladmin
 	scope:actor = {
 		if = {
 			limit = {
 				scope:actor.house ?= {
 					any_house_member = {
-						any_held_title = {
-							is_noble_family_title = yes
-						}
-						top_liege = {
-							this = scope:recipient.top_liege
-						}
+						any_held_title = { is_noble_family_title = yes }
+						top_liege = scope:recipient.top_liege
 					}
 				}
 			}
@@ -1456,11 +1557,14 @@ procure_estate_interaction_effect = {
 				return_to_court = yes
 			}
 		}
-		create_noble_family_effect = yes
+		create_noble_family_effect = { GOVERNMENT_GIVER = scope:recipient }
 		hidden_effect = {
 			# Return any escaped courtiers.
 			every_in_list = {
 				list = courtiers_list
+				limit = {
+					NOT = { liege_or_court_owner = scope:actor }
+				}
 				scope:actor = { add_courtier = prev }
 			}
 			# And boot any new autogenned arrivals.
@@ -1487,17 +1591,12 @@ procure_estate_interaction_effect = {
 			change = scope:title_change
 		}
 		resolve_title_and_vassal_change = scope:title_change
-		change_government = administrative_government
 		hidden_effect = {
-			if = {
-				limit = {
-					NOT = {
-						domicile.domicile_location = {
-							this = scope:recipient.capital_province
-						}
+			domicile ?= {
+				if = {
+					limit = {
+						NOT = { domicile_location = scope:recipient.capital_province }
 					}
-				}
-				domicile = {
 					move_domicile = scope:recipient.capital_province
 				}
 			}
@@ -1523,6 +1622,7 @@ procure_estate_interaction_effect = {
 		every_vassal_or_below = {
 			limit = {
 				is_ai = no
+				NOT = { this = scope:actor }
 			}
 			send_interface_message = {
 				type = msg_landless_adventurer_nearby
@@ -1539,7 +1639,7 @@ negotiate_settlement_interaction_effect = {
 	# scope:actor = offerer
 	# scope:recipient = adventurer
 	# offered_titles = titles
-	
+
 	hidden_effect = {
 		scope:recipient = {
 			if = {
@@ -1621,7 +1721,7 @@ negotiate_settlement_interaction_effect = {
 			limit = {
 				scope:recipient = {
 					highest_held_title_tier < scope:actor.highest_held_title_tier
-					is_independent_ruler = yes
+					top_liege = this
 				}
 			}
 			create_title_and_vassal_change = {
@@ -1654,8 +1754,7 @@ create_landed_ruler_message_effect = {
 					this = scope:landed
 					this = scope:landed_flavor_char
 				}
-				save_temporary_scope_as = informee
-				scope:landed = { in_diplomatic_range = scope:informee }
+				top_liege = scope:landed.top_liege
 			}
 			send_interface_message = {
 				type = msg_landless_adventurer_nearby
@@ -1776,7 +1875,7 @@ ep3_laamp_support_variable_cleanup_effect = {
 seize_realm_scheme_success_effect = {
 	# scope:target = ruler
 	# scope:owner = adventurer
-	
+
 	hidden_effect = {
 		scope:owner = {
 			if = {
@@ -1878,7 +1977,7 @@ seize_realm_scheme_success_effect = {
 			participants = { deposed = scope:target }
 		}
 		ordered_memory = {
-			limit = { has_memory_type = seized_realm_memory }
+			memory_type = seized_realm_memory
 			order_by = memory_creation_date
 			if = {
 				limit = {
@@ -1897,7 +1996,7 @@ seize_realm_scheme_success_effect = {
 			participants = { deposer = scope:owner }
 		}
 		ordered_memory = {
-			limit = { has_memory_type = realm_seized_memory }
+			memory_type = realm_seized_memory
 			order_by = memory_creation_date
 			if = {
 				limit = {
@@ -1949,7 +2048,7 @@ seize_realm_scheme_failure_effect = {
 				participants = { deposed = scope:target }
 			}
 			ordered_memory = {
-				limit = { has_memory_type = seized_realm_failed_memory }
+				memory_type = seized_realm_failed_memory
 				order_by = memory_creation_date
 				if = {
 					limit = {
@@ -1990,7 +2089,7 @@ seize_realm_scheme_failure_effect = {
 			participants = { deposer = scope:owner }
 		}
 		ordered_memory = {
-			limit = { has_memory_type = realm_seized_failed_memory }
+			memory_type = realm_seized_failed_memory
 			order_by = memory_creation_date
 			if = {
 				limit = {
@@ -2101,7 +2200,7 @@ adventurer_realm_destabilisation_list_effect = {
 							$TITLE_GIVER$ = {
 								any_held_title = {
 									tier >= scope:title.tier
-									NOT = { this = scope:title }
+									this != scope:title
 								}
 							}
 						}
@@ -2185,16 +2284,8 @@ adventurer_realm_destabilisation_list_effect = {
 							}
 						}
 					}
-					modifier = { # Vassals with capitals outside the de jure more likely
-						factor = 1.25
-						capital_county = {
-							NOT = {
-								target_is_de_jure_liege_or_above = scope:title
-							}
-						}
-					}
 					### PERSONALITY
-					ai_value_modifier = { 
+					ai_value_modifier = {
 						ai_boldness = 0.15
 						ai_energy = 0.15
 						ai_greed = 0.15
@@ -2254,7 +2345,7 @@ adventurer_realm_destabilisation_list_effect = {
 						factor = 1.1
 						dynasty ?= {
 							this = scope:ruler.dynasty
-							NOT = { this = scope:adventurer.dynasty }
+							this != scope:adventurer.dynasty
 						}
 					}
 					modifier = { # Relatives of adventurer less likely
@@ -2266,7 +2357,7 @@ adventurer_realm_destabilisation_list_effect = {
 						factor = 0.75
 						dynasty ?= {
 							this = scope:adventurer.dynasty
-							NOT = { this = scope:ruler.dynasty }
+							this != scope:ruler.dynasty
 						}
 					}
 					### HOOKS
@@ -2286,13 +2377,6 @@ adventurer_realm_destabilisation_list_effect = {
 					modifier = {
 						factor = 1.25
 						scope:ruler.primary_title.tier = tier_kingdom
-					}
-					### ADMIN
-					modifier = { # Noble Families should never leave admin realms
-						factor = 0
-						any_held_title = {
-							is_noble_family_title = yes
-						}
 					}
 					max = 95
 					add_to_list = independent_vassals
@@ -2349,7 +2433,7 @@ adventurer_realm_destabilisation_civil_war_effect = {
 				limit = {
 					scope:title = {
 						any_claimant = {
-							NOT = { this = scope:adventurer }
+							this != scope:adventurer
 						}
 					}
 				}
@@ -2397,7 +2481,7 @@ adventurer_realm_destabilisation_civil_war_effect = {
 		every_in_list = {
 			list = independent_vassals
 			limit = {
-				NOT = { this = scope:revolt_leader }
+				this != scope:revolt_leader
 				can_join_faction = scope:faction
 			}
 			join_faction = scope:faction
@@ -2428,11 +2512,11 @@ adventurer_realm_destabilisation_transfer_effect = {
 				save_temporary_scope_as = vassal_temp
 				if = {
 					limit = {
-						scope:adventurer = { is_independent_ruler = yes }
+						scope:adventurer = { top_liege = this }
 						scope:ruler = {
 							NOT = {
 								any_held_title = {
-									NOT = { this = scope:title }
+									this != scope:title
 									any_in_de_jure_hierarchy = { this = scope:vassal_temp.primary_title }
 								}
 							}
@@ -2445,7 +2529,7 @@ adventurer_realm_destabilisation_transfer_effect = {
 						scope:ruler = {
 							NOT = {
 								any_held_title = {
-									NOT = { this = scope:title }
+									this != scope:title
 									any_in_de_jure_hierarchy = { this = scope:vassal_temp.primary_title }
 								}
 							}
@@ -2488,7 +2572,7 @@ adventurer_realm_destabilisation_transfer_effect = {
 				save_temporary_scope_as = title_temp
 				if = {
 					limit = {
-						NOT = { holder = scope:adventurer }
+						holder != scope:adventurer
 						OR = {
 							holder = scope:ruler
 							holder.highest_held_title_tier >= scope:title.tier
@@ -2710,7 +2794,7 @@ points_of_interest_tracker_effect = {
 		if = {
 			limit = {
 				NOT = {
-					has_variable = poi_visited 
+					has_variable = poi_visited
 				}
 			}
 			set_variable = {
@@ -2731,11 +2815,9 @@ zealous_missionary_conversion_effect = {
 	if = {
 		limit = {
 			exists = location.barony.holder
-			government_has_flag = government_is_landless_adventurer 
+			government_has_flag = government_is_landless_adventurer
 			has_character_flag = zealous_missionary_timer
-			NOT = {
-				location.faith ?= root.faith
-			}
+			location.county ?= { hasan_evangelize_province_trigger = yes }
 		}
 		trigger_event = ep3_laamp_decision_event.1103
 	}
@@ -2764,7 +2846,7 @@ war_contracts_completed_tracker_effect = {
 }
 
 bandit_king_maa_spawn_effect = {
-	
+
 	save_scope_as = bandit_king
 	if = {
 		limit = {
@@ -3045,6 +3127,13 @@ absolve_crusaders_of_gallowsbait_effect = {
 	}
 }
 
+temporarily_lock_visit_settlement_effect = {
+	set_variable = {
+		name = ep3_laamp_decision_1000_is_visiting
+		days = visit_settlement_lock_days
+	}
+}
+
 ##################################################
 # Admin Government
 ##################################################
@@ -3060,37 +3149,127 @@ torture_grants_influence_effect = {
 
 create_noble_family_effect = {
 	debug_log = create_noble_family_title
-
 	save_scope_as = new_noble_family_holder
+	$GOVERNMENT_GIVER$ = { save_scope_as = government_giver }
 	hidden_effect = { # NF can only be held by house heads
-		house ?= {
-			if = {
-				limit = { house_head != scope:new_noble_family_holder }
-				set_house_head = scope:new_noble_family_holder
+		if = { # Start by checking that we are not the house head already
+			limit = {
+				house ?= { house_head != scope:new_noble_family_holder }
+			}
+			if = { # If not, let's see if it would be reasonable to become house head...
+				limit = {
+					house.house_head ?= {
+						top_liege = scope:new_noble_family_holder.top_liege
+						OR = {
+							is_ruler = no
+							primary_title.tier <= tier_county
+						}
+						is_ai = yes #  Don't steal house head from a player
+					}
+				}
+				house = { set_house_head = scope:new_noble_family_holder }
+			}
+			else = { # ... Otherwise, we create a cadet branch
+				create_cadet_branch = {}
 			}
 		}
 	}
-	give_noble_family_title = {
-		name = noble_family_name
-		article = DEFAULT_TITLE_NAME_ARTICLE
-		save_scope_as = new_title
-	}
-	scope:new_title = {
-		holder = {
-			save_scope_as = noble_family_head
-		}
-		set_coa = scope:noble_family_head.house
-	}
-	custom_description = {
-		text = create_noble_family_tt
-	}
-
-	#Notifications
-	top_liege ?= {
-		every_vassal = {
+	scope:government_giver = {
+		if = {
 			limit = {
-				is_ai = no
-				NOT = { this = scope:new_noble_family_holder }
+				scope:new_noble_family_holder = {
+					NOT = {
+						any_held_title = { is_noble_family_title = yes }
+					}
+				}
+			}
+			switch = {
+				trigger = has_government
+				japan_administrative_government = { # Japan has count level NFs
+					scope:new_noble_family_holder = {
+						give_noble_family_title = {
+							name = noble_family_name
+							tier = county
+							article = DEFAULT_TITLE_NAME_ARTICLE
+							government = japan_administrative_government
+							save_scope_as = new_title
+						}
+					}
+				}
+				japan_feudal_government = { # Japan has count level NFs
+					scope:new_noble_family_holder = {
+						give_noble_family_title = {
+							name = noble_family_name
+							tier = county
+							article = DEFAULT_TITLE_NAME_ARTICLE
+							government = japan_feudal_government
+							save_scope_as = new_title
+						}
+					}
+				}
+				celestial_government = { # China has different government
+					scope:new_noble_family_holder = {
+						give_noble_family_title = {
+							name = noble_family_name
+							tier = county
+							article = DEFAULT_TITLE_NAME_ARTICLE
+							government = celestial_government
+							save_scope_as = new_title
+						}
+						trigger_event = {
+							id = tgp_china_career.0001
+							days = { 2 5 }
+						}
+					}
+				}
+				meritocratic_government = { # Meritocratic has different government
+					scope:new_noble_family_holder = {
+						give_noble_family_title = {
+							name = noble_family_name
+							tier = county
+							article = DEFAULT_TITLE_NAME_ARTICLE
+							government = meritocratic_government
+							save_scope_as = new_title
+						}
+					}
+				}
+				steppe_admin_government = { # Steppe Admin has different government
+					scope:new_noble_family_holder = {
+						give_noble_family_title = {
+							name = noble_family_name
+							tier = county
+							article = DEFAULT_TITLE_NAME_ARTICLE
+							government = steppe_admin_government
+							save_scope_as = new_title
+						}
+					}
+				}
+				fallback = {
+					scope:new_noble_family_holder = {
+						give_noble_family_title = {
+							name = noble_family_name
+							tier = duchy
+							article = DEFAULT_TITLE_NAME_ARTICLE
+							government = administrative_government
+							save_scope_as = new_title
+						}
+					}
+				}
+			}
+		}
+		scope:new_title.holder ?= {
+			save_scope_as = noble_family_head
+			scope:new_title = { set_coa = scope:noble_family_head.house }
+		}
+		custom_description = { text = create_noble_family_tt }
+
+		#Notifications
+		every_player = {
+			limit = {
+				top_liege = scope:new_noble_family_holder.top_liege
+				this != scope:new_noble_family_holder
+				# China has hundreds of Noble Families, it gets spammy
+				NOT = { government_allows = merit }
 			}
 			trigger_event = {
 				id = ep3_emperor_yearly.2410
@@ -3113,7 +3292,7 @@ increase_governance_effect = {
 					exists = scope:task_contract
 				}
 				multiply = governance_task_contract_tier_value
-				
+
 				if = {
 					limit = {
 						$VALUE$ > 0
@@ -3127,27 +3306,22 @@ increase_governance_effect = {
 			}
 		}
 	}
-	if = { # First, let's make sure you are a governor in an Admin realm
+	# Double-check if you have the governor trait - If not, let's make sure you get it
+	if = {
 		limit = {
-			government_allows = administrative
-			is_landed = yes
+			NOT = { has_trait = governor }
+			is_governor = yes
 		}
-		# Double-check if you have the governor trait - If not, let's make sure you get it
-		if = {
-			limit = {
-				NOT = { has_trait = governor }
-			}
-			add_trait = governor
+		add_trait = governor
+	}
+	# If you have the trait, let's increase your XP for it
+	else_if = {
+		limit = {
+			has_trait = governor
 		}
-		# If you have the trait, let's increase your XP for it
-		else_if = {
-			limit = {
-				has_trait = governor
-			}
-			add_trait_xp = {
-				trait = governor
-				value = scope:governor_xp_gain
-			}
+		add_trait_xp = {
+			trait = governor
+			value = scope:governor_xp_gain
 		}
 	}
 }
@@ -3211,798 +3385,14 @@ spawn_governance_contract_effect = {
 	}
 
 	# Select which contract to create
-	random_list = {
-		10 = { # Overdue Taxes
-			trigger = {
-				NOT = { has_character_flag = task_contract_cooldown_overdue_taxes }
-				any_sub_realm_county = {
-					any_county_province = {
-						has_holding = yes
-						NOT = { this = scope:governor.capital_province }
-					}
-				}
-			}
-
-			# Select a suitable location
-			random_sub_realm_county = {
-				limit = {
-					any_county_province = {
-						has_holding = yes
-						NOT = { this = scope:governor.capital_province }
-					}
-				}
-				random_county_province = {
-					limit = {
-						has_holding = yes
-						NOT = { this = scope:governor.capital_province }
-					}
-					save_scope_as = target_province
-				}
-			}
-
-			create_task_contract = {
-				task_contract_type = overdue_taxes
-				task_contract_tier = scope:governance_task_contract_tier
-				location = scope:target_province
-				save_scope_as = new_governance_issue
-			}
-			add_character_flag = {
-				flag = task_contract_cooldown_overdue_taxes
-				years = 10
-			}
-		}
-		10 = { # Hoarding Mayor
-			trigger = {
-				NOT = { has_character_flag = task_contract_cooldown_hoarding_mayor }
-				any_sub_realm_county = {
-					any_county_province = {
-						has_holding_type = city_holding
-						province_owner = {
-							NOT = { this = scope:governor }
-							gold >= 500 # Mayor needs to have a lot of gold
-						}
-					}
-				}
-			}
-
-			# Select a suitable location
-			random_sub_realm_county = {
-				limit = {
-					any_county_province = {
-						has_holding_type = city_holding
-						province_owner = {
-							NOT = { this = scope:governor }
-							gold >= 500 # Mayor needs to have a lot of gold
-						}
-					}
-				}
-				random_county_province = {
-					limit = {
-						has_holding_type = city_holding
-						province_owner = {
-							NOT = { this = scope:governor }
-							gold >= 500 # Mayor needs to have a lot of gold
-						}
-					}
-					save_scope_as = target_province
-				}
-			}
-
-			create_task_contract = {
-				task_contract_type = hoarding_mayor
-				task_contract_tier = scope:governance_task_contract_tier
-				location = scope:target_province
-				task_contract_employer = scope:target_province.province_owner
-				save_scope_as = new_governance_issue
-			}
-			add_character_flag = {
-				flag = task_contract_cooldown_hoarding_mayor
-				years = 10
-			}
-		}
-		10 = { # Bountiful Harvest
-			trigger = {
-				NOT = { has_character_flag = task_contract_cooldown_bountiful_harvest }
-			}
-
-			# Select a suitable location
-			capital_province = {
-				save_scope_as = target_province
-			}
-
-			create_task_contract = {
-				task_contract_type = bountiful_harvest
-				task_contract_tier = scope:governance_task_contract_tier
-				location = scope:target_province
-				save_scope_as = new_governance_issue
-			}
-			add_character_flag = {
-				flag = task_contract_cooldown_bountiful_harvest
-				years = 10
-			}
-
-			modifier = { # Increased chance if there is fertile terrain types present
-				factor = 1.5
-				any_sub_realm_county = {
-					any_county_province = {
-						OR = {
-							terrain = farmlands
-							terrain = floodplains
-						}
-					}
-				}
-			}
-			modifier = { # Reduced chance if there is only rough terrain present
-				factor = 0.5
-				NOT = {
-					any_sub_realm_county = {
-						any_county_province = {
-							OR = {
-								terrain = farmlands
-								terrain = floodplains
-								terrain = plains
-								terrain = drylands
-								terrain = oasis
-								terrain = forest
-							}
-						}
-					}
-				}
-			}
-		}
-		10 = { # Rampant Bandits
-			trigger = {
-				NOT = { has_character_flag = task_contract_cooldown_rampant_bandits }
-				any_sub_realm_county = {
-					any_county_province = {
-						NOT = { this = county.holder.capital_province }
-					}
-				}
-			}
-
-			# Select a suitable location
-			random_sub_realm_county = {
-				limit = {
-					any_county_province = {
-						NOT = { this = county.holder.capital_province }
-					}
-				}
-				weight = {
-					base = 1
-					modifier = { # Prioritize counties with low control
-						add = {
-							value = 100
-							subtract = county_control
-						}
-						county_control < 100
-					}
-				}
-				add_county_modifier = {
-					modifier = ep3_governance_rampant_bandits
-					years = 40
-				}
-				random_county_province = {
-					limit = {
-						NOT = { this = county.holder.capital_province }
-					}
-					weight = {
-						base = 1
-						modifier = { # Empty baronies make for better hiding spots
-							add = 15
-							has_holding = no
-						}
-						modifier = { # You can harass cities easier than castles or temples
-							add = 4
-							has_holding_type = city_holding
-						}
-						modifier = { # You can harass temples easier than castles
-							add = 2
-							has_holding_type = church_holding
-						}
-					}
-					save_scope_as = target_province
-				}
-			}
-
-			create_task_contract = {
-				task_contract_type = rampant_bandits
-				task_contract_tier = scope:governance_task_contract_tier
-				location = scope:target_province
-				save_scope_as = new_governance_issue
-			}
-			add_character_flag = {
-				flag = task_contract_cooldown_rampant_bandits
-				years = 10
-			}
-
-			modifier = { # Significantly reduce the chance if there is no county with reduced control
-				factor = 0.1
-				NOT = {
-					any_sub_realm_county = { county_control <= 90 }
-				}
-			}
-			modifier = { # Increased chance if there are multiple counties with low control
-				factor = 1.5
-				any_sub_realm_county = {
-					percent >= 0.25
-					county_control <= 75
-				}
-			}
-			modifier = { # Increased it more if control is even lower
-				factor = 2
-				any_sub_realm_county = {
-					percent >= 0.5
-					county_control <= 50
-				}
-			}
-		}
-		10 = { # Discontent Soldiers
-			trigger = {
-				NOT = { has_character_flag = task_contract_cooldown_discontent_soldiers }
-				any_maa_regiment = {
-					is_title_maa_regiment = yes
-					is_raised = no
-					count >= 2
-				}
-			}
-
-			# Select a suitable location
-			capital_province = {
-				save_scope_as = target_province
-			}
-
-			create_task_contract = {
-				task_contract_type = discontent_soldiers
-				task_contract_tier = scope:governance_task_contract_tier
-				location = scope:target_province
-				save_scope_as = new_governance_issue
-			}
-			add_character_flag = {
-				flag = task_contract_cooldown_discontent_soldiers
-				years = 10
-			}
-		}
-		10 = { # Inept Mayor
-			trigger = {
-				NOT = { has_character_flag = task_contract_cooldown_inept_mayor }
-				any_sub_realm_county = {
-					any_county_province = {
-						has_holding_type = city_holding
-						province_owner = {
-							NOT = { this = scope:governor }
-							stewardship <= mediocre_skill_rating
-						}
-					}
-				}
-			}
-
-			# Select a suitable location
-			random_sub_realm_county = {
-				limit = {
-					any_county_province = {
-						has_holding_type = city_holding
-						province_owner = {
-							NOT = { this = scope:governor }
-							stewardship <= mediocre_skill_rating
-						}
-					}
-				}
-				random_county_province = {
-					limit = {
-						has_holding_type = city_holding
-						province_owner = {
-							NOT = { this = scope:governor }
-							stewardship <= mediocre_skill_rating
-						}
-					}
-					save_scope_as = target_province
-				}
-				add_county_modifier = {
-					modifier = ep3_mismanaged_administration_modifier
-					years = 10
-				}
-			}
-
-			create_task_contract = {
-				task_contract_type = inept_mayor
-				task_contract_tier = scope:governance_task_contract_tier
-				location = scope:target_province
-				task_contract_employer = scope:target_province.province_owner
-				save_scope_as = new_governance_issue
-			}
-			add_character_flag = {
-				flag = task_contract_cooldown_inept_mayor
-				years = 10
-			}
-		}
-		10 = { # Provincial Investment
-			trigger = {
-				NOT = { has_character_flag = task_contract_cooldown_prov_investment }
-				scope:governance_task_contract_tier = define:NTaskContract|HIGH_TASK_CONTRACT_TIER
-			}
-
-			# Select a suitable location
-			capital_province = {
-				save_scope_as = target_province
-			}
-
-			create_task_contract = {
-				task_contract_type = prov_investment
-				task_contract_tier = scope:governance_task_contract_tier
-				location = scope:target_province
-				save_scope_as = new_governance_issue
-			}
-			add_character_flag = {
-				flag = task_contract_cooldown_prov_investment
-				years = 10
-			}
-			modifier = {
-				has_trait = education_stewardship
-				add = 10
-			}
-		}
-		10 = { # Raiding Peasants
-			trigger = {
-				NOT = { has_character_flag = task_contract_cooldown_raiding_peasants }
-				any_sub_realm_county = {
-					any_neighboring_county = {
-						holder = {
-							top_liege = {
-								NOT = { this = scope:governor.top_liege }
-							}
-						}
-					}
-					any_county_province = {
-						has_holding = yes
-					}
-				}
-			}
-
-			# Select a suitable location
-			random_sub_realm_county = {
-				limit = {
-					any_neighboring_county = {
-						holder = {
-							top_liege = {
-								NOT = { this = scope:governor.top_liege }
-							}
-						}
-					}
-					any_county_province = {
-						has_holding = yes
-					}
-				}
-				random_county_province = {
-					limit = {
-						has_holding = yes
-					}
-					save_scope_as = target_province
-				}
-			}
-
-			create_task_contract = {
-				task_contract_type = raiding_peasants
-				task_contract_tier = scope:governance_task_contract_tier
-				location = scope:target_province
-				save_scope_as = new_governance_issue
-			}
-			add_character_flag = {
-				flag = task_contract_cooldown_raiding_peasants
-				years = 10
-			}
-		}
-		10 = { # Wild Predators
-			trigger = {
-				NOT = { has_character_flag = task_contract_cooldown_wild_predators }
-				any_sub_realm_county = {
-					any_county_province = {
-						OR = {
-							has_building_or_higher = hunting_grounds_01
-							has_building_or_higher = royal_forest_01
-							terrain = forest
-							terrain = jungle
-						}
-					}
-				}
-			}
-
-			# Select a suitable location
-			random_sub_realm_county = {
-				limit = {
-					any_county_province = {
-						OR = {
-							has_building_or_higher = hunting_grounds_01
-							has_building_or_higher = royal_forest_01
-							terrain = forest
-							terrain = jungle
-						}
-					}
-				}
-				add_county_modifier = {
-					modifier = ep3_wild_predators_modifier
-					years = 10
-				}
-				random_county_province = {
-					limit = {
-						OR = {
-							has_building_or_higher = hunting_grounds_01
-							has_building_or_higher = royal_forest_01
-						}
-					}
-					alternative_limit = {
-						OR = {
-							terrain = forest
-							terrain = jungle
-						}
-					}
-					save_scope_as = target_province
-				}
-			}
-
-			create_task_contract = {
-				task_contract_type = wild_predators
-				task_contract_tier = scope:governance_task_contract_tier
-				location = scope:target_province
-				save_scope_as = new_governance_issue
-			}
-			add_character_flag = {
-				flag = task_contract_cooldown_wild_predators
-				years = 10
-			}
-		}
-		10 = { # Evil Presence
-			trigger = {
-				NOT = { has_character_flag = task_contract_cooldown_evil_presence }
-				scope:governance_task_contract_tier = define:NTaskContract|LOW_TASK_CONTRACT_TIER
-				any_sub_realm_county = {
-					# faith.religion = religion:christianity_religion #LotR
-					any_county_province = {
-						has_holding = yes
-						province_owner != scope:governor
-					}
-				}
-			}
-
-			# Select a suitable location
-			random_sub_realm_county = {
-				limit = {
-					# faith.religion = religion:christianity_religion #LotR
-					any_county_province = {
-						has_holding = yes
-						province_owner != scope:governor
-					}
-				}
-				random_county_province = {
-					limit = {
-						has_holding = yes
-						province_owner != scope:governor 
-					}
-					save_scope_as = target_province
-				}
-			}
-
-			create_task_contract = {
-				task_contract_type = evil_presence
-				task_contract_tier = scope:governance_task_contract_tier
-				location = scope:target_province
-				save_scope_as = new_governance_issue
-			}
-			add_character_flag = {
-				flag = task_contract_cooldown_evil_presence
-				years = 10
-			}
-		}
-		10 = { # Miraculous Healing
-			trigger = {
-				NOT = { has_character_flag = task_contract_cooldown_miraculous_healing }
-			}
-
-			# Select a suitable location
-			capital_province = {
-				save_scope_as = target_province
-			}
-
-			create_task_contract = {
-				task_contract_type = miraculous_healing
-				task_contract_tier = scope:governance_task_contract_tier
-				location = scope:target_province
-				save_scope_as = new_governance_issue
-			}
-			add_character_flag = {
-				flag = task_contract_cooldown_miraculous_healing
-				years = 10
-			}
-		}
-		10 = { # Buried Treasure
-			trigger = {
-				NOT = { has_character_flag = task_contract_cooldown_buried_treasure }
-				any_sub_realm_county = {
-					any_county_province = {
-						has_holding = yes
-						province_owner != scope:governor
-					}
-				}
-			}
-
-			# Select a suitable location
-			random_sub_realm_county = {
-				limit = {
-					any_county_province = {
-						has_holding = yes
-						province_owner != scope:governor
-					}
-				}
-				random_county_province = {
-					limit = {
-						has_holding = yes
-						province_owner != scope:governor
-					}
-					save_scope_as = target_province
-				}
-			}
-
-			create_task_contract = {
-				task_contract_type = buried_treasure
-				task_contract_tier = scope:governance_task_contract_tier
-				location = scope:target_province
-				save_scope_as = new_governance_issue
-			}
-			add_character_flag = {
-				flag = task_contract_cooldown_buried_treasure
-				years = 10
-			}
-		}
-		10 = { # Public Land
-			trigger = {
-				NOT = { has_character_flag = task_contract_cooldown_public_land }
-				any_sub_realm_county = {
-					any_county_province = {
-						any_province_domicile = {
-							owner = scope:governor
-							is_domicile_type = estate
-						}
-					}
-				}
-				OR = {
-					any_sub_realm_county = {
-						any_county_province = {
-							has_holding = yes
-							province_owner != scope:governor
-							has_holding_type = castle_holding
-						}
-					}
-					any_sub_realm_county = {
-						any_county_province = {
-							any_province_domicile = {
-								is_domicile_type = estate
-								owner = {
-									NOT = { this = scope:governor }
-									is_ai = yes
-									is_alive = yes
-								}
-							}
-						}
-					}
-				}
-			}
-
-			# Select a suitable location
-			random_sub_realm_county = {
-				limit = {
-					any_county_province = {
-						any_province_domicile = {
-							is_domicile_type = estate
-							owner = {
-								NOT = { this = scope:governor }
-								is_ai = yes
-								is_alive = yes
-							}
-						}
-					}
-				}
-				random_county_province = {
-					limit = {
-						any_province_domicile = {
-							is_domicile_type = estate
-							owner = {
-								NOT = { this = scope:governor }
-								is_ai = yes
-								is_alive = yes
-							}
-						}
-
-					}
-					save_scope_as = target_province
-				}
-				scope:target_province ?= {
-					random_province_domicile = {
-						limit = {
-							is_domicile_type = estate
-							owner = {
-								NOT = { this = scope:governor }
-								is_ai = yes
-								is_alive = yes
-							}
-						}
-						owner = { save_scope_as = employer }
-					}
-				}
-			}
-			if = {
-				limit = {
-					NOT = { exists = scope:target_province }
-				}
-				random_sub_realm_county = {
-					limit = {
-						any_county_province = {
-							has_holding = yes
-							province_owner != scope:governor
-							has_holding_type = castle_holding
-						}
-					}
-					random_county_province = {
-						limit = {
-							has_holding = yes
-							province_owner != scope:governor
-							has_holding_type = castle_holding
-						}
-						save_scope_as = target_province
-						province_owner = { save_scope_as = employer }
-					}
-				}
-			}
-
-			create_task_contract = {
-				task_contract_type = public_land
-				task_contract_tier = scope:governance_task_contract_tier
-				location = scope:target_province
-				task_contract_employer = scope:employer
-				save_scope_as = new_governance_issue
-			}
-			add_character_flag = {
-				flag = task_contract_cooldown_public_land
-				years = 10
-			}
-		}
-		10 = { # Mad Prophet
-			trigger = {
-				NOT = { has_character_flag = task_contract_cooldown_mad_prophet }
-				any_sub_realm_county = {
-					any_county_province = {
-						has_holding = yes
-						province_owner != scope:governor
-					}
-				}
-			}
-
-			# Select a suitable location
-			random_sub_realm_county = {
-				limit = {
-					any_county_province = {
-						has_holding = yes
-						province_owner != scope:governor
-					}
-				}
-				random_county_province = {
-					limit = {
-						has_holding = yes
-						province_owner != scope:governor
-					}
-					save_scope_as = target_province
-				}
-			}
-
-			create_task_contract = {
-				task_contract_type = mad_prophet
-				task_contract_tier = scope:governance_task_contract_tier
-				location = scope:target_province
-				save_scope_as = new_governance_issue
-			}
-			add_character_flag = {
-				flag = task_contract_cooldown_mad_prophet
-				years = 10
-			}
-		}
-		10 = { # Titles for Sale
-			trigger = {
-				NOT = { has_character_flag = task_contract_cooldown_titles_sale }
-				faith = {
-					NOR = {
-						has_doctrine = doctrine_theocracy_lay_clergy
-						has_doctrine = doctrine_temporal_head
-					}
-				}
-			}
-
-			# Select a suitable location
-			capital_province = {
-				save_scope_as = target_province
-			}
-
-			create_task_contract = {
-				task_contract_type = titles_sale
-				task_contract_tier = scope:governance_task_contract_tier
-				location = scope:target_province
-				save_scope_as = new_governance_issue
-			}
-			add_character_flag = {
-				flag = task_contract_cooldown_titles_sale
-				years = 10
-			}
-		}
-		10 = { # Hungry Times
-			trigger = {
-				NOT = { has_character_flag = task_contract_cooldown_hungry_times }
-				any_sub_realm_county = {
-					any_county_province = {
-						has_holding = yes
-						province_owner != scope:governor
-						has_variable = epidemic_cooldown_general
-					}
-				}
-			}
-
-			# Select a suitable location
-			random_sub_realm_county = {
-				limit = {
-					any_county_province = {
-						has_holding = yes
-						province_owner != scope:governor
-						has_variable = epidemic_cooldown_general
-					}
-				}
-				random_county_province = {
-					limit = {
-						has_holding = yes
-						province_owner != scope:governor
-						has_variable = epidemic_cooldown_general
-					}
-					save_scope_as = target_province
-				}
-			}
-
-			create_task_contract = {
-				task_contract_type = hungry_times
-				task_contract_tier = scope:governance_task_contract_tier
-				location = scope:target_province
-				save_scope_as = new_governance_issue
-			}
-			add_character_flag = {
-				flag = task_contract_cooldown_hungry_times
-				years = 15 #epidemic_cooldown_general lasts 15 years, and we don't want this to trigger twice in a row for the same place
-			}
-		}
-		10 = { # Wartime Measures
-			trigger = {
-				NOT = { has_character_flag = task_contract_cooldown_wartime_measures }
-				liege = { is_at_war = yes }
-				is_at_war = no
-				OR = {
-					vassal_contract_has_flag = admin_theme_frontier
-					vassal_contract_has_flag = admin_theme_military
-				}
-			}
-
-			# Select a suitable location
-			capital_province = {
-				save_scope_as = target_province
-			}
-
-			create_task_contract = {
-				task_contract_type = wartime_measures
-				task_contract_tier = scope:governance_task_contract_tier
-				location = scope:target_province
-				save_scope_as = new_governance_issue
-			}
-			add_character_flag = {
-				flag = task_contract_cooldown_wartime_measures
-				years = 10
-			}
-		}
+	trigger_event = {
+		on_action = spawn_admin_governance_contract_on_action
 	}
-
-	play_sound_effect = "event:/DLC/EP3/SFX/Stingers/Byzantine_Flavor/ep3_mx_sting_byzantineflavor_become_governor"
 	
+	play_sound_effect = "event:/DLC/EP3/SFX/Stingers/Byzantine_Flavor/ep3_mx_sting_byzantineflavor_become_governor"
+}
+
+manage_new_governance_contract_effect = {
 	if = {
 		limit = { exists = scope:target_province }
 		if = {
@@ -4030,7 +3420,7 @@ spawn_governance_contract_effect = {
 generate_governance_outcome_effect = {
 	# INFO: We use this effect to randomize the options you get when doing a governor contract.
 	# $OPTIONS$ is the number of options the event has - Never use less than four, and try to have six if possible.
-	
+
 	# Unlock a bonus option if you have enough exp in the Governor trait - We do this here (and not in the option) to avoid blocking the option due to exp decay (if game is unpaused).
 	if = {
 		limit = {
@@ -4140,6 +3530,190 @@ generate_governance_outcome_effect = {
 	}
 }
 
+remove_other_eparch_modifiers_effect = {
+	hidden_effect = { # No need to show this
+		# Let's check for the county opinion modifier first
+		scope:liege ?= {
+			# We check and scope to all counties to make sure we remove any stray modifiers in case the capital is moved, etc.
+			if = {
+				limit = {
+					any_realm_county = {
+						any_county_province = {
+							has_province_modifier = ep3_eparch_county_opinion_modifier
+						}
+					}
+				}
+				every_realm_county = {
+					limit = {
+						any_county_province = {
+							has_province_modifier = ep3_eparch_county_opinion_modifier
+						}
+					}
+					every_county_province = {
+						limit = {
+							has_province_modifier = ep3_eparch_county_opinion_modifier
+						}
+						remove_province_modifier = ep3_eparch_county_opinion_modifier
+					}
+				}
+			}
+		}
+		
+		# Next is the troop modifier
+		scope:liege ?= {
+			# We check and scope to all counties to make sure we remove any stray modifiers in case the capital is moved, etc.
+			if = {
+				limit = {
+					any_realm_county = {
+						any_county_province = {
+							has_province_modifier = ep3_eparch_troops_modifier
+						}
+					}
+				}
+				every_realm_county = {
+					limit = {
+						any_county_province = {
+							has_province_modifier = ep3_eparch_troops_modifier
+						}
+					}
+					every_county_province = {
+						limit = {
+							has_province_modifier = ep3_eparch_troops_modifier
+						}
+						remove_province_modifier = ep3_eparch_troops_modifier
+					}
+				}
+			}
+		}
+		
+		# Next is the county control modifier
+		scope:liege ?= {
+			# We check and scope to all counties to make sure we remove any stray modifiers in case the capital is moved, etc.
+			if = {
+				limit = {
+					any_realm_county = {
+						any_county_province = {
+							has_province_modifier = ep3_eparch_control_modifier
+						}
+					}
+				}
+				every_realm_county = {
+					limit = {
+						any_county_province = {
+							has_province_modifier = ep3_eparch_control_modifier
+						}
+					}
+					every_county_province = {
+						limit = {
+							has_province_modifier = ep3_eparch_control_modifier
+						}
+						remove_province_modifier = ep3_eparch_control_modifier
+					}
+				}
+			}
+		}
+		
+		# And finally, the development modifier
+		scope:liege ?= {
+			# We check and scope to all counties to make sure we remove any stray modifiers in case the capital is moved, etc.
+			if = {
+				limit = {
+					any_realm_county = {
+						any_county_province = {
+							has_province_modifier = ep3_eparch_development_modifier
+						}
+					}
+				}
+				every_realm_county = {
+					limit = {
+						any_county_province = {
+							has_province_modifier = ep3_eparch_development_modifier
+						}
+					}
+					every_county_province = {
+						limit = {
+							has_province_modifier = ep3_eparch_development_modifier
+						}
+						remove_province_modifier = ep3_eparch_development_modifier
+					}
+				}
+			}
+		}
+	}
+}
+
+eparch_neglecting_duty_effect = {
+	custom_tooltip = {
+		text = eparch_neglecting_duty_warning_tt
+		
+		# We check if you have neglected duties in the past
+		if = {
+			limit = {
+				exists = var:eparch_neglecting_duty
+			}
+			# If you have, let's first increase the variable
+			change_variable = { name = eparch_neglecting_duty add = 5 }
+			
+			# Then check if the liege notices and decide to take action
+			random = {
+				chance = {
+					# Base value - Increases with each neglecting action
+					value = var:eparch_neglecting_duty
+					
+					# Add the difference in intrigue skill
+					add = {
+						value = liege.intrigue
+						subtract = intrigue
+					}
+					
+					# Add the difference in influence level
+					add = {
+						value = liege.influence_level
+						subtract = influence_level
+						multiply = 5
+					}
+					
+					# Lower the chance if you belong to a powerful or dominant family
+					if = {
+						limit = {
+							house ?= { is_powerful_family = yes }
+						}
+						subtract = 10
+					}
+					if = {
+						limit = {
+							house ?= { is_dominant_family = yes }
+						}
+						subtract = 20
+					}
+					
+					min = 5
+					max = 90
+				}
+				
+				# The liege have noticed - We reduce the variable slightly as a result (but never below 0)
+				if = {
+					limit = {
+						exists = var:eparch_neglecting_duty
+						var:eparch_neglecting_duty >= 20
+					}
+					change_variable = { name = eparch_neglecting_duty subtract = 20 }
+				}
+				else = {
+					set_variable = { name = eparch_neglecting_duty value = 0 }
+				}
+				
+				liege = {
+					trigger_event = { id = ep3_eparch_event.9000 days = { 10 90 } }
+				}
+			}
+		}
+		else = { # If you haven't, we'll set the variable and give you a free pass (you only get it for your very first time though)
+			set_variable = { name = eparch_neglecting_duty value = 0 }
+		}
+	}
+}
+
 add_influence_attacker_victory_effect = {
 	scope:attacker = {
 		if = {
@@ -4161,7 +3735,7 @@ add_influence_attacker_defeat_effect = {
 admin_change_government_effect = {
 	# Make sure you only use this effect on characters you are sure should change government! Since we don't do any extended triggers here.
 	# For a consistent behaviour, this effect is based on "convert_whole_realm_to_feudalism_effect"
-	
+
 	# First, let's see if the character only has their noble family title - then we don't bother changing their government
 	# We only destroy the family title to make sure it doesn't linger
 	if = {
@@ -4184,7 +3758,7 @@ admin_change_government_effect = {
 			prev = { destroy_title = scope:family_title }
 		}
 	}
-	
+
 	# If not, let's change the government type
 	# If liege has clan - Become clan!
 	else_if = {
@@ -4200,10 +3774,24 @@ admin_change_government_effect = {
 		}
 		change_government = clan_government
 	}
-	# If liege has feudal - Become feudal!
+	# If liege has japanese feudal - Become japanese feudal!
 	else_if = {
 		limit = {
 			is_independent_ruler = no
+			OR = {
+				liege = { government_has_flag = government_is_japan_feudal }
+				AND = {
+					liege = { government_has_flag = government_is_japan_feudal }
+					#NOT = { religion = religion:islam_religion } #LotR
+				}
+			}
+		}
+		change_government = japan_feudal_government
+	}
+	# If liege has feudal - Become feudal!
+	else_if = {
+		limit = {
+			top_liege != this
 			OR = {
 				liege = { government_has_flag = government_is_feudal }
 				AND = {
@@ -4224,7 +3812,7 @@ admin_change_government_effect = {
 	# }
 	# If you're an independent ruler with anything else - Become feudal!
 	else = { change_government = feudal_government }
-	
+
 	# Finally, let's double-check and see if there are any remaining family titles we should destroy
 	if = {
 		limit = {
@@ -4252,14 +3840,22 @@ ep3_dynasty_legacy_add_legitimacy_effect = {
 			limit = {
 				scope:host = {
 					government_allows = administrative
-					dynasty = { has_dynasty_perk = ep3_administrative_legacy_3 }
+					OR = {
+						dynasty = { has_dynasty_perk = ep3_administrative_legacy_3 }
+						top_participant_group:dynastic_cycle ?= {
+							participant_group_type = conservative_movement
+						}
+					}
 				}
 				# Does the activity location have a domicile owned by a house member
 				# Does that domicile have the Reception Hall building
 				activity_location = {
 					any_province_domicile = {
 						owner = { house ?= scope:host.house }
-						has_domicile_building_or_higher = reception_hall_01
+						OR = {
+							has_domicile_building_or_higher = reception_hall_01
+							has_domicile_building_or_higher = east_asian_estate_reception_hall_01
+						}
 					}
 				}
 			}
@@ -4267,7 +3863,10 @@ ep3_dynasty_legacy_add_legitimacy_effect = {
 				random_province_domicile = {
 					limit = {
 						owner = { house ?= scope:host.house }
-						has_domicile_building_or_higher = reception_hall_01
+						OR = {
+							has_domicile_building_or_higher = reception_hall_01
+							has_domicile_building_or_higher = east_asian_estate_reception_hall_01
+						}
 					}
 					owner = { save_scope_as = reception_hall_owner }
 				}
@@ -5661,7 +5260,7 @@ disburse_chariot_race_activity_host_rewards = {
 						}
 					}
 				}
-				
+
 				# Rewards for employing a charioteer who wins/places/shows
 				if = {
 					limit = { employs_court_position = charioteer_court_position }
@@ -7268,7 +6867,7 @@ ep3_send_akolouthos_message_loyal = {
 		type = msg_akolouthos_steels_varangians
 		title = ep3_akolouthos_events.1000
 		desc =  ep3_akolouthos_events.1000_loyal_notification_tooltip
-		
+
 		left_icon = scope:trait_getter
 		scope:trait_getter = {
 			add_trait = loyal
@@ -7287,7 +6886,7 @@ ep3_send_akolouthos_message_varangian = {
 		type = msg_akolouthos_steels_varangians
 		title = ep3_akolouthos_events.1000
 		desc =  ep3_akolouthos_events.1000_varangian_notification_tooltip
-		
+
 		left_icon = scope:trait_getter
 		scope:trait_getter = {
 			add_trait = varangian
@@ -7340,6 +6939,11 @@ ep3_palace_looting_random_malus_effect = {
 
 ep3_child_castration_effect = {
 	add_trait = beardless_eunuch
+	torture_memory_effect = {
+		VICTIM = scope:recipient
+		TORTURER = scope:actor
+		TYPE = castrated_beardless
+	}
 	#Eunuch bonus effects
 	custom_tooltip = castration_increased_aptitude
 	if = {
@@ -7412,6 +7016,11 @@ ep3_child_castration_effect = {
 
 ep3_youth_castration_effect = {
 	add_trait = eunuch_1
+	torture_memory_effect = {
+		VICTIM = scope:recipient
+		TORTURER = scope:actor
+		TYPE = castrated
+	}
 	#eunuch bonus effects
 	custom_tooltip = castration_increased_aptitude
 	if = {
@@ -7483,7 +7092,6 @@ ep3_youth_castration_effect = {
 }
 
 ep3_greek_fire_success_effect = {
-	#TODO_CD_EP3_JC modifiers and MaA effects here will most likely be replaced/supplemented by deplete_army once we have code support
 	scope:invading_commander = {
 		add_character_modifier = {
 			modifier = ravaged_by_greek_fire_modifier
@@ -7594,7 +7202,7 @@ save_traveler_culture_effect = {
 	random_culture_global = {
 		limit = {
 			exists = culture_head
-			NOT = { this = root.culture }
+			this != root.culture
 		}
 		save_scope_as = traveler_culture
 	}
@@ -7602,76 +7210,120 @@ save_traveler_culture_effect = {
 	random_culture_global = {
 		limit = {
 			exists = culture_head
-			NOT = { this = root.culture }
+			this != root.culture
 			OR = {
-				AND = {
-					culture_overlaps_geographical_region = world_europe
-					scope:traveler_culture = { culture_overlaps_geographical_region = world_europe }
-				}
-				AND = {
-					culture_overlaps_geographical_region = world_asia_minor
-					scope:traveler_culture = { culture_overlaps_geographical_region = world_europe }
-				}
-				AND = {
-					culture_overlaps_geographical_region = world_europe
-					scope:traveler_culture = { culture_overlaps_geographical_region = world_asia_minor }
-				}
-				AND = {
-					culture_overlaps_geographical_region = world_asia_minor
-					scope:traveler_culture = { culture_overlaps_geographical_region = world_asia_minor }
-				}
-				AND = {
-					culture_overlaps_geographical_region = world_asia_minor
-					scope:traveler_culture = { culture_overlaps_geographical_region = world_middle_east }
-				}
-				AND = {
-					culture_overlaps_geographical_region = world_middle_east
-					scope:traveler_culture = { culture_overlaps_geographical_region = world_asia_minor }
-				}
-				AND = {
-					culture_overlaps_geographical_region = world_middle_east
-					scope:traveler_culture = { culture_overlaps_geographical_region = world_middle_east }
-				}
-				AND = {
-					culture_overlaps_geographical_region = world_africa
-					scope:traveler_culture = { culture_overlaps_geographical_region = world_africa }
-				}
-				AND = {
-					culture_overlaps_geographical_region = world_steppe
-					scope:traveler_culture = { culture_overlaps_geographical_region = world_steppe }
-				}
-				AND = {
-					culture_overlaps_geographical_region = world_tibet
-					scope:traveler_culture = { culture_overlaps_geographical_region = world_tibet }
-				}
-				AND = {
-					culture_overlaps_geographical_region = world_tibet
-					scope:traveler_culture = { culture_overlaps_geographical_region = world_india}
-				}
-				AND = {
-					culture_overlaps_geographical_region = world_india
-					scope:traveler_culture = { culture_overlaps_geographical_region = world_tibet }
-				}
-				AND = {
-					culture_overlaps_geographical_region = world_india
-					scope:traveler_culture = { culture_overlaps_geographical_region = world_india }
-				}
-				AND = {
-					culture_overlaps_geographical_region = world_burma
-					scope:traveler_culture = { culture_overlaps_geographical_region = world_india }
-				}
-				AND = {
-					culture_overlaps_geographical_region = world_india
-					scope:traveler_culture = { culture_overlaps_geographical_region = world_burma }
-				}
-				AND = {
-					culture_overlaps_geographical_region = world_tibet
-					scope:traveler_culture = { culture_overlaps_geographical_region = world_burma }
-				}
-				AND = {
-					culture_overlaps_geographical_region = world_burma
-					scope:traveler_culture = { culture_overlaps_geographical_region = world_tibet }
-				}
+				# AND = { #LOTR
+				# 	culture_overlaps_geographical_region = world_europe
+				# 	scope:traveler_culture = { culture_overlaps_geographical_region = world_europe }
+				# }
+				# AND = {
+				# 	culture_overlaps_geographical_region = world_asia_minor
+				# 	scope:traveler_culture = { culture_overlaps_geographical_region = world_europe }
+				# }
+				# AND = {
+				# 	culture_overlaps_geographical_region = world_europe
+				# 	scope:traveler_culture = { culture_overlaps_geographical_region = world_asia_minor }
+				# }
+				# AND = {
+				# 	culture_overlaps_geographical_region = world_asia_minor
+				# 	scope:traveler_culture = { culture_overlaps_geographical_region = world_asia_minor }
+				# }
+				# AND = {
+				# 	culture_overlaps_geographical_region = world_asia_minor
+				# 	scope:traveler_culture = { culture_overlaps_geographical_region = world_middle_east }
+				# }
+				# AND = {
+				# 	culture_overlaps_geographical_region = world_middle_east
+				# 	scope:traveler_culture = { culture_overlaps_geographical_region = world_asia_minor }
+				# }
+				# AND = {
+				# 	culture_overlaps_geographical_region = world_middle_east
+				# 	scope:traveler_culture = { culture_overlaps_geographical_region = world_middle_east }
+				# }
+				# AND = {
+				# 	culture_overlaps_geographical_region = world_africa
+				# 	scope:traveler_culture = { culture_overlaps_geographical_region = world_africa }
+				# }
+				# AND = {
+				# 	culture_overlaps_geographical_region = world_steppe
+				# 	scope:traveler_culture = { culture_overlaps_geographical_region = world_steppe }
+				# }
+				# AND = {
+				# 	culture_overlaps_geographical_region = world_tibet
+				# 	scope:traveler_culture = { culture_overlaps_geographical_region = world_tibet }
+				# }
+				# AND = {
+				# 	culture_overlaps_geographical_region = world_tibet
+				# 	scope:traveler_culture = { culture_overlaps_geographical_region = world_india}
+				# }
+				# AND = {
+				# 	culture_overlaps_geographical_region = world_india
+				# 	scope:traveler_culture = { culture_overlaps_geographical_region = world_tibet }
+				# }
+				# AND = {
+				# 	culture_overlaps_geographical_region = world_india
+				# 	scope:traveler_culture = { culture_overlaps_geographical_region = world_india }
+				# }
+				# AND = {
+				# 	culture_overlaps_geographical_region = world_burma
+				# 	scope:traveler_culture = { culture_overlaps_geographical_region = world_india }
+				# }
+				# AND = {
+				# 	culture_overlaps_geographical_region = world_india
+				# 	scope:traveler_culture = { culture_overlaps_geographical_region = world_burma }
+				# }
+				# AND = {
+				# 	culture_overlaps_geographical_region = world_tibet
+				# 	scope:traveler_culture = { culture_overlaps_geographical_region = world_burma }
+				# }
+				# AND = {
+				# 	culture_overlaps_geographical_region = world_burma
+				# 	scope:traveler_culture = { culture_overlaps_geographical_region = world_tibet }
+				# }
+				# AND = {
+				# 	culture_overlaps_geographical_region = world_tibet
+				# 	scope:traveler_culture = { culture_overlaps_geographical_region = world_asia_china }
+				# }
+				# AND = {
+				# 	culture_overlaps_geographical_region = world_asia_china
+				# 	scope:traveler_culture = { culture_overlaps_geographical_region = world_asia_china }
+				# }
+				# AND = {
+				# 	culture_overlaps_geographical_region = world_asia_china
+				# 	scope:traveler_culture = { culture_overlaps_geographical_region = world_asia_southeast }
+				# }
+				# AND = {
+				# 	culture_overlaps_geographical_region = world_asia_china
+				# 	scope:traveler_culture = { culture_overlaps_geographical_region = world_asia_korea }
+				# }
+				# AND = {
+				# 	culture_overlaps_geographical_region = world_asia_china
+				# 	scope:traveler_culture = { culture_overlaps_geographical_region = world_asia_japan }
+				# }
+				# AND = {
+				# 	culture_overlaps_geographical_region = world_asia_korea
+				# 	scope:traveler_culture = { culture_overlaps_geographical_region = world_asia_china }
+				# }
+				# AND = {
+				# 	culture_overlaps_geographical_region = world_asia_korea
+				# 	scope:traveler_culture = { culture_overlaps_geographical_region = world_asia_japan }
+				# }
+				# AND = {
+				# 	culture_overlaps_geographical_region = world_asia_korea
+				# 	scope:traveler_culture = { culture_overlaps_geographical_region = world_asia_korea }
+				# }
+				# AND = {
+				# 	culture_overlaps_geographical_region = world_asia_japan
+				# 	scope:traveler_culture = { culture_overlaps_geographical_region = world_asia_japan }
+				# }
+				# AND = {
+				# 	culture_overlaps_geographical_region = world_asia_japan
+				# 	scope:traveler_culture = { culture_overlaps_geographical_region = world_asia_china }
+				# }
+				# AND = {
+				# 	culture_overlaps_geographical_region = world_asia_japan
+				# 	scope:traveler_culture = { culture_overlaps_geographical_region = world_asia_korea }
+				# }
 			}
 			cultural_acceptance = {
 				target = scope:traveler_culture
@@ -7698,8 +7350,7 @@ ep3_ai_castration_effect = {
 			5 = {}
 			5 = {
 				trigger = {
-					exists = liege
-					liege = { employs_court_position = court_physician_court_position }
+					liege ?= { employs_court_position = court_physician_court_position }
 				}
 				modifier = {
 					add = 5
@@ -8143,7 +7794,7 @@ ep3_pick_random_maa_regiment_effect = {
 				}
 				save_scope_value_as = {
 					name = maa_to_create
-					value = flag:haradrim_radiers
+					value = flag:haradrim_raiders
 				}
 			}
 			1 = { 
@@ -8273,7 +7924,7 @@ ep3_pick_random_maa_regiment_effect = {
 				}
 				save_scope_value_as = {
 					name = maa_to_create
-					value = flag:abrazanim_helberdiers
+					value = flag:abrazanim_halberdiers
 				}
 			}
 			1 = { 
@@ -8379,7 +8030,7 @@ ep3_pick_random_maa_regiment_effect = {
 			### Vale and Woodmen ###
 			1 = { 
 				trigger = {
-					culture = { has_innovation = innovation_valemen_warfare }
+					culture = { has_innovation = innovation_woodmen_warfare }
 				}
 				save_scope_value_as = {
 					name = maa_to_create
@@ -8430,6 +8081,33 @@ ep3_pick_random_maa_regiment_effect = {
 				save_scope_value_as = {
 					name = maa_to_create
 					value = flag:easterling_swordsmen
+				}
+			}
+			1 = { 
+				trigger = {
+					culture = { has_innovation = innovation_mordorrim_warfare }
+				}
+				save_scope_value_as = {
+					name = maa_to_create
+					value = flag:morgul_riders
+				}
+			}
+			1 = { 
+				trigger = {
+					culture = { has_innovation = innovation_mordorrim_warfare }
+				}
+				save_scope_value_as = {
+					name = maa_to_create
+					value = flag:mordorrim_pikemen
+				}
+			}
+			1 = { 
+				trigger = {
+					culture = { has_innovation = innovation_mordorrim_warfare }
+				}
+				save_scope_value_as = {
+					name = maa_to_create
+					value = flag:mordorrim_archers
 				}
 			}
 			#### Dwarves ####
@@ -8636,13 +8314,429 @@ ep3_pick_random_maa_regiment_effect = {
 					value = flag:longbeard_horse_archers
 				}
 			}
+			#### Elves ####
+			1 = { 
+				trigger = {
+					culture = { has_innovation = innovation_calaquendi_warfare }
+					scope:actor = { is_elf = yes }
+				}
+				save_scope_value_as = {
+					name = maa_to_create
+					value = flag:high_elven_heavy_infantry
+				}
+			}
+			1 = { 
+				trigger = {
+					culture = { has_innovation = innovation_calaquendi_warfare }
+					scope:actor = { is_elf = yes }
+				}
+				save_scope_value_as = {
+					name = maa_to_create
+					value = flag:high_elven_archers
+				}
+			}
+			1 = { 
+				trigger = {
+					culture = { has_innovation = innovation_calaquendi_warfare }
+					scope:actor = { is_elf = yes }
+				}
+				save_scope_value_as = {
+					name = maa_to_create
+					value = flag:high_elven_heavy_cavalry
+				}
+			}
+			1 = { 
+				trigger = {
+					culture = { has_innovation = innovation_calaquendi_warfare }
+					scope:actor = { is_elf = yes }
+				}
+				save_scope_value_as = {
+					name = maa_to_create
+					value = flag:high_elven_pikemen
+				}
+			}
+			1 = { 
+				trigger = {
+					culture = { has_innovation = innovation_calaquendi_warfare }
+					scope:actor = { is_elf = yes }
+				}
+				save_scope_value_as = {
+					name = maa_to_create
+					value = flag:high_elven_skirmishers
+				}
+			}
+			1 = { 
+				trigger = {
+					culture = { has_innovation = innovation_calaquendi_warfare }
+					scope:actor = { is_elf = yes }
+				}
+				save_scope_value_as = {
+					name = maa_to_create
+					value = flag:high_elven_light_cavalry
+				}
+			}
+			1 = { 
+				trigger = {
+					culture = { has_innovation = innovation_lomiquendi_warfare }
+					scope:actor = { is_elf = yes }
+				}
+				save_scope_value_as = {
+					name = maa_to_create
+					value = flag:grey_elven_archers
+				}
+			}
+			1 = { 
+				trigger = {
+					culture = { has_innovation = innovation_lomiquendi_warfare }
+					scope:actor = { is_elf = yes }
+				}
+				save_scope_value_as = {
+					name = maa_to_create
+					value = flag:grey_elven_heavy_cavalry
+				}
+			}
+			1 = { 
+				trigger = {
+					culture = { has_innovation = innovation_lomiquendi_warfare }
+					scope:actor = { is_elf = yes }
+				}
+				save_scope_value_as = {
+					name = maa_to_create
+					value = flag:grey_elven_heavy_infantry
+				}
+			}
+			1 = { 
+				trigger = {
+					culture = { has_innovation = innovation_lomiquendi_warfare }
+					scope:actor = { is_elf = yes }
+				}
+				save_scope_value_as = {
+					name = maa_to_create
+					value = flag:grey_elven_skirmishers
+				}
+			}
+			1 = { 
+				trigger = {
+					culture = { has_innovation = innovation_lomiquendi_warfare }
+					scope:actor = { is_elf = yes }
+				}
+				save_scope_value_as = {
+					name = maa_to_create
+					value = flag:grey_elven_light_cavalry
+				}
+			}
+			1 = { 
+				trigger = {
+					culture = { has_innovation = innovation_avarin_warfare }
+					scope:actor = { is_elf = yes }
+				}
+				save_scope_value_as = {
+					name = maa_to_create
+					value = flag:avarin_skirmishers
+				}
+			}
+			1 = { 
+				trigger = {
+					culture = { has_innovation = innovation_avarin_warfare }
+					scope:actor = { is_elf = yes }
+				}
+				save_scope_value_as = {
+					name = maa_to_create
+					value = flag:avarin_light_cavalry
+				}
+			}
+			1 = { 
+				trigger = {
+					culture = { has_innovation = innovation_avarin_warfare }
+					scope:actor = { is_elf = yes }
+				}
+				save_scope_value_as = {
+					name = maa_to_create
+					value = flag:avarin_archers
+				}
+			}
+			1 = { 
+				trigger = {
+					culture = { has_innovation = innovation_avarin_warfare }
+					scope:actor = { is_elf = yes }
+				}
+				save_scope_value_as = {
+					name = maa_to_create
+					value = flag:avarin_pikemen
+				}
+			}
+			1 = { 
+				trigger = {
+					culture = { has_innovation = innovation_avarin_warfare }
+					scope:actor = { is_elf = yes }
+				}
+				save_scope_value_as = {
+					name = maa_to_create
+					value = flag:avarin_heavy_infantry
+				}
+			}
+			1 = { 
+				trigger = {
+					culture = { has_innovation = innovation_avarin_warfare }
+					scope:actor = { is_elf = yes }
+				}
+				save_scope_value_as = {
+					name = maa_to_create
+					value = flag:avarin_heavy_cavalry
+				}
+			}
+			1 = { 
+				trigger = {
+					culture = { has_innovation = innovation_noldor_warfare }
+					scope:actor = { is_elf = yes }
+				}
+				save_scope_value_as = {
+					name = maa_to_create
+					value = flag:noldor_swordsmen
+				}
+			}
+			1 = { 
+				trigger = {
+					culture = { has_innovation = innovation_noldor_warfare }
+					scope:actor = { is_elf = yes }
+				}
+				save_scope_value_as = {
+					name = maa_to_create
+					value = flag:noldor_cavalry
+				}
+			}
+			1 = { 
+				trigger = {
+					culture = { has_innovation = innovation_calaquendi_warfare }
+					scope:actor = { is_elf = yes }
+				}
+				save_scope_value_as = {
+					name = maa_to_create
+					value = flag:song_smiths
+				}
+			}
+			1 = { 
+				trigger = {
+					culture = { has_innovation = innovation_vanyar_warfare }
+					scope:actor = { is_elf = yes }
+				}
+				save_scope_value_as = {
+					name = maa_to_create
+					value = flag:vanyar_pikemen
+				}
+			}
+			1 = { 
+				trigger = {
+					culture = { has_innovation = innovation_vanyar_warfare }
+					scope:actor = { is_elf = yes }
+				}
+				save_scope_value_as = {
+					name = maa_to_create
+					value = flag:vanyar_cavalry
+				}
+			}
+			1 = { 
+				trigger = {
+					culture = { has_innovation = innovation_teleri_warfare }
+					scope:actor = { is_elf = yes }
+				}
+				save_scope_value_as = {
+					name = maa_to_create
+					value = flag:teleri_light_infantry
+				}
+			}
+			1 = { 
+				trigger = {
+					culture = { has_innovation = innovation_teleri_warfare }
+					scope:actor = { is_elf = yes }
+				}
+				save_scope_value_as = {
+					name = maa_to_create
+					value = flag:teleri_archers
+				}
+			}
+			1 = { 
+				trigger = {
+					culture = { has_innovation = innovation_sindar_warfare }
+					scope:actor = { is_elf = yes }
+				}
+				save_scope_value_as = {
+					name = maa_to_create
+					value = flag:hir_hathol
+				}
+			}
+			1 = { 
+				trigger = {
+					culture = { has_innovation = innovation_falathrim_warfare }
+					scope:actor = { is_elf = yes }
+				}
+				save_scope_value_as = {
+					name = maa_to_create
+					value = flag:falathrim_haven_guard
+				}
+			}
+			1 = { 
+				trigger = {
+					culture = { has_innovation = innovation_marchwardens_warfare }
+					scope:actor = { is_elf = yes }
+				}
+				save_scope_value_as = {
+					name = maa_to_create
+					value = flag:marchwardens
+				}
+			}
+			1 = { 
+				trigger = {
+					culture = { has_innovation = innovation_galadhrim_warfare }
+					scope:actor = { is_elf = yes }
+				}
+				save_scope_value_as = {
+					name = maa_to_create
+					value = flag:galadhrim_warriors
+				}
+			}
+			1 = { 
+				trigger = {
+					culture = { has_innovation = innovation_galadhrim_warfare }
+					scope:actor = { is_elf = yes }
+				}
+				save_scope_value_as = {
+					name = maa_to_create
+					value = flag:galadhrim_archers
+				}
+			}
+			
+			1 = { 
+				trigger = {
+					culture = { has_innovation = innovation_lasgalendrim_warfare }
+					scope:actor = { is_elf = yes }
+				}
+				save_scope_value_as = {
+					name = maa_to_create
+					value = flag:royal_elk_riders
+				}
+			}
+			
+			1 = { 
+				trigger = {
+					culture = { has_innovation = innovation_lasgalendrim_warfare }
+					scope:actor = { is_elf = yes }
+				}
+				save_scope_value_as = {
+					name = maa_to_create
+					value = flag:theladagnyr
+				}
+			}
+			
+			1 = { 
+				trigger = {
+					culture = { has_innovation = innovation_spirits_pact }
+					scope:actor = { is_elf = yes }
+				}
+				save_scope_value_as = {
+					name = maa_to_create
+					value = flag:neldoreth_borderwardens
+				}
+			}
+			
+			1 = { 
+				trigger = {
+					culture = { has_innovation = innovation_spirits_pact }
+					scope:actor = { is_elf = yes }
+				}
+				save_scope_value_as = {
+					name = maa_to_create
+					value = flag:nuinevari
+				}
+			}
+			
+			1 = { 
+				trigger = {
+					culture = { has_innovation = innovation_cuind_warfare }
+					scope:actor = { is_elf = yes }
+				}
+				save_scope_value_as = {
+					name = maa_to_create
+					value = flag:cuind_wanderers
+				}
+			}
+			1 = { 
+				trigger = {
+					culture = { has_innovation = innovation_cuind_warfare }
+					scope:actor = { is_elf = yes }
+				}
+				save_scope_value_as = {
+					name = maa_to_create
+					value = flag:cuind_skirmishers
+				}
+			}
+			1 = { 
+				trigger = {
+					culture = { has_innovation = innovation_kinnlai_warfare }
+					scope:actor = { is_elf = yes }
+				}
+				save_scope_value_as = {
+					name = maa_to_create
+					value = flag:annammon_kin
+				}
+			}
+			1 = { 
+				trigger = {
+					culture = { has_innovation = innovation_kinnlai_warfare }
+					scope:actor = { is_elf = yes }
+				}
+				save_scope_value_as = {
+					name = maa_to_create
+					value = flag:kinnlai_skirmishers
+				}
+			}
+			1 = { 
+				trigger = {
+					culture = { has_innovation = innovation_sirrandrai_warfare }
+					scope:actor = { is_elf = yes }
+				}
+				save_scope_value_as = {
+					name = maa_to_create
+					value = flag:sirrandrai_riders
+				}
+			}
+			1 = { 
+				trigger = {
+					culture = { has_innovation = innovation_sirrandrai_warfare }
+					scope:actor = { is_elf = yes }
+				}
+				save_scope_value_as = {
+					name = maa_to_create
+					value = flag:wardens_of_sirgala
+				}
+			}
+			1 = { 
+				trigger = {
+					culture = { has_innovation = innovation_laiquendi_warfare }
+					scope:actor = { is_elf = yes }
+				}
+				save_scope_value_as = {
+					name = maa_to_create
+					value = flag:laiquendi_scouts
+				}
+			}
+			1 = { 
+				trigger = {
+					culture = { has_innovation = innovation_laiquendi_warfare }
+					scope:actor = { is_elf = yes }
+				}
+				save_scope_value_as = {
+					name = maa_to_create
+					value = flag:ossiriand_rangers
+				}
+			}
 			###############
 			### Vanilla ###
 			###############
 			1 = {
 				trigger = {
 					scope:include_basic_maa = yes
-					is_dwarf = no #LotR
+					NOT = { is_dwarf = yes } #LotR
 				}
 				save_scope_value_as = {
 					name = maa_to_create
@@ -8652,7 +8746,7 @@ ep3_pick_random_maa_regiment_effect = {
 			1 = {
 				trigger = {
 					scope:include_basic_maa = yes
-					is_dwarf = no #LotR
+					NOT = { is_dwarf = yes } #LotR
 				}
 				save_scope_value_as = {
 					name = maa_to_create
@@ -8662,7 +8756,7 @@ ep3_pick_random_maa_regiment_effect = {
 			1 = {
 				trigger = {
 					scope:include_basic_maa = yes
-					is_dwarf = no #LotR
+					NOT = { is_dwarf = yes } #LotR
 				}
 				save_scope_value_as = {
 					name = maa_to_create
@@ -8672,7 +8766,7 @@ ep3_pick_random_maa_regiment_effect = {
 			1 = {
 				trigger = {
 					scope:include_basic_maa = yes
-					is_dwarf = no #LotR
+					NOT = { is_dwarf = yes } #LotR
 				}
 				save_scope_value_as = {
 					name = maa_to_create
@@ -8680,28 +8774,28 @@ ep3_pick_random_maa_regiment_effect = {
 				}
 			}
 			# TRIBAL
-			# 1 = { #LotR
-			# 	trigger = {
-			# 		culture = { has_innovation = innovation_elephantry }
-			# 	}
-			# 	save_scope_value_as = {
-			# 		name = maa_to_create
-			# 		value = flag:war_elephant
-			# 	}
-			# }
-			# 1 = { #LotR
-			# 	trigger = {
-			# 		culture = { has_innovation = innovation_war_camels }
-			# 	}
-			# 	save_scope_value_as = {
-			# 		name = maa_to_create
-			# 		value = flag:camel_rider
-			# 	}
-			# }
+			1 = { #LotR
+				trigger = {
+					culture = { has_innovation = innovation_elephantry }
+				}
+				save_scope_value_as = {
+					name = maa_to_create
+					value = flag:war_elephant
+				}
+			}
+			1 = { #LotR
+				trigger = {
+					culture = { has_innovation = innovation_war_camels }
+				}
+				save_scope_value_as = {
+					name = maa_to_create
+					value = flag:camel_rider
+				}
+			}
 			1 = {
 				trigger = {
 					culture = { has_innovation = innovation_arched_saddle }
-					is_dwarf = no #LotR
+					NOT = { is_dwarf = yes } #LotR
 				}
 				save_scope_value_as = {
 					name = maa_to_create
@@ -8722,7 +8816,7 @@ ep3_pick_random_maa_regiment_effect = {
 			1 = {
 				trigger = {
 					culture = { has_innovation = innovation_quilted_armor }
-					is_dwarf = no #LotR
+					NOT = { is_dwarf = yes } #LotR
 				}
 				save_scope_value_as = {
 					name = maa_to_create
@@ -8753,7 +8847,7 @@ ep3_pick_random_maa_regiment_effect = {
 			1 = {
 				trigger = {
 					culture = { has_innovation = innovation_advanced_bowmaking }
-					is_dwarf = no #LotR
+					NOT = { is_dwarf = yes } #LotR
 				}
 				save_scope_value_as = {
 					name = maa_to_create
@@ -8763,7 +8857,7 @@ ep3_pick_random_maa_regiment_effect = {
 			# LATE
 			1 = {
 				trigger = {
-					culture = { has_innovation = innovation_bombard }
+					culture = { has_innovation = innovation_gunpowder }
 					scope:include_siege_maa = yes
 				}
 				save_scope_value_as = {
@@ -9325,6 +9419,15 @@ ep3_pick_random_maa_regiment_effect = {
 			}
 			1 = {
 				trigger = {
+					mpo_can_recruit_nomad_maa_trigger = yes
+				}
+				save_scope_value_as = {
+					name = maa_to_create
+					value = flag:steppe_raiders
+				}
+			}
+			1 = {
+				trigger = {
 					culture = { has_cultural_parameter = unlock_maa_conrois }
 				}
 				save_scope_value_as = {
@@ -9539,9 +9642,9 @@ ep3_create_random_maa_regiment_effect = {
 				}
 			}
 			### Haradrim ###
-			flag:haradrim_radiers = {	
+			flag:haradrim_raiders = {	
 				create_maa_or_upgrade_regiment_effect = {
-					TYPE = haradrim_radiers
+					TYPE = haradrim_raiders
 					SIZE = $SIZE$
 				}
 			}
@@ -9621,9 +9724,9 @@ ep3_create_random_maa_regiment_effect = {
 					SIZE = $SIZE$
 				}
 			}
-			flag:abrazanim_helberdiers = {	
+			flag:abrazanim_halberdiers = {	
 				create_maa_or_upgrade_regiment_effect = {
-					TYPE = abrazanim_helberdiers
+					TYPE = abrazanim_halberdiers
 					SIZE = $SIZE$
 				}
 			}
@@ -9729,6 +9832,24 @@ ep3_create_random_maa_regiment_effect = {
 			flag:easterling_swordsmen = {	
 				create_maa_or_upgrade_regiment_effect = {
 					TYPE = easterling_swordsmen
+					SIZE = $SIZE$
+				}
+			}
+			flag:morgul_riders = {	
+				create_maa_or_upgrade_regiment_effect = {
+					TYPE = morgul_riders
+					SIZE = $SIZE$
+				}
+			}
+			flag:mordorrim_pikemen = {	
+				create_maa_or_upgrade_regiment_effect = {
+					TYPE = mordorrim_pikemen
+					SIZE = $SIZE$
+				}
+			}
+			flag:mordorrim_archers = {	
+				create_maa_or_upgrade_regiment_effect = {
+					TYPE = mordorrim_archers
 					SIZE = $SIZE$
 				}
 			}
@@ -9867,6 +9988,254 @@ ep3_create_random_maa_regiment_effect = {
 			flag:longbeard_horse_archers = {	
 				create_maa_or_upgrade_regiment_effect = {
 					TYPE = longbeard_horse_archers
+					SIZE = $SIZE$
+				}
+			}
+			#### Dwarves ####
+			### Firebeards ###
+			flag:high_elven_heavy_infantry = {	
+				create_maa_or_upgrade_regiment_effect = {
+					TYPE = high_elven_heavy_infantry
+					SIZE = $SIZE$
+				}
+			}
+			flag:high_elven_archers = {	
+				create_maa_or_upgrade_regiment_effect = {
+					TYPE = high_elven_archers
+					SIZE = $SIZE$
+				}
+			}
+			flag:high_elven_heavy_cavalry = {	
+				create_maa_or_upgrade_regiment_effect = {
+					TYPE = high_elven_heavy_cavalry
+					SIZE = $SIZE$
+				}
+			}
+			flag:high_elven_pikemen = {	
+				create_maa_or_upgrade_regiment_effect = {
+					TYPE = high_elven_pikemen
+					SIZE = $SIZE$
+				}
+			}
+			flag:high_elven_skirmishers = {	
+				create_maa_or_upgrade_regiment_effect = {
+					TYPE = high_elven_skirmishers
+					SIZE = $SIZE$
+				}
+			}
+			flag:high_elven_light_cavalry = {	
+				create_maa_or_upgrade_regiment_effect = {
+					TYPE = high_elven_light_cavalry
+					SIZE = $SIZE$
+				}
+			}
+			flag:grey_elven_archers = {	
+				create_maa_or_upgrade_regiment_effect = {
+					TYPE = grey_elven_archers
+					SIZE = $SIZE$
+				}
+			}
+			flag:grey_elven_heavy_cavalry = {	
+				create_maa_or_upgrade_regiment_effect = {
+					TYPE = grey_elven_heavy_cavalry
+					SIZE = $SIZE$
+				}
+			}
+			flag:grey_elven_heavy_infantry = {	
+				create_maa_or_upgrade_regiment_effect = {
+					TYPE = grey_elven_heavy_infantry
+					SIZE = $SIZE$
+				}
+			}
+			flag:grey_elven_skirmishers = {	
+				create_maa_or_upgrade_regiment_effect = {
+					TYPE = grey_elven_skirmishers
+					SIZE = $SIZE$
+				}
+			}
+			flag:grey_elven_light_cavalry = {	
+				create_maa_or_upgrade_regiment_effect = {
+					TYPE = grey_elven_light_cavalry
+					SIZE = $SIZE$
+				}
+			}
+			flag:avarin_skirmishers = {	
+				create_maa_or_upgrade_regiment_effect = {
+					TYPE = avarin_skirmishers
+					SIZE = $SIZE$
+				}
+			}
+			flag:avarin_light_cavalry = {	
+				create_maa_or_upgrade_regiment_effect = {
+					TYPE = avarin_light_cavalry
+					SIZE = $SIZE$
+				}
+			}
+			flag:avarin_archers = {	
+				create_maa_or_upgrade_regiment_effect = {
+					TYPE = avarin_archers
+					SIZE = $SIZE$
+				}
+			}
+			flag:avarin_pikemen = {	
+				create_maa_or_upgrade_regiment_effect = {
+					TYPE = avarin_pikemen
+					SIZE = $SIZE$
+				}
+			}
+			flag:avarin_heavy_infantry = {	
+				create_maa_or_upgrade_regiment_effect = {
+					TYPE = avarin_heavy_infantry
+					SIZE = $SIZE$
+				}
+			}
+			flag:avarin_heavy_cavalry = {	
+				create_maa_or_upgrade_regiment_effect = {
+					TYPE = avarin_heavy_cavalry
+					SIZE = $SIZE$
+				}
+			}
+			flag:noldor_swordsmen = {	
+				create_maa_or_upgrade_regiment_effect = {
+					TYPE = noldor_swordsmen
+					SIZE = $SIZE$
+				}
+			}
+			flag:noldor_cavalry = {	
+				create_maa_or_upgrade_regiment_effect = {
+					TYPE = noldor_cavalry
+					SIZE = $SIZE$
+				}
+			}
+			flag:song_smiths = {	
+				create_maa_or_upgrade_regiment_effect = {
+					TYPE = song_smiths
+					SIZE = $SIZE$
+				}
+			}
+			flag:vanyar_pikemen = {	
+				create_maa_or_upgrade_regiment_effect = {
+					TYPE = vanyar_pikemen
+					SIZE = $SIZE$
+				}
+			}
+			flag:vanyar_cavalry = {	
+				create_maa_or_upgrade_regiment_effect = {
+					TYPE = vanyar_cavalry
+					SIZE = $SIZE$
+				}
+			}
+			flag:teleri_light_infantry = {	
+				create_maa_or_upgrade_regiment_effect = {
+					TYPE = teleri_light_infantry
+					SIZE = $SIZE$
+				}
+			}
+			flag:teleri_archers = {	
+				create_maa_or_upgrade_regiment_effect = {
+					TYPE = teleri_archers
+					SIZE = $SIZE$
+				}
+			}
+			flag:hir_hathol = {	
+				create_maa_or_upgrade_regiment_effect = {
+					TYPE = hir_hathol
+					SIZE = $SIZE$
+				}
+			}
+			flag:falathrim_haven_guard = {	
+				create_maa_or_upgrade_regiment_effect = {
+					TYPE = falathrim_haven_guard
+					SIZE = $SIZE$
+				}
+			}
+			flag:marchwardens = {	
+				create_maa_or_upgrade_regiment_effect = {
+					TYPE = marchwardens
+					SIZE = $SIZE$
+				}
+			}
+			flag:galadhrim_warriors = {	
+				create_maa_or_upgrade_regiment_effect = {
+					TYPE = galadhrim_warriors
+					SIZE = $SIZE$
+				}
+			}
+			flag:galadhrim_archers = {	
+				create_maa_or_upgrade_regiment_effect = {
+					TYPE = galadhrim_archers
+					SIZE = $SIZE$
+				}
+			}
+			flag:royal_elk_riders = {	
+				create_maa_or_upgrade_regiment_effect = {
+					TYPE = royal_elk_riders
+					SIZE = $SIZE$
+				}
+			}
+			flag:theladagnyr = {	
+				create_maa_or_upgrade_regiment_effect = {
+					TYPE = theladagnyr
+					SIZE = $SIZE$
+				}
+			}
+			flag:neldoreth_borderwardens = {	
+				create_maa_or_upgrade_regiment_effect = {
+					TYPE = neldoreth_borderwardens
+					SIZE = $SIZE$
+				}
+			}
+			flag:nuinevari = {	
+				create_maa_or_upgrade_regiment_effect = {
+					TYPE = nuinevari
+					SIZE = $SIZE$
+				}
+			}
+			flag:cuind_wanderers = {	
+				create_maa_or_upgrade_regiment_effect = {
+					TYPE = cuind_wanderers
+					SIZE = $SIZE$
+				}
+			}
+			flag:cuind_skirmishers = {	
+				create_maa_or_upgrade_regiment_effect = {
+					TYPE = cuind_skirmishers
+					SIZE = $SIZE$
+				}
+			}
+			flag:annammon_kin = {	
+				create_maa_or_upgrade_regiment_effect = {
+					TYPE = annammon_kin
+					SIZE = $SIZE$
+				}
+			}
+			flag:kinnlai_skirmishers = {	
+				create_maa_or_upgrade_regiment_effect = {
+					TYPE = kinnlai_skirmishers
+					SIZE = $SIZE$
+				}
+			}
+			flag:sirrandrai_riders = {	
+				create_maa_or_upgrade_regiment_effect = {
+					TYPE = sirrandrai_riders
+					SIZE = $SIZE$
+				}
+			}
+			flag:wardens_of_sirgala = {	
+				create_maa_or_upgrade_regiment_effect = {
+					TYPE = wardens_of_sirgala
+					SIZE = $SIZE$
+				}
+			}
+			flag:laiquendi_scouts = {	
+				create_maa_or_upgrade_regiment_effect = {
+					TYPE = laiquendi_scouts
+					SIZE = $SIZE$
+				}
+			}
+			flag:ossiriand_rangers = {	
+				create_maa_or_upgrade_regiment_effect = {
+					TYPE = ossiriand_rangers
 					SIZE = $SIZE$
 				}
 			}
@@ -10280,6 +10649,12 @@ ep3_create_random_maa_regiment_effect = {
 			flag:ayrudzi = {	
 				create_maa_or_upgrade_regiment_effect = {
 					TYPE = ayrudzi
+					SIZE = $SIZE$
+				}
+			}
+			flag:steppe_raiders = {
+				create_maa_or_upgrade_regiment_effect = {
+					TYPE = steppe_raiders
 					SIZE = $SIZE$
 				}
 			}
@@ -10765,7 +11140,7 @@ hasan_sabbah_end_war = {
 				}
 			}
 		}
-		if = {
+		else_if = {
 			limit = {
 				$SELJUK$ = {
 					any_sub_realm_county = {
@@ -11006,6 +11381,21 @@ refill_maa_with_gold_effect = {
 admin_government_reset_effect = {
 	if = {
 		limit = { is_landed = yes } # error suppression
+		### NOMADIC
+		if = {
+			limit = {
+				OR = {
+					government_has_flag = government_is_nomadic
+					capital_province = {
+						OR = {
+							has_holding_type = nomad_holding
+							has_holding_type = herder_holding
+						}
+					}
+				}
+			}
+			change_government = nomad_government
+		}
 		### TRIBAL - are all of your holdings Tribal?
 		if = {
 			limit = {
@@ -11376,7 +11766,7 @@ ep3_governor_yearly_3010_war_aid_effect = {
 			target = scope:emperor
 			type = favor_hook
 		}
-	} #TODO_CD_EP3_JC FIRST OPTION SHOULD BE BECOMING CO-EMPEROR IF POSSIBLE, but make sure it doesn't happen more than once
+	}
 	else = {
 		change_influence = major_influence_gain
 	}
@@ -11594,117 +11984,7 @@ random_rain_snow_chance_effect = {
 governor_resignation_title_transfer_effect = {
 	save_scope_as = resigner
 	top_liege = { save_scope_as = emperor }
-	# Create tooltips
-	every_held_title = {
-		limit = {
-			is_landless_type_title = no
-			is_noble_family_title = no
-			save_temporary_scope_as = liege_title
-			NOT = {
-				scope:resigner = {
-					any_held_title = { is_de_jure_liege_or_above_target = scope:liege_title } 
-				}
-			}
-		}
-		save_scope_as = landed_title
-		current_heir = { save_scope_as = next_candidate }
-		if = {
-			limit = { tier >= tier_duchy }
-			scope:next_candidate = { custom_tooltip = force_governor_removal_interaction_pass_effect_tt }
-		}
-	}
-	create_title_and_vassal_change = {
-		type = stepped_down
-		save_scope_as = change
-	}
-	# Transfer all titles to heir of primary title if only one governorship is held
-	hidden_effect = {
-		if = {
-			limit = {
-				any_held_title = {
-					count = 1
-					tier >= tier_duchy
-					is_landless_type_title = no
-					is_noble_family_title = no
-				}
-			}
-			primary_title.current_heir = { save_scope_as = next_candidate }
-			every_vassal = {
-				limit = {
-					NOT = {
-						this = scope:next_candidate
-					}
-				}
-				change_liege = {
-					liege = scope:next_candidate
-					change = scope:change
-				}
-			}
-			every_held_title = {
-				limit = {
-					tier >= tier_county
-					is_landless_type_title = no
-					is_noble_family_title = no
-				}
-				change_title_holder_include_vassals = {
-					holder = scope:next_candidate
-					change = scope:change
-					take_baronies = no
-				}
-			}
-		}
-		else = {
-			every_held_title = {
-				limit = {
-					tier >= tier_duchy
-					is_landless_type_title = no
-					is_noble_family_title = no
-				}
-				current_heir = { save_scope_as = next_candidate }
-				every_direct_de_facto_vassal_title = {
-					limit = {
-						holder = {
-							is_vassal_of = scope:resigner
-							NOT = {
-								this = scope:next_candidate
-							}
-						}
-					}
-					holder = {
-						change_liege = {
-							liege = scope:next_candidate
-							change = scope:change
-						}
-					}
-				}
-				change_title_holder_include_vassals = {
-					holder = scope:next_candidate
-					change = scope:change
-					take_baronies = no
-				}
-				every_direct_de_facto_vassal_title = {
-					limit = { holder = scope:resigner }
-					change_title_holder_include_vassals = {
-						holder = scope:next_candidate
-						change = scope:change
-						take_baronies = no
-					}
-				}
-			}
-			# Fallback for counties not held in de jure duchies
-			every_held_title = {
-				limit = {
-					tier = tier_county
-				}
-				change_title_holder_include_vassals = {
-					holder = scope:emperor
-					change = scope:change
-					take_baronies = no
-				}
-			}
-		}
-	}
-	resolve_title_and_vassal_change = scope:change
+	force_step_down_landed_titles = yes
 }
 
 boost_governor_efficiency_success_effect = {
@@ -11781,6 +12061,13 @@ boost_governor_efficiency_success_effect = {
 						}
 					}
 				}
+			}
+			# Merit based realm gain some merit for improving others
+			if = {
+				limit = {
+					government_allows = merit
+				}
+				change_merit = medium_merit_gain
 			}
 		}
 	}
@@ -12581,16 +12868,18 @@ laamp_as_mercenary_payout_effect = {
 }
 
 laamp_as_mercenary_payout_tooltip_effect = {
+	save_scope_as = war
 	show_as_tooltip = {
 		scope:defender = {
 			if = {
 				limit = {
+					exists = scope:war
 					any_war_ally = {
 						is_landless_adventurer = yes
 						OR = {
 							any_character_active_contract = {
 								has_task_contract_type = laamp_join_war_contract
-								var:task_contract_war = scope:war
+								var:task_contract_war ?= scope:war
 							}
 							AND = {
 								has_variable = owed_contract_assistance_gold
@@ -12603,7 +12892,6 @@ laamp_as_mercenary_payout_tooltip_effect = {
 				every_war_ally = {
 					if = {
 						limit = {
-							exists = scope:war
 							is_landless_adventurer = yes
 						}
 						save_scope_as = laamp_temp
@@ -12677,6 +12965,7 @@ laamp_as_mercenary_payout_tooltip_effect = {
 		scope:attacker = {
 			if = {
 				limit = {
+					exists = scope:war
 					any_war_ally = {
 						is_landless_adventurer = yes
 						OR = {
@@ -12909,6 +13198,14 @@ camp_party_completed_log_entry_effect = {
 			#Effects
 			root = {
 				disburse_camp_party_reward_effect = yes
+				# LotR - Hope reward for elves
+				if = {
+				    limit = {
+					    has_activity_intent = inspire_hope_intent
+						is_ai = no
+					}
+					add_elven_hope_effect = { VALUE = major_elven_hope_gain HOPE_EFFECT = effect_elven_hope_camp_party_hosted }
+				}
 			}
 		}
 	}
@@ -13644,27 +13941,26 @@ ep3_increase_resistance_large_effect = {
 ep3_decrease_pacification_effect = {
 	save_scope_as = origin_char
 	if = {
-		limit = { scope:story.var:pacification > 0 }
+		limit = { scope:story.var:pacification != 0 }
 		scope:story = {
 			change_variable = {
 				name = pacification
 				add = -1
 			}
 		}
-		change_variable = {
+		set_variable = {
 			name = pacification_gui
-			add = -1
+			value = scope:story.var:pacification
 		}
-		#LotR
-		# if = { #Display in green if Anglo-Saxon
-		# 	limit = {
-		# 		culture = culture:anglo_saxon
-		# 	}
-		# 	custom_tooltip = ep3_decrease_pacification_effect_tt_positive
-		# }
-		# else = { #Otherwise in green
+		#if = { #Display in green if Anglo-Saxon
+		#	limit = {
+		#		culture = culture:anglo_saxon
+		#	}
+		#	custom_tooltip = ep3_decrease_pacification_effect_tt_positive
+		#}
+		#else = { #Otherwise in green
 			custom_tooltip = ep3_decrease_pacification_effect_tt_negative
-		# }
+		#}
 
 		if = {
 			limit = {
@@ -13725,16 +14021,16 @@ ep3_decrease_pacification_effect = {
 ep3_decrease_resistance_effect = {
 	save_scope_as = origin_char
 	if = {
-		limit = { scope:story.var:pacification > 0 }
+		limit = { scope:story.var:pacification != 0 }
 		scope:story = {
 			change_variable = {
 				name = resistance
 				add = -1
 			}
 		}
-		change_variable = {
+		set_variable = {
 			name = resistance_gui
-			add = -1
+			value = scope:story.var:resistance
 		}
 		#LotR
 		# if = { #Display in red if Anglo-Saxon
@@ -14407,6 +14703,38 @@ add_random_external_estate_building = {
 				if = {
 					limit = { has_domicile_building = estate_main_03 }
 					add_domicile_building = olive_02
+				}
+			}
+			#10 = {
+			#	trigger = {
+			#		NOT = { has_domicile_building_or_higher = windcatcher_01 }
+			#	}
+			#	add_domicile_building = windcatcher_01
+			#	if = {
+			#		limit = { has_domicile_building = estate_main_03 }
+			#		add_domicile_building = windcatcher_02
+			#	}
+			#}
+		}
+	}
+}
+
+estate_newly_built_grain_field_effect = {
+	scope:owner = {
+		if = {
+			limit = {
+				is_alive = yes
+				years_from_game_start >= 1
+			}
+			random = {
+				chance = 75
+				add_character_flag = {
+					flag = domicile_new_built_grain_field
+					months = 1
+				}
+				trigger_event = {
+					id = ep3_governor_yearly.3001
+					days = 5
 				}
 			}
 		}

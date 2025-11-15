@@ -14,16 +14,20 @@ namespace = lotr_laamp_contract_schemes
 #
 # #Contract Schemes (Martial)
 # 1001 - 1010 	Hunt down stragglers
+# 1011 - 1020 	Assault enemy column
 #
 # #Contract Schemes (Stewardship)
+# 2001 - 2010	Intercept army supplies
 #
 # #Contract Schemes (Intrigue)
 # 3011 - 3020 	Eliminate enemy
+# 3051 - 3060   Track down monster
 #
 # #Contract Schemes (Learning)
 # 4001 - 4010	Heal ruler or courtier
 #
 # #Contract Schemes (Prowess)
+# 5001 - 5010	Raid settlement
 #
 ##################################################
 
@@ -979,9 +983,7 @@ lotr_laamp_contract_schemes.1003 = {
 				complete_task_contract = success_standard
 			}
 		}
-		current_travel_plan = {
-			reroute_to_home = yes
-		}
+		return_home = yes
 		stress_impact = {
 			ambitious = minor_stress_impact_gain
 			lazy = minor_stress_impact_loss
@@ -1283,6 +1285,490 @@ lotr_laamp_contract_schemes.1013 = {
 
 
 ##################################################
+# SETUP — STEWARDSHIP
+
+
+##################################################
+# Intercept army supplies
+# by Brice Underhill
+# 2001 - 2010
+##################################################
+
+scripted_effect lotr_laamp_contract_schemes_2001_organise_travel_effect = {
+	start_travel_plan = {
+		destination = scope:supply_depot.title_province
+		on_arrival_event = lotr_laamp_contract_schemes.2002
+		travel_with_domicile = $DOMICILE$
+		return_trip = $RETURN$
+		on_travel_planner_cancel_event = lotr_laamp_contract_schemes.2004
+		players_use_planner = no
+		on_arrival_destinations = $EVENT_FIRE$
+	}
+}
+
+scripted_effect	lotr_laamp_contract_schemes_2002_standard_duel_win_effect = {
+	random_list = {
+		66 = {
+			scope:task_contract = { complete_task_contract = success_standard }
+			if = {
+				limit = { scope:employer = { is_ai = yes } }
+				scope:employer = {
+					random_army = {
+						subtract_supply = 50
+					}
+				}
+			}
+		}
+		33 = {
+			scope:task_contract = { complete_task_contract = success_critical }
+			if = {
+				limit = { scope:employer = { is_ai = yes } }
+				scope:employer = {
+					random_army = {
+						clear_supply = yes
+					}
+				}
+			}
+		}
+	}
+}
+
+scripted_effect	lotr_laamp_contract_schemes_2002_standard_duel_loss_effect = {
+	scope:task_contract = { complete_task_contract = failure_standard }
+}
+
+lotr_laamp_contract_schemes.2001 = {
+	type = character_event
+	title = lotr_laamp_contract_schemes.2001.t
+	desc = {
+		desc = lotr_laamp_contract_schemes.2001.desc
+		desc = lotr_laamp_contract_schemes.2001.desc.outro
+	}
+	theme = stewardship
+	left_portrait = {
+		character = root
+		animation = thinking
+	}
+	right_portrait = {
+		character = scope:officer
+		animation = interested
+	}
+	lower_center_portrait = scope:employer
+	override_background = { reference = armory }
+
+ 	immediate = {
+ 		if = {
+			limit = {
+				court_position:huntperson_camp_officer = { is_available_allow_travelling = yes }
+			}
+			court_position:huntperson_camp_officer = { save_scope_as = officer }
+		}
+		else = {
+			court_position:second_camp_officer = { save_scope_as = officer }
+		}
+		domicile.domicile_location = { save_scope_as = current_location }
+		scope:employer = {
+			ordered_sub_realm_county = {
+				limit = { #Border county
+					any_neighboring_county = {
+						holder.top_liege != scope:employer.top_liege
+					}
+				}
+				order_by = {
+					value = 0
+					subtract = "title_province.squared_distance(scope:current_location)"
+				}
+				save_scope_as = supply_depot
+			}
+		}
+ 	}
+
+	# Travel without domicile.
+	option = {
+		name = lotr_laamp_contract_schemes.2001.a
+
+		custom_tooltip = travel.stationary_domicile.tt
+		custom_tooltip = lotr_laamp_contract_schemes.2001.tt.destination_list
+		lotr_laamp_contract_schemes_2001_organise_travel_effect = {
+			DOMICILE = no
+			RETURN = yes
+			EVENT_FIRE = all_but_last
+		}
+
+		# No stress here.
+		# The AI should only choose to travel without their domicile.
+		ai_chance = { base = 1000 }
+	}
+
+	# Travel with domicile.
+	option = {
+		name = lotr_laamp_contract_schemes.2001.b
+
+		custom_tooltip = travel.mobile_domicile.tt
+		custom_tooltip = lotr_laamp_contract_schemes.2001.tt.destination_list
+		lotr_laamp_contract_schemes_2001_organise_travel_effect = {
+			DOMICILE = yes
+			RETURN = no
+			EVENT_FIRE = all
+		}
+
+		# No stress here.
+		# The AI should only choose to travel without their domicile.
+		ai_chance = { base = 0 }
+	}
+}
+
+lotr_laamp_contract_schemes.2002 = {
+	type = character_event
+	title = lotr_laamp_contract_schemes.2002.t
+	desc = {
+		desc = lotr_laamp_contract_schemes.2002.desc
+		desc = lotr_laamp_contract_schemes.2002.desc.outro
+	}
+	theme = stewardship
+	left_portrait = {
+		character = root
+		animation = thinking
+	}
+	right_portrait = {
+		character = scope:officer
+		animation = hunting_knife_start
+	}
+	lower_center_portrait = scope:employer
+	override_background = { reference = wilderness }
+
+	immediate = {
+		# Check to see who our sacrifice will be, if anyone.
+		if = {
+			limit = { intrigue < very_high_skill_rating }
+			ordered_courtier = {
+				limit = {
+					intrigue >= decent_skill_rating
+					is_available_allow_travelling = yes
+					NOR = {
+						scope:officer ?= this
+						is_player_heir_of = root
+						is_elf = yes
+						is_orc = yes
+					}
+				}
+				order_by = intrigue
+				save_scope_as = sacrifice
+			}
+		}
+	}
+
+	# Stewardship auto-win.
+	option = {
+		name = lotr_laamp_contract_schemes.2002.a
+		trigger = { stewardship >= extremely_high_skill_rating }
+		skill = stewardship
+
+		show_as_tooltip = { lotr_laamp_contract_schemes_2002_standard_duel_win_effect = yes }
+		trigger_event = lotr_laamp_contract_schemes.2003
+
+		stress_impact = {
+			diligent = minor_stress_loss
+			lazy = medium_stress_gain
+		}
+
+		ai_chance = {
+			# If you can auto-win, do it.
+			base = 10000
+		}
+	}
+	
+	# Stewardship & Intrigue duel.
+	option = {
+		name = lotr_laamp_contract_schemes.2002.b
+		trigger = { stewardship < extremely_high_skill_rating }
+
+		duel = {
+			skills = { stewardship intrigue }
+			value = high_skill_rating
+			# Victory!
+			50 = {
+				compare_modifier = {
+					value = scope:duel_value
+					multiplier = 3.5
+					min = -49
+				}
+				min = 5
+				desc = lotr_laamp_contract_schemes.2002.b.tt.success
+				show_as_tooltip = { lotr_laamp_contract_schemes_2002_standard_duel_win_effect = yes }
+				trigger_event = lotr_laamp_contract_schemes.2002
+			}
+			# Defeat.
+			50 = {
+				compare_modifier = {
+					value = scope:duel_value
+					multiplier = -3.5
+					min = -49
+				}
+				min = 5
+				desc = lotr_laamp_contract_schemes.2002.b.tt.failure
+				show_as_tooltip = { lotr_laamp_contract_schemes_2002_standard_duel_loss_effect = yes }
+				trigger_event = lotr_laamp_contract_schemes.2003
+			}
+		}
+
+		stress_impact = {
+			diligent = minor_stress_loss
+			lazy = medium_stress_gain
+		}
+
+		ai_chance = {
+			base = 1
+			ai_value_modifier = { ai_energy = 2 }
+		}
+	}
+	
+	# Intrigue auto-win.
+	option = {
+		name = lotr_laamp_contract_schemes.2002.c
+		trigger = { intrigue >= very_high_skill_rating }
+		skill = intrigue
+
+		show_as_tooltip = { lotr_laamp_contract_schemes_2002_standard_duel_win_effect = yes }
+		trigger_event = lotr_laamp_contract_schemes.2003
+
+		stress_impact = {
+			diligent = minor_stress_loss
+			lazy = medium_stress_gain
+		}
+		
+		ai_chance = {
+			# If you can auto-win, do it.
+			base = 10000
+		}
+	}
+	
+	# Leave character with intrigue skill here.
+	option = {
+		name = {
+			text = {
+				first_valid = {
+					triggered_desc = {
+						trigger = { exists = scope:sacrifice }
+						desc = lotr_laamp_contract_schemes.2002.d.sacrifice_exists
+					}
+					desc = lotr_laamp_contract_schemes.2002.d.sacrifice_unexists
+				}
+			}
+		}
+		trigger = {
+			custom_tooltip = {
+				text = lotr_laamp_contract_schemes.2002.d.no_valid_char
+				exists = scope:sacrifice
+			}
+		}
+		show_as_unavailable = { intrigue < very_high_skill_rating }
+
+		hidden_effect = {
+			root.current_travel_plan = { remove_character = scope:sacrifice }
+		}
+		scope:employer = { add_visiting_courtier = scope:sacrifice }
+		# Set up their return.
+		scope:sacrifice = {
+			save_scope_as = visitor
+			liege = {
+				trigger_event = {
+					id = ep3_laamp_flavour_ewan.9501
+					years = { 4	8 }
+				}
+			}
+		}
+		custom_tooltip = lotr_laamp_contract_schemes.2002.d.tt.courtier_stays_here
+		show_as_tooltip = { lotr_laamp_contract_schemes_2002_standard_duel_win_effect = yes }
+		trigger_event = lotr_laamp_contract_schemes.2003
+
+		# No stress here.
+		ai_chance = {
+			base = 1
+			ai_value_modifier = { ai_sociability = -2 }
+		}
+	}
+	
+	# Court position: huntsperson.
+	option = {
+		name = {
+			text = {
+				first_valid = {
+					triggered_desc = {
+						trigger = { exists = scope:officer }
+						desc = lotr_laamp_contract_schemes.2002.e.officer_exists
+					}
+					desc = lotr_laamp_contract_schemes.2002.e.officer_unexists
+				}
+			}
+		}
+		trigger = { employs_court_position = huntperson_camp_officer }
+		show_as_unavailable = { always = yes }
+		reason = have_huntperson
+
+		scope:officer ?= {
+			stress_impact = {
+				base = medium_stress_gain
+				diligent = minor_stress_impact_loss
+				lazy = medium_stress_impact_gain
+			}
+		}
+		custom_tooltip = option_boilerplate.tt.officer_aptitude
+		# Extra exists check because otherwise show_as_unavailable'll cause errors.
+		if = {
+			limit = { exists = scope:officer }
+			random_list = {
+				0 = {
+					desc = option_boilerplate.tt.officer_aptitude.success
+					show_as_tooltip = { lotr_laamp_contract_schemes_2002_standard_duel_win_effect = yes }
+					trigger_event = lotr_laamp_contract_schemes.2003
+					# Raw aptitude.
+					modifier = {
+						add = {
+							scope:officer ?= { add = "aptitude(huntperson_camp_officer)" }
+							multiply = 20
+							min = 5
+							max = 95
+						}
+						always = yes
+					}
+				}
+				0 = {
+					desc = option_boilerplate.tt.officer_aptitude.failure
+					show_as_tooltip = { lotr_laamp_contract_schemes_2002_standard_duel_loss_effect = yes }
+					trigger_event = lotr_laamp_contract_schemes.2004
+					# Raw aptitude.
+					modifier = {
+						add = {
+							scope:officer ?= { add = "aptitude(huntperson_camp_officer)" }
+							multiply = -20
+							min = 5
+							max = 95
+						}
+						always = yes
+					}
+				}
+			}
+		}
+
+		stress_impact = {
+			lazy = minor_stress_loss
+			diligent = medium_stress_gain
+		}
+
+		ai_chance = {
+			base = 1
+			ai_value_modifier = { ai_energy = -2 }
+		}
+	}
+	
+	# Camp purpose: rangers.
+	# option = {
+		# name = lotr_laamp_contract_schemes.2002.f
+		# trigger = { has_realm_law = camp_purpose_rangers }
+		# reason = purpose_rangers
+
+		# save_scope_value_as = {
+			# name = resolution_type
+			# value = flag:camp_purpose
+		# }
+		# show_as_tooltip = { lotr_laamp_contract_schemes_2002_purpose_win_effect = yes }
+		# trigger_event = lotr_laamp_contract_schemes.2003
+
+		# No stress here.
+		# ai_chance = {
+			# If you can auto-win, do it.
+			# base = 10000
+		# }
+	# }
+	
+	# Stress solve it.
+	option = {
+		name = lotr_laamp_contract_schemes.2002.g
+		# trigger = {
+			# NOT = { has_realm_law = camp_purpose_scholars }
+		# }
+
+		show_as_tooltip = { lotr_laamp_contract_schemes_2002_standard_duel_win_effect = yes }
+		trigger_event = lotr_laamp_contract_schemes.2003
+
+		stress_impact = {
+			base = major_stress_gain
+			diligent = minor_stress_loss
+			lazy = medium_stress_gain
+		}
+
+		ai_chance = {
+			# AI should try to take any other option.
+			base = 0
+		}
+	}
+}
+
+#	Victory event.
+lotr_laamp_contract_schemes.2003 = {
+	type = character_event
+	title = lotr_laamp_contract_schemes.2003.t
+	desc = lotr_laamp_contract_schemes.2003.desc
+	theme = stewardship
+	left_portrait = {
+		character = root
+		animation = personality_bold
+	}
+	right_portrait = {
+		character = scope:officer
+		animation = admiration
+	}
+	override_background = { reference = armory }
+
+	immediate = {
+		lotr_laamp_contract_schemes_2002_standard_duel_win_effect = yes
+	}
+
+	# Congratulations!
+	option = {
+		name = lotr_laamp_contract_schemes.2003.a
+
+		return_home = yes
+
+		# No stress here.
+		# Single option, so no AI chance.
+	}
+}
+
+#	Defeat event.
+lotr_laamp_contract_schemes.2004 = {
+	type = character_event
+	title = lotr_laamp_contract_schemes.2004.t
+	desc = lotr_laamp_contract_schemes.2004.desc
+	theme = stewardship
+	left_portrait = {
+		character = root
+		animation = shock
+	}
+	right_portrait = {
+		character = scope:officer
+		animation = shame
+	}
+	override_background = { reference = armory }
+
+	immediate = {
+		lotr_laamp_contract_schemes_2002_standard_duel_loss_effect = yes
+	}
+
+	# RIP.
+	option = {
+		name = lotr_laamp_contract_schemes.2004.a
+
+		return_home = yes
+
+		# No stress here.
+		# Single option, so no AI chance.
+	}
+}
+
+
+##################################################
 # SETUP — INTRIGUE
 
 
@@ -1315,7 +1801,7 @@ lotr_laamp_contract_schemes.3011 = {
 				}
 				desc = lotr_laamp_contract_schemes.3011.orc.desc
 			}
-				desc = lotr_laamp_contract_schemes.3011.desc
+			desc = lotr_laamp_contract_schemes.3011.desc
 		}
 	}
 	theme = intrigue
@@ -1470,7 +1956,7 @@ lotr_laamp_contract_schemes.3012 = {
 		# Employer outcome.
 		scope:employer = { add_stress = massive_stress_loss }
 		scope:scheme.task_contract = { complete_task_contract = success_standard }
-		scope:target = {
+		scope:target ?= {
 			death = {
 				killer = root
 				death_reason = death_mysterious
@@ -1524,7 +2010,7 @@ lotr_laamp_contract_schemes.3013 = {
 		# Employer outcome.
 		scope:employer = { add_stress = massive_stress_gain }
 		scope:scheme.task_contract = { complete_task_contract = failure_standard }
-		scope:target = {
+		scope:target ?= {
 			add_character_modifier = {
 				modifier = watchful_modifier
 				days = watchful_modifier_duration
@@ -1541,6 +2027,260 @@ lotr_laamp_contract_schemes.3013 = {
 		lotr_laamp_contract_schemes_acknowledge_failure_stress_effect = yes
 	}
 }
+
+
+##################################################
+# Track down monster 
+# by Aerien
+# 3051 - 3060
+##################################################
+
+# Intro event
+lotr_laamp_contract_schemes.3051 = {
+	type = character_event
+	content_source = realms_dlc
+	title = lotr_laamp_contract_schemes.3051.t
+	desc = lotr_laamp_contract_schemes.3051.desc
+	theme = dread
+	window = scheme_target_event
+	left_portrait = {
+		character = root
+		animation = spymaster
+	}
+	right_portrait = {
+		character = scope:employer
+		animation = throne_room_two_handed_passive_1
+	}
+	override_background = { reference = wilderness_forest_deep }
+	widget = {
+		gui = "event_window_widget_scheme"
+		container = "custom_widgets_container"
+	}
+
+	immediate = {
+		scope:task_contract = {
+			task_contract_employer = { save_scope_as = employer }
+		}
+	}
+
+	# Go for a balanced agent mix
+	option = {
+		name = lotr_laamp_contract_schemes.3051.c
+		reason = give_me_balanced_agents
+		flavor = EVENT_WINDOW_OPTION_AGENTS_BALANCED
+
+		scope:scheme = {
+			# Success.
+			add_agent_slot = agent_wolf_hunter
+			add_agent_slot = agent_ambusher
+			# Speed.
+			add_agent_slot = agent_tracker
+			add_agent_slot = agent_scout
+			# Secrecy.
+			add_agent_slot = agent_lookout
+		}
+
+		# No stress, we're just selecting our starter batch.
+		# AI always selects balanced agents.
+		ai_chance = { base = 1000 }
+	}
+
+	# Focus on success chance agents
+	option = {
+		name = lotr_laamp_contract_schemes.3051.a
+		reason = give_me_success_agents
+		flavor = EVENT_WINDOW_OPTION_AGENTS_SUCCESS
+
+		scope:scheme = {
+			# Success.
+			add_agent_slot = agent_wolf_hunter
+			add_agent_slot = agent_ambusher
+			add_agent_slot = agent_outrider
+			# Speed.
+			add_agent_slot = agent_tracker
+			# Secrecy.
+			add_agent_slot = agent_lookout
+		}
+
+		# No stress, we're just selecting our starter batch.
+		# AI always picks the balanced config.
+	}
+	
+	# Focus on speedy agents
+	option = {
+		name = lotr_laamp_contract_schemes.3051.b
+		reason = give_me_speed_agents
+		flavor = EVENT_WINDOW_OPTION_AGENTS_SPEED
+
+		scope:scheme = {
+			# Speed.
+			add_agent_slot = agent_tracker
+			add_agent_slot = agent_tracker
+			add_agent_slot = agent_outrider
+			# Success.
+			add_agent_slot = agent_ambusher
+			# Secrecy.
+			add_agent_slot = agent_lookout
+		}
+
+		# No stress, we're just selecting our starter batch.
+		# AI always picks the balanced config.
+	}
+	
+	# Now show us the panel.
+	after = {
+		open_view = {
+			view = intrigue_window
+			player = root
+		}
+	}
+}
+
+#	Success event
+lotr_laamp_contract_schemes.3052 = {
+	type = character_event
+	content_source = realms_dlc
+	window = scheme_successful_event
+	title = lotr_laamp_contract_schemes.3052.t
+	desc = lotr_laamp_contract_schemes.3052.desc
+	theme = dread
+	center_portrait = {
+		character = root
+		animation = marshal
+	}
+	right_portrait = {
+		character = scope:employer
+		animation = admiration
+	}
+	override_background = { reference = council_chamber }
+
+	immediate = {
+		# Employer outcome.
+		scope:employer = { add_stress = massive_stress_loss }
+		scope:scheme.task_contract = { complete_task_contract = success_standard }
+	}
+
+	# Acknowledge.
+	option = {
+		name = lotr_laamp_contract_schemes.3052.a
+		
+		custom_tooltip = laamp_base_contract_schemes.0000.f.contract_concluded
+
+		lotr_laamp_contract_schemes_acknowledge_success_stress_effect = yes
+		
+		remove_character_flag = monster_hunt_trail
+		remove_character_flag = monster_hunt_discovery
+	}
+}
+
+#	Failure event
+lotr_laamp_contract_schemes.3053 = {
+	type = character_event
+	content_source = realms_dlc
+	window = scheme_failed_event
+	title = lotr_laamp_contract_schemes.3053.t
+	desc = lotr_laamp_contract_schemes.3053.desc
+	theme = dread
+	center_portrait = {
+		character = root
+		animation = shame
+	}
+	right_portrait = {
+		character = scope:employer
+		animation = personality_vengeful
+	}
+	override_background = { reference = council_chamber }
+
+	immediate = {
+		# Employer outcome.
+		scope:employer = { add_stress = massive_stress_gain }
+		scope:scheme.task_contract = { complete_task_contract = failure_standard }
+	}
+
+	# Acknowledge.
+	option = {
+		name = laamp_base_contract_schemes.3053.a
+		
+		custom_tooltip = laamp_base_contract_schemes.0000.f.contract_concluded
+
+		lotr_laamp_contract_schemes_acknowledge_failure_stress_effect = yes
+		
+		remove_character_flag = monster_hunt_trail
+		remove_character_flag = monster_hunt_discovery
+	}
+}
+
+#	Discovery event
+lotr_laamp_contract_schemes.3054 = {
+	type = character_event
+	content_source = realms_dlc
+	window = scheme_target_event
+	title = lotr_laamp_contract_schemes.3054.t
+	desc = {
+		first_valid = {
+			triggered_desc = {
+				trigger = { root = { has_character_flag = monster_hunt_orc } }
+				desc = lotr_laamp_contract_schemes.3054.desc.orc
+			}
+			triggered_desc = {
+				trigger = { root = { has_character_flag = monster_hunt_spider } }
+				desc = lotr_laamp_contract_schemes.3054.desc.spider
+			}	
+			triggered_desc = {
+				trigger = { root = { has_character_flag = monster_hunt_warg } }
+				desc = lotr_laamp_contract_schemes.3054.desc.warg
+			}
+			triggered_desc = {
+				trigger = { root = { has_character_flag = monster_hunt_troll } }
+				desc = lotr_laamp_contract_schemes.3054.desc.troll
+			}			
+		}
+	}
+	theme = dread
+	left_portrait = {
+		character = root
+		animation = throne_room_two_handed_passive_1
+	}
+	right_portrait = {
+		character = scope:random_follower
+		animation = survey
+	}
+	override_background = { reference = wilderness_forest_pine }
+
+	immediate = {
+		random_courtier = { save_scope_as = random_follower } 
+		random_list = {
+			25 = { add_character_flag = monster_hunt_orc }
+			25 = { add_character_flag = monster_hunt_spider }
+			25 = { add_character_flag = monster_hunt_warg }
+			25 = { add_character_flag = monster_hunt_troll }
+		}
+	}
+
+	# Acknowledge.
+	option = {
+		name = lotr_laamp_contract_schemes.3054.a
+	}
+	after = {
+		if = { 
+			limit = { has_character_flag = monster_hunt_orc } 
+			remove_character_flag = monster_hunt_orc 
+		}
+		if = { 
+			limit = { has_character_flag = monster_hunt_orc } 
+			remove_character_flag = monster_hunt_spider 
+		}
+		if = { 
+			limit = { has_character_flag = monster_hunt_orc } 
+			remove_character_flag = monster_hunt_warg
+		}
+		if = { 
+			limit = { has_character_flag = monster_hunt_orc } 
+			remove_character_flag = monster_hunt_troll 
+		}
+	}
+}
+
 
 
 ##################################################
@@ -1831,6 +2571,337 @@ lotr_laamp_contract_schemes.4003 = {
 	# Acknowledge.
 	option = {
 		name = lotr_laamp_contract_schemes.4003.a
+		flavor = laamp_base_contract_schemes.0000.f.contract_concluded
+
+		lotr_laamp_contract_schemes_acknowledge_failure_stress_effect = yes
+	}
+}
+
+##################################################
+# SETUP — PROWESS
+
+##################################################
+# Raid Settlement
+# by Brice Underhill
+# 5001 - 5010
+##################################################
+
+#	Intro event.
+lotr_laamp_contract_schemes.5001 = {
+	content_source = realms_dlc
+	type = character_event
+	title = lotr_laamp_contract_schemes.5001.t
+	desc = {
+		first_valid = {
+			triggered_desc = {
+				trigger = { scope:employer.capital_county.culture = { is_elf_culture = yes } }
+				desc = lotr_laamp_contract_schemes.5001.desc.elf
+			}
+			triggered_desc = {
+				trigger = { scope:employer.capital_county.culture = { is_dwarf_culture = yes } }
+				desc = lotr_laamp_contract_schemes.5001.desc.dwarf
+			}
+			triggered_desc = {
+				trigger = { scope:employer.capital_county.culture = { is_hobbit_culture = yes } }
+				desc = lotr_laamp_contract_schemes.5001.desc.hobbit
+			}
+			triggered_desc = {
+				trigger = { scope:employer.capital_county.culture = { is_orc_culture = yes } }
+				desc = lotr_laamp_contract_schemes.5001.desc.orc
+			}
+			desc = lotr_laamp_contract_schemes.5001.desc.human
+		}
+	}
+	theme = martial
+	left_portrait = {
+		character = root
+		animation = personality_cynical
+	}
+	right_portrait = {
+		character = scope:second
+		animation = marshal_shield
+	}
+	lower_center_portrait = {
+		character = scope:employer
+	}
+	override_background = { reference = market }
+	widget = {
+		gui = "event_window_widget_scheme"
+		container = "custom_widgets_container"
+	}
+
+	immediate = {
+		scope:task_contract.task_contract_employer = {
+			save_scope_as = employer
+			save_scope_as = bg_override_char
+		}
+		scope:scheme = {
+			increment_variable_effect = {
+				VAR = secrecy_grace_period
+				VAL = 2
+			}
+		}
+		scope:employer.capital_province ?= { save_scope_as = target_province }
+		court_position:second_camp_officer = { save_scope_as = officer }
+	}
+
+	# Go for a balanced agent mix.
+	option = {
+		name = lotr_laamp_contract_schemes.5001.d
+		reason = give_me_balanced_agents
+		flavor = EVENT_WINDOW_OPTION_AGENTS_BALANCED
+
+		scope:scheme = {
+			# Success.
+			add_agent_slot = agent_scout
+			add_agent_slot = agent_muscle
+			# Speed.
+			add_agent_slot = agent_infiltrator
+			add_agent_slot = agent_footpad
+			# Secrecy.
+			add_agent_slot = agent_lookout
+		}
+
+		# No stress, we're just selecting our starter batch.
+		# AI always selects balanced agents.
+		ai_chance = { base = 1000 }
+	}
+
+	# Focus on success chance agents.
+	option = {
+		name = lotr_laamp_contract_schemes.5001.a
+		reason = give_me_success_agents
+		flavor = EVENT_WINDOW_OPTION_AGENTS_SUCCESS
+
+		scope:scheme = {
+			# Success.
+			add_agent_slot = agent_scout
+			add_agent_slot = agent_scout
+			add_agent_slot = agent_muscle
+			# Speed.
+			add_agent_slot = agent_infiltrator
+			# Secrecy.
+			add_agent_slot = agent_lookout
+		}
+
+		# No stress, we're just selecting our starter batch.
+		# AI always picks the balanced config.
+	}
+	
+	# Focus on speedy agents.
+	option = {
+		name = lotr_laamp_contract_schemes.5001.b
+		reason = give_me_speed_agents
+		flavor = EVENT_WINDOW_OPTION_AGENTS_SPEED
+
+		scope:scheme = {
+			# Speed.
+			add_agent_slot = agent_infiltrator
+			add_agent_slot = agent_infiltrator
+			add_agent_slot = agent_footpad
+			# Success.
+			add_agent_slot = agent_scout
+			# Secrecy.
+			add_agent_slot = agent_lookout
+		}
+
+		# No stress, we're just selecting our starter batch.
+		# AI always picks the balanced config.
+	}
+
+	# Focus on secrecy agents.
+	option = {
+		name = lotr_laamp_contract_schemes.5001.c
+		reason = give_me_secrecy_agents
+		flavor = EVENT_WINDOW_OPTION_AGENTS_SECRECY
+
+		scope:scheme = {
+			# Secrecy.
+			add_agent_slot = agent_lookout
+			add_agent_slot = agent_lookout
+			add_agent_slot = agent_alibi
+			# Success.
+			add_agent_slot = agent_scout
+			# Speed.
+			add_agent_slot = agent_infiltrator
+		}
+
+		# No stress, we're just selecting our starter batch.
+		# AI always picks the balanced config.
+	}
+	
+	# Now show us the panel.
+	after = {
+		open_view = {
+			view = intrigue_window
+			player = root
+		}
+	}
+}
+
+scripted_effect lotr_laamp_contract_schemes_5002_raid_settlement = {
+	add_province_modifier = {
+		modifier = recently_looted_modifier
+		years = 5
+	}
+	county ?= { #LotR
+		if = {
+			limit = {
+				holder = {
+					NOT = { has_perk = enduring_hardships_perk }
+				}
+			}
+			change_county_control = raid_county_control_loss_value
+			random_list = {
+				25 = {
+					change_development_progress_with_overflow = -2
+				}
+				25 = {
+					change_development_progress_with_overflow = -3
+				}
+				25 = {
+					change_development_progress_with_overflow = -4
+				}
+				25 = {
+					change_development_progress_with_overflow = -5
+				}
+			}
+		}
+	}
+}
+
+#	Success event.
+lotr_laamp_contract_schemes.5002 = {
+	content_source = realms_dlc
+	type = character_event
+	window = scheme_successful_event
+	title = lotr_laamp_contract_schemes.5002.t
+	desc = {
+		first_valid = {
+			triggered_desc = {
+				trigger = { scope:employer.capital_county.culture = { is_elf_culture = yes } }
+				desc = lotr_laamp_contract_schemes.5002.desc.elf
+			}
+			triggered_desc = {
+				trigger = { scope:employer.capital_county.culture = { is_dwarf_culture = yes } }
+				desc = lotr_laamp_contract_schemes.5002.desc.dwarf
+			}
+			triggered_desc = {
+				trigger = { scope:employer.capital_county.culture = { is_hobbit_culture = yes } }
+				desc = lotr_laamp_contract_schemes.5002.desc.hobbit
+			}
+			triggered_desc = {
+				trigger = { scope:employer.capital_county.culture = { is_orc_culture = yes } }
+				desc = lotr_laamp_contract_schemes.5002.desc.orc
+			}
+			desc = lotr_laamp_contract_schemes.5002.desc.human
+		}
+	}
+	theme = martial
+	center_portrait = {
+		character = root
+		animation = personality_bold
+	}
+	right_portrait = {
+		character = scope:officer
+		animation = celebrate_sword
+	}
+	override_background = { reference = army_camp }
+
+	immediate = {
+		laamp_base_contract_schemes_set_up_outcome_immediate_effect = yes
+		scope:target_province ?= {
+			lotr_laamp_contract_schemes_5002_raid_settlement = yes
+		}
+		#Gain some gold on top of the siege loot from the Master of Spoils Camp Officer
+		root = {
+			if = {
+				limit = {
+					employs_court_position = master_of_spoils_camp_officer
+				}
+				add_gold = {
+					value = court_position:master_of_spoils_camp_officer.aptitude:master_of_spoils_camp_officer
+					add = 1
+					multiply = 5
+				}
+			}
+		}
+		random_list = {
+			67 = {
+				scope:scheme.task_contract = { complete_task_contract = success_standard }
+			}
+			33 = {
+				scope:scheme.task_contract = { complete_task_contract = critical_success }
+			}
+		}
+
+		scope:employer.capital_province = { save_scope_as = target_province }
+		court_position:second_camp_officer = { save_scope_as = officer }
+		
+		# And wrap things up.
+		scope:scheme ?= { end_scheme = yes }
+	}
+
+	# Acknowledge.
+	option = {
+		name = lotr_laamp_contract_schemes.5002.a
+		flavor = laamp_base_contract_schemes.0000.f.contract_concluded
+
+		lotr_laamp_contract_schemes_acknowledge_success_stress_effect = yes
+	}
+}
+
+#	Failure event.
+lotr_laamp_contract_schemes.5003 = {
+	content_source = realms_dlc
+	type = character_event
+	window = scheme_failed_event
+	title = lotr_laamp_contract_schemes.5003.t
+	desc = {
+		first_valid = {
+			triggered_desc = {
+				trigger = { scope:employer.capital_county.culture = { is_elf_culture = yes } }
+				desc = lotr_laamp_contract_schemes.5003.desc.elf
+			}
+			triggered_desc = {
+				trigger = { scope:employer.capital_county.culture = { is_dwarf_culture = yes } }
+				desc = lotr_laamp_contract_schemes.5003.desc.dwarf
+			}
+			triggered_desc = {
+				trigger = { scope:employer.capital_county.culture = { is_hobbit_culture = yes } }
+				desc = lotr_laamp_contract_schemes.5003.desc.hobbit
+			}
+			triggered_desc = {
+				trigger = { scope:employer.capital_county.culture = { is_orc_culture = yes } }
+				desc = lotr_laamp_contract_schemes.5003.desc.orc
+			}
+			desc = lotr_laamp_contract_schemes.5003.desc.human
+		}
+	}
+	theme = martial
+	center_portrait = {
+		character = root
+		animation = shame
+	}
+	right_portrait = {
+		character = scope:officer
+		animation = sadness
+	}
+	override_background = { reference = army_camp }
+
+	immediate = {
+		laamp_base_contract_schemes_set_up_outcome_immediate_effect = yes
+		scope:scheme.task_contract = { complete_task_contract = failure_standard }
+
+		scope:employer.capital_province = { save_scope_as = target_province }
+		court_position:second_camp_officer = { save_scope_as = officer }
+		# And wrap things up.
+		scope:scheme ?= { end_scheme = yes }
+	}
+
+	# Acknowledge.
+	option = {
+		name = lotr_laamp_contract_schemes.5003.a
 		flavor = laamp_base_contract_schemes.0000.f.contract_concluded
 
 		lotr_laamp_contract_schemes_acknowledge_failure_stress_effect = yes

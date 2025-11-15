@@ -23,6 +23,9 @@
 	# mundburgian.2017 - Become Ambitious, by Brice Underhill
 	# mundburgian.2018 - Become Diligent, by Brice Underhill
 
+	# Invite Northron Settlers Decision
+	# mundburgian.3001
+
 # Evaluate whether the target is valid for mundburgians
 scripted_trigger mundburgian_0001_available_mundburgian_trigger = {
 	trigger_if = {
@@ -47,7 +50,7 @@ scripted_trigger mundburgian_0001_available_mundburgian_trigger = {
 		has_trait = mundburgian
 	}
 	AND = {
-		culture = { has_cultural_pillar = heritage_hadorim }
+		culture = { has_cultural_pillar = heritage_eotheod }
 		faith_is_good = yes
 	}
 	NOR = {
@@ -90,7 +93,7 @@ mundburgian.0001 = {
 
 	trigger = {
 		AND = {
-			culture = { has_cultural_pillar = heritage_hadorim }
+			culture = { has_cultural_pillar = heritage_eotheod }
 			faith_is_good = yes
 		}
 		NOR = {
@@ -281,6 +284,7 @@ mundburgian.0002 = {
 	}
 	theme = martial
 	override_background = {
+		trigger = { capital_county ?= title:c_minas_tirith }
 		reference = minas_tirith
 	}
 	right_portrait = scope:mundburgian_candidate
@@ -1312,3 +1316,2211 @@ mundburgian.2018 = {
 		add_trait = diligent
 	}
 }
+
+
+
+########################################
+# INVITE NORTHRON ADVENTURERS
+# mundburgian.3020-mundburgian.3039
+########################################
+# Based on RICE Invite Norse Settlers
+
+# Hidden tombola
+scripted_trigger is_valid_northron_leader_pick = {
+	culture = scope:norse_culture
+	is_pool_character = yes
+	is_ruler = no
+	faith_is_good = yes
+	is_valid_for_laampdom = yes
+	is_ai = yes
+	is_wastelands = no #LOTR
+	is_in_valinor = no #LOTR
+	# No Kids or inheritance
+	NOT = { any_child = { count >= 1 } }
+	NOT = { any_heir_title = { count >= 1 } }
+	# Not Player-relevant.
+	save_temporary_scope_as = temp_settler
+	NOR = {
+		any_player = {
+			OR = {
+				is_close_or_extended_family_of = scope:temp_settler
+				is_consort_of = scope:temp_settler
+				has_important_relationship_with_character_trigger = { CHARACTER = scope:temp_settler }
+			}
+		}
+		any_spouse = {
+			is_ai = no
+		}
+	}
+	liege ?= {
+		is_ai = yes
+	}
+	NOR = {
+		has_trait = devoted
+		has_trait = content
+	}
+	# Gender Check
+	NOR = {
+		AND = {
+			faith = { has_doctrine = doctrine_gender_male_dominated }
+			is_male = no
+		}
+		AND = {
+			faith = { has_doctrine = doctrine_gender_female_dominated }
+			is_male = yes
+		}
+	}
+}
+mundburgian.3020 = {
+	type = character_event
+	hidden = yes
+
+	immediate = {
+
+		save_scope_as = current_ruler
+
+		
+		# Failsafe in case it isn't set already via the decision for some reason
+		# Since I keep getting errors the variable isn't set
+		# For some reason this doesn't work even though I literally set the variable here, but I'll keep it here just in case
+		if = {
+			limit = {
+				is_ai = yes
+				NOT = { has_variable = lotr_northron_settler_type }
+			}
+			random_list = {
+				12 = {
+					set_variable = {
+						name = lotr_northron_settler_type
+						value = flag:courtiers
+					}
+				}
+				12 = {
+					set_variable = {
+						name = lotr_northron_settler_type
+						value = flag:colonists
+					}
+				}
+				12 = {
+					trigger = {
+						trigger_if = {
+							limit = {
+								government_allows = administrative
+								is_independent_ruler = no
+							}
+							NOR = {
+								vassal_contract_has_flag = admin_theme_balanced
+								vassal_contract_has_flag = admin_theme_civilian
+								vassal_contract_has_flag = admin_theme_naval
+							}
+						}
+					}
+					set_variable = {
+						name = lotr_northron_settler_type
+						value = flag:mercenaries
+					}
+				}
+				12 = {
+					trigger = {
+						trigger_if = {
+							limit = {
+								government_allows = administrative
+								is_independent_ruler = no
+							}
+							NOR = {
+								vassal_contract_has_flag = admin_theme_military
+								vassal_contract_has_flag = admin_theme_frontier
+								vassal_contract_has_flag = admin_theme_naval
+							}
+						}
+					}
+					set_variable = {
+						name = lotr_northron_settler_type
+						value = flag:traders
+					}
+				}
+				1 = {
+					trigger = {
+						owns_multiple_counties_not_colony = yes
+					}
+					set_variable = {
+						name = lotr_northron_settler_type
+						value = flag:rulers
+					}
+				}
+			}
+		}
+
+		# Determine original source of these Northmen
+		# If there are any Northmen in Rhovanion or connected regions, go there first
+		if = {
+			limit = {
+				any_county_in_region = {
+					region = middleearth_west_rhovanion_brownlands
+					culture = { has_cultural_parameter = heritage_group_northmen }
+					faith_is_good = yes
+				}
+			}
+			every_county_in_region = {
+				region = middleearth_west_rhovanion_brownlands
+				limit = {
+					culture = { has_cultural_parameter = heritage_group_northmen }
+					faith_is_good = yes
+				}
+				add_to_list = norse_counties
+			}
+			random_in_list = {
+				list = norse_counties
+				save_scope_as = county
+				weight = {
+					base = 1
+					modifier = { #Primarily those of the plains
+						add = 100
+						culture = culture:rhovanorim
+					}
+				}
+			}
+			scope:county.faith = {
+				save_scope_as = norse_faith
+			}
+			scope:county.culture = {
+				save_scope_as = norse_culture
+			}
+		}
+		# If they cannot be found in the plains
+		else_if = {
+			limit = {
+				any_county = {
+					culture = { has_cultural_parameter = heritage_group_northmen }
+					faith_is_good = yes
+				}
+			}
+			every_county = {
+				limit = {
+					culture = { has_cultural_parameter = heritage_group_northmen }
+					faith_is_good = yes
+				}
+				add_to_list = norse_counties
+			}
+			random_in_list = {
+				list = norse_counties
+				save_scope_as = county
+				weight = {
+					base = 1
+					modifier = { #Primarily those of the plains
+						add = 5
+						NOR = {
+							culture = culture:woodmen
+							culture = { any_parent_culture_or_above = { this = culture:woodmen } }
+						}
+					}
+				}
+			}
+			scope:county.faith = {
+				save_scope_as = norse_faith
+			}
+			scope:county.culture = {
+				save_scope_as = norse_culture
+			}
+		}
+		# If Northrons don't exist on the map for some reason
+		else = {
+			random_county_in_region = {
+				region = middleearth_west_rhovanion_brownlands
+				save_scope_as = county
+			}
+			faith:faith_northmen = {
+				save_scope_as = norse_faith
+			}
+			culture:rhovanorim = {
+					save_scope_as = norse_culture
+			}
+		}
+
+		### CHARACTER SETUP
+		# Do the proper setting up of characters as needed
+
+		# If its Courtiers, generate two
+		if = {
+			limit = {
+				var:lotr_northron_settler_type = flag:courtiers
+			}
+			# Generate second courtier option, done first for convenience
+			lotr_random_northron_char_template_effect = yes
+			scope:courtier_1 = { save_scope_as = courtier_2 }
+			# Generate first courtier option
+			lotr_random_northron_char_template_effect = yes
+		}
+
+		# Ruler
+		else_if = {
+			limit = {
+				var:lotr_northron_settler_type = flag:rulers
+			}
+			random_list = {
+				# Try to snatch one from the pool
+				70 = {
+					trigger = {
+						any_living_character = {
+							count >= 3 # If the pool is very small we dont wanna cull it
+							is_valid_northron_leader_pick = yes
+						}
+					}
+					random_living_character = {
+						limit = {
+							is_valid_northron_leader_pick = yes
+						}
+						save_scope_as = courtier_1
+						# Ensure they dont inherit anything
+						hidden_effect = {
+							if = {
+								limit = {
+									is_lowborn = no
+									NOT = { has_trait = gallivanter }
+								}
+							}
+							add_trait = gallivanter
+							# We dont wanna generate a family for a preexisting person
+							add_character_flag = dont_generate_family
+						}
+						debug_log = "decision_invite_northron_settlers: Pulled a preexisting Northron character"
+						debug_log_scopes = yes
+					}
+					save_scope_as = courtier_2 # The ruler is not technically not a courtier, but this is for convenience
+				}
+				# Too bad, random one it is
+				30 = {
+					lotr_random_northron_char_template_effect = yes
+					save_scope_as = courtier_2 # The ruler is not technically not a courtier, but this is for convenience
+				}
+			}
+		}
+
+		# Colonists
+		else_if = {
+			limit = {
+				var:lotr_northron_settler_type = flag:colonists
+			}
+			random_list = {
+				40 = {
+					create_character = {
+						location = root.capital_province
+						template = lotr_northron_settler_courtier_diplomat_template
+						save_scope_as = courtier_1
+					}
+				}
+				30 = {
+					create_character = {
+						location = root.capital_province
+						template = lotr_northron_settler_courtier_stewardship_template
+						save_scope_as = courtier_1
+					}
+				}
+				30 = {
+					create_character = {
+						location = root.capital_province
+						template = lotr_northron_settler_courtier_learning_template
+						save_scope_as = courtier_1
+					}
+				}
+			}
+			save_scope_as = courtier_2 # The ruler is not technically not a courtier, but this is for convenience
+		}
+
+		# Mercenaries
+		else_if = {
+			limit = {
+				var:lotr_northron_settler_type = flag:mercenaries
+			}
+			random_list = {
+				40 = {
+					create_character = {
+						location = root.capital_province
+						template = lotr_northron_settler_courtier_martial_template
+						save_scope_as = courtier_1
+					}
+				}
+				40 = {
+					create_character = {
+						location = root.capital_province
+						template = lotr_northron_settler_courtier_prowess_template
+						save_scope_as = courtier_1
+					}
+				}
+				20 = {
+					create_character = {
+						location = root.capital_province
+						template = lotr_northron_settler_courtier_intrigue_template
+						save_scope_as = courtier_1
+					}
+				}
+			}
+			save_scope_as = courtier_2 # The ruler is not technically not a courtier, but this is for convenience
+		}
+		# Traders
+		else_if = {
+			limit = {
+				var:lotr_northron_settler_type = flag:traders
+			}
+			create_character = {
+				location = root.capital_province
+				template = lotr_northron_settler_courtier_stewardship_template
+				save_scope_as = courtier_1
+			}
+			save_scope_as = courtier_2 # The ruler is not technically not a courtier, but this is for convenience
+		}
+		# Otherwise, generate a generic representative
+		else = {
+			lotr_random_northron_char_template_effect = yes
+			save_scope_as = courtier_2 # The ruler is not technically not a courtier, but this is for convenience
+		}
+
+		random_list = {
+			# Things go as planned
+			80 = {
+				trigger_event = mundburgian.3021
+			}
+			# They demand more, either gold or titles
+			20 = {
+				trigger = {
+					NOT = { var:lotr_northron_settler_type = flag:rulers }
+				}
+				trigger_event = mundburgian.3023
+			}
+		}
+	}
+}
+
+# Things go as planned
+mundburgian.3021 = {
+	content_source = realms_dlc
+	type = character_event
+	title = mundburgian.3021.t
+	desc = {
+		desc = mundburgian.3021.desc
+		first_valid = {
+			triggered_desc = {
+				trigger = {
+					var:lotr_northron_settler_type = flag:courtiers
+				}
+				desc = mundburgian.3021.desc.courtiers
+			}
+			triggered_desc = {
+				trigger = {
+					var:lotr_northron_settler_type = flag:colonists
+				}
+				desc = mundburgian.3021.desc.colonists
+			}
+			triggered_desc = {
+				trigger = {
+					var:lotr_northron_settler_type = flag:mercenaries
+				}
+				desc = mundburgian.3021.desc.mercenaries
+			}
+			triggered_desc = {
+				trigger = {
+					var:lotr_northron_settler_type = flag:traders
+				}
+				desc = mundburgian.3021.desc.traders
+			}
+			triggered_desc = {
+				trigger = {
+					var:lotr_northron_settler_type = flag:rulers
+				}
+				desc = mundburgian.3021.desc.rulers
+			}
+		}
+		first_valid = {
+			triggered_desc = {
+				trigger = {
+					NOT = { var:lotr_northron_settler_type = flag:rulers }
+				}
+				desc = mundburgian.3021.desc.conclusion
+			}
+		}
+	}
+	override_background = {
+		trigger = { capital_county ?= title:c_minas_tirith }
+		reference = minas_tirith
+	}
+	theme = realm
+	
+	left_portrait = {
+		trigger = { root = { var:lotr_northron_settler_type = flag:courtiers } }
+		character = scope:courtier_2
+		animation = throne_room_bow_2
+	}
+	
+	right_portrait = {
+		character = scope:courtier_1
+		animation = throne_room_bow_1
+	}
+
+	immediate = {
+		# Final failsafe in case it isn't set already via the decision for some reason
+		# Since I keep getting errors the variable isn't set
+		# A lot of the stuff requires the previous event, but this is just to get rid of the stupid error log message
+		# For some reason this doesn't work even though I literally set the variable here, but I'll keep it here just in case
+		if = {
+			limit = {
+				is_ai = yes
+				NOT = { has_variable = lotr_northron_settler_type }
+			}
+			random_list = {
+				12 = {
+					set_variable = {
+						name = lotr_northron_settler_type
+						value = flag:courtiers
+					}
+				}
+				12 = {
+					set_variable = {
+						name = lotr_northron_settler_type
+						value = flag:colonists
+					}
+				}
+				12 = {
+					trigger = {
+						trigger_if = {
+							limit = {
+								government_allows = administrative
+								is_independent_ruler = no
+							}
+							NOR = {
+								vassal_contract_has_flag = admin_theme_balanced
+								vassal_contract_has_flag = admin_theme_civilian
+								vassal_contract_has_flag = admin_theme_naval
+							}
+						}
+					}
+					set_variable = {
+						name = lotr_northron_settler_type
+						value = flag:mercenaries
+					}
+				}
+				12 = {
+					trigger = {
+						trigger_if = {
+							limit = {
+								government_allows = administrative
+								is_independent_ruler = no
+							}
+							NOR = {
+								vassal_contract_has_flag = admin_theme_military
+								vassal_contract_has_flag = admin_theme_frontier
+								vassal_contract_has_flag = admin_theme_naval
+							}
+						}
+					}
+					set_variable = {
+						name = lotr_northron_settler_type
+						value = flag:traders
+					}
+				}
+				1 = {
+					trigger = {
+						owns_multiple_counties_not_colony = yes
+					}
+					set_variable = {
+						name = lotr_northron_settler_type
+						value = flag:rulers
+					}
+				}
+			}
+		}
+
+		lotr_invite_northrons_initial_setup_effect = yes
+		lotr_invite_northrons_main_effect = yes
+		
+	}
+	
+	option = { # Pick option 1
+		name = mundburgian.3021.a
+		trigger = {
+			var:lotr_northron_settler_type = flag:courtiers
+		}
+		add_courtier = scope:courtier_1
+		hidden_effect = {
+			if = {
+				limit = {
+					scope:courtier_1 = {
+						age > 22
+						NOR = {
+							has_sexuality = asexual
+							has_sexuality = homosexual
+						}
+					}
+				}
+				random = {
+					chance = 40
+					RICE_generate_small_family = { CHARACTER = scope:courtier_1 }
+				}
+			}
+			scope:courtier_2 = {
+				death = {
+					death_reason = death_vanished
+				}
+			}			
+		}
+	}
+	
+	option = { # Pick option 2
+		name = mundburgian.3021.b
+		trigger = {
+			var:lotr_northron_settler_type = flag:courtiers
+		}
+		add_courtier = scope:courtier_2
+		hidden_effect = {
+			if = {
+				limit = {
+					scope:courtier_2 = {
+						age > 22
+						NOR = {
+							has_sexuality = asexual
+							has_sexuality = homosexual
+						}
+					}
+				}
+				random = {
+					chance = 40
+					RICE_generate_small_family = { CHARACTER = scope:courtier_2 }
+				}
+			}
+			scope:courtier_1 = {
+				death = {
+					death_reason = death_vanished
+				}
+			}			
+		}
+	}
+	
+	option = { # Pick both
+		name = mundburgian.3021.c
+		trigger = {
+			var:lotr_northron_settler_type = flag:courtiers
+			OR = {
+				gold >= lotr_northron_settlers_small_cost
+				is_ai = no
+			}
+		}
+		remove_short_term_gold = lotr_northron_settlers_small_cost
+		add_courtier = scope:courtier_1
+		add_courtier = scope:courtier_2
+		hidden_effect = {
+			if = {
+				limit = {
+					scope:courtier_1 = {
+						age > 22
+						NOR = {
+							has_sexuality = asexual
+							has_sexuality = homosexual
+						}
+					}
+				}
+				random = {
+					chance = 40
+					RICE_generate_small_family = { CHARACTER = scope:courtier_1 }
+				}
+			}
+			if = {
+				limit = {
+					scope:courtier_2 = {
+						age > 22
+						NOR = {
+							has_sexuality = asexual
+							has_sexuality = homosexual
+						}
+					}
+				}
+				random = {
+					chance = 40
+					RICE_generate_small_family = { CHARACTER = scope:courtier_2 }
+				}
+			}
+		}
+	}
+	
+	option = { # No courtiers to be picked
+		name = mundburgian.3021.d
+		trigger = {
+			NOT = { var:lotr_northron_settler_type = flag:courtiers }
+		}
+	}
+	
+	option = { # Defend against borders?
+		name = mundburgian.3021.e
+		trigger = {
+			NOT = { var:lotr_northron_settler_type = flag:rulers }
+		}
+		if = {
+			limit = {
+				highest_held_title_tier = tier_county
+			}
+			add_prestige = -200
+		}
+		else_if = {
+			limit = {
+				highest_held_title_tier = tier_duchy
+			}
+			add_prestige = -400
+		}
+		else_if = {
+			limit = {
+				highest_held_title_tier = tier_kingdom
+			}
+			add_prestige = -600
+		}
+		else_if = {
+			limit = {
+				highest_held_title_tier = tier_empire
+			}
+			add_prestige = -800
+		}
+		# Diplomacy
+		if = {
+			limit = {
+				var:lotr_northron_settler_type = flag:colonists
+			}
+			duel = {
+				skill = diplomacy
+				target = scope:courtier_1
+				20 = {
+					custom_tooltip = mundburgian.3021.e.success
+					compare_modifier = {
+						value = scope:duel_value
+						multiplier = 1
+					}
+					set_variable = {
+						name = RICE_overrated_vikings_gtfo
+						value = flag:yes
+					}
+				}
+				20 = {
+					custom_tooltip = mundburgian.3021.e.failure
+					compare_modifier = {
+						value = scope:duel_value
+						multiplier = -1
+					}
+					set_variable = {
+						name = RICE_overrated_vikings_gtfo
+						value = flag:no
+					}
+				}
+			}
+		}
+		# Martial
+		else_if = {
+			limit = {
+				var:lotr_northron_settler_type = flag:mercenaries
+			}
+			duel = {
+				skill = martial
+				target = scope:courtier_1
+				20 = {
+					custom_tooltip = mundburgian.3021.e.success
+					compare_modifier = {
+						value = scope:duel_value
+						multiplier = 1
+					}
+					set_variable = {
+						name = RICE_overrated_vikings_gtfo
+						value = flag:yes
+					}
+				}
+				20 = {
+					custom_tooltip = mundburgian.3021.e.failure
+					compare_modifier = {
+						value = scope:duel_value
+						multiplier = -1
+					}
+					set_variable = {
+						name = RICE_overrated_vikings_gtfo
+						value = flag:no
+					}
+				}
+			}
+		}
+		# Stewardship
+		else_if = {
+			limit = {
+				var:lotr_northron_settler_type = flag:traders
+			}
+			duel = {
+				skill = stewardship
+				target = scope:courtier_1
+				20 = {
+					custom_tooltip = mundburgian.3021.e.success
+					compare_modifier = {
+						value = scope:duel_value
+						multiplier = 1
+					}
+					set_variable = {
+						name = RICE_overrated_vikings_gtfo
+						value = flag:yes
+					}
+				}
+				20 = {
+					custom_tooltip = mundburgian.3021.e.failure
+					compare_modifier = {
+						value = scope:duel_value
+						multiplier = -1
+					}
+					set_variable = {
+						name = RICE_overrated_vikings_gtfo
+						value = flag:no
+					}
+				}
+			}
+		}
+		# Intrigue
+		else_if = {
+			limit = {
+				var:lotr_northron_settler_type = flag:courtiers
+			}
+			duel = {
+				skill = intrigue
+				target = scope:courtier_1
+				20 = {
+					custom_tooltip = mundburgian.3021.e.success
+					compare_modifier = {
+						value = scope:duel_value
+						multiplier = 1
+					}
+					set_variable = {
+						name = RICE_overrated_vikings_gtfo
+						value = flag:yes
+					}
+				}
+				20 = {
+					custom_tooltip = mundburgian.3021.e.failure
+					compare_modifier = {
+						value = scope:duel_value
+						multiplier = -1
+					}
+					set_variable = {
+						name = RICE_overrated_vikings_gtfo
+						value = flag:no
+					}
+				}
+			}
+		}
+		trigger_event = mundburgian.3022
+	}
+
+		
+	option = { # Play as them
+		name = mundburgian.3021.f
+		trigger = {
+			var:lotr_northron_settler_type = flag:rulers
+			is_ai = no
+			scope:courtier_1 = { is_playable_character = yes }
+		}
+		set_player_character = scope:courtier_1
+	}
+
+	after = {
+		if = {
+			limit = {
+				var:lotr_northron_settler_type ?= flag:rulers
+			}
+			scope:courtier_1 = {
+				trigger_event = mundburgian.3025
+			}
+			if = {
+				limit = {
+					is_independent_ruler = no
+					NOT = {
+						scope:courtier_1 = {
+							is_vassal_of = scope:granter 
+						}
+					}
+				}
+				scope:granter.liege = {
+					trigger_event = mundburgian.3027
+				}
+			}	
+		}
+		if = {
+			limit = {
+				NOT = { has_variable = RICE_overrated_vikings_gtfo }
+			}
+			if = {
+				limit = {
+					scope:courtier_1 = {
+						has_character_flag = single_combat_duel_armor
+					}
+				}
+				scope:courtier_1 = {
+					remove_character_flag = single_combat_duel_armor
+				}
+			}
+			if = {
+				limit = {
+					NOR = {
+						var:lotr_northron_settler_type = flag:courtiers
+						var:lotr_northron_settler_type = flag:rulers
+					}
+				}
+				hidden_effect = {
+					scope:courtier_1 = {
+						death = {
+							death_reason = death_vanished
+						}
+					}			
+				}
+			}
+			if = {
+				limit = { has_variable = lotr_northron_settler_type }
+				remove_variable = lotr_northron_settler_type
+			}
+		}
+	}
+
+}
+
+# Ask them to provide additional protection
+mundburgian.3022 = {
+	content_source = realms_dlc
+	type = character_event
+	title = mundburgian.3022.t
+	desc = {
+		desc = mundburgian.3022.desc.intro
+		first_valid = {
+			triggered_desc = {
+				trigger = {
+					var:RICE_overrated_vikings_gtfo = flag:no
+					var:lotr_northron_settler_type = flag:courtiers
+				}
+				desc = mundburgian.3022.desc.no.courtiers
+			}
+			triggered_desc = {
+				trigger = {
+					var:RICE_overrated_vikings_gtfo = flag:no
+					var:lotr_northron_settler_type = flag:colonists
+				}
+				desc = mundburgian.3022.desc.no.colonists
+			}
+			triggered_desc = {
+				trigger = {
+					var:RICE_overrated_vikings_gtfo = flag:no
+					var:lotr_northron_settler_type = flag:mercenaries
+				}
+				desc = mundburgian.3022.desc.no.mercenaries
+			}
+			triggered_desc = {
+				trigger = {
+					var:RICE_overrated_vikings_gtfo = flag:no
+					var:lotr_northron_settler_type = flag:traders
+				}
+				desc = mundburgian.3022.desc.no.traders
+			}
+		}
+		first_valid = {
+			triggered_desc = {
+				trigger = {
+					var:RICE_overrated_vikings_gtfo = flag:yes
+					var:lotr_northron_settler_type = flag:courtiers
+				}
+				desc = mundburgian.3022.desc.yes.courtiers
+			}
+			triggered_desc = {
+				trigger = {
+					var:RICE_overrated_vikings_gtfo = flag:yes
+					var:lotr_northron_settler_type = flag:colonists
+				}
+				desc = mundburgian.3022.desc.yes.colonists
+			}
+			triggered_desc = {
+				trigger = {
+					var:RICE_overrated_vikings_gtfo = flag:yes
+					var:lotr_northron_settler_type = flag:mercenaries
+				}
+				desc = mundburgian.3022.desc.yes.mercenaries
+			}
+			triggered_desc = {
+				trigger = {
+					var:RICE_overrated_vikings_gtfo = flag:yes
+					var:lotr_northron_settler_type = flag:traders
+				}
+				desc = mundburgian.3022.desc.yes.traders
+			}
+		}
+		first_valid = {
+			triggered_desc = {
+				trigger = {
+					var:RICE_overrated_vikings_gtfo = flag:no
+				}
+				desc = mundburgian.3022.desc.conclusion.no
+			}
+			triggered_desc = {
+				trigger = {
+					var:RICE_overrated_vikings_gtfo = flag:yes
+				}
+				desc = mundburgian.3022.desc.conclusion.yes
+			}
+		}
+	}
+	override_background = {
+		trigger = { capital_county ?= title:c_minas_tirith }
+		reference = minas_tirith
+	}
+	theme = realm
+	
+	left_portrait = {
+		character = root
+		triggered_animation = {
+			trigger = { root = { var:RICE_overrated_vikings_gtfo = flag:yes } }
+			animation = happiness
+		}
+		triggered_animation = {
+			trigger = { root = { var:RICE_overrated_vikings_gtfo = flag:no } }
+			animation = schadenfreude
+		}
+	}
+	
+	right_portrait = {
+		character = scope:courtier_1
+		triggered_animation = {
+			trigger = { root = { var:RICE_overrated_vikings_gtfo = flag:yes } }
+			animation = personality_bold
+		}
+		triggered_animation = {
+			trigger = { root = { var:RICE_overrated_vikings_gtfo = flag:no } }
+			animation = shame
+		}
+	}
+
+	lower_center_portrait = {
+		character = scope:courtier_2
+		trigger = { var:lotr_northron_settler_type = flag:courtiers }
+	}
+
+	immediate = {
+		if = {
+			limit = {
+				var:RICE_overrated_vikings_gtfo = flag:yes
+			}
+			random_list = {
+				20 = {
+					add_character_modifier = {
+						modifier = northron_reinforcements_modifier
+						years = 5
+					}
+				}
+				20 = {
+					add_character_modifier = {
+						modifier = northron_reinforcements_modifier
+						years = 10
+					}
+				}
+				10 = {
+					add_character_modifier = {
+						modifier = northron_reinforcements_modifier
+						years = 15
+					}
+				}
+				10 = {
+					add_character_modifier = {
+						modifier = northron_reinforcements_modifier
+						years = 20
+					}
+				}
+			}
+		}		
+	}
+		
+	option = { # Defend against borders?
+		name = mundburgian.3022.a
+		trigger = {
+			var:RICE_overrated_vikings_gtfo = flag:yes
+			NOT = { var:lotr_northron_settler_type = flag:courtiers }
+		}
+	}
+		
+	option = { # Defend against borders?
+		name = mundburgian.3022.b
+		trigger = {
+			NOT = {
+				var:RICE_overrated_vikings_gtfo = flag:yes
+			}
+			NOT = { var:lotr_northron_settler_type = flag:courtiers }
+		}
+	}
+		
+	option = { # Courtier 1
+		name = mundburgian.3022.c
+		trigger = {
+			var:lotr_northron_settler_type = flag:courtiers
+		}
+		add_courtier = scope:courtier_1
+		hidden_effect = {
+			scope:courtier_2 = {
+				death = {
+					death_reason = death_vanished
+				}
+			}			
+		}
+	}
+		
+	option = { # Courtier 2
+		name = mundburgian.3022.d
+		trigger = {
+			var:lotr_northron_settler_type = flag:courtiers
+		}
+		add_courtier = scope:courtier_2
+		hidden_effect = {
+			scope:courtier_2 = {
+				death = {
+					death_reason = death_vanished
+				}
+			}			
+		}
+	}
+		
+	option = { # Courtier 1 and Courtier 2
+		name = mundburgian.3022.e
+		trigger = {
+			var:lotr_northron_settler_type = flag:courtiers
+			OR = {
+				gold >= lotr_northron_settlers_small_cost
+				is_ai = no
+			}
+		}
+		remove_short_term_gold = lotr_northron_settlers_small_cost
+		add_courtier = scope:courtier_1
+		add_courtier = scope:courtier_2
+	}
+
+	after = {		
+		if = {
+			limit = {
+				scope:courtier_1 = {
+					has_character_flag = single_combat_duel_armor
+				}
+			}
+			scope:courtier_1 = {
+				remove_character_flag = single_combat_duel_armor
+			}
+		}
+		if = {
+			limit = {
+				NOT = { var:lotr_northron_settler_type = flag:courtiers }
+			}
+			hidden_effect = {
+				scope:courtier_1 = {
+					death = {
+						death_reason = death_vanished
+					}
+				}			
+			}
+		}
+		if = {
+			limit = { has_variable = lotr_northron_settler_type }
+			remove_variable = lotr_northron_settler_type
+		}
+	}
+}
+
+# They demand extra gold or titles
+mundburgian.3023 = {
+	content_source = realms_dlc
+	type = character_event
+	title = mundburgian.3023.t
+	desc = {
+		desc = mundburgian.3023.desc.intro
+		first_valid = {
+			triggered_desc = {
+				trigger = {
+					var:lotr_northron_settler_type = flag:courtiers
+				}
+				desc = mundburgian.3023.desc.courtiers
+			}
+			triggered_desc = {
+				trigger = {
+					var:lotr_northron_settler_type = flag:colonists
+				}
+				desc = mundburgian.3023.desc.colonists
+			}
+			triggered_desc = {
+				trigger = {
+					var:lotr_northron_settler_type = flag:mercenaries
+				}
+				desc = mundburgian.3023.desc.mercenaries
+			}
+			triggered_desc = {
+				trigger = {
+					var:lotr_northron_settler_type = flag:traders
+				}
+				desc = mundburgian.3023.desc.traders
+			}
+		}
+		desc = mundburgian.3023.desc.mid
+		first_valid = {
+			triggered_desc = {
+				trigger = {
+					var:lotr_northron_settler_demands = flag:titles
+				}
+				desc = mundburgian.3023.desc.titles
+			}
+			desc = mundburgian.3023.desc.gold
+		}
+		desc = mundburgian.3023.desc.conclusion
+	}
+	override_background = {
+		trigger = { capital_county ?= title:c_minas_tirith }
+		reference = minas_tirith
+	}
+	theme = realm
+	
+	left_portrait = {
+		character = root
+		animation = anger
+	}
+	
+	right_portrait = {
+		character = scope:courtier_1
+		animation = personality_callous
+	}
+
+	immediate = {
+		lotr_invite_northrons_initial_setup_effect = yes
+		random_list = {
+			# They just want gold
+			70 = {
+				set_variable = {
+					name = lotr_northron_settler_demands
+					value = flag:gold
+				}
+				modifier = {
+					scope:courtier_1 = { has_trait = greedy }
+					add = 40
+				}
+			}
+			# They want a title
+			30 = {
+				trigger = {
+					owns_multiple_counties_not_colony = yes
+				}
+				set_variable = {
+					name = lotr_northron_settler_demands
+					value = flag:titles
+				}
+
+				# Save a random county to be granted out
+				lotr_invite_northrons_pick_county_effect = yes
+
+				# Reduced chance if you are a count yourself
+				modifier = {
+					add = -10
+					highest_held_title_tier = tier_county
+				}
+				# Reduced chance on lore accurate
+				modifier = {
+					add = -25
+					has_game_rule = default_ai_behavior
+					is_ai = yes
+				}
+				# Reduced chance on lore deviating
+				modifier = {
+					add = -10
+					has_game_rule = weighted_ai_behavior
+					is_ai = yes
+				}
+				modifier = {
+					scope:courtier_1 = { has_trait = ambitious }
+					add = 20
+				}
+			}
+		}
+	}
+
+	
+	option = { # Ok
+		name = mundburgian.3023.a
+		if = {
+			limit = {
+				var:lotr_northron_settler_demands = flag:titles
+			}
+			save_scope_as = granter
+			
+			# Transfer the title
+			create_title_and_vassal_change = {
+				type = granted
+				save_scope_as = change
+				add_claim_on_loss = no
+			}
+			scope:award_county = {
+				change_title_holder = {
+					holder = scope:courtier_1
+					change = scope:change
+				}
+			}
+			if = {
+				limit = {
+					highest_held_title_tier > tier_county
+				}
+				scope:courtier_1 = {
+					change_liege = {
+						liege = root
+						change = scope:change
+					}
+				}
+			}
+			else_if = {
+				limit = {
+					is_independent_ruler = no
+				}
+				scope:courtier_1 = {
+					change_liege = {
+						liege = scope:granter.liege
+						change = scope:change
+					}
+				}
+				scope:granter.liege = {
+					trigger_event = mundburgian.3027
+				}
+			}
+			resolve_title_and_vassal_change = scope:change
+
+			add_truce_both_ways = {
+				character = scope:courtier_1
+				days = purchase_truce_interaction_truce_days_small_value
+				name = lotr_northron_settler_truce
+			}
+			trigger_event = mundburgian.3024
+		}
+		else_if = {
+			limit = {				
+				var:lotr_northron_settler_demands = flag:gold
+			}
+			remove_short_term_gold = { 25 lotr_northron_settlers_large_cost }
+			trigger_event = mundburgian.3026
+		}
+	}
+	
+	option = { # Refuse
+		name = mundburgian.3023.b
+		duel = {
+			skill = diplomacy
+			target = scope:courtier_1
+			20 = {
+				custom_tooltip = mundburgian.3023.b.success
+				compare_modifier = {
+					value = scope:duel_value
+					multiplier = 1
+				}
+				trigger_event = mundburgian.3029
+				# send_interface_toast = {
+				# 	type = event_generic_good
+				# 	title = mundburgian.3023.b.success
+				# 	left_icon = scope:courtier_1
+				# }
+			}
+			20 = {
+				custom_tooltip = mundburgian.3023.b.failure
+				compare_modifier = {
+					value = scope:duel_value
+					multiplier = -1
+				}
+
+				save_scope_as = original_negotiator
+				add_to_list = northron_brigands_notification_list
+				capital_county = { save_scope_as = capital }
+				# Every county in your capital duchy
+				scope:capital = {
+					duchy = {
+						every_in_de_jure_hierarchy = {
+							limit = {
+								tier = tier_county
+							}
+							holder = {
+								add_to_list = northron_brigands_notification_list
+							}
+							hidden_effect = {
+								change_development_progress_with_overflow = -50
+								change_county_control = -15
+								add_county_modifier = {
+									modifier = northron_brigands_modifier
+									years = 10
+								}
+							}
+						}
+					}
+				}
+
+				every_in_list = {
+					list = northron_brigands_notification_list
+					trigger_event = mundburgian.3028
+					#remove_from_list = multiple_donated_titles
+				}
+				
+				# send_interface_toast = {
+				# 	type = event_generic_bad
+				# 	title = mundburgian.3023.b.failure
+				# 	left_icon = scope:courtier_1
+				# }
+			}
+		}
+	}
+
+	after = {
+		if = {
+			limit = { has_variable = lotr_northron_settler_demands }
+			remove_variable = lotr_northron_settler_demands
+		}
+	}
+
+}
+
+# New Northron ruler, ROOT perspective
+mundburgian.3024 = {
+	content_source = realms_dlc
+	type = character_event
+	title = mundburgian.3024.t
+	desc = {
+		desc = mundburgian.3024.desc
+		first_valid = {
+			triggered_desc = {
+				trigger = {
+					var:lotr_northron_settler_type = flag:courtiers
+				}
+				desc = mundburgian.3024.desc.courtiers
+			}
+			triggered_desc = {
+				trigger = {
+					var:lotr_northron_settler_type = flag:colonists
+				}
+				desc = mundburgian.3024.desc.colonists
+			}
+			triggered_desc = {
+				trigger = {
+					var:lotr_northron_settler_type = flag:mercenaries
+				}
+				desc = mundburgian.3024.desc.mercenaries
+			}
+			triggered_desc = {
+				trigger = {
+					var:lotr_northron_settler_type = flag:traders
+				}
+				desc = mundburgian.3024.desc.traders
+			}
+		}
+		desc = mundburgian.3024.desc.conclusion
+	}
+	override_background = {
+		trigger = { capital_county ?= title:c_minas_tirith }
+		reference = minas_tirith
+	}
+	theme = realm
+	
+	left_portrait = {
+		character = scope:current_ruler
+		animation = personality_vengeful
+	}
+	right_portrait = {
+		character = scope:courtier_1
+		animation = personality_callous
+	}
+
+	immediate = {
+		lotr_invite_northrons_initial_setup_effect = yes
+		if = {
+			limit = {
+				var:lotr_northron_settler_type = flag:courtiers
+			}
+			add_courtier = scope:courtier_2
+		}
+		lotr_invite_northrons_main_effect = yes		
+	}
+
+	
+	# Don't Play as them
+	option = {
+		name = mundburgian.3024.a
+	}
+	
+	# Play as them
+	option = {
+		name = mundburgian.3024.b
+		trigger = {
+			is_ai = no
+			scope:courtier_1 = { is_playable_character = yes }
+		}
+		set_player_character = scope:courtier_1
+	}
+
+	after = {
+		if = {
+			limit = {
+				scope:courtier_1 = {
+					has_character_flag = single_combat_duel_armor
+				}
+			}
+			scope:courtier_1 = {
+				remove_character_flag = single_combat_duel_armor
+			}
+		}
+		# if = {
+		# 	limit = {
+		# 		NOT = { var:lotr_northron_settler_type = flag:courtiers }
+		# 	}
+		# 	hidden_effect = {
+		# 		scope:courtier_1 = {
+		# 			death = {
+		# 				death_reason = death_vanished
+		# 			}
+		# 		}			
+		# 	}
+		# }
+		if = {
+			limit = { has_variable = lotr_northron_settler_type }
+			remove_variable = lotr_northron_settler_type
+		}
+		scope:courtier_1 = {			
+			trigger_event = mundburgian.3025
+		}
+	}
+}
+
+# New Northron ruler, Northron perspective
+mundburgian.3025 = {
+	content_source = realms_dlc
+	type = character_event
+	title = mundburgian.3025.t
+	desc = {
+		desc = mundburgian.3025.desc
+		first_valid = {
+			triggered_desc = {
+				trigger = {
+					scope:courtier_1.liege = scope:granter
+				}
+				desc = mundburgian.3025.desc.vassal
+			}
+			triggered_desc = {
+				trigger = {
+					scope:courtier_1.liege = scope:granter.liege
+				}
+				desc = mundburgian.3025.desc.vassal_in_realm
+			}
+			triggered_desc = {
+				trigger = {
+					NOT = {
+						scope:courtier_1.liege = scope:granter
+					}
+				}
+				desc = mundburgian.3025.desc.independent
+			}
+		}
+		triggered_desc = {
+			trigger = {
+				NOT = { scope:current_ruler.faith = scope:courtier_1.faith }
+				NOT = { scope:current_ruler.faith = { has_doctrine_parameter = unreformed } }
+			}
+			desc = mundburgian.3025.desc.conversion
+		}
+	}
+	override_background = {
+		trigger = { capital_county ?= title:c_minas_tirith }
+		reference = minas_tirith
+	}
+	theme = realm
+	
+	left_portrait = {
+		character = scope:current_ruler
+		animation = war_over_tie
+	}
+	right_portrait = scope:courtier_1
+
+	immediate = {
+		add_trait = adventurer
+		hidden_effect = {
+			# Chance to create family
+			if = {
+				limit = { has_character_flag = dont_generate_family }
+				remove_character_flag = dont_generate_family
+			}
+			else_if = {
+				limit = {
+					is_married = no
+				}
+				random = {
+					chance = {
+						value = 50
+						if = {
+							limit = { age > 30 }
+							add = 25
+						}
+						if = {
+							limit = { 
+								OR = {
+									has_sexuality = asexual
+									has_sexuality = homosexual
+								}
+							}
+							add = -45
+						}
+					}
+					RICE_generate_small_family = { CHARACTER = scope:courtier_1 }
+				}
+			}
+
+			# Get some starting cash
+			add_prestige = 150
+			add_piety = 100
+			random_list = {
+				10 = { add_short_term_gold = 50 }
+				10 = { add_short_term_gold = 100 }
+				10 = { add_short_term_gold = 150 }
+				10 = { add_short_term_gold = 200 }
+				5 = { add_short_term_gold = 250 }
+				5 = { add_short_term_gold = 300 }
+			}
+		}
+	}
+	# Will convert
+	option = {
+		name = mundburgian.3025.a		
+		trigger = {
+			NOT = { scope:current_ruler.faith = scope:courtier_1.faith }
+			NOT = { scope:current_ruler.faith = { has_doctrine_parameter = unreformed } }
+		}
+		set_character_faith_with_conversion = scope:current_ruler.faith
+		add_piety = -200
+		add_prestige = 100
+		scope:granter = {
+			add_opinion = {
+				target = scope:courtier_1
+				modifier = pleased_opinion
+				opinion = 15
+			}
+		}
+	}
+	
+	# Ok
+	option = {
+		name = mundburgian.3025.b
+	}
+	
+}
+
+# Deal agreed to
+mundburgian.3026 = {
+	content_source = realms_dlc
+	type = character_event
+	title = mundburgian.3026.t
+	desc = {
+		desc = mundburgian.3026.desc
+		first_valid = {
+			triggered_desc = {
+				trigger = {
+					var:lotr_northron_settler_type = flag:courtiers
+				}
+				desc = mundburgian.3026.desc.courtiers
+			}
+			triggered_desc = {
+				trigger = {
+					var:lotr_northron_settler_type = flag:colonists
+				}
+				desc = mundburgian.3026.desc.colonists
+			}
+			triggered_desc = {
+				trigger = {
+					var:lotr_northron_settler_type = flag:mercenaries
+				}
+				desc = mundburgian.3026.desc.mercenaries
+			}
+			triggered_desc = {
+				trigger = {
+					var:lotr_northron_settler_type = flag:traders
+				}
+				desc = mundburgian.3026.desc.traders
+			}
+		}
+	}
+	override_background = {
+		trigger = { capital_county ?= title:c_minas_tirith }
+		reference = minas_tirith
+	}
+	theme = realm
+	
+	left_portrait = {
+		trigger = { root = { var:lotr_northron_settler_type = flag:courtiers } }
+		character = scope:courtier_2
+		animation = personality_callous
+		# triggered_animation = {
+		# 	trigger = { root = { var:lotr_northron_settler_type = flag:courtiers } }
+		# 	animation = throne_room_bow_2
+		# }
+		# triggered_animation = {
+		# 	trigger = { NOT = { root = { var:lotr_northron_settler_type = flag:courtiers } } }
+		# 	animation = idle
+		# }
+	}
+	
+	right_portrait = {
+		character = scope:courtier_1
+		animation = war_over_win
+	}
+
+	immediate = {
+		#lotr_invite_northrons_initial_setup_effect = yes
+		lotr_invite_northrons_main_effect = yes		
+	}
+	
+	option = { # Pick option 1
+		name = mundburgian.3026.a
+		trigger = {
+			var:lotr_northron_settler_type = flag:courtiers
+		}
+		add_courtier = scope:courtier_1
+		hidden_effect = {
+			scope:courtier_2 = {
+				death = {
+					death_reason = death_vanished
+				}
+			}			
+		}
+	}
+	
+	option = { # Pick option 2
+		name = mundburgian.3026.b
+		trigger = {
+			var:lotr_northron_settler_type = flag:courtiers
+		}
+		add_courtier = scope:courtier_2
+		hidden_effect = {
+			scope:courtier_1 = {
+				death = {
+					death_reason = death_vanished
+				}
+			}			
+		}
+	}
+	
+	option = { # Pick both
+		name = mundburgian.3026.c
+		trigger = {
+			var:lotr_northron_settler_type = flag:courtiers
+			OR = {
+				gold >= lotr_northron_settlers_small_cost
+				is_ai = no
+			}
+		}
+		remove_short_term_gold = lotr_northron_settlers_small_cost
+		add_courtier = scope:courtier_1
+		add_courtier = scope:courtier_2
+	}
+	
+	option = { # No courtiers to be picked
+		name = mundburgian.3026.d
+		trigger = {
+			NOT = { var:lotr_northron_settler_type = flag:courtiers }
+		}
+	}
+
+	after = {
+		if = {
+			limit = {
+				scope:courtier_1 = {
+					has_character_flag = single_combat_duel_armor
+				}
+			}
+			scope:courtier_1 = {
+				remove_character_flag = single_combat_duel_armor
+			}
+		}
+		if = {
+			limit = {
+				NOR = {
+					var:lotr_northron_settler_type = flag:courtiers
+					var:lotr_northron_settler_type = flag:rulers
+				}
+			}
+			hidden_effect = {
+				scope:courtier_1 = {
+					death = {
+						death_reason = death_vanished
+					}
+				}			
+			}
+		}
+		if = {
+			limit = { has_variable = lotr_northron_settler_type }
+			remove_variable = lotr_northron_settler_type
+		}
+	}
+
+}
+
+# Notify the liege if they get a new Northron vassal
+mundburgian.3027 = {
+	content_source = realms_dlc
+	type = character_event
+	title = mundburgian.3027.t
+	desc = mundburgian.3027.desc
+	override_background = {
+		trigger = { capital_county ?= title:c_minas_tirith }
+		reference = minas_tirith
+	}
+	theme = realm
+	
+	left_portrait = {
+		character = scope:granter
+		animation = war_over_tie
+	}
+	
+	right_portrait = {
+		character = scope:courtier_1
+		animation = war_over_win
+	}
+
+	immediate = {
+		show_as_tooltip = {
+			scope:courtier_1 = {
+				get_title = scope:award_county
+			}
+		}
+	}
+	
+	option = { # ok
+		name = mundburgian.3027.a
+	}
+
+}
+
+# Northrons refuse to back down and go rogue
+mundburgian.3028 = {
+	content_source = realms_dlc
+	type = character_event
+	window = duel_event
+	title = mundburgian.3028.t
+	desc = {
+		first_valid = {
+			triggered_desc = {
+				trigger = {
+					root = scope:original_negotiator
+				}
+				desc = mundburgian.3028.desc.original
+			}
+			desc = mundburgian.3028.desc
+		}
+	}
+	theme = martial
+	override_background = { reference = burning_building }
+	
+	left_portrait = {
+		character = scope:original_negotiator
+		animation = anger
+	}
+	
+	right_portrait = {
+		character = scope:courtier_1
+		animation = aggressive_sword
+	}
+
+	immediate = {
+		scope:courtier_1 = {
+			add_character_flag = single_combat_duel_armor
+		}
+		#capital_county = { save_scope_as = capital }
+		# Every county in your capital duchy
+		show_as_tooltip = {
+			scope:capital = {
+				duchy = {
+					every_in_de_jure_hierarchy = {
+						limit = {
+							tier = tier_county
+						}
+						custom = RICE_every_county_in_capital_duchy_owned_or_not
+						change_development_progress_with_overflow = -50
+						change_county_control = -15
+						add_county_modifier = {
+							modifier = northron_brigands_modifier
+							years = 10
+						}
+					}
+				}
+			}
+		}
+	}
+	
+	option = { # ok
+		name = mundburgian.3028.a
+		trigger = {
+			root = scope:original_negotiator
+		}
+	}
+	
+	option = { # ok
+		name = mundburgian.3028.b
+		trigger = {
+			NOT = { root = scope:original_negotiator }
+		}
+	}
+
+	after = {
+		if = {
+			limit = {
+				scope:courtier_1 = {
+					has_character_flag = single_combat_duel_armor
+				}
+			}
+			scope:courtier_1 = {
+				remove_character_flag = single_combat_duel_armor
+			}
+		}
+		if = {
+			limit = {
+				root = scope:original_negotiator
+			}
+			hidden_effect = {
+				scope:courtier_1 = {
+					death = {
+						death_reason = death_vanished
+					}
+				}
+				if = {
+					limit = {
+						var:lotr_northron_settler_type = flag:courtiers
+					}
+					scope:courtier_2 = {
+						death = {
+							death_reason = death_vanished
+						}
+					}
+				}
+			}
+		}
+		if = {
+			limit = { has_variable = lotr_northron_settler_type }
+			remove_variable = lotr_northron_settler_type
+		}
+	}
+
+}
+
+# Northrons agree to back down
+mundburgian.3029 = {
+	content_source = realms_dlc
+	type = character_event
+	title = mundburgian.3029.t
+	desc = {
+		desc = mundburgian.3029.desc
+		first_valid = {
+			triggered_desc = {
+				trigger = {
+					var:lotr_northron_settler_type = flag:courtiers
+				}
+				desc = mundburgian.3021.desc.courtiers
+			}
+			triggered_desc = {
+				trigger = {
+					var:lotr_northron_settler_type = flag:colonists
+				}
+				desc = mundburgian.3021.desc.colonists
+			}
+			triggered_desc = {
+				trigger = {
+					var:lotr_northron_settler_type = flag:mercenaries
+				}
+				desc = mundburgian.3021.desc.mercenaries
+			}
+			triggered_desc = {
+				trigger = {
+					var:lotr_northron_settler_type = flag:traders
+				}
+				desc = mundburgian.3021.desc.traders
+			}
+			triggered_desc = {
+				trigger = {
+					var:lotr_northron_settler_type = flag:rulers
+				}
+				desc = mundburgian.3021.desc.rulers
+			}
+		}
+		first_valid = {
+			triggered_desc = {
+				trigger = {
+					NOT = { var:lotr_northron_settler_type = flag:rulers }
+				}
+				desc = mundburgian.3021.desc.conclusion
+			}
+		}
+	}
+	override_background = {
+		trigger = { capital_county ?= title:c_minas_tirith }
+		reference = minas_tirith
+	}
+	theme = realm
+	
+	left_portrait = {
+		character = root
+		animation = dismissal
+	}
+	
+	right_portrait = {
+		character = scope:courtier_1
+		animation = personality_dishonorable
+	}
+
+	lower_center_portrait = {
+		character = scope:courtier_2
+		trigger = { var:lotr_northron_settler_type = flag:courtiers }
+	}
+
+	immediate = {
+		# lotr_invite_northrons_initial_setup_effect = yes # Already done previously
+		lotr_invite_northrons_main_effect = yes
+		
+	}
+	
+	option = { # Pick option 1
+		name = mundburgian.3029.a
+		trigger = {
+			var:lotr_northron_settler_type = flag:courtiers
+		}
+		add_courtier = scope:courtier_1
+		hidden_effect = {
+			scope:courtier_2 = {
+				death = {
+					death_reason = death_vanished
+				}
+			}			
+		}
+	}
+	
+	option = { # Pick option 2
+		name = mundburgian.3029.b
+		trigger = {
+			var:lotr_northron_settler_type = flag:courtiers
+		}
+		add_courtier = scope:courtier_2
+		hidden_effect = {
+			scope:courtier_1 = {
+				death = {
+					death_reason = death_vanished
+				}
+			}			
+		}
+	}
+	
+	option = { # Pick both
+		name = mundburgian.3029.c
+		trigger = {
+			var:lotr_northron_settler_type = flag:courtiers
+			OR = {
+				gold >= lotr_northron_settlers_small_cost
+				is_ai = no
+			}
+		}
+		remove_short_term_gold = lotr_northron_settlers_small_cost
+		add_courtier = scope:courtier_1
+		add_courtier = scope:courtier_2
+	}
+	
+	option = { # No courtiers to be picked
+		name = mundburgian.3029.d
+		trigger = {
+			NOT = { var:lotr_northron_settler_type = flag:courtiers }
+		}
+	}
+	
+	option = { # Defend against borders?
+		name = mundburgian.3029.e
+		#trigger = {
+		#	NOT = { var:lotr_northron_settler_type = flag:rulers }
+		#}
+		if = {
+			limit = {
+				highest_held_title_tier = tier_county
+			}
+			add_prestige = -200
+		}
+		else_if = {
+			limit = {
+				highest_held_title_tier = tier_duchy
+			}
+			add_prestige = -400
+		}
+		else_if = {
+			limit = {
+				highest_held_title_tier = tier_kingdom
+			}
+			add_prestige = -600
+		}
+		else_if = {
+			limit = {
+				highest_held_title_tier = tier_empire
+			}
+			add_prestige = -800
+		}
+		# Diplomacy
+		if = {
+			limit = {
+				var:lotr_northron_settler_type = flag:colonists
+			}
+			duel = {
+				skill = diplomacy
+				target = scope:courtier_1
+				10 = {
+					custom_tooltip = mundburgian.3021.e.success
+					compare_modifier = {
+						value = scope:duel_value
+						multiplier = 1
+					}
+					set_variable = {
+						name = RICE_overrated_vikings_gtfo
+						value = flag:yes
+					}
+				}
+				10 = {
+					custom_tooltip = mundburgian.3021.e.failure
+					compare_modifier = {
+						value = scope:duel_value
+						multiplier = -1
+					}
+					set_variable = {
+						name = RICE_overrated_vikings_gtfo
+						value = flag:no
+					}
+				}
+			}
+		}
+		# Martial
+		else_if = {
+			limit = {
+				var:lotr_northron_settler_type = flag:mercenaries
+			}
+			duel = {
+				skill = martial
+				target = scope:courtier_1
+				20 = {
+					custom_tooltip = mundburgian.3021.e.success
+					compare_modifier = {
+						value = scope:duel_value
+						multiplier = 1
+					}
+					set_variable = {
+						name = RICE_overrated_vikings_gtfo
+						value = flag:yes
+					}
+				}
+				20 = {
+					custom_tooltip = mundburgian.3021.e.failure
+					compare_modifier = {
+						value = scope:duel_value
+						multiplier = -1
+					}
+					set_variable = {
+						name = RICE_overrated_vikings_gtfo
+						value = flag:no
+					}
+				}
+			}
+		}
+		# Stewardship
+		else_if = {
+			limit = {
+				var:lotr_northron_settler_type = flag:traders
+			}
+			duel = {
+				skill = stewardship
+				target = scope:courtier_1
+				20 = {
+					custom_tooltip = mundburgian.3021.e.success
+					compare_modifier = {
+						value = scope:duel_value
+						multiplier = 1
+					}
+					set_variable = {
+						name = RICE_overrated_vikings_gtfo
+						value = flag:yes
+					}
+				}
+				20 = {
+					custom_tooltip = mundburgian.3021.e.failure
+					compare_modifier = {
+						value = scope:duel_value
+						multiplier = -1
+					}
+					set_variable = {
+						name = RICE_overrated_vikings_gtfo
+						value = flag:no
+					}
+				}
+			}
+		}
+		# Intrigue
+		else_if = {
+			limit = {
+				var:lotr_northron_settler_type = flag:courtiers
+			}
+			duel = {
+				skill = intrigue
+				target = scope:courtier_1
+				20 = {
+					custom_tooltip = mundburgian.3021.e.success
+					compare_modifier = {
+						value = scope:duel_value
+						multiplier = 1
+					}
+					set_variable = {
+						name = RICE_overrated_vikings_gtfo
+						value = flag:yes
+					}
+				}
+				20 = {
+					custom_tooltip = mundburgian.3021.e.failure
+					compare_modifier = {
+						value = scope:duel_value
+						multiplier = -1
+					}
+					set_variable = {
+						name = RICE_overrated_vikings_gtfo
+						value = flag:no
+					}
+				}
+			}
+		}
+		trigger_event = mundburgian.3022
+	}
+
+	after = {
+		if = {
+			limit = {
+				NOT = { has_variable = RICE_overrated_vikings_gtfo }
+			}
+			if = {
+				limit = {
+					scope:courtier_1 = {
+						has_character_flag = single_combat_duel_armor
+					}
+				}
+				scope:courtier_1 = {
+					remove_character_flag = single_combat_duel_armor
+				}
+			}
+			if = {
+				limit = {
+					NOR = {
+						var:lotr_northron_settler_type = flag:courtiers
+						var:lotr_northron_settler_type = flag:rulers
+					}
+				}
+				hidden_effect = {
+					scope:courtier_1 = {
+						death = {
+							death_reason = death_vanished
+						}
+					}			
+				}
+			}
+			if = {
+				limit = { has_variable = lotr_northron_settler_type }
+				remove_variable = lotr_northron_settler_type
+			}
+		}
+	}
+
+}
+

@@ -1,0 +1,1 @@
+Decision to launch artifact claim war for selected ring

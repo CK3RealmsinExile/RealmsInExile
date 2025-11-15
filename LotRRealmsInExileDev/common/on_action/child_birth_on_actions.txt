@@ -7,6 +7,9 @@
 # scope:real_father is the biological father
 # scope:father is the family father (not the biological)
 on_birth_mother = {
+	trigger = {
+		NOT = { exists = var:historical_pregnancy }
+	}
 	events = {
 		birth.0001 #No one dies - hidden event that selects visible birth event based on bastard status and complication rolls
 		birth.3011 #Mother dies
@@ -136,6 +139,7 @@ on_birth_mother = {
 				}
 			}
 		}
+
 		scope:child = {
 			if = {
 				limit = { has_trait = twin }
@@ -146,14 +150,55 @@ on_birth_mother = {
 			}
 		}
 
+		#Gain Piety from the Mandala Creator Aspect
+		if = {
+			limit = {
+				government_has_flag = government_is_mandala
+				house ?= { 
+					has_house_power_parameter = births_give_piety
+					this = scope:child.house
+				}
+				is_landed = yes
+			}
+			if = {
+				limit = { exists = scope:child_2 }
+				send_interface_message = {
+					type = msg_mandala_creator_birth_good
+					title = mandala_creator_children_born
+					left_icon = scope:child
+					right_icon = scope:child_2
+					add_piety = {
+						value = major_piety_gain
+						multiply = 2
+						if = {
+							limit = {
+								any_child = {
+									count > 2
+									is_twin_of = scope:child
+								}
+							}
+							add = major_piety_gain
+						}
+					}
+				}
+			}
+			else = {
+				send_interface_message = {
+					type = msg_mandala_creator_birth_good
+					title = mandala_creator_child_born
+					left_icon = scope:child
+					right_icon = scope:mother
+					add_piety = major_piety_gain
+				}
+			}
+		}
+
 		if = {
 			limit = {
 				NOR = {
 					any_child = {
 						even_if_dead = yes
-						NOT = {
-							this = scope:child
-						}
+						this != scope:child
 					}
 					exists = scope:child_2
 				}
@@ -182,6 +227,18 @@ on_birth_mother = {
 					participants = {
 						child = scope:child
 					}
+				}
+			}
+		}
+
+		scope:mother = {
+			if = {
+				limit = {
+					has_character_modifier = oath_of_children
+				}
+				hidden_effect = {
+					remove_character_modifier = oath_of_children
+					add_character_modifier = oath_of_children
 				}
 			}
 		}
@@ -295,24 +352,67 @@ on_birth_father = {
 				}
 			}
 		}
-        scope:child = {
-            if = {
-                limit = { has_trait = twin }
-                random_sibling = {
-                    limit = { is_twin_of = scope:child }
-                    save_scope_as = child_2
-                }
-            }
-        }
+
+		scope:child = {
+			if = {
+				limit = { has_trait = twin }
+				random_sibling = {
+					limit = { is_twin_of = scope:child }
+					save_scope_as = child_2
+				}
+				
+			}
+		}
+
+		#Gain Piety from the Mandala Creator Aspect
+		if = {
+			limit = {
+				government_has_flag = government_is_mandala
+				house ?= { 
+					has_house_power_parameter = births_give_piety
+					this = scope:child.house
+				}
+				is_landed = yes
+			}
+			if = {
+				limit = { exists = scope:child_2 }
+				send_interface_message = {
+					type = msg_mandala_creator_birth_good
+					title = mandala_creator_children_born
+					left_icon = scope:child
+					right_icon = scope:child_2
+					add_piety = {
+						value = major_piety_gain
+						multiply = 2
+						if = {
+							limit = {
+								any_child = {
+									count > 2
+									is_twin_of = scope:child
+								}
+							}
+							add = major_piety_gain
+						}
+					}
+				}
+			}
+			else = {
+				send_interface_message = {
+					type = msg_mandala_creator_birth_good
+					title = mandala_creator_child_born
+					left_icon = scope:child
+					right_icon = scope:father
+					add_piety = major_piety_gain
+				}
+			}
+		}
 		
 		if = {
 			limit = {
 				NOR = {
 					any_child = {
 						even_if_dead = yes
-						NOT = {
-							this = scope:child
-						}
+						this != scope:child
 					}
 					exists = scope:child_2
 				}
@@ -341,6 +441,18 @@ on_birth_father = {
 					participants = {
 						child = scope:child
 					}
+				}
+			}
+		}
+
+		scope:father = {
+			if = {
+				limit = {
+					has_character_modifier = oath_of_children
+				}
+				hidden_effect = {
+					remove_character_modifier = oath_of_children
+					add_character_modifier = oath_of_children
 				}
 			}
 		}
@@ -377,6 +489,64 @@ on_birth_child = {
 		debug.0010 # Disease data tracking
 	}
 	effect = {
+		# MPO: Nomadic Philosophy Inheritance
+		if = {
+			limit = {
+				NOT = { has_trait = nomadic_philosophy }
+				OR = {
+					scope:mother = {
+						has_trait = nomadic_philosophy
+						NOT = { has_character_flag = nomphil_exodus_first_gen }
+					}
+					scope:father ?= {
+						has_trait = nomadic_philosophy
+						NOT = { has_character_flag = nomphil_exodus_first_gen }
+					}
+				}
+			}
+			add_trait = nomadic_philosophy
+			if = {
+				limit = {
+					NOR = {
+						location.county ?= {
+							any_county_situation = { this = situation:the_great_steppe }
+						}
+						top_liege ?= {
+							government_has_flag = government_is_nomadic
+							government_has_flag = government_is_steppe_admin
+						}
+					}
+				}
+				add_character_flag = nomphil_exodus_first_gen
+			}
+		}
+		if = {
+			limit = {
+				scope:mother = {
+					has_character_flag = blessed_baby
+				}
+			}
+			random_list = {
+				23 = {
+					add_trait = intellect_good_2
+				}
+				10 = {
+					add_trait = intellect_good_3
+				}
+				23 = {
+					add_trait = physique_good_2
+				}
+				10 = {
+					add_trait = physique_good_3
+				}
+				23 = {
+					add_trait = beauty_good_2
+				}			
+				10 = {
+					add_trait = beauty_good_3
+				}
+			}
+		}
 		# Make sure that children aren't Lowborn if one of their parents are, in fact, of noble stock
 		if = {
 			limit = {
@@ -475,16 +645,62 @@ on_birth_child = {
 			}
 		}
 
+		if = {
+			limit = {
+				is_alive = yes
+				faith = {
+					has_doctrine_parameter = parents_get_hooks_on_children
+				}
+			}
+			if = {
+				limit = {
+					scope:child.father ?= {
+						is_alive = yes
+						faith = {
+							has_doctrine_parameter = parents_get_hooks_on_children
+						}						
+					}
+				}
+				scope:child.father = {
+					add_hook = {
+						target = scope:child
+						type = filial_piety_hook
+					}
+				}
+			}
+			if = {
+				limit = {
+					scope:child.mother ?= {
+						is_alive = yes
+						faith = {
+							has_doctrine = tenet_filial_piety
+						}						
+					}
+				}
+				scope:child.mother = {
+					add_hook = {
+						target = scope:child
+						type = filial_piety_hook
+					}
+				}
+			}
+		}
+
 		#Add house hook
 		if = {
 			limit = {
 				is_alive = yes
 				exists = scope:child.house
-				scope:child.house.house_head = { is_alive =yes }
+				scope:child.house.house_head = { 
+					is_alive = yes
+					can_add_hook = {
+						target = scope:child
+						type = house_head_hook
+					}
+				}
 				NOT = {
 					scope:child = scope:child.house.house_head # If the house dies out, a posthumous child can revive it
 				}
-				#No need to check if the hook can be added, the kid was just born
 			}
 			scope:child.house.house_head = {
 				add_hook_no_toast = {
@@ -738,6 +954,16 @@ on_birth_child = {
 #				}
 #			}
 #		}
+		
+		if = {
+			limit = {
+				OR = {
+					scope:father ?= character:lineofdurin96
+					scope:father.father ?= character:lineofdurin96
+				}
+			}
+			scope:child = { lotr_set_name = yes }
+		}
 	}
 }
 

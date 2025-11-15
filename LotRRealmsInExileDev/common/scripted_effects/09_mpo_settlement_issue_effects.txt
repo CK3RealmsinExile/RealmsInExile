@@ -1,0 +1,234 @@
+﻿settlement_issue_on_accepted_default_effect = {
+	save_scope_as = task_contract
+	task_contract_taker = {
+		set_variable = nomadic_migration_contract_$NUMBER$
+		if = {
+			limit = {
+				location = root.task_contract_location
+			}
+			trigger_event = {
+				id = mpo_contract_events.$ARRIVAL_ID$
+			}
+		}
+		else = {
+			start_travel_plan = {
+				destination = root.task_contract_location
+				on_arrival_event = mpo_contract_events.$ARRIVAL_ID$
+				return_trip = yes
+				on_travel_planner_cancel_event = mpo_contract_events.$RESET_ID$
+			}
+		}
+	}
+}
+
+settlement_issue_on_invalidated_default_effect = {
+	task_contract_location.county = {
+		remove_county_modifier = ongoing_settlement_contract
+	}
+}
+
+settlement_issue_on_create_effect = {
+	scope:contract.task_contract_location.county = {
+		add_county_modifier = ongoing_settlement_contract
+	}
+	scope:contract.task_contract_taker = {
+		if = {
+			limit = {
+				is_ai = yes
+				is_available = yes
+			}
+			accept_task_contract = scope:contract
+		}
+		else_if = {
+			limit = {
+				is_ai = yes
+			}
+			scope:contract = {
+				invalidate_contract = yes
+			}
+		}
+	}
+}
+
+settlement_issue_after_completing_effect = {
+	hidden_effect = {
+		scope:task_contract = {
+			complete_task_contract = control
+		}
+		scope:task_contract.task_contract_location.county = {
+			remove_county_modifier = ongoing_settlement_contract
+		}
+	}
+}
+
+settlement_issue_control_reward_effect = {
+	show_as_tooltip = {
+		task_contract_location.county = {
+			change_county_control = settlement_issue_control_reward
+		}
+	}
+}
+
+settlement_issue_herd_reward_effect = {
+	show_as_tooltip = {
+		task_contract_taker.domicile = {
+			change_herd = settlement_issue_herd_reward
+		}
+	}
+}
+
+settlement_issue_culture_reward_effect = {
+	show_as_tooltip = {
+		task_contract_location.county.var:migration_previous_culture = {
+			change_cultural_acceptance = {
+				target = root.task_contract_taker.culture
+				value = 5
+				desc = cultural_acceptance_gain_event
+			}
+		}
+	}
+}
+
+settlement_issue_gold_reward_effect = {
+	show_as_tooltip = {
+		task_contract_taker = {
+			add_gold = minor_gold_value
+		}
+	}
+}
+
+settlement_issue_opinion_reward_effect = {
+	show_as_tooltip = {
+		task_contract_taker = {
+			add_character_modifier = $MODIFIER$
+		}
+	}
+}
+
+settlement_issue_character_opinion_reward_effect = {
+	show_as_tooltip = {
+		$CHARACTER$ = {
+			add_opinion = {
+				modifier = friendliness_opinion
+				target = root.task_contract_taker
+				opinion = 10
+			}
+		}
+	}
+}
+
+settlement_issue_fertility_reward_effect = {
+	show_as_tooltip = {
+		task_contract_location.county = {
+			change_county_fertility = tiny_county_fertility_level_gain
+		}
+	}
+}
+
+mpo_invalidating_settlement_contract_effect = {
+	switch = {
+		trigger = has_variable
+		nomadic_migration_contract_1 = { 
+			random_character_active_contract = {
+				limit = {
+					has_task_contract_type = nomadic_migration_contract_1
+				}
+				save_scope_as = task_contract
+			}
+			trigger_event = { id = mpo_contract_events.0003 } 
+		}
+		nomadic_migration_contract_2 = { 
+			random_character_active_contract = {
+				limit = {
+					has_task_contract_type = nomadic_migration_contract_2
+				}
+				save_scope_as = task_contract
+			}
+			trigger_event = { id = mpo_contract_events.0013 } 
+		}
+		nomadic_migration_contract_3 = { 
+			random_character_active_contract = {
+				limit = {
+					has_task_contract_type = nomadic_migration_contract_3
+				}
+				save_scope_as = task_contract
+			}
+			trigger_event = { id = mpo_contract_events.0023 } 
+		}
+	}
+}
+
+mpo_settlement_issue_reset_effect = {
+	scope:task_contract.task_contract_employer ?= {
+		if = {
+			limit = {
+				NOT = { exists = scope:new_employer }
+				is_alive = yes
+				OR = {
+					liege_or_court_owner = root
+					employer = root
+				}
+			}
+			save_scope_as = new_employer
+		}
+	}
+	if = {
+		limit = {
+			NOT = { exists = scope:contract_province }
+			OR = {
+				scope:task_contract.task_contract_location.province_owner ?= root
+				scope:task_contract.task_contract_location.province_owner.top_liege ?= root
+			}
+		}
+		scope:task_contract.task_contract_location ?= {
+			save_scope_as = contract_province
+		}
+	}
+
+	scope:task_contract ?= { invalidate_contract = yes }
+
+	remove_variable = nomadic_migration_contract_$NUMBER$
+
+	trigger_event = {
+		id = mpo_contract_events.$ID$
+		days = 1
+	}
+}
+
+mpo_settlement_issue_own_lands_effect = {
+	if = {
+		limit = {
+			NOT = { exists = scope:contract_province }
+		}
+		random_held_county = {
+			limit = {
+				is_landless_type_title = no
+				exists = title_province
+				county_control < 90
+				NOT = { has_county_modifier = ongoing_settlement_contract }
+			}
+			title_province = { save_scope_as = contract_province }
+		}
+	}
+
+	if = {
+		limit = {
+			NOT = { exists = scope:new_employer }
+		}
+		random_knight = {
+			limit = { 
+				is_landed = no 
+				is_ai = yes
+			}
+			alternative_limit = { is_ai = yes }
+			save_scope_as = new_employer
+		}
+	}
+
+	create_task_contract = {
+		task_contract_type = nomadic_migration_contract_$NUMBER$
+		task_contract_tier = $TIER$
+		location = scope:contract_province
+		task_contract_employer = scope:new_employer
+	}
+}
