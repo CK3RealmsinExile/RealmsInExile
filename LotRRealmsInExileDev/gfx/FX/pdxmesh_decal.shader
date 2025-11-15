@@ -98,13 +98,13 @@ PixelShader =
 			#endif
 
 			float2 ColorMapCoords = WorldSpacePos.xz * WorldSpaceToTerrain0To1;
-
+			
 			EffectIntensities ConditionData;
 			SampleProvinceEffectsMask( ColorMapCoords, ConditionData );
 			ApplyProvinceEffectsDecal( ConditionData, Diffuse, ColorMapCoords );
 
 			float SnowHighlight = 0.0f;
-			ApplySnowMaterialMesh( ConditionData, Diffuse, Properties, Normal, WorldSpacePos.xz, SnowHighlight );
+			ApplySnowMaterialMesh( ConditionData, Diffuse, Properties, Normal, WorldSpacePos.xz, SnowHighlight, 4.0f );
 
 			float3 ColorMap = ToLinear( PdxTex2D( ColorTexture, float2( ColorMapCoords.x, 1.0 - ColorMapCoords.y ) ).rgb );
 			Diffuse = GetOverlay( Diffuse, ColorMap, 0.5 );
