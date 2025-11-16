@@ -240,7 +240,7 @@ harad.0015 = {
 		is_available_adult = yes
 		is_at_war = no
 		number_maa_regiments_of_type = {
-			type = war_mumak
+			target = war_mumak
 			value > 0
 		}
 		exists = cp:councillor_marshal
@@ -834,8 +834,11 @@ harad.0019 = {
 	}
 	
 	trigger = {
+		capital_county.title_province ?= {
+			geographical_region = middleearth_harad
+		}
 		any_county_in_region = {
-			region = middleearth_harad_bayoformal_harshandatt
+			region = middleearth_harad_bayoformal_sirayn
 			OR = {
 				culture = { has_cultural_parameter = heritage_group_apysaic }
 				culture = { has_cultural_pillar = heritage_south_khailuza }
@@ -2589,7 +2592,19 @@ scripted_effect attempt_to_calm_merchants_effect = {
 									value = { 1 5 }
 								}
 							}
-							else = {
+							else_if = {
+								limit = {
+									OR = {
+										NOT = { }
+										AND = {
+											exists = var:trans_haradric_merchant_success_count
+											var:trans_haradric_merchant_success_count >= 10
+										}
+										dynasty ?= {
+											has_dynasty_perk = lotr_haradrim_legacy_5
+										}
+									}
+								}
 								random = {
 									chance = 20
 									add_trait = lifestyle_trans_haradric_merchant
@@ -5162,15 +5177,80 @@ harad.0600 = {
 	content_source = realms_dlc
 	type = character_event
 	title = harad.0600.t
-	desc = harad.0600.desc
-	theme = travel
-	
-	left_portrait = root
-	center_portrait = {
-		character = scope:merchant
-		animation = steward
+	desc = {
+		desc = harad.0600.desc.intro
+		first_valid = {
+			triggered_desc = {
+				trigger = { scope:trade_flavor ?= flag:flavor_fellow_merchant }
+				desc = harad.0600.desc.fellow_merchant
+			}
+			triggered_desc = {
+				trigger = { scope:trade_flavor ?= flag:flavor_village_leader }
+				desc = harad.0600.desc.village_leader
+			}
+			triggered_desc = {
+				trigger = { scope:trade_flavor ?= flag:flavor_local_trader }
+				desc = harad.0600.desc.local_trader
+			}
+			triggered_desc = {
+				trigger = { scope:trade_flavor ?= flag:flavor_back_alley_deal }
+				desc = harad.0600.desc.back_alley_deal
+			}
+			triggered_desc = {
+				trigger = { scope:trade_flavor ?= flag:flavor_barony_holder }
+				desc = harad.0600.desc.barony_holder
+			}
+			desc = harad.0600.desc.fallback
+		}
 	}
-	right_portrait = scope:local_trader
+	theme = travel
+	override_background = {
+		trigger = { scope:trade_flavor ?= flag:flavor_fellow_merchant }
+		reference = terrain_travel
+	}
+	override_background = {
+		trigger = { scope:trade_flavor ?= flag:flavor_village_leader }
+		reference = village_festival
+	}
+	override_background = {
+		trigger = {
+			OR = {
+				scope:trade_flavor ?= flag:flavor_local_trader
+				scope:trade_flavor ?= flag:flavor_barony_holder
+			}
+		}
+		reference = market
+	}
+	override_background = {
+		trigger = { scope:trade_flavor ?= flag:flavor_back_alley_deal }
+		reference = alley_day
+	}
+	
+	left_portrait = {
+		character = root
+		animation = thinking
+	}
+	lower_left_portrait = {
+		character = scope:merchant
+	}
+	right_portrait = {
+		character = scope:local_trader
+
+		triggered_animation = {
+			trigger = {
+				scope:trade_flavor ?= flag:flavor_back_alley_deal
+			}
+			animation = personality_cynical
+		}
+		animation = debating
+
+		triggered_outfit = {
+			trigger = {
+				scope:trade_flavor ?= flag:flavor_back_alley_deal
+			}
+			outfit_tags = { western_stealth_hood }
+		}
+	}
 
 	trigger = {
 		current_travel_plan = {
@@ -5294,8 +5374,15 @@ harad.0600 = {
 					culture = scope:home_county.culture
 					faith = scope:home_county.faith
 				}
+				save_scope_value_as = { # Save for loc flavorization
+					name = trade_flavor
+					value = flag:flavor_fellow_merchant
+				}
 			}
 			50 = { # Local Merchant
+				trigger = {
+					location ?= { NOT = { terrain = dune_sea } } #Not many people live here
+				}
 				create_character = {
 					location = root.location
 					template = merchant_template
@@ -5303,26 +5390,123 @@ harad.0600 = {
 					faith = location.faith
 					save_scope_as = local_trader
 				}
+				save_scope_value_as = { # Save for loc flavorization
+					name = trade_flavor
+					value = flag:flavor_local_trader
+				}
 			}
 			50 = { # Village Leader
+				trigger = {
+					location ?= { NOT = { terrain = dune_sea } } #Not many people live here
+				}
 				create_character = {
 					location = root.location
 					template = generic_peasant_character
 					gender_female_chance = root_faith_dominant_gender_adjusted_female_chance
+					dynasty = none
 					culture = location.culture
 					faith = location.faith
 					save_scope_as = local_trader
+					trait = peasant_leader
+				}
+				save_scope_value_as = { # Save for loc flavorization
+					name = trade_flavor
+					value = flag:flavor_village_leader
 				}
 			}
-			
+			30 = { # Back Alley Deal
+				trigger = {
+					location = { has_holding = yes }
+					location ?= { NOT = { terrain = dune_sea } } #Not many people live here
+					OR = {
+						has_trait = education_intrigue
+						has_trait = schemer
+						has_trait = gallowsbait
+						has_trait = deceitful
+						has_trait = callous
+						has_trait = greedy
+					}
+					NOT = { has_trait = just }
+				}
+				create_character = {
+					location = root.location
+					template = generic_peasant_character
+					gender_female_chance = root_faith_dominant_gender_adjusted_female_chance
+					dynasty = none
+					culture = location.culture
+					faith = location.faith
+					save_scope_as = local_trader
+					trait = deceitful
+					trait = gallowsbait
+				}
+				save_scope_value_as = { # Save for loc flavorization
+					name = trade_flavor
+					value = flag:flavor_back_alley_deal
+				}
+			}
+			70 = { # Local Baron / Mayor
+				trigger = {
+					location = {
+						has_holding = yes
+						OR = {
+							has_holding_type = castle_holding
+							has_holding_type = city_holding
+							has_holding_type = church_holding
+						}
+					}
+					location.barony.holder ?= {
+						highest_held_title_tier = tier_barony
+						is_available_ai_adult = yes
+						OR = { # Just to be sure
+							is_human = yes
+							is_dwarf = yes
+						}
+					}
+				}
+				location.barony.holder = {
+					save_scope_as = local_trader
+				}
+				save_scope_value_as = { # Save for loc flavorization
+					name = trade_flavor
+					value = flag:flavor_barony_holder
+				}
+			}
 		}
 	}
 
 	option = { # OK
-		name = harad.0600.a
+		name = {
+			text = {
+				first_valid = {
+					triggered_desc ={
+						trigger =  { scope:trade_flavor ?= flag:flavor_fellow_merchant }
+						desc = harad.0600.a.fellow_merchant
+					}
+					triggered_desc ={
+						trigger =  { scope:trade_flavor ?= flag:flavor_village_leader }
+						desc = harad.0600.a.village_leader
+					}
+					triggered_desc ={
+						trigger =  { scope:trade_flavor ?= flag:flavor_local_trader }
+						desc = harad.0600.a.local_trader
+					}
+					triggered_desc ={
+						trigger =  { scope:trade_flavor ?= flag:flavor_back_alley_deal }
+						desc = harad.0600.a.back_alley_deal
+					}
+					triggered_desc ={
+						trigger =  { scope:trade_flavor ?= flag:flavor_barony_holder }
+						desc = harad.0600.a.barony_holder
+					}
+					desc = harad.0600.a
+				}
+			}
+		}
+		flavor = harad.0600.a.flavor
+
 		add_gold = { 10 50 }
 		stress_impact = {
-			greedy = minor_stress_impact_gain
+			greedy = miniscule_stress_impact_gain
 		}
 
 		if = {
@@ -5383,7 +5567,34 @@ harad.0600 = {
 	}
 
 	option = { # OK
-		name = harad.0600.b
+		name = {
+			text = {
+				first_valid = {
+					triggered_desc ={
+						trigger =  { scope:trade_flavor ?= flag:flavor_fellow_merchant }
+						desc = harad.0600.b.fellow_merchant
+					}
+					triggered_desc ={
+						trigger =  { scope:trade_flavor ?= flag:flavor_village_leader }
+						desc = harad.0600.b.village_leader
+					}
+					triggered_desc ={
+						trigger =  { scope:trade_flavor ?= flag:flavor_local_trader }
+						desc = harad.0600.b.local_trader
+					}
+					triggered_desc ={
+						trigger =  { scope:trade_flavor ?= flag:flavor_back_alley_deal }
+						desc = harad.0600.b.back_alley_deal
+					}
+					triggered_desc ={
+						trigger =  { scope:trade_flavor ?= flag:flavor_barony_holder }
+						desc = harad.0600.b.barony_holder
+					}
+					desc = harad.0600.b
+				}
+			}
+		}
+		flavor = harad.0600.b.flavor
 		if = {
 			limit = { has_character_modifier = harad_merchant_tongue }
 			custom_description_no_bullet = { # Haggling is easier with flavor modifier
@@ -5481,6 +5692,16 @@ harad.0600 = {
 					add = 15
 					has_character_modifier = harad_merchant_tongue
 				}
+				# Our Opponent is greedy
+				modifier = {
+					add = -5
+					scope:local_trader = { has_trait = greedy }
+				}
+				# Our Opponent is generous
+				modifier = {
+					add = 3
+					scope:local_trader = { has_trait = generous }
+				}
 			}
 			# Failure.
 			70 = {
@@ -5502,6 +5723,16 @@ harad.0600 = {
 				modifier = {
 					add = -15
 					has_character_modifier = harad_merchant_tongue
+				}
+				# Our Opponent is greedy
+				modifier = {
+					add = 5
+					scope:local_trader = { has_trait = greedy }
+				}
+				# Our Opponent is generous
+				modifier = {
+					add = -3
+					scope:local_trader = { has_trait = generous }
 				}
 			}
 		}
@@ -8007,3 +8238,147 @@ harad.2999 = {
 	trigger = { is_ai = yes }
 	immediate = { add_character_flag = bypass_normal_requirements }
 }
+
+harad.2600 = { # Paul Atreides event
+	content_source = realms_dlc
+	type = character_event
+	title = harad.2600.t
+	desc = harad.2600.desc
+	theme = realm
+	override_background = { reference = wilderness_desert }
+	left_portrait = {
+		character = root 
+		animation = personality_rational
+	}
+	right_portrait = {
+		character = character:lineofadrais2
+		animation = personality_cynical
+	}
+	immediate = {
+		character:lineofharruaban1 = { save_scope_as = vatrad_harruaban }
+	}
+	option = {
+		name = harad.2600.a 
+		custom_tooltip = harad.2600.tt
+		add_character_flag = {
+			flag = is_paul_flag
+		}
+		set_character_faith_with_conversion = faith:faith_iunast
+		spawn_army = {
+			name = event_troop_default_name
+			men_at_arms = {
+				type = hasharin
+				stacks = 2
+			}
+			location = root.location
+			origin = root.location
+		}
+		add_trait = possessed_1
+		
+		root = {
+			trigger_event = {
+				id = harad.2601
+				years = 6
+			}
+		}
+	}
+
+	option = {
+		name = harad.2600.b
+	}
+}
+
+harad.2601 = {
+	hidden = yes
+	immediate = {
+		character:lineofharruaban1 ?= {
+			if = {
+				limit = { is_alive = yes }
+				trigger_event = {
+					id = harad.2602
+					days = 1
+				}
+			}
+		}
+	}
+}
+
+harad.2602 = {
+	content_source = realms_dlc
+	type = character_event
+	title = harad.2602.t
+	desc = harad.2602.desc
+	theme = war
+	override_background = { reference = wilderness_desert }
+	left_portrait = {
+		character = root 
+		animation = war_attacker
+	}
+	immediate = {
+		start_war = { # Avenge your father
+			casus_belli = paul_atreides_invasion_war
+			target = character:lineofharruaban1
+			target_title = character:lineofharruaban1.primary_title
+		}
+	}
+
+	option = {
+		name = harad.2602.a 
+	}
+
+}
+
+harad.2603 = { # Paul wins the war, Paul POV
+	content_source = realms_dlc
+	type = character_event
+	title = harad.2603.t
+	desc = harad.2603.desc
+	theme = war
+	override_background = { reference = throne_room_east }
+	left_portrait = {
+		character = root 
+		animation = war_attacker
+	}
+	right_portrait = {
+		character = character:lineofharruaban1
+		animation = shame 
+	}
+
+	option = {
+		name = harad.2603.a 
+		character:lineofharruaban1 = {
+			death = {
+				killer = root
+				death_reason = death_execution
+			}
+		}
+		add_prestige_level = 1
+	}
+}
+
+#harad.2604 = { # Paul wins the war, Vatrad/Vladimir POV
+#	content_source = realms_dlc
+#	type = character_event
+#	title = harad.2604.t
+#	desc = harad.2604.desc
+#	theme = war
+#	override_background = { reference = throne_room_east }
+#	left_portrait = {
+#		character = root 
+#		animation = shame
+#	}
+#	right_portrait = {
+#		character = character:lineofadrais3
+#		animation = war_attacker 
+#	}
+
+#	option = {
+#		name = harad.2604.a 
+#		character:lineofharruaban1 = {
+#			death = {
+#				killer = root
+#				death_reason = death_execution
+#			}
+#		}
+#	}
+#}
