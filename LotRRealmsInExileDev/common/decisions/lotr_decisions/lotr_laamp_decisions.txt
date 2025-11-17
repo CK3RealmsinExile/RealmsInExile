@@ -58,26 +58,54 @@ settle_wilderness_county_or_duchy_decision = {
 
     is_valid = {
 
-        trigger_if = { #default game rules
-            limit = { is_ai = yes has_game_rule = default_colonisation_speed }
+        trigger_if = {
+            limit = { is_ai = yes }
             OR = {
-                dynasty = dynasty:dynasty_elendil # Can only start colonising after Aragorn returns
-                dynasty = dynasty:dynasty_oropher # Can only start colonising after Aragorn returns
-                culture = culture:woodmen # Can only start colonising after Aragorn returns
-                culture = culture:valemen # Can only start colonising after Aragorn returns
-                culture = { any_parent_culture_or_above = { this = culture:valemen } } # Can only start colonising after Aragorn returns
-                culture = { any_parent_culture_or_above = { this = culture:woodmen } } # Can only start colonising after Aragorn returns
-                is_nazgul = yes # Can colonise from the start
-                is_dwarf = yes # Can colonise from the start
-                is_orc = yes # Can colonise from the start
+                AND = { #If dwarf only settle in underground
+                    is_dwarf = yes
+                    root.location.county.title_province ?= { terrain = halls }
+                }
+                AND = { # Only settle in elven homelands OR appropriate terrain
+                    is_elf = yes
+                    OR = {
+                        root.location.county = { has_county_modifier = elven_homeland_county_modifier }
+                        root.location.county.title_province ?= { terrain = deep_forest }
+                        root.location.county.title_province ?= { terrain = forest }
+                        root.location.county.title_province ?= { terrain = mallorn_forest }
+                    }
+                }
+                AND = {
+                    is_druedain = yes
+                    OR = {
+                        root.location.county.title_province ?= { terrain = hills }
+                        root.location.county.title_province ?= { terrain = deep_forest }
+                        root.location.county.title_province ?= { terrain = forest }
+                    }
+                }
+                AND = {
+                    is_orc = yes
+                    OR = {
+                        root.location.county.title_province ?= { terrain = hills }
+                        root.location.county.title_province ?= { terrain = deep_forest }
+                        root.location.county.title_province ?= { terrain = forest }
+                        root.location.county.title_province ?= { terrain = halls }
+                        root.location.county.title_province ?= { terrain = mountains }
+                    }
+                }
+                is_human = yes
             }
-            OR = {
-                is_nazgul = yes # Can colonise from the start
-                is_dwarf = yes # Can colonise from the start
-                is_orc = yes # Can colonise from the start
-                is_target_in_global_variable_list = {
-                    name = unavailable_unique_decisions
-                    target = flag:aragorn_returned_to_gondor
+            trigger_if = {
+                limit = {
+                    root.location.county = {
+                        any_neighboring_county = { # A ruler close by exists
+                            NOT = { holder = title:k_wastelands.holder }
+                        }
+                    }
+                }
+                root.location.county = {
+                    any_neighboring_county = { # Ruler should be same alignment
+                        holder = { same_alignment = { TARGET = root }  }
+                    }
                 }
             }
         }
@@ -417,49 +445,59 @@ effect = {
                         }
                     }
 
-                    if = { #Fallback
-                        limit = { faith = faith:faith_wastelands_pagan }
-                        set_county_faith = root.faith
+                    ai_potential = {
+                        government_has_flag = government_is_landless_adventurer
+                        is_available = yes
                     }
-                    if = { #Fallback
-                        limit = { culture = culture:wastelands }
-                        set_county_culture = root.culture
+
+                    ai_will_do = {
+                        base = 50
                     }
                 }
-            }
-        }
-    }
 
-    if = {
-        limit = {
-            scope:settle_duchy = yes
-            NOT = { exists = root.location.duchy.holder }
-            root.location.duchy = {
-                any_de_jure_county = {
-                    holder = root
-                    percent >= 0.5
+                request_ranger_contract_decision = {
+                    picture = { reference = "gfx/interface/illustrations/event_scenes/weathertop.dds" }
+                    desc = request_ranger_contract_decision_desc
+                    selection_tooltip = request_ranger_contract_decision_tooltip
+                    ai_check_interval = 24
+                    cooldown = { years = 5 }
+                    decision_group_type = adventurer_minor
+
+                    is_shown = {
+                        # DLC check.
+                        has_ep3_dlc_trigger = yes
+                        # Ranger with a liege
+                        subject_contract_has_flag = has_ranger_camp_contract
+                    }
+
+                    cost = {
+                        prestige = medium_prestige_value
+                    }
+
+                    is_valid_showing_failures_only = {
+                        # Standard filter checks.
+                        is_available_adult = yes
+                        # Must be inside controlled territory to request ranger contracts
+                        root.domicile.domicile_location.county.holder.top_liege ?= root.suzerain
+                    }
+
+                    effect = {
+                        custom_tooltip = {
+                            populate_location_with_ranger_contracts_effect = {
+                                AREA_CHAR = root.suzerain
+                                AMOUNT = 5
+                            }
+                            text = request_ranger_contract_decision_tooltip
+                        }
+                    }
+
+                    ai_potential = {
+                        government_has_flag = government_is_landless_adventurer
+                        ai_rationality >= 0
+                        prestige >= major_prestige_value
+                    }
+
+                    ai_will_do = {
+                        base = 100
+                    }
                 }
-            }
-        }
-        get_title = root.location.duchy
-    }
-    every_maa_regiment = {
-        limit = { is_maa_type = laamp_settler_maa }
-        destroy_maa_regiment = yes
-    }
-
-    root = { remove_variable = settle_county_count }
-    root = { correct_wastelands_tracker = yes }
-}
-
-ai_check_interval = 60 #Check every 5 years
-
-ai_potential = {
-    government_has_flag = government_is_landless_adventurer
-    is_available = yes
-}
-
-ai_will_do = {
-    base = 50
-}
-}

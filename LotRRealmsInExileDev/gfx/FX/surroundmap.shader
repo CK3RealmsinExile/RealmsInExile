@@ -272,7 +272,7 @@ PixelShader =
 				
 				DebugReturn( Color, MaterialProps, LightingProps, EnvironmentMap );
 				
-				Color *= 0.25;
+				Color *= 0.1;
 				
 				float FinalAlpha = smoothstep( MinCloudAlpha, MaxCloudAlpha, Alpha ) * Mask;
 
@@ -345,7 +345,7 @@ PixelShader =
 				
 				DebugReturn( Color, MaterialProps, LightingProps, EnvironmentMap );
 				
-				Color *= 0.25;
+				Color *= 0.1f;
 				
 				float FinalAlpha = smoothstep( MinCloudAlpha, MaxCloudAlpha, Alpha ) * Mask;
 				

@@ -6,7 +6,9 @@ artifact.0011 = {
 	scope = artifact
 	hidden = yes
 
-	trigger = { NOT = { has_variable = suppress_artifact_notifications } }
+	trigger = {
+		NOT = { has_variable = suppress_artifact_notifications } 
+	}
 
 	immediate = {
 		save_scope_as = this_artifact
@@ -47,10 +49,7 @@ artifact.0012 = {
 		scope:owner = {
 			send_interface_toast = {
 				type = msg_artifact_gained
-				title = artifact.0012.t
-				left_icon = scope:this_artifact
-				right_icon = scope:old_owner
-				custom_tooltip = artifact.0012.tooltip
+				right_icon = scope:this_artifact
 			}
 		}
 	}
@@ -243,7 +242,7 @@ artifact.0031 = {
 	hidden = yes
 
 	immediate = {
-		save_scope_as = artifact_inherited
+		save_scope_as = this_artifact
 		if = {
 			limit = {
 				has_variable = artifact_succession_title #Is this an artifact that should follow a title?
@@ -401,10 +400,7 @@ artifact.0031 = {
 			scope:owner = {
 				send_interface_toast = {
 					type = msg_artifact_gained
-					title = msg_artifact_gained_title
-					left_icon = scope:old_owner
-					right_icon = scope:artifact_inherited
-					custom_tooltip = msg_artifact_gained_desc
+					right_icon = scope:this_artifact
 				}
 			}
 			hidden_effect = {
@@ -743,6 +739,51 @@ scripted_effect artifact_2002_apply_effect = {
 					actor = scope:sc_loser
 					recipient = scope:sc_victor
 					type = won_in_duel
+				}
+			}
+			#LotR - hope/loss on winning Elven artifact
+			if = {
+				limit = { has_variable = elven }
+				if = {
+					limit = {
+						scope:sc_victor = {	is_elf = yes }
+						scope:sc_loser = {	is_elf = no }
+					}
+					if = {
+						limit = {
+							rarity = illustrious
+						}
+						scope:sc_victor = {
+							add_elven_hope_effect = { VALUE = massive_elven_hope_gain HOPE_EFFECT = effect_elven_hope_illustrious_artifact_recovered }
+						}
+					}
+					else = {
+						scope:sc_victor = {
+							add_elven_hope_effect = { VALUE = major_elven_hope_gain HOPE_EFFECT = effect_elven_hope_famed_artifact_recovered }
+						}
+					}
+				}
+				else_if = {
+					limit = {
+						scope:sc_victor = {	
+							is_elf = no 
+							is_ai = yes #So players don't cheese it
+						}
+						scope:sc_loser = {	is_elf = no }
+					}
+					if = {
+						limit = {
+							rarity = illustrious
+						}
+						scope:sc_victor = {
+							add_elven_hope_effect = { VALUE = massive_elven_hope_loss HOPE_EFFECT = effect_elven_hope_illustrious_artifact_lost }
+						}
+					}
+					else = {
+						scope:sc_victor = {
+							add_elven_hope_effect = { VALUE = major_elven_hope_loss HOPE_EFFECT = effect_elven_hope_famed_artifact_lost }
+						}
+					}
 				}
 			}
 		}
@@ -1353,7 +1394,7 @@ artifact.3020 = {
 			}
 		}
 		trigger_if = {
-			limit = { is_landless_adventurer = yes }
+			limit = { has_government = landless_adventurer_government }
 			employs_court_position = antiquarian_court_position
 			any_court_position_holder = {
 				type = antiquarian_court_position
@@ -1402,7 +1443,7 @@ artifact.3020 = {
 			}
 		}
 		if = {
-			limit = { is_landless_adventurer = yes }
+			limit = { has_government = landless_adventurer_government }
 			random_court_position_holder = {
 				type = armorer_camp_officer
 				limit = { is_available_ai_adult = yes }
@@ -1550,7 +1591,7 @@ artifact.3030 = {
 			}
 		}
 		trigger_if = {
-			limit = { is_landless_adventurer = yes }
+			limit = { has_government = landless_adventurer_government }
 			employs_court_position = antiquarian_court_position
 			any_court_position_holder = {
 				type = antiquarian_court_position
@@ -1593,7 +1634,7 @@ artifact.3030 = {
 			}
 		}
 		if = {
-			limit = { is_landless_adventurer = yes }
+			limit = { has_government = landless_adventurer_government }
 			random_court_position_holder = {
 				type = armorer_camp_officer
 				limit = { is_available_ai_adult = yes }
@@ -1924,8 +1965,7 @@ scripted_trigger artifact_4000_cursed_history_trigger = {
 			var:stolen_artifact >= 5
 		}
 		AND = {
-			exists = previous_owner
-			previous_owner = {
+			previous_owner ?= {
 				is_alive = no
 				exists = killer
 			}
@@ -2900,8 +2940,7 @@ scripted_trigger artifact_4030_valid_empire_crown = {
 	artifact_slot_type = helmet
 	AND = {
 		root = { highest_held_title_tier = tier_empire }
-		exists = previous_owner
-		previous_owner = { highest_held_title_tier = tier_empire }
+		previous_owner ?= { highest_held_title_tier = tier_empire }
 		exists = previous_owner_level_2
 		previous_owner_level_2 = { highest_held_title_tier = tier_empire }
 		exists = previous_owner_level_3
@@ -2921,8 +2960,7 @@ scripted_trigger artifact_4030_valid_people_crown = {
 		root = {
 			primary_title = { save_temporary_scope_as = crown_title }
 		}
-		exists = previous_owner
-		previous_owner = { has_primary_title = scope:crown_title }
+		previous_owner ?= { has_primary_title = scope:crown_title }
 		exists = previous_owner_level_2
 		previous_owner_level_2 = { has_primary_title = scope:crown_title }
 		exists = previous_owner_level_3
@@ -3998,10 +4036,12 @@ artifact.4090 = { #Embed a relic in pommel by Daniel Moore
 		random_character_artifact = {
 			limit = {
 				exists = var:relic
-				OR = { #LotR - so you only embed reevant relics
+				#LotR - so you only embed relevant relics
+				OR = { 
 					artifact_slot_type = miscellaneous
 					artifact_slot_type = pedestal
 				}
+				NOT = { has_variable = ai_ungiftable }
 			}
 			save_scope_as = that_artifact
 		}
