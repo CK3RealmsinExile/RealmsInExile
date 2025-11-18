@@ -663,7 +663,7 @@ PixelShader =
 					//FinalColor = ApplyFogOfWar( FinalColor, Input.WorldSpacePos, FogOfWarAlpha );
 					FinalColor = GH_ApplyAtmosphericEffects( FinalColor, Input.WorldSpacePos, FogOfWarAlpha );
 					// END MOD
-					FinalColor = ApplyMapDistanceFog( FinalColor, Input.WorldSpacePos );
+					FinalColor = ApplyMapDistanceFog( FinalColor, Input.WorldSpacePos, FogOfWarAlpha );
 				#endif
 
 				#ifdef TERRAIN_COLOR_OVERLAY
