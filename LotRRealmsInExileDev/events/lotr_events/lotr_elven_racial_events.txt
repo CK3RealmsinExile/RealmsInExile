@@ -4077,14 +4077,45 @@ elven_racial.1401 = { # Setting out
 		character = root
 		animation = marshal
 	}
-	immediate = { add_character_flag = wear_armor }
+    lower_right_portrait = { character = scope:knight1 }
+    lower_left_portrait = { character = scope:knight2 }
+	immediate = { 
+		add_character_flag = wear_armor 
+        random_knight = {
+            limit = { is_ai = yes }
+            save_scope_as = knight1
+        }
+        random_knight = {
+            limit = {
+                NOT = { this = scope:knight1 }
+                is_ai = yes
+            }
+            save_scope_as = knight2
+        }
+	}
 	option = { # I'm off
 		name = elven_racial.1401.a
 		custom_tooltip = elven_racial.1401.a.tt
 		start_travel_plan = { #Travel to the border
 			destination = scope:patrol_target_county.title_province
 			players_use_planner = yes
-			on_arrival_event = elven_racial.1403 # change to 1402 after initial testing
+			on_arrival_event = elven_racial.1402
+		}
+	}
+    after = {
+        current_travel_plan = {
+            add_companion = scope:knight1
+            add_companion = scope:knight2
+        }
+    }
+}
+
+elven_racial.1402 = { # Arrival - get a random event
+	hidden = yes
+	immediate = {
+		root.location = { save_scope_as = border_patrol_province }
+		trigger_event = {
+			on_action = elven_patrol_events
 		}
 	}
 }
@@ -4094,7 +4125,7 @@ elven_racial.1403 = { # Accursed Enemies
 	type = character_event
 	desc = elven_racial.1403.desc
 	content_source = realms_dlc
-	theme = war
+	theme = battle
 	left_portrait = {
 		character = root
 		animation = hunting_longbow_aim_arrow_default
@@ -4216,6 +4247,7 @@ elven_racial.1403 = { # Accursed Enemies
 	}
 	option = { # Slay the intruders! To arms!
 		name = elven_racial.1219.a
+		skill = prowess
 		stress_impact = {
 			craven = medium_stress_impact_gain
 			paranoid = medium_stress_impact_gain
@@ -4225,7 +4257,7 @@ elven_racial.1403 = { # Accursed Enemies
 		duel = {
  			skill = prowess
 			target = scope:orc_tresspasser
- 			60 = {
+ 			50 = {
 				# You're successful
  				desc = elven_racial.1219.a.success
  				compare_modifier = {
@@ -4238,13 +4270,20 @@ elven_racial.1403 = { # Accursed Enemies
 						title = elven_racial.1219.a.success
 						left_icon = root
 						right_icon = scope:orc_tresspasser
+						add_prestige = medium_prestige_gain
+						show_as_tooltip = { add_elven_hope_effect = { VALUE = minor_elven_hope_gain HOPE_EFFECT = effect_elven_hope_patrolled_the_border } }
 					}
 				}
-				add_prestige = medium_prestige_gain
-				add_elven_hope_effect = { VALUE = minor_elven_hope_gain HOPE_EFFECT = effect_elven_hope_patrolled_the_border }
 				scope:orc_tresspasser = { death = { death_reason = death_fight killer = root } }
+				add_elven_hope_effect = { VALUE = minor_elven_hope_gain HOPE_EFFECT = effect_elven_hope_patrolled_the_border }
+				scope:border_patrol_province.county = {
+					if = { 
+						limit = { is_wastelands = no }
+						change_county_control = 25 
+					}
+				}
  			}
- 			40 = {
+ 			50 = {
  				# You failed
  				desc = elven_racial.1219.a.failure
  				compare_modifier = {
@@ -4257,10 +4296,11 @@ elven_racial.1403 = { # Accursed Enemies
 						title = elven_racial.1219.a.failure
 						left_icon = root
 						right_icon = scope:orc_tresspasser
+						show_as_tooltip = { add_elven_hope_effect = { VALUE = minor_elven_hope_loss HOPE_EFFECT = effect_elven_hope_border_patrol_failed } }
 					}
 				}
 				increase_wounds_effect = { REASON = fight }
-				add_elven_hope_effect = { VALUE = minor_elven_hope_loss HOPE_EFFECT = effect_elven_hope_patrolled_the_border }
+				add_elven_hope_effect = { VALUE = minor_elven_hope_loss HOPE_EFFECT = effect_elven_hope_border_patrol_failed }
 				hidden_effect = { scope:orc_tresspasser = { silent_disappearance_effect = yes } }
  			}
 		}
@@ -4285,6 +4325,669 @@ elven_racial.1403 = { # Accursed Enemies
 	}
 }
 
+elven_racial.1404 = { # Orc Marauders
+	content_source = realms_dlc
+	type = character_event
+	title = elven_racial.1404.t
+	desc = elven_racial.1404.desc
+	theme = raid
+
+	left_portrait = {
+		character = root
+		animation = throne_room_two_handed_passive_shield
+		camera = camera_event_left_away_3_4
+	}
+	right_portrait = {
+		character = scope:orc_raider
+		animation = menacing
+	}
+	
+	lower_left_portrait = {
+		trigger = { 
+			exists = scope:knight1
+		}
+		character = scope:knight1
+		animation = marshal
+	}
+	lower_right_portrait = {
+		trigger = { 
+			exists = scope:knight2
+		}
+		character = scope:knight2
+		animation = marshal
+	}
+	
+	immediate = {
+		play_music_cue = lotr_cue_elves
+		if = {	# Rhovanion
+			limit = {
+				root.capital_county.title_province ?= { geographical_region = middleearth_west_rhovanion }
+			}
+			create_character = {
+				dynasty = none
+				location = root.location
+				age = { young_age middle_age }
+				gender_female_chance = 0
+				culture = culture:kazgumhoth
+				faith = faith:sons_of_sauron
+				save_scope_as = orc_raider
+			}
+		}
+		else_if = {	 # Eriador
+			limit = {
+				root.capital_county.title_province ?= { geographical_region = middleearth_west_arnor }
+			}
+			create_character = {
+				dynasty = none
+				location = root.location
+				age = { young_age middle_age }
+				gender_female_chance = 0
+				culture = culture:worauthai_madur
+				faith = faith:way_of_strength
+				save_scope_as = orc_raider
+			}
+		}
+		else_if = {	 # Enedhwaith
+			limit = {
+				root.capital_county.title_province ?= { geographical_region = middleearth_west_enedhwaith }
+			}
+			create_character = {
+				dynasty = none
+				location = root.location
+				age = 28
+				gender_female_chance = 0
+				culture = culture:isengard_urukhai
+				faith = faith:white_hand_cult
+				save_scope_as = orc_raider
+			}
+		}
+		else_if = {	 # Rhûn
+			limit = {
+				root.capital_county.title_province ?= { geographical_region = middleearth_rhun }
+			}
+			create_character = {
+				dynasty = none
+				location = root.location
+				age = 28
+				gender_female_chance = 0
+				culture = culture:kazgumhoth
+				faith = faith:sons_of_sauron
+				save_scope_as = orc_raider
+			}
+		}
+		else_if = {	 # Lindon
+			limit = {
+				root.capital_county.title_province ?= { geographical_region = middleearth_west_beleriand }
+			}
+			create_character = {
+				dynasty = none
+				location = root.location
+				age = { young_age middle_age }
+				gender_female_chance = 0
+				culture = culture:generic_goblin
+				faith = faith:way_of_strength
+				save_scope_as = orc_raider
+			}
+		}
+		else_if = {	 # Harad
+			limit = {
+				root.capital_county.title_province ?= { geographical_region = middleearth_harad }
+			}
+			create_character = {
+				dynasty = none
+				location = root.location
+				age = 27
+				gender_female_chance = 0
+				culture = culture:rukhashai
+				faith = faith:sons_of_sauron
+				save_scope_as = orc_raider
+			}
+		}
+		else_if = {	 # Utter South
+			limit = {
+				root.capital_county.title_province ?= { geographical_region = middleearth_uttersouth }
+			}
+			create_character = {
+				dynasty = none
+				location = root.location
+				age = 27
+				gender_female_chance = 0
+				culture = culture:rukhashai
+				faith = faith:volcano_cult
+				save_scope_as = orc_raider
+			}
+		}
+		else = {	 # Fallback
+			create_character = {
+				dynasty = none
+				location = root.location
+				age = { young_age middle_age }
+				gender_female_chance = 0
+				culture = culture:generic_goblin
+				faith = faith:sons_of_sauron
+				save_scope_as = orc_raider
+			}
+		}
+	}
+	
+	option = { # Knight 1 tries to drive off the orcs
+		name = elven_racial.1404.a
+		skill = martial
+		trigger = { 
+			exists = scope:knight1
+		}
+		scope:knight1 = {
+			duel = {
+				skill = martial 
+				value = 14
+				30 = { # Success
+					compare_modifier = {
+						value = scope:duel_value
+						multiplier = 2
+						min = -10
+					}
+					desc = elven_racial.1404.a.duel_success
+					root = {
+						send_interface_toast = {
+							left_icon = root
+							right_icon = scope:knight1
+							title = elven_racial.1404.success.toast.t
+							add_prestige = minor_prestige_gain
+							add_martial_lifestyle_xp = minor_lifestyle_xp
+							add_elven_hope_effect = { VALUE = minor_elven_hope_gain HOPE_EFFECT = effect_elven_hope_patrolled_the_border }
+						}
+					}
+					scope:border_patrol_province.county = {
+						if = { 
+							limit = { is_wastelands = no }
+							change_county_control = 25 
+						}
+					}
+				}
+				30 = { # Failure
+					compare_modifier = {
+						value = scope:duel_value
+						multiplier = -2
+						min = -25
+					}
+					desc = elven_racial.1404.a.duel_failure
+					root = {
+						send_interface_toast = {
+							left_icon = root
+							right_icon = scope:knight1
+							title = elven_racial.1404.failure.toast.t
+							scope:knight1 = {
+								increase_wounds_effect = {
+									REASON = fight
+								}
+							}
+							add_prestige = medium_prestige_loss	
+							add_elven_hope_effect = { VALUE = minor_elven_hope_loss HOPE_EFFECT = effect_elven_hope_border_patrol_failed }
+							stress_impact = {
+								just = medium_stress_impact_gain
+								wrathful = medium_stress_impact_gain
+								vengeful = medium_stress_impact_gain
+								sadistic = minor_stress_impact_gain							
+							}
+						}
+					}					
+				}
+			}
+		}
+	}
+	option = { # Knight 2 tries to drive off the orcs
+		name = elven_racial.1404.b
+		skill = prowess
+		trigger = { 
+			exists = scope:knight2
+		}
+		scope:knight2 = {
+			duel = {
+				skill = prowess 
+				value = 14
+				30 = { # Success
+					compare_modifier = {
+						value = scope:duel_value
+						multiplier = 2
+						min = -10
+					}
+					desc = elven_racial.1404.b.duel_success
+					root = {
+						send_interface_toast = {
+							left_icon = root
+							right_icon = scope:knight2
+							title = elven_racial.1404.success.toast.t
+							add_prestige = minor_prestige_gain
+							add_martial_lifestyle_xp = minor_lifestyle_xp
+							add_elven_hope_effect = { VALUE = minor_elven_hope_gain HOPE_EFFECT = effect_elven_hope_patrolled_the_border }
+						}
+					}
+					scope:border_patrol_province.county = {
+						if = { 
+							limit = { is_wastelands = no }
+							change_county_control = 25 
+						}
+					}
+				}
+				30 = { # Failure
+					compare_modifier = {
+						value = scope:duel_value
+						multiplier = -2
+						min = -25
+					}
+					desc = elven_racial.1404.b.duel_failure
+					root = {
+						send_interface_toast = {
+							left_icon = root
+							right_icon = scope:knight2
+							title = elven_racial.1404.failure.toast.t							
+							scope:knight2 = {
+								increase_wounds_effect = {
+									REASON = fight
+								}
+							}
+							add_prestige = medium_prestige_loss	
+							add_elven_hope_effect = { VALUE = minor_elven_hope_loss HOPE_EFFECT = effect_elven_hope_border_patrol_failed }
+							stress_impact = {
+								just = medium_stress_impact_gain
+								wrathful = medium_stress_impact_gain
+								vengeful = medium_stress_impact_gain
+								sadistic = minor_stress_impact_gain									
+							}
+						}
+					}					
+				}
+			}
+		}
+	}
+	option = { # You
+		name = elven_racial.1404.c
+		root = {
+			duel = {
+				skill = prowess 
+				value = 14
+				30 = { # Success
+					compare_modifier = {
+						value = scope:duel_value
+						multiplier = 2
+						min = -10
+					}
+					desc = elven_racial.1404.c.duel_success
+					root = {
+						send_interface_toast = {
+							left_icon = root
+							title = elven_racial.1404.success.toast.t
+							add_prestige = minor_prestige_gain
+							add_martial_lifestyle_xp = minor_lifestyle_xp
+							add_elven_hope_effect = { VALUE = minor_elven_hope_gain HOPE_EFFECT = effect_elven_hope_patrolled_the_border }
+						}
+					}
+					scope:border_patrol_province.county = {
+						if = { 
+							limit = { is_wastelands = no }
+							change_county_control = 25 
+						}
+					}
+				}
+				30 = { # Failure
+					compare_modifier = {
+						value = scope:duel_value
+						multiplier = -2
+						min = -25
+					}
+					desc = elven_racial.1404.c.duel_failure
+					root = {
+						send_interface_toast = {
+							left_icon = root
+							title = elven_racial.1404.failure.toast.t							
+							increase_wounds_effect = {
+								REASON = fight
+							}
+							add_prestige = medium_prestige_loss	
+							add_elven_hope_effect = { VALUE = minor_elven_hope_loss HOPE_EFFECT = effect_elven_hope_border_patrol_failed }
+							stress_impact = {
+								just = medium_stress_impact_gain
+								wrathful = medium_stress_impact_gain
+								vengeful = medium_stress_impact_gain
+								sadistic = minor_stress_impact_gain							
+							}
+						}
+					}					
+				}
+			}
+		}
+	}
+	after = {
+		trigger_event = {
+			id = elven_racial.1499
+		}
+		scope:orc_raider = {
+			silent_disappearance_effect = yes
+		}
+	}
+}
+
+elven_racial.1405 = { # A Human Village
+    title = elven_racial.1405.t
+	type = character_event
+    desc = elven_racial.1405.desc
+	content_source = realms_dlc
+	theme = diplomacy
+	override_background = { reference = market_tribal }
+	left_portrait = {
+		character = root
+		animation = survey
+		camera = camera_event_very_left
+	}
+	right_portrait = {
+		character = scope:human_villager
+		animation = holding_staff
+		camera = camera_event_right_forward
+	}
+	trigger = {
+		scope:border_patrol_province.county.holder = {
+			is_human = yes 
+		}
+	}
+	immediate = {
+		create_character = {
+			template = peasant_character
+			dynasty = none
+			location = root.location
+			culture = root.location.culture
+			faith = root.location.faith
+			gender_female_chance = 50
+			save_scope_as = human_villager
+			after_creation = {
+				set_to_lowborn = yes
+			}
+		}
+	}
+    option = {
+        name = elven_racial.1405.a # Offer kind advice
+		add_elven_hope_effect = { VALUE = minimal_elven_hope_gain HOPE_EFFECT = effect_elven_hope_patrolled_the_border }
+		root.location.culture = {
+			change_cultural_acceptance = {
+				target = root.culture
+				value = 25
+				desc = cultural_acceptance_gain_event
+			}
+		}
+    }
+
+    option = {
+        name = elven_racial.1405.b # Keep out of sight
+		add_intrigue_lifestyle_xp = 200
+        random = {
+			chance = 33
+			if = {
+				limit = { has_trait = cautious_leader }
+				add_trait_xp = {
+					trait = cautious_leader
+					value = 20 
+				}
+			}
+			else = {
+				add_trait = cautious_leader
+			}
+		}
+	}
+	
+	after = {
+		trigger_event = {
+			id = elven_racial.1499
+		}
+		scope:human_villager = {
+			silent_disappearance_effect = yes
+		}
+	}
+}
+
+elven_racial.1406 = { # The Orc Camp
+	content_source = realms_dlc
+	type = character_event
+	title = elven_racial.1406.t
+	desc = elven_racial.1406.desc
+	theme = intrigue_skulduggery_focus
+	
+	override_background = {
+		reference = orc_camp
+	}
+	left_portrait = {
+		character = root
+		animation = survey
+		camera = camera_event_left_away
+	}
+	
+	lower_left_portrait = {
+		trigger = { 
+			exists = scope:knight1
+		}
+		character = scope:knight1
+		animation = marshal
+	}
+	lower_right_portrait = {
+		trigger = { 
+			exists = scope:knight2
+		}
+		character = scope:knight2
+		animation = marshal
+	}
+
+	immediate = {
+	}
+	
+	option = { # Knight tries to sabotage the camp
+		name = elven_racial.1406.a
+		skill = intrigue
+		trigger = { 
+			exists = scope:knight1
+		}
+		scope:knight1 = {
+			duel = {
+				skill = intrigue 
+				value = 14
+				30 = { # Success
+					compare_modifier = {
+						value = scope:duel_value
+						multiplier = 2
+						min = -10
+					}
+					desc = elven_racial.1406.a.duel_success
+					root = {
+						send_interface_toast = {
+							left_icon = root
+							right_icon = scope:knight1
+							title = elven_racial.1406.success.toast.t
+							add_prestige = minor_prestige_gain
+							add_intrigue_lifestyle_xp = minor_lifestyle_xp
+							add_elven_hope_effect = { VALUE = minor_elven_hope_gain HOPE_EFFECT = effect_elven_hope_patrolled_the_border }
+						}
+					}
+				}
+				30 = { # Failure
+					compare_modifier = {
+						value = scope:duel_value
+						multiplier = -2
+						min = -25
+					}
+					desc = elven_racial.1406.a.duel_failure
+					root = {
+						send_interface_toast = {
+							left_icon = root
+							right_icon = scope:companion1
+							title = elven_racial.1406.failure.toast.t
+							scope:companion1 = {
+								increase_wounds_effect = {
+									REASON = fight
+								}
+							}
+							add_prestige = medium_prestige_loss	
+							stress_impact = {
+								just = medium_stress_impact_gain
+								wrathful = medium_stress_impact_gain
+								vengeful = medium_stress_impact_gain
+								sadistic = minor_stress_impact_gain							
+							}
+							add_elven_hope_effect = { VALUE = minor_elven_hope_loss HOPE_EFFECT = effect_elven_hope_border_patrol_failed }
+						}
+					}					
+				}
+			}
+		}
+	}
+	option = { # Knight 2
+		name = elven_racial.1406.b
+		skill = intrigue
+		trigger = { 
+			exists = scope:knight2
+		}
+		scope:knight2 = {
+			duel = {
+				skill = intrigue 
+				value = 16
+				30 = { # Success
+					compare_modifier = {
+						value = scope:duel_value
+						multiplier = 2
+						min = -10
+					}
+					desc = elven_racial.1406.b.duel_success
+					root = {
+						send_interface_toast = {
+							left_icon = root
+							right_icon = scope:knight2
+							title = elven_racial.1406.success.toast.t
+							add_prestige = minor_prestige_gain
+							add_intrigue_lifestyle_xp = minor_lifestyle_xp
+							add_elven_hope_effect = { VALUE = minor_elven_hope_gain HOPE_EFFECT = effect_elven_hope_patrolled_the_border }
+						}
+					}
+				}
+				30 = { # Failure
+					compare_modifier = {
+						value = scope:duel_value
+						multiplier = -2
+						min = -25
+					}
+					desc = elven_racial.1406.b.duel_failure
+					root = {
+						send_interface_toast = {
+							left_icon = root
+							right_icon = scope:knight2
+							title = elven_racial.1406.failure.toast.t							
+							scope:companion1 = {
+								increase_wounds_effect = {
+									REASON = fight
+								}
+							}
+							add_prestige = medium_prestige_loss	
+							stress_impact = {
+								just = medium_stress_impact_gain
+								wrathful = medium_stress_impact_gain
+								vengeful = medium_stress_impact_gain
+								sadistic = minor_stress_impact_gain									
+							}
+							add_elven_hope_effect = { VALUE = minor_elven_hope_loss HOPE_EFFECT = effect_elven_hope_border_patrol_failed }
+						}
+					}					
+				}
+			}
+		}
+	}
+	option = { # You
+		name = elven_racial.1406.c
+		skill = intrigue
+		root = {
+			duel = {
+				skill = intrigue 
+				value = 16
+				30 = { # Success
+					compare_modifier = {
+						value = scope:duel_value
+						multiplier = 2
+						min = -10
+					}
+					desc = elven_racial.1406.c.duel_success
+					root = {
+						send_interface_toast = {
+							left_icon = root
+							title = elven_racial.1406.success.toast.t
+							add_prestige = minor_prestige_gain
+							add_intrigue_lifestyle_xp = minor_lifestyle_xp
+							add_elven_hope_effect = { VALUE = minor_elven_hope_gain HOPE_EFFECT = effect_elven_hope_patrolled_the_border }
+						}
+					}
+				}
+				30 = { # Failure
+					compare_modifier = {
+						value = scope:duel_value
+						multiplier = -2
+						min = -25
+					}
+					desc = elven_racial.1406.c.duel_failure
+					root = {
+						send_interface_toast = {
+							left_icon = root
+							title = elven_racial.1406.failure.toast.t							
+							increase_wounds_effect = {
+								REASON = fight
+							}
+							add_prestige = medium_prestige_loss	
+							stress_impact = {
+								just = medium_stress_impact_gain
+								wrathful = medium_stress_impact_gain
+								vengeful = medium_stress_impact_gain
+								sadistic = minor_stress_impact_gain							
+							}
+							add_elven_hope_effect = { VALUE = minor_elven_hope_loss HOPE_EFFECT = effect_elven_hope_border_patrol_failed }
+						}
+					}					
+				}
+			}
+		}
+	}
+	 after = {
+	 	trigger_event = {
+	 		id = elven_racial.1499
+		}
+	}
+}
+
+elven_racial.1407 = { # No Enemies Sighted
+    title = elven_racial.1407.t
+	type = character_event
+    desc = elven_racial.1407.desc
+	content_source = realms_dlc
+	theme = migration
+
+	left_portrait = {
+		character = root
+		animation = survey
+		camera = camera_event_left_away_3_4
+	}
+
+	trigger = {
+		scope:border_patrol_province.county.holder = {
+			is_orc = no 
+			is_nazgul = no
+		}
+	}
+
+    option = {
+        name = elven_racial.1407.a # A nice calm patrol
+		add_elven_hope_effect = { VALUE = minimal_elven_hope_gain HOPE_EFFECT = effect_elven_hope_patrolled_the_border }
+    }
+
+	
+	after = {
+		trigger_event = {
+			id = elven_racial.1499
+		}
+	}
+}
+
+
 elven_racial.1499 = { # Returning home
 	title = elven_racial.1499.t
 	type = character_event
@@ -4301,3 +5004,4 @@ elven_racial.1499 = { # Returning home
 		remove_character_flag = wear_armor
 	}
 }
+
