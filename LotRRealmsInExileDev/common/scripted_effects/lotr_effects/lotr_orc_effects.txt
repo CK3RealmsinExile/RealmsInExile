@@ -601,6 +601,64 @@ create_orc_challenger_list_authority_4 = {
 	}
 }
 
+order_orc_challenger_list_according_to_duel_chance = {
+	if = {
+		limit = { has_variable_list = orc_challengers }
+		every_in_list = { #Save every challenger into temp list | temp_orc_challengers
+			variable = orc_challengers
+			save_scope_as = challenger_char
+			root = {
+				add_to_variable_list = { name = temp_orc_challengers target = scope:challenger_char }
+			}
+		}
+		
+		clear_variable_list = orc_challengers
+
+		while = {
+			limit = {
+				has_variable_list = temp_orc_challengers
+				variable_list_size = {
+					name = temp_orc_challengers
+					value > 0
+				}
+			}
+			root = { save_scope_as = orc_challenger_liege } 
+			ordered_in_list = { #Save the character with the lowest success chance
+				variable = temp_orc_challengers
+				order_by = {
+					value = 0
+					add = lotr_orc_succession_martial_weighting
+					add = lotr_orc_succession_intrigue_weighting
+					add = lotr_orc_succession_prowess_weighting
+					add = lotr_orc_succession_learning_weighting
+					add = lotr_orc_succession_relationship_weighting
+					add = lotr_orc_succession_ordering_troops_weighting
+				}
+				max = 1
+				save_scope_as = new_challenger_char
+				
+				root = {
+					remove_list_variable = {
+						name = temp_orc_challengers
+						target = scope:new_challenger_char
+					}
+				}
+			}
+			if = { #Esnure we're not adding the character twice to the ordered list
+				limit = {
+					NOT = {
+						is_target_in_variable_list = {
+							name = orc_challengers
+							target = scope:new_challenger_char
+						}
+					}
+				}
+				root = { add_to_variable_list = { name = orc_challengers target = scope:new_challenger_char } }
+			}
+		}
+	}
+}
+
 ###############################################
 ### Effects for orcs refusing the challenge ###
 ###############################################
@@ -647,9 +705,33 @@ set_government_to_orcish = {
 	}
 	if = {
 		limit = {
-			NOT = { has_realm_law = orc_authority_1 }
+			NOR = { 
+				has_realm_law = orc_authority_1
+				has_realm_law = orc_authority_2
+				has_realm_law = orc_authority_3
+				has_realm_law = orc_authority_4
+				has_realm_law = orc_authority_5
+			}
 		}
-		add_realm_law = orc_authority_1
+		if = {
+			limit = { highest_held_title_tier = tier_barony }
+			add_realm_law = orc_authority_1
+		} else_if = {
+			limit = { highest_held_title_tier = tier_county }
+			add_realm_law = orc_authority_1
+		} else_if = {
+			limit = { highest_held_title_tier = tier_duchy }
+			add_realm_law = orc_authority_1
+		} else_if = {
+			limit = { highest_held_title_tier = tier_kingdom }
+			add_realm_law = orc_authority_2
+		} else_if = {
+			limit = { highest_held_title_tier = tier_empire }
+			add_realm_law = orc_authority_3
+		} else_if = {
+			limit = { highest_held_title_tier = tier_hegemony }
+			add_realm_law = orc_authority_4
+		}
 	}
 }
 
@@ -666,6 +748,6 @@ set_every_orc_vassal_government_to_orcish = {
 set_every_orc_realm_to_orcish_government = {
 	every_ruler = {
 		limit = { is_orc = yes }
-		set_government_to_orcish
+		set_government_to_orcish = yes
 	}
 }
