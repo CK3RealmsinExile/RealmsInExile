@@ -701,36 +701,406 @@ task_orc_1_develop_county = { #Develop county
 task_orc_1_diplomacy_1 = { # Banner of Skulls
 	position = councillor_orc_1
 
+	task_type = task_type_county
+	county_target = realm
+	ai_county_target = realm
+	task_progress = task_progress_percentage
+	restart_on_finish = yes
+	highlight_own_realm = yes
+
 	asset = {
-		icon = "gfx/interface/icons/council_task_types/task_domestic_affairs.dds"
+		icon = "gfx/interface/icons/army_status/army_status_raiding.dds"
 		background = "gfx/interface/buttons/button_round_bg.dds"
 		frame = "gfx/interface/buttons/button_round_frame.dds"
 		glow = "gfx/particles/halo.dds"
 	}
+	
+	effect_desc = {
+		desc = {
+			triggered_desc = {
+				trigger = {
+					scope:councillor_liege = { is_orc = yes }
+				}
+				desc = task_ravage_the_land_effect_desc_1_orc
+			}
+			desc = task_ravage_the_land_effect_desc_2
+			desc = task_ravage_the_land_effect_desc_3
+		}
 
-	council_owner_modifier = {
-		name = task_orc_default_modifier
-		levy_reinforcement_rate = 0.01
-		# scale = kurultai_manage_herd_final_value
+		desc = {
+			desc = council_task_possible_side_effects
+			triggered_desc = {
+				trigger = {
+					stewardship < high_skill_rating
+					trigger_if = {
+						limit = { exists = scope:county }
+						scope:county = {
+							NOT = { has_county_modifier = steward_armed_peasants_county_modifier }
+						}
+					}
+				}
+				desc = task_ravage_the_land_armed_peasants
+			}
+			triggered_desc = {
+				trigger = {
+					stewardship < high_skill_rating
+					trigger_if = {
+						limit = { exists = scope:county }
+						scope:county.title_province = {
+							NOT = { has_province_modifier = steward_lack_of_tribute_province_modifier }
+						}
+					}
+				}
+				desc = task_ravage_the_land_lack_of_tribute
+			}
+			triggered_desc = {
+				trigger = {
+					stewardship < high_skill_rating
+					trigger_if = {
+						limit = { exists = scope:county }
+						scope:county.title_province = {
+							NOT = { has_province_modifier = steward_levy_desertion_province_modifier }
+						}
+					}
+				}
+				desc = task_ravage_the_land_levy_desertion
+			}
+			triggered_desc = {
+				trigger = {
+					martial < high_skill_rating
+				}
+				desc = task_ravage_the_land_wounded_steward
+			}
+		}
 	}
 
-	task_type = task_type_general
-	task_progress = task_progress_infinite
+	progress = {
+		value = 0
+		add = {
+			value = steward_ravage_the_land_base
+			desc = STEWARD_PROGRESS_BASE
+		}
+		add = {
+			value = scope:councillor.steward_ravage_the_land_monthly_increase_stewardship
+			desc = SCALED_COUNCILLOR_STEWARDSHIP_VALUE
+		}
+		add = {
+			value = scope:councillor.steward_ravage_the_land_monthly_increase_martial
+			desc = SCALED_COUNCILLOR_MARTIAL_VALUE
+		}
 
-	effect_desc = { 
-		desc = task_orc_1_diplomacy_1_effect_desc 
-		# Raid Speed, Raid Movement Speed, Hostile County Attrition Reduction
-	}
-
-	monthly_on_action = task_orc_default_1_effects
-
-	ai_will_do = {
-		value = 500
+		add = steward_ravage_the_land_contextual_bonuses
+		
+		if = { # Development reduces the speed. Should be the last non-multiply modifier applied to avoid negative values
+			limit = {
+				exists = scope:county
+				scope:county = {
+					development_level > 0
+				}
+			}
+			add = {
+				value = scope:county.ravage_the_land_development_penalty
+				multiply = 0.5 # Half the normal impact from development... we're slashing and burning here!
+				desc = STEWARD_RAVAGE_THE_LAND_DEVELOPMENT_PENALTY
+			}
+		}
+		
+		# Conversion speed game rules
 		if = {
 			limit = {
-				scope:councillor = { highest_skill = diplomacy }
+				has_game_rule = slower_culture_conversion_speed
+			}
+			multiply = {
+				value = slower_game_rule_value
+				desc = GAME_RULE_SLOWER_REASON
+			}
+		}
+		if = {
+			limit = {
+				has_game_rule = significantly_slower_culture_conversion_speed
+			}
+			multiply = {
+				value = significantly_slower_game_rule_value
+				desc = GAME_RULE_SIGNIFICANTLY_SLOWER_REASON
+			}
+		}
+		if = {
+			limit = {
+				has_game_rule = significantly_faster_culture_conversion_speed
+			}
+			multiply = {
+				value = significantly_faster_game_rule_value
+				desc = GAME_RULE_SIGNIFICANTLY_FASTER_REASON
+			}
+		}
+		if = {
+			limit = {
+				has_game_rule = faster_culture_conversion_speed
+			}
+			multiply = {
+				value = faster_game_rule_value
+				desc = GAME_RULE_FASTER_REASON
+			}
+		}
+	}
+
+	potential_county = {
+		scope:county = {
+			custom_tooltip = {
+				text = county_is_already_orcish
+				is_orc = no
+			}	
+			custom_tooltip = {
+				text = county_holder_is_not_orcish
+				holder = { 
+					OR = {
+						is_orc = yes
+						is_maiar_fallen = yes
+						is_nazgul = yes
+						is_evil_istari = yes
+					}
+				}
+			}
+			custom_tooltip = {
+				text = county_culture_matches_a_liege_or_above
+				NOT = {
+					scope:councillor_liege = {
+						any_liege_or_above = {
+							culture = scope:county.culture
+						}
+					}
+				}
+			}
+		}
+		trigger_if = {
+			limit = {
+				scope:councillor_liege = { is_ai = yes }
+			}
+			NOT = { scope:councillor_liege = { restricted_culture = yes } }
+			OR = {
+				NOT = {
+					scope:county.culture = {
+						cultural_acceptance = { target = scope:councillor_liege.culture value >= 50 }
+					}
+				}
+				scope:councillor_liege.culture = { # All AI's are motivated to spread new Hybrid/Divergent cultures
+					OR = {
+						is_hybrid_culture = yes
+						is_divergent_culture = yes
+					}
+					any_parent_culture = {
+						this = scope:county.culture
+					}
+				}
+			}
+			OR = {
+				is_independent_ruler = yes
+				scope:councillor_liege.primary_title.tier > tier_county
+				scope:councillor_liege.culture = { # All AI's are motivated to spread new Hybrid/Divergent cultures
+					OR = {
+						is_hybrid_culture = yes
+						is_divergent_culture = yes
+					}
+					any_parent_culture = {
+						this = scope:county.culture
+					}
+				}
+			}
+			OR = {
+				scope:county = {
+					any_neighboring_county = {
+						culture = scope:councillor_liege.culture # The AI only wants to convert counties bordering their own culture
+					}
+				}
+				
+				AND = {
+					NOT = {
+						scope:county = {
+							any_neighboring_county = {
+								culture = scope:councillor_liege.culture # The AI only wants to convert counties bordering their own culture
+							}
+						}
+					}
+				}
+			}
+		}
+		trigger_if = { #LotR - AI should not seek to convert the Nurnoth
+			limit = {
+				scope:councillor_liege = {
+					is_ai = yes
+				}
+			}
+			NOT = { faith = faith:faith_nurn_slave }
+		}
+	}
+
+	on_start_task_county = {
+	}
+
+	on_cancel_task_county = {
+	}
+
+	on_finish_task_county = {
+		scope:county = {
+			if = {
+				limit = {
+					NOT = {
+						scope:councillor_liege.culture = {
+							is_hybrid_culture = yes
+							any_parent_culture = {
+								this = scope:county.culture
+							}
+						}
+					}
+				}
+				culture = {
+					change_cultural_acceptance = {
+						target = scope:councillor_liege.culture
+						value = culture_conversion_acceptance_impact
+						desc = cultural_acceptance_loss_promote_culture
+					}
+				}
+			}
+			if = {
+				limit = {
+					scope:councillor_liege = {
+						is_orc = yes
+					}
+				}
+				set_county_culture = scope:councillor_liege.culture
+			}
+			else_if = {
+				limit = {
+					scope:councillor_liege = {
+						is_evil_istari = yes
+					}
+					scope:county = { is_orc = no }
+				}
+				set_county_culture = culture:isengard_urukhai
+			}
+			else_if = {
+				limit = {
+					scope:councillor_liege = {
+						AND = {
+							OR = {
+								is_maiar_fallen = yes
+								is_nazgul = yes
+							}
+							capital_county = title:c_amon_lanc
+						}
+					}
+					scope:county = { is_orc = no }
+				}
+				set_county_culture = culture:kazgumhoth
+			}
+			else_if = {
+				limit = {
+					scope:councillor_liege = {
+						is_maiar_fallen = yes
+					}
+					scope:county = { is_orc = no }
+				}
+				set_county_culture = culture:morlughai
+			}
+			else_if = {
+				limit = {
+					scope:councillor_liege = {
+						is_nazgul = yes
+					}
+					scope:county = { is_orc = no }
+				}
+				set_county_culture = culture:ungurhai
+			}
+			set_county_faith = scope:councillor_liege.faith
+			change_development_level = this.half_county_development_reduction
+			remove_county_modifier = plundered_thorins_tomb_arkenstone_modifier
+			remove_county_modifier = plundered_thorins_tomb_orcrist_modifier
+			remove_county_modifier = thorins_tomb_modifier
+			every_county_province = { barony = { generate_coa = yes } }
+		}
+
+		scope:councillor = {
+			start_default_task = yes
+		}
+	}
+
+	monthly_on_action = task_ravage_the_land_side_effects
+
+	ai_will_do = {
+		value = 0
+		if = {
+			limit = { scope:councillor_liege = { restricted_culture = yes } }
+			multiply = 0
+		}
+		if = { # If your big boss is neither an orc nor an evil immortal, dont do this
+			limit = {
+				scope:councillor_liege.top_liege = {
+					NOR = {
+						is_orc = yes
+						AND = {
+							cannot_be_killed = yes
+							faith_is_good = no
+						}
+					}
+				}
+			}
+			multiply = 0
+		}
+		if = {
+			limit = {
+				scope:councillor = {
+					is_performing_council_task = task_ravage_the_land
+				}
+			}
+			add = 10000 # Always keep going if this is already chosen
+		}
+		else_if = { # Juke note: tweak this if orcs get too trigger happy. Also, didnt inclue sauron/nazgul/saruman for now
+			limit = {
+				scope:councillor_liege = {
+					is_orc = yes
+					any_realm_county = {
+						culture = {
+							is_orc_culture = no
+						}
+					}
+				}
+			}
+			add = 200
+		}
+
+		# Motivate the AI with an escalation agenda to take this task
+		if = {
+			limit = {
+				has_character_flag = agenda_towards_escalation
 			}
 			add = 500
+		}
+		else_if = {
+			limit = {
+				has_character_flag = agenda_towards_deescalation
+			}
+			add = -250
+		}
+		if = {
+			# Don't do this too often
+			limit = {
+				scope:councillor_liege = {
+					has_character_flag = no_ai_culture_convert
+					NOT = { # ignore it if in Hostility with escalation
+						has_character_flag = agenda_towards_escalation
+					}
+				}
+			}
+			multiply = 0
+		}
+		if = {
+			# Interrupt this task if you're bankrupt
+			limit = {
+				scope:councillor_liege = {
+					gold < -50
+				}
+			}
+			multiply = 0
 		}
 	}
 }
