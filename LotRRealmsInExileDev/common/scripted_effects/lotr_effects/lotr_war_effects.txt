@@ -448,3 +448,136 @@ valinorean_invasion_settle_local_people_effect = {
 		transfer_conquerred_titles_to_eonwe = yes
 	}
 }
+
+
+lotr_invite_non_evil_claimants_effect = {
+	save_scope_as = the_temporary_ruler
+	every_held_title = {
+		title_tier = county
+		save_scope_as = the_county
+		ordered_claimant = {
+			limit = {
+				faith_is_evil = no
+				trigger_if = {
+					limit = { 
+						is_ruler = yes
+						top_liege != scope:the_temporary_ruler 
+						NOT = { is_in_list = participants_of_split }
+					}
+					is_landless_adventurer = yes
+				}
+			}
+			order_by = {
+				value = this.age
+				save_temporary_scope_as = the_claimant
+				if = {
+					limit = { is_landless_ruler = yes }
+					multiply = 2
+				}
+				# Prioritize people with closer ties to last rulers
+				if = {
+					limit = {
+						scope:the_county = { any_past_holder = { this = scope:the_claimant } }
+					}
+					multiply = 2
+				}
+				if = {
+					limit = { 
+						scope:the_county = { any_past_holder = { is_parent_of = scope:the_claimant } }
+					}
+					multiply = 2
+				}
+				if = {
+					limit = { 
+						scope:the_county = { any_past_holder = { is_grandparent_of = scope:the_claimant } }
+					}
+					multiply = 2
+				}
+				if = {
+					limit = { 
+						scope:the_county = { any_past_holder = { is_great_grandparent_of = scope:the_claimant } }
+					}
+					multiply = 2
+				}
+				# Prioritize people being senior party in marriage 
+				if = {
+					limit = { 
+						is_married = yes 
+						trigger_if = {
+							limit = { is_male = yes }
+							matrilinear_marriage = yes
+						}
+						trigger_else = {
+							patrilinear_marriage = yes
+						}
+					}
+					divide = 2
+				}
+				# Inheritance
+				if = {
+					limit = { is_female = yes }
+					if = {
+						limit = { faith = { has_doctrine = doctrine_gender_male_dominated } }
+						multiply = 0
+					}
+					else_if = {
+						limit = { faith = { has_doctrine = doctrine_gender_male_orientated } }
+						divide = 2
+					}
+				}
+				else = {
+					if = {
+						limit = { faith = { has_doctrine = doctrine_gender_female_dominated }  }
+						multiply = 0
+					}
+					else_if = {
+						limit = { faith = { has_doctrine = doctrine_gender_female_orientated } }
+						divide = 2
+					}
+				}
+			}
+			save_scope_as = the_new_ruler
+			
+			if = { # Don't force players to accept the titles, give them an event where they can choose
+				limit = { is_ai = no }
+				scope:the_new_ruler = {
+					add_to_variable_list = {
+						name = vanquish_darkness_titles_to_offer
+						target = scope:the_county
+					}
+				}
+			}
+			else = {
+				# Make vassal if ranks work
+				every_held_title = { # Get rid of Laamp
+					limit = { is_landless_type_title = yes }
+					scope:the_new_ruler = { destroy_title = PREV }
+				}
+				get_title = scope:the_county
+				if = {
+					limit = {
+						scope:the_temporary_ruler.primary_title.tier >= tier_duchy
+					}
+					create_title_and_vassal_change = {
+						type = swear_fealty
+						save_scope_as = change
+					}
+					change_liege = {
+						liege = scope:the_temporary_ruler
+						change = scope:change
+					}
+					resolve_title_and_vassal_change = scope:change
+				}
+				add_to_temporary_list = participants_of_split
+			}
+		}
+	}
+	# Mop up the bordergore, copied from exclave independence game rule
+	trigger_event = game_rule.2
+	
+	# Fire an event for every player that is being offered titles 
+	every_player = {
+		limit = { has_variable_list = vanquish_darkness_titles_to_offer }
+		trigger_event = elven_racial.0202
+	}
+}
