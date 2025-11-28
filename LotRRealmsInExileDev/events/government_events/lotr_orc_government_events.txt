@@ -1,6 +1,83 @@
 ﻿namespace = orc_government_events
 
-### Initial setup of ""potential""" challengers for the throne
+####
+# # Ideas #
+# Young Orc challenges first challenger "Jumping in front "
+# Bribe a challenger orc (hook, council positions, title, gold, claim) to not fight, based on personality traits	
+# After a certain number of challengers have been slain (say 5), have a MASSIVE increase in orcs willing to just take the claim OR be bribed
+#
+####
+
+###
+# 
+# orc_government_events.0050 - 0500 ==> Events that can reduce the number of challengers, such as bribes, other challengers, blackmail, etc.
+# From the above events, only **one** event will be picked from the pool, with the player deciding they'll either bribe/blackmail, etc. OR they will actually fight.
+# Gives a decent chance for a wide pool of variety, while still giving the player a chance to avoid bloodshed/reduce numbers of challengers
+#
+###
+
+# Assumes a ""scope:new_ruler"", referring to the new ruler of the top liege title
+scripted_effect refuse_orc_inheritance_duel_effect = { # Every challenger gets a Pressed claim
+	add_pressed_claim = scope:new_ruler.primary_title
+}
+
+scripted_effect sort_final_orc_challenger_list_effect = {
+	every_in_list = {
+		variable = final_orc_challengers
+		save_scope_as = challenger_char
+		root = {
+			add_to_variable_list = { name = temp_orc_challengers target = scope:challenger_char }
+		}
+	}
+	
+	clear_variable_list = final_orc_challengers
+
+	while = {
+		limit = {
+			has_variable_list = temp_orc_challengers
+			variable_list_size = {
+				name = temp_orc_challengers
+				value > 0
+			}
+		}
+		root = { save_scope_as = orc_challenger_liege } 
+		ordered_in_list = { #Save the character with the highest success chance
+			variable = temp_orc_challengers
+			order_by = {
+				value = 0
+				add = lotr_orc_succession_martial_weighting
+				add = lotr_orc_succession_intrigue_weighting
+				add = lotr_orc_succession_prowess_weighting
+				add = lotr_orc_succession_learning_weighting
+				add = lotr_orc_succession_relationship_weighting
+				add = lotr_orc_succession_ordering_troops_weighting
+				add = lotr_orc_succession_dread_weighting
+			}
+			max = 1
+			save_scope_as = new_challenger_char
+			
+			root = {
+				remove_list_variable = {
+					name = temp_orc_challengers
+					target = scope:new_challenger_char
+				}
+			}
+		}
+		if = { #Esnure we're not adding the character twice to the ordered list
+			limit = {
+				NOT = {
+					is_target_in_variable_list = {
+						name = final_orc_challengers
+						target = scope:new_challenger_char
+					}
+				}
+			}
+			root = { add_to_variable_list = { name = final_orc_challengers target = scope:new_challenger_char } }
+		}
+	}
+}
+
+### Initial setup of ""potential"" challengers for the throne
 orc_government_events.0001 = {
     hidden = yes
 
@@ -24,6 +101,10 @@ orc_government_events.0001 = {
 
         ### Clean-up ###
         trigger_event = orc_government_events.9000
+		trigger_event = {
+			id = orc_government_events.0004
+			days = 1
+		}
     }
 }
 
@@ -33,21 +114,30 @@ orc_government_events.0002 = {
 	type = character_event
 	title = orc_government_events.0002.t
 	desc = orc_government_events.0002.desc
-	theme = martial_strategy_focus
-
-    left_portrait = {
-		character = root
-        animation = personality_bold
-    }
+	theme = orcs
 
     right_portrait = {
-		character = scope:new_ruler 
-		animation = rage
+		character = root 
+		animation = aggressive_sword
 	}
 
-    immediate = {
+    left_portrait = {
+		character = scope:new_ruler
+        animation = celebrate_longaxe
     }
 
+
+	### Things to take into account for AI Chance for the options ###
+	#	- Current number of military troops. Aka, do you have more troops than him? If so, a faction is a safer bet
+	# 	- Prowess
+	#	- Martial/Intrigue/Learning (for those special options)
+	#	- Prowess traits (baldemaster, berserker, etc.)
+	#	- Hooks. Do you have something on the NEW RULER so you can bribe yourself into a high spot, without fighting
+	#	- Relationships. Might be a bit weaker with prowess, but you want to slice his throat open, 
+	#	  so fuck it, let's take a chance. On the flip side, if they're your lover/bloodbrother/friend, maybe less inclined
+	#	- Dread of the current (aka new) ruler. Is this orc known as a bad-ass motherfucker?
+	#	- General personality traits such as brave or wrathful
+	#
     option = { #Accept the challenge
         name = orc_government_events.0002.a
         scope:new_ruler = {
@@ -55,58 +145,189 @@ orc_government_events.0002 = {
         }
     }
 
-    option = { #Stay as vassal/courtier
+    option = { #Stay as vassal/courtier, but take a reward
         name = orc_government_events.0002.b
 
         refuse_orc_inheritance_duel_effect = yes
+
+		
+		ai_chance = {
+			base = 0
+			# modifier = { #Formatting of the modifier
+			# 	add = 10
+			# 	has_trait = arrogant
+			# }
+			ai_value_modifier = { #-/+ 0.0 - 1.0 | AI values to consider, and range
+				ai_rationality = 0.1 
+				ai_vengefulness = 0.1
+				ai_compassion = 0.1
+				ai_zeal = 0.1
+				ai_honor = 0.1
+				ai_greed = 0.1
+				ai_energy = 0.1
+			}
+		}
+    }
+
+    option = { #So scared of new liege, no challenge
+        name = orc_government_events.0002.c
     }
 }
 
-orc_government_events.0003 = {
+# Start the dueling process. Strongest orc is lined up first.
+orc_government_events.0004 = {
     content_source = realms_dlc
-	type = court_event
-	title = orc_government_events.0002.t
-	desc = orc_government_events.0002.desc
-	theme = martial_strategy_focus
+	type = character_event
+	title = orc_government_events.0004.t
+	desc = orc_government_events.0004.desc
+	theme = orcs
 
-    court_scene = {
-		button_position_character = scope:character_b
-		court_event_force_open = yes
-		show_timeout_info = no
-		should_pause_time = no
-		roles = {
-			# First, we take each scoped relevant scoped character.
-			root ?= {
-				role = lotr_orc_heir
-			}
-			scope:character_b ?= {
-				role = lotr_orc_heir_challenger
-			}
-			scope:character_c ?= {
-				role = lotr_orc_heir_spectator_1
-			}
-			scope:character_d ?= {
-				role = lotr_orc_heir_spectator_2
-			}
-			scope:character_e ?= {
-				role = lotr_orc_heir_spectator_3
-			}
-			scope:character_f ?= {
-				role = lotr_orc_heir_spectator_4
-			}
-			scope:character_g ?= {
-				role = lotr_orc_heir_spectator_5
-			}
-		}
+    right_portrait = {
+		character = root 
+		animation = aggressive_sword
 	}
 
-	# Court events, as with all events, require at least one option to display.
-	option = {
-		name = hold_court.0001.a
+	immediate = {
+		# Sort out the list of challengers, according to who'm is the strongest
+		sort_final_orc_challenger_list_effect = yes
+
 	}
+
+    option = { #Start the duelling process
+        name = orc_government_events.0004.a
+    }
+
+    option = { #LAAMP here I come (DLC locked)
+        name = orc_government_events.0004.b
+    }
 }
 
-orc_government_events.0004 = {
+#Orc reconsiders whether they're willing to fight the current ruler
+orc_government_events.0049 = {
+    content_source = realms_dlc
+	type = character_event
+	title = orc_government_events.0049.t
+	desc = orc_government_events.0049.desc
+	theme = orcs
+
+    right_portrait = {
+		character = root 
+		animation = aggressive_sword
+	}
+
+	immediate = { }
+
+	###
+	# Both options should take the following into account:
+	#	- Current number of challengers killed (needs custom tracking)
+	#		- Will need to track how many of the challengers have been killed by the ruler. Use variable list or simple variable counter
+	#   - Whether the ruler has been injured
+	#	- Prowess difference
+	#	- Martial/intrigue/learning difference
+	# 	- Prowess traits, such as berserker, blademaster, etc.
+	#	- Relationships (especially rivalries/nemesis)
+	#	- Type of claim (based off of realm law)
+	#	- Dread
+	#	- General personality traits such as brave or wrathful
+
+    option = { #Continue fighting, I'm the biggest-baddest orcy around!
+        name = orc_government_events.0049.a
+    }
+
+    option = { #Fuck it, I like living. Let him have his titles
+        name = orc_government_events.0049.b
+		
+    }
+}
+
+#Attempt to bribe the orc challenger. 
+orc_government_events.0050 = {
+    content_source = realms_dlc
+	type = character_event
+	title = orc_government_events.0050.t
+	desc = orc_government_events.0050.desc
+	theme = orcs
+
+    right_portrait = {
+		character = root 
+		animation = aggressive_sword
+	}
+
+	immediate = { }
+
+    option = { #The orc that is being bribed acceptance chance for the "initial" bribe | Losing the skill duel  also means that other orcs see you as weak, so higher chance they'll actually fight
+        name = orc_government_events.0050.a
+		# Stewardship duel, high value
+    }
+
+    option = { #The orc that is being bribed acceptance chance for a higher bribe | Losing the skill duel  also means that other orcs see you as weak, so higher chance they'll actually fight
+        name = orc_government_events.0050.b
+		# Stewardship duel, medium value
+    }
+
+    option = { #Refuse to bribe the orc
+        name = orc_government_events.0050.c
+    }
+}
+
+#Attempt to blackmail the orc challenger.
+orc_government_events.0051 = {
+    content_source = realms_dlc
+	type = character_event
+	title = orc_government_events.0051.t
+	desc = orc_government_events.0051.desc
+	theme = orcs
+
+    right_portrait = {
+		character = root 
+		animation = aggressive_sword
+	}
+
+	immediate = { }
+
+    option = { #The orc that is being blackmailed skill check | Losing the skill duel also means that other orcs see you as weak, so higher chance they'll actually fight
+        name = orc_government_events.0051.a
+		# Intrigue duel
+    }
+
+    option = { #The orc that is being blackmailed + bribed skill check | Losing the skill duel also means that other orcs see you as weak, so higher chance they'll actually fight
+        name = orc_government_events.0051.b
+		# Intrigue + Stewardship duel
+    }
+
+    option = { #Refuse to use blackmail
+        name = orc_government_events.0051.c
+    }
+}
+
+#An upstart orc jumps the line, and now challenges the main challenger so they can get to you quicker. You look on.
+orc_government_events.0052 = {
+    content_source = realms_dlc
+	type = character_event
+	title = orc_government_events.0052.t
+	desc = orc_government_events.0052.desc
+	theme = orcs
+
+    right_portrait = {
+		character = root 
+		animation = aggressive_sword
+	}
+
+	immediate = { }
+
+	 option = { #Skill check between main challenger and up-start orc. Skill check should use their values. Will be a "shortened" version of the duel, for the players sake.
+        name = orc_government_events.0052.a
+		# Prowess duel between the 2 orcs
+		# Winner fights you, loser dies
+    }
+
+	option = { #Player can put a stop to it, having a guaranteed fight with both, before other challengers reconsider
+        name = orc_government_events.0052.b
+		#If player intervenes, this lowers the subsequent chances of other challengers fighting him. After all, if you're willing to fight both of these orcs, you're a bad ass
+    }
+}
+
+orc_government_events.2000 = {
 	hidden = yes
 	immediate = {
 		# As with portraits, we do our general character setup stuff in this event.
@@ -160,7 +381,51 @@ orc_government_events.0004 = {
 			}
 			save_scope_as = character_g
 		}
-		trigger_event = orc_government_events.0003
+		trigger_event = orc_government_events.2001
+	}
+}
+
+orc_government_events.2001 = {
+    content_source = realms_dlc
+	type = court_event
+	title = orc_government_events.0002.t
+	desc = orc_government_events.0002.desc
+	theme = orcs
+
+    court_scene = {
+		button_position_character = scope:character_b
+		court_event_force_open = yes
+		show_timeout_info = no
+		should_pause_time = no
+		roles = {
+			# First, we take each scoped relevant scoped character.
+			root ?= {
+				role = lotr_orc_heir
+			}
+			scope:character_b ?= {
+				role = lotr_orc_heir_challenger
+			}
+			scope:character_c ?= {
+				role = lotr_orc_heir_spectator_1
+			}
+			scope:character_d ?= {
+				role = lotr_orc_heir_spectator_2
+			}
+			scope:character_e ?= {
+				role = lotr_orc_heir_spectator_3
+			}
+			scope:character_f ?= {
+				role = lotr_orc_heir_spectator_4
+			}
+			scope:character_g ?= {
+				role = lotr_orc_heir_spectator_5
+			}
+		}
+	}
+
+	# Court events, as with all events, require at least one option to display.
+	option = {
+		name = hold_court.0001.a
 	}
 }
 
