@@ -10,10 +10,13 @@
 
 ##### Event IDs #####
 # 
+# FOR KINGS AND HIGHER
 # orc_government_events.0050 - 0500 ==> Events that can reduce the number of challengers, such as bribes, other challengers, blackmail, etc.
 # From the above events, only **one** event will be picked from the pool, with the player deciding they'll either bribe/blackmail, etc. OR they will actually fight.
 # Gives a decent chance for a wide pool of variety, while still giving the player a chance to avoid bloodshed/reduce numbers of challengers
 #
+# FOR DUKES AND COUNTS
+# orc_government_events.1050 - 1500
 ############################
 
 ##############################
@@ -185,39 +188,95 @@ scripted_effect grab_cheering_orcs_effect = {
 ### Local Scripted Triggers ###
 ###############################
 scripted_trigger orc_succession_duel_has_participants_left = {
-	any_in_list = {
-		variable = final_orc_challengers
-		is_alive = yes
+	trigger_if = {
+		limit = { has_variable_list = final_orc_challengers }
+		any_in_list = {
+			variable = final_orc_challengers
+			is_alive = yes
+		}
+	}
+	trigger_else = {
+		always = no
 	}
 }
 
+scripted_trigger orc_has_access_to_courtroom = {
+	highest_held_title_tier > tier_duchy
+}
 ### Initial setup of ""potential"" challengers for the throne
 orc_government_events.0001 = {
     hidden = yes
 
     immediate = {
+		if = {
+			limit = { has_realm_law = orc_authority_1 }
+			debug_log = "ORC_SUCCESSION: REALM LAW 1"
+		}
+		if = {
+			limit = { has_realm_law = orc_authority_2 }
+			debug_log = "ORC_SUCCESSION: REALM LAW 2"
+		}
+		if = {
+			limit = { has_realm_law = orc_authority_3 }
+			debug_log = "ORC_SUCCESSION: REALM LAW 3"
+		}
+		if = {
+			limit = { has_realm_law = orc_authority_4 }
+			debug_log = "ORC_SUCCESSION: REALM LAW 4"
+		}
+		if = {
+			limit = { has_realm_law = orc_authority_5 }
+			debug_log = "ORC_SUCCESSION: REALM LAW 5"
+		}
         switch = {
 			trigger = has_realm_law
 
-			orc_authority_1 = { create_orc_challenger_list_authority_0 = yes }
-			orc_authority_2 = { create_orc_challenger_list_authority_1 = yes }
-			orc_authority_3 = { create_orc_challenger_list_authority_2 = yes }
-			orc_authority_4 = { create_orc_challenger_list_authority_3 = yes }
-			orc_authority_5 = { create_orc_challenger_list_authority_4 = yes }
+			orc_authority_1 = { create_orc_challenger_list_authority_0 = yes debug_log = "ORC_SUCCESSION: REALM LAW 1" }
+			orc_authority_2 = { create_orc_challenger_list_authority_1 = yes debug_log = "ORC_SUCCESSION: REALM LAW 2" }
+			orc_authority_3 = { create_orc_challenger_list_authority_2 = yes debug_log = "ORC_SUCCESSION: REALM LAW 3" }
+			orc_authority_4 = { create_orc_challenger_list_authority_3 = yes debug_log = "ORC_SUCCESSION: REALM LAW 4" }
+			orc_authority_5 = { create_orc_challenger_list_authority_4 = yes debug_log = "ORC_SUCCESSION: REALM LAW 5" }
 		}
 
         save_scope_as = new_ruler
 
+		
         every_in_list = { # Challenger decides they DO want to challenge the new ruler
             variable = orc_challengers
+			debug_log = "ORC_SUCCESSION: ITERATE ORC CHALLENGER LIST"
             trigger_event = orc_government_events.0002
         }
 
         ### Clean-up ###
         clear_orc_challenger_variable_list_effect = yes
-		trigger_event = {
-			id = orc_government_events.0004
-			days = 1
+		if = {
+			limit = { has_variable_list = final_orc_challengers }
+			trigger_event = {
+				id = orc_government_events.0004
+				days = 1
+			}
+		}
+		else_if = {
+			limit = { orc_has_access_to_courtroom = yes }
+			set_variable = {
+				name = no_orc_challenged_you
+				days = 14
+			}
+			trigger_event = { 
+				id = orc_government_events.0500
+				days = 1
+			}
+		}
+		else_if = {
+			limit = { orc_has_access_to_courtroom = no }
+			set_variable = {
+				name = no_orc_challenged_you
+				days = 14
+			}
+			trigger_event = { 
+				id = orc_government_events.1500
+				days = 1
+			}
 		}
     }
 }
@@ -245,10 +304,16 @@ orc_government_events.0002 = {
         scope:new_ruler = {
             add_to_variable_list = { name = final_orc_challengers target = root }
         }
+		debug_log = "ORC_SUCCESSION: Accepted the challenge"
 
 		ai_chance = {
 			base = 0
 		   
+		   ### Powerful vassal
+		    modifier = {
+		   		add = 20
+				is_powerful_vassal_of = scope:new_ruler
+		    }
 		   ### Army Strength
 			modifier = {
 				add = 5
@@ -613,7 +678,7 @@ orc_government_events.0002 = {
         name = orc_government_events.0002.b
 
         refuse_orc_inheritance_duel_effect = yes
-
+		debug_log = "ORC_SUCCESSION: Stayed as vassal/courtier"
 		ai_chance = {
 			base = 0
 	
@@ -940,7 +1005,7 @@ orc_government_events.0002 = {
         name = orc_government_events.0002.c
 
 		ai_chance = {
-			base = 10
+			base = 5
 			
 			modifier = {
 				add = 30
@@ -964,12 +1029,11 @@ orc_government_events.0004 = {
 
     right_portrait = {
 		character = root 
-		animation = aggressive_sword
+		animation = thinking
 	}
 
-	left_portrait = {
-		character = scope:orc_fighting_ruler
-		animation = aggressive_axe
+	override_background = {
+		reference = wilderness_underground
 	}
 
 	immediate = {
@@ -997,7 +1061,7 @@ orc_government_events.0004 = {
 
     option = { #Start the duelling process
         name = orc_government_events.0004.a
-
+		custom_tooltip = orc_government_events.0004.a.tt
 		trigger_event = { on_action = lotr_orc_government_persaude_challenger_events }
 		# Select the first challenger orc, and fire the persaude event on-actions.
 		ai_chance = { #TODO: Add some minor AI weighting
@@ -1007,6 +1071,7 @@ orc_government_events.0004 = {
 
     option = { #First challenger, you can take the empire title! Here ya' go
         name = orc_government_events.0004.b
+		trigger = { has_variable_list = final_orc_challengers }
 		# Give main title to main challenger, and resume the fight for the 
 		# new main challenger against the other challengers
 
@@ -1079,7 +1144,10 @@ orc_government_events.0004 = {
 
     option = { #LAAMP here I come! (DLC locked)
         name = orc_government_events.0004.c
-		trigger = { has_dlc_feature = roads_to_power }
+		trigger = { 
+			has_dlc_feature = roads_to_power 
+			has_variable_list = final_orc_challengers
+		}
 		# Just turn into a LAAMP and give all titles to main challenger.
 		# New ruler fights against the other challengers as normal
 
@@ -1188,19 +1256,19 @@ orc_government_events.0049 = {
     }
 }
 
-####################################################
-### Random Persuasion events to stop challengers ###
-####################################################
+####################################################################################
+### Random Persuasion events to stop challengers | KINGS, EMPERORS, & HEGEMONIES ###
+####################################################################################
 
 #Attempt to bribe the orc challenger. 
 orc_government_events.0050 = {
     content_source = realms_dlc
-	type = character_event
+	type = court_event
 	title = orc_government_events.0050.t
 	desc = orc_government_events.0050.desc
 	theme = orcs
 
-     court_scene = {
+    court_scene = {
 		button_position_character = scope:my_foe
 		court_event_force_open = yes
 		show_timeout_info = no
@@ -1223,21 +1291,27 @@ orc_government_events.0050 = {
 		}
 	}
 
-	trigger = {
-		scope:defending_ruler = { orc_succession_duel_has_participants_left = yes }
-		OR = {
+	weight_multiplier = {
+		base = 50
+
+		modifier = {
+			factor = 2
 			scope:orc_fighting_ruler = { has_trait = greedy }
+		}
+		modifier = {
+			factor = 2
 			scope:defending_ruler = { # Tier difference is 2 titles or more (e.g., count vs king) 
 				tier_difference = { 
 					target = scope:orc_fighting_ruler
 					value >= 2
 				}	
 			}
-			NOR = { 
-				scope:defending_ruler = { has_weak_hook = scope:orc_fighting_ruler }
-				scope:defending_ruler = { has_strong_hook = scope:orc_fighting_ruler }
-			}
 		}
+	}
+
+	trigger = {
+		scope:defending_ruler = { orc_has_access_to_courtroom = yes }
+		scope:defending_ruler = { orc_succession_duel_has_participants_left = yes }
 	}
 
     option = { #The orc that is being bribed acceptance chance for the "initial" bribe | Losing the skill duel  also means that other orcs see you as weak, so higher chance they'll actually fight
@@ -1467,7 +1541,7 @@ orc_government_events.0050 = {
 #Attempt to blackmail the orc challenger.
 orc_government_events.0051 = {
     content_source = realms_dlc
-	type = character_event
+	type = court_event
 	title = orc_government_events.0051.t
 	desc = orc_government_events.0051.desc
 	theme = orcs
@@ -1477,10 +1551,26 @@ orc_government_events.0051 = {
 		animation = aggressive_sword
 	}
 
+	weight_multiplier = {
+		base = 50
+
+		modifier = {
+			factor = 2
+			any_hooked_character = { this = scope:orc_fighting_ruler }
+		}
+	}
+
 	trigger = {
 		scope:defending_ruler = {
+			orc_has_access_to_courtroom = yes
 			orc_succession_duel_has_participants_left = yes
-			any_hooked_character = { this = scope:orc_fighting_ruler }
+		}
+	}
+
+	widgets = {
+		widget = {
+			gui = "lotr_orc_succession_event_widget"
+			container = "custom_widgets_container"
 		}
 	}
 
@@ -1629,7 +1719,7 @@ orc_government_events.0051 = {
 #An upstart orc jumps the line, and now challenges the main challenger so they can get to you quicker. You look on.
 orc_government_events.0052 = {
     content_source = realms_dlc
-	type = character_event
+	type = court_event
 	title = orc_government_events.0052.t
 	desc = orc_government_events.0052.desc
 	theme = orcs
@@ -1652,6 +1742,636 @@ orc_government_events.0052 = {
 
 	trigger = {
 		scope:defending_ruler = {
+			orc_has_access_to_courtroom = yes
+			orc_succession_duel_has_participants_left = yes
+			variable_list_size = {
+				name = final_orc_challengers
+				value >= 2
+			}
+		}
+	}
+
+	widgets = {
+		widget = {
+			gui = "lotr_orc_succession_event_widget"
+			container = "custom_widgets_container"
+		}
+	}
+
+	immediate = {
+		scope:defending_ruler = {
+			random_in_list = {
+				variable = final_orc_challengers
+				limit = { this != scope:orc_fighting_ruler }
+				save_scope_as = upstart_orc
+			}
+		}
+	}
+
+	option = { #Skill check between main challenger and up-start orc. Skill check should use their values. Will be a "shortened" version of the duel, for the players' sake.
+        name = orc_government_events.0052.a
+		# Prowess duel between the 2 orcs
+		# Winner fights you, loser dies
+		scope:upstart_orc = {
+			duel = {
+				skill = prowess
+				target = scope:orc_fighting_ruler
+				50 = { #Upstart orc wins, and duels you
+					desc = orc_government_events.0052.a.success
+					compare_modifier = {
+						value = scope:duel_value
+						multiplier = 3.5
+					}
+					send_interface_toast = {
+						title = orc_government_events.0052.a.success
+						left_icon = scope:upstart_orc
+					}
+					custom_tooltip = orc_government_events.0052.a.success.tt
+					scope:defending_ruler = {
+						random_in_list = {
+							variable = final_orc_challengers
+							limit = { this = scope:orc_fighting_ruler }
+							save_scope_as = orc_to_be_removed
+						}
+						remove_list_variable = {
+							name = final_orc_challengers
+							target = scope:orc_to_be_removed
+						}
+					}
+					scope:upstart_orc = { save_scope_as = orc_fighting_ruler }
+				}
+				50 = { #Upstart orc loses, dies, and proceed with duel as normal
+					desc = orc_government_events.0052.a.failure
+					compare_modifier = {
+						value = scope:duel_value
+						multiplier = -3.5
+					}
+					send_interface_toast = {
+						title = orc_government_events.0052.a.failure
+						left_icon = scope:upstart_orc
+					}
+					custom_tooltip = orc_government_events.0052.a.failure.tt
+					scope:defending_ruler = {
+						random_in_list = {
+							variable = final_orc_challengers
+							limit = { this = scope:upstart_orc }
+							save_scope_as = orc_to_be_removed
+						}
+						remove_list_variable = {
+							name = final_orc_challengers
+							target = scope:orc_to_be_removed
+						}
+					}
+				}
+			}
+		}
+    }
+
+	option = { #Player can put a stop to it, having a guaranteed fight with both, before other challengers reconsider
+        name = orc_government_events.0052.b
+		#If player intervenes, this lowers the subsequent chances of other challengers fighting him. After all, if you're willing to fight both of these orcs, you're a bad ass
+		custom_tooltip = orc_government_events.0052.b.tt
+		custom_tooltip = orc_government_events.0052.b.tt.2
+    }
+
+	after = {
+		if = {
+			limit = { scope:defending_ruler = { NOT = { has_variable = orc_challenger_persuaded } } }
+			start_orc_duel_effect = yes
+		} else = {
+			proceed_to_next_orc_challenger_fight = { 
+				DEFENDING_RULER = scope:defending_ruler
+				ORC_CHALLENGER = scope:orc_fighting_ruler
+			}
+		}
+	}
+}
+
+#You won! You've asserted your dominance
+orc_government_events.0500 = {
+    content_source = realms_dlc
+	type = court_event
+	title = orc_government_events.0500.t
+	theme = orcs
+	desc = {
+		first_valid = {
+			triggered_desc = {
+				trigger = { has_variable = no_orc_challenged_you }
+				desc = orc_government_events.0500.desc.unchallenged
+			}
+			desc = orc_government_events.0500.desc
+		}
+	}
+
+	trigger = {
+		trigger_if = {
+			limit = { exists = scope:defending_ruler }
+			scope:defending_ruler = { orc_succession_duel_has_participants_left = no }
+		}
+		orc_has_access_to_courtroom = yes
+	}
+
+	court_scene = {
+		button_position_character = root
+		court_event_force_open = yes
+		show_timeout_info = no
+		should_pause_time = no
+		roles = {
+			# First, we take each scoped relevant scoped character.
+			root ?= {
+				role = lotr_orc_heir
+				animation = celebrate_sword
+			}
+		}
+	}
+
+	option = {
+		name = orc_government_events.0500.a
+		add_dread = 50
+		add_legitimacy = medium_legitimacy_gain
+	}
+}
+
+#####################################################################
+### Random Persuasion events to stop challengers | COUNTS & DUKES ###
+#####################################################################
+
+#Attempt to bribe the orc challenger. 
+orc_government_events.1050 = {
+    content_source = realms_dlc
+	type = character_event
+	title = orc_government_events.0050.t
+	desc = orc_government_events.0050.desc
+	theme = orcs
+
+    left_portrait = {
+		character = scope:defending_ruler 
+		animation = bribing
+	}
+
+    right_portrait = {
+		character = scope:orc_fighting_ruler 
+		animation = thinking
+	}
+
+	override_background = { reference = wilderness_underground }
+
+	widgets = {
+		widget = {
+			gui = "lotr_orc_succession_event_widget"
+			container = "custom_widgets_container"
+		}
+	}
+
+	weight_multiplier = {
+		base = 50
+
+		modifier = {
+			factor = 2
+			scope:orc_fighting_ruler = { has_trait = greedy }
+		}
+		modifier = {
+			factor = 2
+			scope:defending_ruler = { # Tier difference is 2 titles or more (e.g., count vs king) 
+				tier_difference = { 
+					target = scope:orc_fighting_ruler
+					value >= 2
+				}	
+			}
+		}
+	}
+
+	trigger = {
+		scope:defending_ruler = { orc_has_access_to_courtroom = no }
+		scope:defending_ruler = { orc_succession_duel_has_participants_left = yes }
+	}
+
+    option = { #The orc that is being bribed acceptance chance for the "initial" bribe | Losing the skill duel  also means that other orcs see you as weak, so higher chance they'll actually fight
+        name = orc_government_events.0050.a
+		# Stewardship duel, high value
+		
+		scope:defending_ruler = {
+			duel = {
+				skill = stewardship
+				value = high_skill_rating
+				50 = { #Blackmail them successfully
+					compare_modifier = {
+						value = scope:duel_value
+						multiplier = 3.5
+						# Always give _some_ chance.
+						min = -39
+					}
+					desc = orc_government_events.0050.a.higher_stewardship_successful
+					send_interface_toast = {
+						type = event_toast_effect_good
+						title = orc_government_events.0050.a.higher_stewardship_successful
+						left_icon = scope:defending_ruler
+						random_list = {
+							10 = { #Random title claim for 1 title
+								ordered_held_title = {
+									order_by = tier
+									limit = {
+										save_temporary_scope_as = title_scope
+										NOT = { scope:orc_fighting_ruler = { has_claim_on = scope:title_scope } }
+									}
+									max = 1
+									scope:orc_fighting_ruler = { add_unpressed_claim = prev }
+								}
+							}
+							10 = { #Some gold
+								pay_short_term_gold = {
+									target = scope:orc_fighting_ruler
+									gold = medium_gold_value
+								}
+							}
+							10 = { #Weak favour Hook
+								trigger = { #Make sure they don't already have a hook on the ruler
+									scope:orc_fighting_ruler = {
+										NOR = {
+											has_weak_hook = scope:defending_ruler
+											has_strong_hook = scope:defending_ruler
+										}
+									}
+								}
+								scope:orc_fighting_ruler = {
+									add_hook = {
+										type = favor_hook
+										target = scope:defending_ruler
+									}
+								}
+							}
+							10 = { #Vassal contract for gold can be decreased
+								trigger = {
+									scope:orc_fighting_ruler.liege = scope:defending_ruler
+									scope:orc_fighting_ruler = { is_landed = yes }
+									scope:orc_fighting_ruler = { 
+										vassal_contract_obligation_level_can_be_decreased = orcish_government_taxes
+									}
+								}
+								scope:orc_fighting_ruler = {
+									vassal_contract_decrease_obligation_level = orcish_government_taxes
+								}
+							}
+							10 = { #Vassal contract for prestige can be decreased
+								trigger = {
+									scope:orc_fighting_ruler.liege = scope:defending_ruler
+									scope:orc_fighting_ruler = { is_landed = yes }
+									scope:orc_fighting_ruler = { 
+										vassal_contract_obligation_level_can_be_decreased = orcish_government_prestige
+									}
+								}
+								scope:orc_fighting_ruler = {
+									vassal_contract_decrease_obligation_level = orcish_government_prestige
+								}
+							}
+						}
+					}
+					set_variable = {
+						name = orc_challenger_persuaded
+						days = 30
+					}
+				}
+				50 = { #Fail to blackmail them
+					compare_modifier = {
+						value = scope:duel_value
+						multiplier = -3.5
+						# Limit how low the off-chance can go.
+						min = -19
+					}
+					desc = orc_government_events.0050.a.higher_stewardship_fail
+					send_interface_toast = {
+						type = event_toast_effect_bad
+						title = orc_government_events.0050.a.higher_stewardship_fail
+						left_icon = scope:defending_ruler
+					}
+					custom_tooltip = orc_government_events.orc_challenger_not_persuaded
+				}
+			}
+		}
+    }
+
+    option = { #The orc that is being bribed acceptance chance for a higher bribe | Losing the skill duel  also means that other orcs see you as weak, so higher chance they'll actually fight
+        name = orc_government_events.0050.b
+		# Stewardship duel, medium value
+		scope:defending_ruler = {
+			duel = {
+				skill = stewardship
+				value = medium_skill_rating
+				50 = { #Blackmail them successfully
+					compare_modifier = {
+						value = scope:duel_value
+						multiplier = 3.5
+						# Always give _some_ chance.
+						min = -39
+					}
+					desc = orc_government_events.0050.b.stewardship_successful
+					send_interface_toast = {
+						type = event_toast_effect_good
+						title = orc_government_events.0050.b.stewardship_successful
+						left_icon = scope:defending_ruler
+						random_list = {
+							10 = { #Random title claim for 3 titles
+								ordered_held_title = {
+									order_by = tier
+									limit = {
+										save_temporary_scope_as = title_scope
+										NOT = { scope:orc_fighting_ruler = { has_claim_on = scope:title_scope } }
+									}
+									max = 3
+									scope:orc_fighting_ruler = { add_pressed_claim = prev }
+								}
+							}
+							10 = { #A lot of gold
+								pay_short_term_gold = {
+									target = scope:orc_fighting_ruler
+									gold = massive_gold_value
+								}
+							}
+							10 = { #A strong favour Hook
+								trigger = { #Make sure they don't already have a hook on the ruler
+									scope:orc_fighting_ruler = {
+										NOR = {
+											has_weak_hook = scope:defending_ruler
+											has_strong_hook = scope:defending_ruler
+										}
+									}
+								}
+								scope:orc_fighting_ruler = {
+									add_hook = {
+										type = strong_favor_hook
+										target = scope:defending_ruler
+									}
+								}
+							}
+							10 = { #Vassal contract for gold can be decreased TWICE
+								trigger = {
+									scope:orc_fighting_ruler.liege = scope:defending_ruler
+									scope:orc_fighting_ruler = { 
+										vassal_contract_obligation_level:orcish_government_taxes >= 3
+									}
+								}
+								scope:orc_fighting_ruler = {
+									vassal_contract_decrease_obligation_level = orcish_government_taxes
+									vassal_contract_decrease_obligation_level = orcish_government_taxes
+								}
+							}
+							10 = { #Vassal contract for prestige can be decreased TWICE
+								trigger = {
+									scope:orc_fighting_ruler.liege = scope:defending_ruler
+									scope:orc_fighting_ruler = { 
+										vassal_contract_obligation_level:orcish_government_prestige >= 3
+									}
+								}
+								scope:orc_fighting_ruler = {
+									vassal_contract_decrease_obligation_level = orcish_government_prestige
+									vassal_contract_decrease_obligation_level = orcish_government_prestige
+								}
+							}
+						}
+					}
+					set_variable = {
+						name = orc_challenger_persuaded
+						days = 30
+					}
+				}
+				50 = { #Fail to blackmail them
+					compare_modifier = {
+						value = scope:duel_value
+						multiplier = -3.5
+						# Limit how low the off-chance can go.
+						min = -19
+					}
+					desc = orc_government_events.0050.b.stewardship_fail
+					send_interface_toast = {
+						type = event_toast_effect_bad
+						title = orc_government_events.0050.b.stewardship_fail
+						left_icon = scope:defending_ruler
+					}
+					custom_tooltip = orc_government_events.orc_challenger_not_persuaded
+				}
+			}
+		}
+    }
+
+    option = { #Refuse to bribe the orc
+        name = orc_government_events.0050.c
+    }
+
+	after = {
+		if = {
+			limit = { scope:defending_ruler = { NOT = { has_variable = orc_challenger_persuaded } } }
+			start_orc_duel_effect = yes
+		} else = {
+			proceed_to_next_orc_challenger_fight = { 
+				DEFENDING_RULER = scope:defending_ruler
+				ORC_CHALLENGER = scope:orc_fighting_ruler
+			}
+		}
+	}
+}
+
+#Attempt to blackmail the orc challenger.
+orc_government_events.1051 = {
+    content_source = realms_dlc
+	type = character_event
+	title = orc_government_events.0051.t
+	desc = orc_government_events.0051.desc
+	theme = orcs
+
+    left_portrait = {
+		character = scope:defending_ruler 
+		animation = spymaster
+	}
+
+    right_portrait = {
+		character = scope:orc_fighting_ruler 
+		animation = anger
+	}
+
+	override_background = { reference = wilderness_underground }
+
+	weight_multiplier = {
+		base = 50
+
+		modifier = {
+			factor = 2
+			any_hooked_character = { this = scope:orc_fighting_ruler }
+		}
+	}
+
+	trigger = {
+		scope:defending_ruler = {
+			orc_has_access_to_courtroom = no
+			orc_succession_duel_has_participants_left = yes
+			
+		}
+	}
+
+    option = { #The orc that is being blackmailed skill check | Losing the skill duel also means that other orcs see you as weak, so higher chance they'll actually fight
+        name = orc_government_events.0051.a
+		# Intrigue duel
+		scope:defending_ruler = {
+			duel = {
+				skill = intrigue
+				value = high_skill_rating
+				50 = { #Blackmail them successfully
+					compare_modifier = {
+						value = scope:duel_value
+						multiplier = 3.5
+						# Always give _some_ chance.
+						min = -39
+					}
+					desc = orc_government_events.0051.a.blackmail_successful
+					send_interface_toast = {
+						type = event_toast_effect_good
+						title = orc_government_events.0051.a.blackmail_successful
+						left_icon = scope:defending_ruler
+					}
+					set_variable = {
+						name = orc_challenger_persuaded
+						days = 30
+					}
+				}
+				50 = { #Fail to blackmail them
+					compare_modifier = {
+						value = scope:duel_value
+						multiplier = -3.5
+						# Limit how low the off-chance can go.
+						min = -19
+					}
+					desc = orc_government_events.0051.a.blackmail_fail
+					send_interface_toast = {
+						type = event_toast_effect_bad
+						title = orc_government_events.0051.a.blackmail_fail
+						left_icon = scope:defending_ruler
+					}
+					custom_tooltip = orc_government_events.orc_challenger_not_persuaded
+				}
+			}
+		}
+    }
+
+    option = { #The orc that is being blackmailed + bribed skill check | Losing the skill duel also means that other orcs see you as weak, so higher chance they'll actually fight
+        name = orc_government_events.0051.b
+		# Intrigue + Stewardship duel
+		# Intrigue duel
+		scope:defending_ruler = {
+			duel = {
+				skills = { intrigue stewardship }
+				value = high_skill_rating
+				50 = { #Blackmail them successfully
+					compare_modifier = {
+						value = scope:duel_value
+						multiplier = 3.5
+						# Always give _some_ chance.
+						min = -39
+					}
+					desc = orc_government_events.0051.b.blackmail_and_stewardship_successful
+					send_interface_toast = {
+						type = event_toast_effect_good
+						title = orc_government_events.0051.b.blackmail_and_stewardship_successful
+						left_icon = scope:defending_ruler
+						if = {
+							limit = { scope:orc_fighting_ruler = { highest_held_title_tier = tier_barony } }
+							pay_short_term_gold = {
+								target = scope:orc_fighting_ruler
+								gold = tiny_gold_value
+							}
+						}
+						else_if = {
+							limit = { scope:orc_fighting_ruler = { highest_held_title_tier = tier_county } }
+							pay_short_term_gold = {
+								target = scope:orc_fighting_ruler
+								gold = minor_gold_value
+							}
+						}
+						else_if = {
+							limit = { scope:orc_fighting_ruler = { highest_held_title_tier = tier_duchy } }
+							pay_short_term_gold = {
+								target = scope:orc_fighting_ruler
+								gold = medium_gold_value
+							}
+						}
+						else_if = {
+							limit = { scope:orc_fighting_ruler = { highest_held_title_tier = tier_kingdom } }
+							pay_short_term_gold = {
+								target = scope:orc_fighting_ruler
+								gold = major_gold_value
+							}
+						}
+						else_if = {
+							limit = { scope:orc_fighting_ruler = { highest_held_title_tier = tier_empire } }
+							pay_short_term_gold = {
+								target = scope:orc_fighting_ruler
+								gold = massive_gold_value
+							}
+						}
+					}
+					set_variable = {
+						name = orc_challenger_persuaded
+						days = 30
+					}
+				}
+				50 = { #Fail to blackmail them
+					compare_modifier = {
+						value = scope:duel_value
+						multiplier = -3.5
+						# Limit how low the off-chance can go.
+						min = -19
+					}
+					desc = orc_government_events.0051.b.blackmail_and_stewardship_fail
+					send_interface_toast = {
+						type = event_toast_effect_bad
+						title = orc_government_events.0051.b.blackmail_and_stewardship_fail
+						left_icon = scope:defending_ruler
+					}
+					custom_tooltip = orc_government_events.orc_challenger_not_persuaded
+				}
+			}
+		}
+    }
+
+    option = { #Refuse to use blackmail
+        name = orc_government_events.0051.c
+		custom_tooltip = orc_government_events.orc_challenger_not_persuaded
+    }
+
+	after = {
+		if = {
+			limit = { scope:defending_ruler = { NOT = { has_variable = orc_challenger_persuaded } } }
+			start_orc_duel_effect = yes
+		} else = {
+			proceed_to_next_orc_challenger_fight = { 
+				DEFENDING_RULER = scope:defending_ruler
+				ORC_CHALLENGER = scope:orc_fighting_ruler
+			}
+		}
+	}
+}
+
+#An upstart orc jumps the line, and now challenges the main challenger so they can get to you quicker. You look on.
+orc_government_events.1052 = {
+    content_source = realms_dlc
+	type = character_event
+	title = orc_government_events.0052.t
+	desc = orc_government_events.0052.desc
+	theme = orcs
+
+	override_background = { reference = wilderness_underground }
+
+    left_portrait = {
+		character = scope:upstart_orc 
+		animation = aggressive_axe
+	}
+
+    right_portrait = {
+		character = scope:orc_fighting_ruler 
+		animation = aggressive_sword
+	}
+
+	trigger = {
+		scope:defending_ruler = {
+			orc_has_access_to_courtroom = no
 			orc_succession_duel_has_participants_left = yes
 			variable_list_size = {
 				name = final_orc_challengers
@@ -1749,30 +2469,33 @@ orc_government_events.0052 = {
 	}
 }
 
-#You won! You've asserted your dominance
-orc_government_events.0500 = {
+
+orc_government_events.1500 = {
     content_source = realms_dlc
 	type = character_event
 	title = orc_government_events.0500.t
-	desc = orc_government_events.0500.desc
+	desc = {
+		first_valid = {
+			triggered_desc = {
+				trigger = { has_variable = no_orc_challenged_you }
+				desc = orc_government_events.0500.desc.unchallenged
+			}
+			desc = orc_government_events.0500.desc
+		}
+	}
 	theme = orcs
 
-	trigger = {
-		scope:defending_ruler = { orc_succession_duel_has_participants_left = no }
+    left_portrait = {
+		character = root 
+		animation = duel_celebrate
 	}
 
-	court_scene = {
-		button_position_character = root
-		court_event_force_open = yes
-		show_timeout_info = no
-		should_pause_time = no
-		roles = {
-			# First, we take each scoped relevant scoped character.
-			root ?= {
-				role = lotr_orc_heir
-				animation = duel_celebrate
-			}
+	trigger = {
+		trigger_if = {
+			limit = { exists = scope:defending_ruler }
+			scope:defending_ruler = { orc_succession_duel_has_participants_left = no }
 		}
+		orc_has_access_to_courtroom = no
 	}
 
 	option = {
@@ -1782,12 +2505,14 @@ orc_government_events.0500 = {
 	}
 }
 
+
 ############################
 ###		Debug Events	 ###
 ############################
 
 orc_government_events.2000 = {
 	hidden = yes
+	orphan = yes
 	immediate = {
 		# As with portraits, we do our general character setup stuff in this event.
 		random_courtier_or_guest = { save_scope_as = character_a }
