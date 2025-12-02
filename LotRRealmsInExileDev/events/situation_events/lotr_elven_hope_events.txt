@@ -16,6 +16,7 @@ elven_hope.0001 = { # Fullscreen event when the situation starts
 	trigger = { # we need to prevent this from firing for all players when a new player joins in MP
 		is_ai = no
 		NOT = { has_variable = elven_hope_0001_var }
+		faith_is_evil = no
  	}
 	override_background = { reference = elven_situation_fullscreen }
 	override_sound = { reference = "event:/DLC/FP2/SFX/UI/fp2_struggle_ui_intro_animate" }
@@ -192,6 +193,7 @@ elven_hope.0010 = { # Fading phase
 	override_background = { reference = docks_elven }
 	trigger = { # Does not need to trigger when the phase remains the same
 		NOT = { has_character_flag = elven_hope_fading_flag }
+		faith_is_evil = no
 	}
 	# widgets = { # TO DO: Make phase effects show up here
 		# widget = {
@@ -228,6 +230,7 @@ elven_hope.0011 = { # Waning phase
 	override_background = { reference = grey_havens }
 	trigger = { # Does not need to trigger when the phase remains the same
 		NOT = { has_character_flag = elven_hope_waning_flag}
+		faith_is_evil = no
 	}
 	# widgets = { # TO DO: Make phase effects show up here
 		# widget = {
@@ -264,6 +267,7 @@ elven_hope.0012 = { # Enduring phase
 	override_background = { reference = amon_lanc }
 	trigger = { # Does not need to trigger when the phase remains the same
 		NOT = { has_character_flag = elven_hope_enduring_flag }
+		faith_is_evil = no
 	}
 	# widgets = { # TO DO: Make phase effects show up here
 		# widget = {
@@ -300,6 +304,7 @@ elven_hope.0013 = { # Renewing phase
 	override_background = { reference = imladris }
 	trigger = { # Does not need to trigger when the phase remains the same
 		NOT = { has_character_flag = elven_hope_renewing_flag }
+		faith_is_evil = no
 	}
 	# widgets = { # TO DO: Make phase effects show up here
 		# widget = {
@@ -336,6 +341,7 @@ elven_hope.0014 = { # Thriving phase
 	override_background = { reference = gondolin }
 	trigger = { # Does not need to trigger when the phase remains the same
 		NOT = { has_character_flag = elven_hope_thriving_flag }
+		faith_is_evil = no
 	}
 	# widgets = { # TO DO: Make phase effects show up here
 		# widget = {
@@ -506,6 +512,7 @@ elven_hope.0020 = { # Check phase and reduce dev at random
 				development_level = 0
 				any_county_province = {
 					has_holding = yes
+					has_holding_type = elven_holding
 					is_county_capital = no
 				}
 			}
@@ -514,6 +521,7 @@ elven_hope.0020 = { # Check phase and reduce dev at random
 				limit = {
 					has_holding = yes
 					is_county_capital = no
+					has_holding_type = elven_holding
 				}
 				random = {
 					chance = 20 # 20
@@ -533,24 +541,686 @@ elven_hope.0020 = { # Check phase and reduce dev at random
 		every_realm_county = { 
 			limit = {
 				development_level = 0
+				title_province = { has_holding_type = elven_holding }
 				NOT = { is_in_list = counties_with_secondary_holdings }
 			}
 			save_scope_as = abandoned_county
 			random = {
-				chance = 20 # 20
-				make_settlement_county_wilderness = { COUNTY = this }
-				this.holder = {
-					send_interface_toast = {
-						type = event_toast_effect_bad
-						title = elven_hope.0020.tt
-					}
-					every_liege_or_above = {
-						send_interface_toast = {
-							type = event_toast_effect_bad
-							title = elven_hope.0020.tt
+				chance = 15 # 20?
+				add_county_modifier = elves_are_leaving_modifier
+				if = {
+					limit = { this.holder = { is_ai = no } }
+					this.holder = { trigger_event = elven_hope.0021 } # Chance to convince people to stay
+				}
+				else_if = {
+					limit = { this.holder.liege = { is_ai = no } }
+					this.holder.liege = { trigger_event = elven_hope.0022 } # Chance to convince holder to stay
+				}
+				else = {
+					this.holder.top_liege = { trigger_event = elven_hope.0022 } # Chance to convince holder to stay (AI and Player)
+				}
+			}
+		}
+	}
+}
+
+elven_hope.0021 = { # Chance to convince the populace of your held county to stay
+	type = character_event
+	title = elven_hope.0021.t
+	desc = elven_hope.0021.desc
+	theme = travel_sea
+	override_background = { reference = docks_elven }
+	
+	left_portrait = {
+		character = root 
+		animation = pondering
+	}
+	right_portrait = {
+		character = scope:leaving_elf 
+		animation = war_over_loss
+	}
+	immediate = {
+		random_held_county = {
+			limit = { has_county_modifier = elves_are_leaving_modifier }
+			save_scope_as = county_being_abandoned 
+		}
+		random_courtier = { save_scope_as = leaving_elf }
+	}
+	option = { # I have to try and convince them to stay 
+		name = elven_hope.0021.a 
+		custom_tooltip = elven_hope.0021.a.tt
+		hidden_effect = {
+			random_list = {
+				20 = { # Diplo duel 
+					duel = {
+						skill = diplomacy
+						value = 11
+						50 = {
+							compare_modifier = {
+								value = scope:duel_value
+								multiplier = 1
+								max = 10
+							}
+							send_interface_toast = {
+								title = elven_hope.0021.a.success
+								left_icon = root 
+								add_elven_hope_effect = { VALUE = minor_elven_hope_gain HOPE_EFFECT = effect_elven_hope_convinced_to_stay }
+								scope:county_being_abandoned = { change_development_level = 2 }
+							}
+						}
+						50 = {
+							compare_modifier = {
+								value = scope:duel_value
+								multiplier = -1
+								min = -10
+							}
+							send_interface_toast = {
+								title = elven_hope.0021.a.failure
+								left_icon = root 
+								add_elven_hope_effect = { VALUE = minor_elven_hope_loss HOPE_EFFECT = effect_elven_hope_character_sailed_west }
+							}
+							add_stress = 20
+							make_settlement_county_wilderness = { COUNTY = scope:county_being_abandoned }
+							every_liege_or_above = {
+								send_interface_toast = {
+									type = event_toast_effect_bad
+									title = elven_hope.0020.tt
+								}
+							}
 						}
 					}
 				}
+				20 = { # Stewardshipo duel 
+					duel = {
+						skill = stewardship
+						value = 11
+						50 = {
+							compare_modifier = {
+								value = scope:duel_value
+								multiplier = 1
+								max = 10
+							}
+							send_interface_toast = {
+								title = elven_hope.0021.a.success
+								left_icon = root 
+								add_elven_hope_effect = { VALUE = minor_elven_hope_gain HOPE_EFFECT = effect_elven_hope_convinced_to_stay }
+								scope:county_being_abandoned = { change_development_level = 2 }
+							}
+						}
+						50 = {
+							compare_modifier = {
+								value = scope:duel_value
+								multiplier = -1
+								min = -10
+							}
+							send_interface_toast = {
+								title = elven_hope.0021.a.failure
+								left_icon = root 
+								add_elven_hope_effect = { VALUE = minor_elven_hope_loss HOPE_EFFECT = effect_elven_hope_character_sailed_west }
+							}
+							add_stress = 20
+							make_settlement_county_wilderness = { COUNTY = scope:county_being_abandoned }
+							every_liege_or_above = {
+								send_interface_toast = {
+									type = event_toast_effect_bad
+									title = elven_hope.0020.tt
+								}
+							}
+						}
+					}
+				}
+				20 = { # Martial duel 
+					duel = {
+						skill = martial
+						value = 11
+						50 = {
+							compare_modifier = {
+								value = scope:duel_value
+								multiplier = 1
+								max = 10
+							}
+							send_interface_toast = {
+								title = elven_hope.0021.a.success
+								left_icon = root 
+								add_elven_hope_effect = { VALUE = minor_elven_hope_gain HOPE_EFFECT = effect_elven_hope_convinced_to_stay }
+								scope:county_being_abandoned = { change_development_level = 2 }
+							}
+						}
+						50 = {
+							compare_modifier = {
+								value = scope:duel_value
+								multiplier = -1
+								min = -10
+							}
+							send_interface_toast = {
+								title = elven_hope.0021.a.failure
+								left_icon = root 
+								add_elven_hope_effect = { VALUE = minor_elven_hope_loss HOPE_EFFECT = effect_elven_hope_character_sailed_west }
+							}
+							add_stress = 20
+							make_settlement_county_wilderness = { COUNTY = scope:county_being_abandoned }
+							every_liege_or_above = {
+								send_interface_toast = {
+									type = event_toast_effect_bad
+									title = elven_hope.0020.tt
+								}
+							}
+						}
+					}
+				}
+				20 = { # Intrigue duel 
+					duel = {
+						skill = intrigue
+						value = 11
+						50 = {
+							compare_modifier = {
+								value = scope:duel_value
+								multiplier = 1
+								max = 10
+							}
+							send_interface_toast = {
+								title = elven_hope.0021.a.success
+								left_icon = root 
+								add_elven_hope_effect = { VALUE = minor_elven_hope_gain HOPE_EFFECT = effect_elven_hope_convinced_to_stay }
+								scope:county_being_abandoned = { change_development_level = 2 }
+							}
+						}
+						50 = {
+							compare_modifier = {
+								value = scope:duel_value
+								multiplier = -1
+								min = -10
+							}
+							send_interface_toast = {
+								title = elven_hope.0021.a.failure
+								left_icon = root 
+								add_elven_hope_effect = { VALUE = minor_elven_hope_loss HOPE_EFFECT = effect_elven_hope_character_sailed_west }
+							}
+							add_stress = 20
+							make_settlement_county_wilderness = { COUNTY = scope:county_being_abandoned }
+							every_liege_or_above = {
+								send_interface_toast = {
+									type = event_toast_effect_bad
+									title = elven_hope.0020.tt
+								}
+							}
+						}
+					}
+				}
+				20 = { # Learning duel 
+					duel = {
+						skill = learning
+						value = 11
+						50 = {
+							compare_modifier = {
+								value = scope:duel_value
+								multiplier = 1
+								max = 10
+							}
+							send_interface_toast = {
+								title = elven_hope.0021.a.success
+								left_icon = root 
+								add_elven_hope_effect = { VALUE = minor_elven_hope_gain HOPE_EFFECT = effect_elven_hope_convinced_to_stay }
+								scope:county_being_abandoned = { change_development_level = 2 }
+							}
+						}
+						50 = {
+							compare_modifier = {
+								value = scope:duel_value
+								multiplier = -1
+								min = -10
+							}
+							send_interface_toast = {
+								title = elven_hope.0021.a.failure
+								left_icon = root 
+								add_elven_hope_effect = { VALUE = minor_elven_hope_loss HOPE_EFFECT = effect_elven_hope_character_sailed_west }
+							}
+							add_stress = 20
+							make_settlement_county_wilderness = { COUNTY = scope:county_being_abandoned }
+							every_liege_or_above = {
+								send_interface_toast = {
+									type = event_toast_effect_bad
+									title = elven_hope.0020.tt
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+	after = {
+		scope:county_being_abandoned = {
+			remove_county_modifier = elves_are_leaving_modifier
+		}
+	}
+}
+
+elven_hope.0022 = { # Chance to convince the holder of a county to stay
+	type = character_event
+	title = elven_hope.0022.t
+	desc = elven_hope.0022.desc
+	theme = travel_sea
+	override_background = { reference = docks_elven }
+	
+	left_portrait = {
+		character = root 
+		animation = worry
+	}
+	right_portrait = {
+		character = scope:leaving_vassal
+		animation = holding_staff
+	}
+	immediate = {
+		random_realm_county = {
+			limit = { has_county_modifier = elves_are_leaving_modifier }
+			save_scope_as = county_being_abandoned 
+			this.holder = { save_scope_as = leaving_vassal }
+		}
+	}
+	option = { # I have to try and convince them to stay 
+		name = elven_hope.0022.a 
+		custom_tooltip = elven_hope.0022.a.tt
+		hidden_effect = {
+			random_list = {
+				20 = { # Diplo duel 
+					duel = {
+						skill = diplomacy
+						target = scope:leaving_vassal
+						50 = {
+							compare_modifier = {
+								value = scope:duel_value
+								multiplier = 1
+								max = 10
+							}
+							send_interface_toast = {
+								title = elven_hope.0022.a.success
+								left_icon = root 
+								add_elven_hope_effect = { VALUE = minor_elven_hope_gain HOPE_EFFECT = effect_elven_hope_convinced_to_stay }
+								scope:county_being_abandoned = { change_development_level = 2 }
+							}
+						}
+						50 = {
+							compare_modifier = {
+								value = scope:duel_value
+								multiplier = -1
+								min = -10
+							}
+							send_interface_toast = {
+								title = elven_hope.0022.a.failure
+								left_icon = root 
+								type = event_toast_effect_bad
+								add_elven_hope_effect = { VALUE = minor_elven_hope_loss HOPE_EFFECT = effect_elven_hope_character_sailed_west }
+							}
+							add_stress = 20
+							every_liege_or_above = {
+								send_interface_toast = {
+									type = event_toast_effect_bad
+									title = elven_hope.0020.tt
+								}
+							}
+							add_character_flag = failed_to_convince_elf
+							
+							hidden_effect = {
+								scope:leaving_vassal = { save_scope_as = elf_trying_to_depart }
+								send_interface_toast = {
+									type = event_toast_effect_bad
+									title = sail_to_valinor_toast
+									left_icon = root
+									right_icon = scope:elf_trying_to_depart
+									custom_tooltip = sail_to_valinor_toast_desc
+								}
+							}
+							scope:leaving_vassal = {
+								make_settlement_county_wilderness = { COUNTY = scope:county_being_abandoned }
+								every_held_title = {
+									create_title_and_vassal_change = {
+										type = granted
+										save_scope_as = change
+									}
+									change_title_holder = {
+										holder = root
+										change = scope:change
+										take_baronies = yes
+									}
+									resolve_title_and_vassal_change = scope:change
+								}
+								hidden_effect = {
+									every_claim = {
+										root = { remove_claim = prev }
+									}
+								}
+								add_trait = sailed_west
+								hidden_effect = {
+									set_employer = title:k_tirion.holder
+								}
+							}
+						}
+					}
+				}
+				20 = { # Stewardshipo duel 
+					duel = {
+						skill = stewardship
+						target = scope:leaving_vassal
+						50 = {
+							compare_modifier = {
+								value = scope:duel_value
+								multiplier = 1
+								max = 10
+							}
+							send_interface_toast = {
+								title = elven_hope.0022.a.success
+								left_icon = root 
+								add_elven_hope_effect = { VALUE = minor_elven_hope_gain HOPE_EFFECT = effect_elven_hope_convinced_to_stay }
+								scope:county_being_abandoned = { change_development_level = 2 }
+							}
+						}
+						50 = {
+							compare_modifier = {
+								value = scope:duel_value
+								multiplier = -1
+								min = -10
+							}
+							send_interface_toast = {
+								title = elven_hope.0022.a.failure
+								left_icon = root 
+								type = event_toast_effect_bad
+								add_elven_hope_effect = { VALUE = minor_elven_hope_loss HOPE_EFFECT = effect_elven_hope_character_sailed_west }
+							}
+							add_stress = 20
+							every_liege_or_above = {
+								send_interface_toast = {
+									type = event_toast_effect_bad
+									title = elven_hope.0020.tt
+								}
+							}
+							add_character_flag = failed_to_convince_elf
+							
+							hidden_effect = {
+								scope:leaving_vassal = { save_scope_as = elf_trying_to_depart }
+								send_interface_toast = {
+									type = event_toast_effect_bad
+									title = sail_to_valinor_toast
+									left_icon = root
+									right_icon = scope:elf_trying_to_depart
+									custom_tooltip = sail_to_valinor_toast_desc
+								}
+							}
+							scope:leaving_vassal = {
+								make_settlement_county_wilderness = { COUNTY = scope:county_being_abandoned }
+								every_held_title = {
+									create_title_and_vassal_change = {
+										type = granted
+										save_scope_as = change
+									}
+									change_title_holder = {
+										holder = root
+										change = scope:change
+										take_baronies = yes
+									}
+									resolve_title_and_vassal_change = scope:change
+								}
+								hidden_effect = {
+									every_claim = {
+										root = { remove_claim = prev }
+									}
+								}
+								add_trait = sailed_west
+								hidden_effect = {
+									set_employer = title:k_tirion.holder
+								}
+							}
+						}
+					}
+				}
+				20 = { # Martial duel 
+					duel = {
+						skill = martial
+						target = scope:leaving_vassal
+						50 = {
+							compare_modifier = {
+								value = scope:duel_value
+								multiplier = 1
+								max = 10
+							}
+							send_interface_toast = {
+								title = elven_hope.0022.a.success
+								left_icon = root 
+								add_elven_hope_effect = { VALUE = minor_elven_hope_gain HOPE_EFFECT = effect_elven_hope_convinced_to_stay }
+								scope:county_being_abandoned = { change_development_level = 2 }
+							}
+						}
+						50 = {
+							compare_modifier = {
+								value = scope:duel_value
+								multiplier = -1
+								min = -10
+							}
+							send_interface_toast = {
+								title = elven_hope.0022.a.failure
+								left_icon = root 
+								type = event_toast_effect_bad
+								add_elven_hope_effect = { VALUE = minor_elven_hope_loss HOPE_EFFECT = effect_elven_hope_character_sailed_west }
+							}
+							add_stress = 20
+							every_liege_or_above = {
+								send_interface_toast = {
+									type = event_toast_effect_bad
+									title = elven_hope.0020.tt
+								}
+							}
+							add_character_flag = failed_to_convince_elf
+							
+							hidden_effect = {
+								scope:leaving_vassal = { save_scope_as = elf_trying_to_depart }
+								send_interface_toast = {
+									type = event_toast_effect_bad
+									title = sail_to_valinor_toast
+									left_icon = root
+									right_icon = scope:elf_trying_to_depart
+									custom_tooltip = sail_to_valinor_toast_desc
+								}
+							}
+							scope:leaving_vassal = {
+								make_settlement_county_wilderness = { COUNTY = scope:county_being_abandoned }
+								every_held_title = {
+									create_title_and_vassal_change = {
+										type = granted
+										save_scope_as = change
+									}
+									change_title_holder = {
+										holder = root
+										change = scope:change
+										take_baronies = yes
+									}
+									resolve_title_and_vassal_change = scope:change
+								}
+								hidden_effect = {
+									every_claim = {
+										root = { remove_claim = prev }
+									}
+								}
+								add_trait = sailed_west
+								hidden_effect = {
+									set_employer = title:k_tirion.holder
+								}
+							}
+						}
+					}
+				}
+				20 = { # Intrigue duel 
+					duel = {
+						skill = intrigue
+						target = scope:leaving_vassal
+						50 = {
+							compare_modifier = {
+								value = scope:duel_value
+								multiplier = 1
+								max = 10
+							}
+							send_interface_toast = {
+								title = elven_hope.0022.a.success
+								left_icon = root 
+								add_elven_hope_effect = { VALUE = minor_elven_hope_gain HOPE_EFFECT = effect_elven_hope_convinced_to_stay }
+								scope:county_being_abandoned = { change_development_level = 2 }
+							}
+						}
+						50 = {
+							compare_modifier = {
+								value = scope:duel_value
+								multiplier = -1
+								min = -10
+							}
+							send_interface_toast = {
+								title = elven_hope.0022.a.failure
+								left_icon = root 
+								type = event_toast_effect_bad
+								add_elven_hope_effect = { VALUE = minor_elven_hope_loss HOPE_EFFECT = effect_elven_hope_character_sailed_west }
+							}
+							add_stress = 20
+							every_liege_or_above = {
+								send_interface_toast = {
+									type = event_toast_effect_bad
+									title = elven_hope.0020.tt
+								}
+							}
+							add_character_flag = failed_to_convince_elf
+							
+							hidden_effect = {
+								scope:leaving_vassal = { save_scope_as = elf_trying_to_depart }
+								send_interface_toast = {
+									type = event_toast_effect_bad
+									title = sail_to_valinor_toast
+									left_icon = root
+									right_icon = scope:elf_trying_to_depart
+									custom_tooltip = sail_to_valinor_toast_desc
+								}
+							}
+							scope:leaving_vassal = {
+								make_settlement_county_wilderness = { COUNTY = scope:county_being_abandoned }
+								every_held_title = {
+									create_title_and_vassal_change = {
+										type = granted
+										save_scope_as = change
+									}
+									change_title_holder = {
+										holder = root
+										change = scope:change
+										take_baronies = yes
+									}
+									resolve_title_and_vassal_change = scope:change
+								}
+								hidden_effect = {
+									every_claim = {
+										root = { remove_claim = prev }
+									}
+								}
+								add_trait = sailed_west
+								hidden_effect = {
+									set_employer = title:k_tirion.holder
+								}
+							}
+						}
+					}
+				}
+				20 = { # Learning duel 
+					duel = {
+						skill = learning
+						target = scope:leaving_vassal
+						50 = {
+							compare_modifier = {
+								value = scope:duel_value
+								multiplier = 1
+								max = 10
+							}
+							send_interface_toast = {
+								title = elven_hope.0022.a.success
+								left_icon = root 
+								add_elven_hope_effect = { VALUE = minor_elven_hope_gain HOPE_EFFECT = effect_elven_hope_convinced_to_stay }
+								scope:county_being_abandoned = { change_development_level = 2 }
+							}
+						}
+						50 = {
+							compare_modifier = {
+								value = scope:duel_value
+								multiplier = -1
+								min = -10
+							}
+							send_interface_toast = {
+								title = elven_hope.0022.a.failure
+								left_icon = root 
+								type = event_toast_effect_bad
+								add_elven_hope_effect = { VALUE = minor_elven_hope_loss HOPE_EFFECT = effect_elven_hope_character_sailed_west }
+							}
+							add_stress = 20
+							every_liege_or_above = {
+								send_interface_toast = {
+									type = event_toast_effect_bad
+									title = elven_hope.0020.tt
+								}
+							}
+							add_character_flag = failed_to_convince_elf
+							
+							hidden_effect = {
+								scope:leaving_vassal = { save_scope_as = elf_trying_to_depart }
+								send_interface_toast = {
+									type = event_toast_effect_bad
+									title = sail_to_valinor_toast
+									left_icon = root
+									right_icon = scope:elf_trying_to_depart
+									custom_tooltip = sail_to_valinor_toast_desc
+								}
+							}
+							scope:leaving_vassal = {
+								make_settlement_county_wilderness = { COUNTY = scope:county_being_abandoned }
+								every_held_title = {
+									create_title_and_vassal_change = {
+										type = granted
+										save_scope_as = change
+									}
+									change_title_holder = {
+										holder = root
+										change = scope:change
+										take_baronies = yes
+									}
+									resolve_title_and_vassal_change = scope:change
+								}
+								hidden_effect = {
+									every_claim = {
+										root = { remove_claim = prev }
+									}
+								}
+								add_trait = sailed_west
+								hidden_effect = {
+									set_employer = title:k_tirion.holder
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+	after = {
+		hidden_effect = {
+			scope:county_being_abandoned = {
+				remove_county_modifier = elves_are_leaving_modifier
+			}
+		}
+		if = {
+			limit = { has_character_flag = failed_to_convince_elf }
+			remove_character_flag = failed_to_convince_elf
+			scope:county_being_abandoned = { # Make sure Tom is the holder
+				create_title_and_vassal_change = {
+					type = granted
+					save_scope_as = change
+				}
+				change_title_holder = {
+					holder = character:k_wastelands_holder
+					change = scope:change
+					take_baronies = yes
+				}
+				resolve_title_and_vassal_change = scope:change
 			}
 		}
 	}
@@ -566,6 +1236,11 @@ elven_hope.0100 = { # Dreams of the Sea
 	override_background = { reference = grey_havens }
 
 	cooldown = { months = 7 }
+	
+	trigger = {
+		NOT = { has_character_flag = had_yearly_elven_hope_event }
+	}
+	
 	left_portrait = {
 		character = root
 		animation = worry
@@ -610,6 +1285,12 @@ elven_hope.0100 = { # Dreams of the Sea
 			}
 		}
 	}
+	after = {
+		add_character_flag = {
+			flag = had_yearly_elven_hope_event
+			months = 18
+		}
+	}
 }
 
 elven_hope.0101 = { # The Trees Do Not Sing
@@ -618,7 +1299,9 @@ elven_hope.0101 = { # The Trees Do Not Sing
 	desc = elven_hope.0101.desc
 	theme = elven
 	override_background = { reference = wilderness_forest_pine }
-
+	trigger = {
+		NOT = { has_character_flag = had_yearly_elven_hope_event }
+	}
 	cooldown = { months = 7 }
 	left_portrait = {
 		character = root
@@ -663,6 +1346,12 @@ elven_hope.0101 = { # The Trees Do Not Sing
 			}
 		}
 	}
+	after = {
+		add_character_flag = {
+			flag = had_yearly_elven_hope_event
+			months = 18
+		}
+	}
 }
 
 elven_hope.0102 = { # Child of Spring
@@ -680,7 +1369,7 @@ elven_hope.0102 = { # Child of Spring
 			is_elf = yes
 			NOT = { this = root.primary_spouse }
 		}
-		hope_level > 2
+		NOT = { has_character_flag = had_yearly_elven_hope_event }
 	}
 	left_portrait = {
 		character = root
@@ -737,6 +1426,12 @@ elven_hope.0102 = { # Child of Spring
 		remove_short_term_gold = medium_gold_value 
 		add_elven_hope_effect = { VALUE = minor_elven_hope_gain HOPE_EFFECT = effect_elven_hope_inspired_by_sight }
 	}
+	after = {
+		add_character_flag = {
+			flag = had_yearly_elven_hope_event
+			months = 18
+		}
+	}
 }
 
 elven_hope.0103 = { # A Nightly Departure
@@ -747,7 +1442,7 @@ elven_hope.0103 = { # A Nightly Departure
 	override_background = { reference = docks_elven }
 	trigger = {
 		any_realm_province = { is_coastal = yes }
-		hope_level < 4
+		NOT = { has_character_flag = had_yearly_elven_hope_event }
 	}
 
 	immediate = {
@@ -798,6 +1493,12 @@ elven_hope.0103 = { # A Nightly Departure
 			}
 		}
 	}
+	after = {
+		add_character_flag = {
+			flag = had_yearly_elven_hope_event
+			months = 18
+		}
+	}
 }
 
 elven_hope.0104 = { # The Lay of Kin Long Lost
@@ -806,7 +1507,9 @@ elven_hope.0104 = { # The Lay of Kin Long Lost
 	desc = elven_hope.0104.desc
 	theme = elven
 	override_background = { reference = wilderness_forest_deep }
-
+	trigger = {
+		NOT = { has_character_flag = had_yearly_elven_hope_event }
+	}
 	cooldown = { months = 7 }
 	left_portrait = {
 		character = root
@@ -869,6 +1572,12 @@ elven_hope.0104 = { # The Lay of Kin Long Lost
 			}
 		}
 	}
+	after = {
+		add_character_flag = {
+			flag = had_yearly_elven_hope_event
+			months = 18
+		}
+	}
 }
 
 elven_hope.0105 = { # A World Marred by Evil
@@ -877,7 +1586,9 @@ elven_hope.0105 = { # A World Marred by Evil
 	desc = elven_hope.0105.desc
 	theme = elven
 	override_background = { reference = wilderness }
-
+	trigger = {
+		NOT = { has_character_flag = had_yearly_elven_hope_event }
+	}
 	cooldown = { months = 7 }
 	left_portrait = {
 		character = root
@@ -923,6 +1634,12 @@ elven_hope.0105 = { # A World Marred by Evil
 			}
 		}
 	}
+	after = {
+		add_character_flag = {
+			flag = had_yearly_elven_hope_event
+			months = 18
+		}
+	}
 }
 
 elven_hope.0106 = { # The Waning of Light
@@ -931,7 +1648,9 @@ elven_hope.0106 = { # The Waning of Light
 	desc = elven_hope.0106.desc
 	theme = elven
 	override_background = { reference = ep2_forest_managed }
-
+	trigger = {
+		NOT = { has_character_flag = had_yearly_elven_hope_event }
+	}
 	cooldown = { months = 7 }
 	left_portrait = {
 		character = root
@@ -942,7 +1661,7 @@ elven_hope.0106 = { # The Waning of Light
 	}
 	option = { # All things must fade
 		name = elven_hope.0106.a
-		add_learning_lifestyle_xp = 500
+		add_learning_lifestyle_xp = 200
 	}
 	option = { # We shall plant new seeds, and tend them with care
 		name = elven_hope.0106.b 
@@ -976,6 +1695,12 @@ elven_hope.0106 = { # The Waning of Light
 			}
 		}
 	}
+	after = {
+		add_character_flag = {
+			flag = had_yearly_elven_hope_event
+			months = 18
+		}
+	}
 }
 
 elven_hope.0107 = { # A Shattered Statue
@@ -984,8 +1709,10 @@ elven_hope.0107 = { # A Shattered Statue
 	desc = elven_hope.0107.desc
 	theme = elven
 	override_background = { reference = throne_room }
-
-	cooldown = { months = 7 }
+	trigger = {
+		NOT = { has_character_flag = had_yearly_elven_hope_event }
+	}
+	cooldown = { months = 9 }
 	left_portrait = {
 		character = root
 		animation = personality_rational
@@ -1046,6 +1773,12 @@ elven_hope.0107 = { # A Shattered Statue
 		add_stress = 30
 		add_prestige = minor_prestige_loss
 	}
+	after = {
+		add_character_flag = {
+			flag = had_yearly_elven_hope_event
+			months = 18
+		}
+	}
 }
 
 elven_hope.0108 = { # Merriment Beneath the Stars
@@ -1054,7 +1787,9 @@ elven_hope.0108 = { # Merriment Beneath the Stars
 	desc = elven_hope.0108.desc
 	theme = elven
 	override_background = { reference = relaxing_room }
-
+	trigger = {
+		NOT = { has_character_flag = had_yearly_elven_hope_event }
+	}
 	cooldown = { months = 7 }
 	immediate = {
 		random_courtier = { 
@@ -1125,6 +1860,12 @@ elven_hope.0108 = { # Merriment Beneath the Stars
 			change_development_progress_with_overflow = 200
 		}
 	}
+	after = {
+		add_character_flag = {
+			flag = had_yearly_elven_hope_event
+			months = 18
+		}
+	}
 }
 
 elven_hope.0109 = { # A Good Harvest
@@ -1133,7 +1874,9 @@ elven_hope.0109 = { # A Good Harvest
 	desc = elven_hope.0109.desc
 	theme = elven
 	override_background = { reference = throne_room }
-
+	trigger = {
+		NOT = { has_character_flag = had_yearly_elven_hope_event }
+	}
 	cooldown = { months = 7 }
 	immediate = {
 		random_courtier = { 
@@ -1200,6 +1943,12 @@ elven_hope.0109 = { # A Good Harvest
 		name = elven_hope.0109.c  
 		add_short_term_gold = minor_gold_value
 	}
+	after = {
+		add_character_flag = {
+			flag = had_yearly_elven_hope_event
+			months = 18
+		}
+	}
 }
 
 elven_hope.0110 = { # A Bustling Colony
@@ -1209,8 +1958,11 @@ elven_hope.0110 = { # A Bustling Colony
 	theme = elven
 	override_background = { reference = ep2_forest_managed }
 
-	cooldown = { years = 3 }
-	trigger = { any_held_county = { title_province = { has_holding_type = settlement_holding } } }
+	cooldown = { years = 10 }
+	trigger = { 
+		any_held_county = { title_province = { has_holding_type = settlement_holding } } 
+		NOT = { has_character_flag = had_yearly_elven_hope_event }
+	}
 	immediate = {
 		random_courtier = { 
 			limit = {
@@ -1253,6 +2005,9 @@ elven_hope.0110 = { # A Bustling Colony
 				}
 				remove_wastelands_tracker_variable = yes
 			}
+			scope:colony_county = {
+				change_development_level = 3
+			}
 		}
 	}
 	option = { # These good news should be celebrated
@@ -1287,7 +2042,13 @@ elven_hope.0110 = { # A Bustling Colony
 			}
 		}
 		scope:colony_county = {
-			change_development_progress_with_overflow = 75
+			change_development_level = 7
+		}
+	}
+	after = {
+		add_character_flag = {
+			flag = had_yearly_elven_hope_event
+			months = 18
 		}
 	}
 }
@@ -1298,7 +2059,9 @@ elven_hope.0111 = { # A Polluted Stream
 	desc = elven_hope.0111.desc
 	theme = elven
 	override_background = { reference = bp3_riverside }
-
+	trigger = {
+		NOT = { has_character_flag = had_yearly_elven_hope_event }
+	}
 	cooldown = { months = 7 }
 	left_portrait = {
 		character = root
@@ -1367,6 +2130,12 @@ elven_hope.0111 = { # A Polluted Stream
 			}
 		}
 	}
+	after = {
+		add_character_flag = {
+			flag = had_yearly_elven_hope_event
+			months = 18
+		}
+	}
 }
 
 elven_hope.0112 = { # A Bad Harvest
@@ -1375,7 +2144,7 @@ elven_hope.0112 = { # A Bad Harvest
 	desc = elven_hope.0112.desc
 	theme = elven
 	override_background = { reference = throne_room }
-	cooldown = { years = 5 }
+	cooldown = { months = 9 }
 
 	left_portrait = {
 		character = root
@@ -1388,6 +2157,7 @@ elven_hope.0112 = { # A Bad Harvest
 				has_variable = elven_ring
 			}
 		}
+		NOT = { has_character_flag = had_yearly_elven_hope_event }
 	}
 
 	immediate = {
@@ -1468,6 +2238,12 @@ elven_hope.0112 = { # A Bad Harvest
 			just = medium_stress_impact_loss
 		}
 	}
+	after = {
+		add_character_flag = {
+			flag = had_yearly_elven_hope_event
+			months = 18
+		}
+	}
 }
 
 elven_hope.0113 = { # Murmuration over holding
@@ -1479,11 +2255,13 @@ elven_hope.0113 = { # Murmuration over holding
 	override_background = {
 		reference = market_elven
 	}
-	cooldown = { years = 25 }
-
+	cooldown = { months = 9 }
+	trigger = {
+		NOT = { has_character_flag = had_yearly_elven_hope_event }
+	}
 	left_portrait = {
 		character = root
-		animation = happiness
+		animation = personality_compassionate
 	}
 	right_portrait = {
 		character = scope:happy_courtier
@@ -1568,6 +2346,13 @@ elven_hope.0113 = { # Murmuration over holding
 			humble = major_stress_impact_gain
 		}
 	}
+	
+	after = {
+		add_character_flag = {
+			flag = had_yearly_elven_hope_event
+			months = 18
+		}
+	}
 }
 
 elven_hope.0114 = { # Dreary winter
@@ -1577,7 +2362,7 @@ elven_hope.0114 = { # Dreary winter
 	desc = elven_hope.0114.desc
 	theme = elven 
 	override_background = { reference = throne_room }
-	cooldown = { years = 25 }
+	cooldown = { months = 9 }
 	left_portrait = {
 		character = root
 		animation = shiver
@@ -1595,6 +2380,7 @@ elven_hope.0114 = { # Dreary winter
 			current_month = 11
 			current_month = 12
 		}
+		NOT = { has_character_flag = had_yearly_elven_hope_event }
 	}
 
 	immediate = {
@@ -1636,6 +2422,12 @@ elven_hope.0114 = { # Dreary winter
 			}
 		}
 	}
+	after = {
+		add_character_flag = {
+			flag = had_yearly_elven_hope_event
+			months = 18
+		}
+	}
 }
 
 elven_hope.0115 = { # Sweltering Summer
@@ -1645,7 +2437,7 @@ elven_hope.0115 = { # Sweltering Summer
 	desc = elven_hope.0115.desc
 	theme = elven 
 	override_background = { reference = throne_room }
-	cooldown = { years = 25 }
+	cooldown = { months = 9 }
 	left_portrait = {
 		character = root
 		animation = pain
@@ -1661,6 +2453,7 @@ elven_hope.0115 = { # Sweltering Summer
 			current_month = 6
 			current_month = 7
 		}
+		NOT = { has_character_flag = had_yearly_elven_hope_event }
 	}
 
 	immediate = {
@@ -1702,6 +2495,12 @@ elven_hope.0115 = { # Sweltering Summer
 			}
 		}
 	}
+	after = {
+		add_character_flag = {
+			flag = had_yearly_elven_hope_event
+			months = 18
+		}
+	}
 }
 
 elven_hope.0116 = { # Elf starts a garden - mini-event chain beginning
@@ -1717,8 +2516,10 @@ elven_hope.0116 = { # Elf starts a garden - mini-event chain beginning
 		character = root
 		animation = thinking
 	}
-	cooldown = { years = 25 }
-
+	cooldown = { months = 9 }
+	trigger = {
+		NOT = { has_character_flag = had_yearly_elven_hope_event }
+	}
 	option = { #Nah 
 		name = elven_hope.0116.a 
 		add_stress = -5
@@ -1748,6 +2549,12 @@ elven_hope.0116 = { # Elf starts a garden - mini-event chain beginning
 			greedy = major_stress_impact_gain
 		}
 	}
+	after = {
+		add_character_flag = {
+			flag = had_yearly_elven_hope_event
+			months = 18
+		}
+	}
 }
 
 elven_hope.0117 = { # Elf has a thriving garden
@@ -1766,7 +2573,7 @@ elven_hope.0117 = { # Elf has a thriving garden
 	trigger = {
 		root = { has_character_flag = elf_started_garden_hope_event_flag }
 	}
-	cooldown = { years = 25 }
+	cooldown = { months = 9 }
 	immediate = {
 		add_elven_hope_effect = { VALUE = medium_elven_hope_gain HOPE_EFFECT = effect_elven_hope_inspired_by_sight }
 	}
@@ -1774,6 +2581,7 @@ elven_hope.0117 = { # Elf has a thriving garden
 	option = { # Woohoo!
 		name = elven_hope.0117.a 
 		add_prestige = minor_prestige_gain
+		remove_character_flag = elf_started_garden_hope_event_flag
 	}
 }
 
@@ -1801,7 +2609,7 @@ elven_hope.0118 = { # Elf's garden starts to wither
 	immediate = {
 		add_elven_hope_effect = { VALUE = minor_elven_hope_loss HOPE_EFFECT = effect_elven_very_low_hope }
 	}
-	cooldown = { years = 25 }
+	cooldown = { months = 9 }
 
 	option = { #Oh no...
 		name = elven_hope.0118.a 
@@ -1854,6 +2662,10 @@ elven_hope.0118 = { # Elf's garden starts to wither
 			greedy = major_stress_impact_gain
 		}
 	}
+	
+	after = { # Remove le flag 
+		remove_character_flag = elf_started_garden_hope_event_flag
+	}
 }
 
 elven_hope.0119 = { # Lighting strike causes a big tree to catch fire
@@ -1870,16 +2682,12 @@ elven_hope.0119 = { # Lighting strike causes a big tree to catch fire
 		animation = shock
 	}
 	trigger = {
-		NOT = {
-			any_character_artifact = {
-				has_variable = elven_ring
-			}
-		}
+		NOT = { has_character_flag = had_yearly_elven_hope_event }
 	}
 	immediate = {
 		add_elven_hope_effect = { VALUE = minimal_elven_hope_loss HOPE_EFFECT = effect_elven_very_low_hope }
 	}
-	cooldown = { years = 35 }
+	cooldown = { months = 9 }
 
 	option = { # So sad...
 		name = elven_hope.0119.a
@@ -1933,6 +2741,12 @@ elven_hope.0119 = { # Lighting strike causes a big tree to catch fire
 			lazy = major_stress_impact_gain
 		}
 	}
+	after = {
+		add_character_flag = {
+			flag = had_yearly_elven_hope_event
+			months = 18
+		}
+	}
 }
 
 elven_hope.0120 = { # Character dreams of Valinor
@@ -1952,8 +2766,10 @@ elven_hope.0120 = { # Character dreams of Valinor
 		add_elven_hope_effect = { VALUE = minor_elven_hope_loss HOPE_EFFECT = effect_elven_sea_longing }
 		root.capital_county = { save_scope_as = elven_capital }
 	}
-	cooldown = { years = 25 }
-
+	cooldown = { months = 9 }
+	trigger = {
+		NOT = { has_character_flag = had_yearly_elven_hope_event }
+	}
 	option = { # It is all our fates!
 		name = elven_hope.0120.a
 		add_piety = minor_piety_gain
@@ -1991,6 +2807,12 @@ elven_hope.0120 = { # Character dreams of Valinor
 			}
 		}
 	}
+	after = {
+		add_character_flag = {
+			flag = had_yearly_elven_hope_event
+			months = 18
+		}
+	}
 }
 
 elven_hope.0121 = { # A valorous inspiration
@@ -2002,6 +2824,10 @@ elven_hope.0121 = { # A valorous inspiration
 	override_background = {
 		reference = market_elven
 	}
+	trigger = {
+		NOT = { has_character_flag = had_yearly_elven_hope_event }
+	}
+	cooldown = { months = 9 }
 	left_portrait = {
 		character = root
 		animation = personality_compassionate
@@ -2012,13 +2838,22 @@ elven_hope.0121 = { # A valorous inspiration
 	}
 	immediate = {
 		root.capital_county = { save_scope_as = my_capital_county }
-		random_knight = { save_scope_as = mighty_courtier }
+		random_knight = { 
+			limit = { is_elf = yes }
+			save_scope_as = mighty_courtier 
+		}
 		add_elven_hope_effect = { VALUE = minor_elven_hope_gain HOPE_EFFECT = effect_elven_hope_inspired_by_sight }
 	}
 
 	option = { # It's so cool that we still have impressive guys like you around
 		name = elven_hope.0121.a 
 		add_prestige = minor_prestige_gain
+	}
+	after = {
+		add_character_flag = {
+			flag = had_yearly_elven_hope_event
+			months = 18
+		}
 	}
 }
 
@@ -2031,6 +2866,10 @@ elven_hope.0122 = { # Hopeful Music
 	override_background = {
 		reference = garden
 	}
+	trigger = {
+		NOT = { has_character_flag = had_yearly_elven_hope_event }
+	}
+	cooldown = { months = 9 }
 	left_portrait = {
 		character = root
 		animation = interested
@@ -2049,6 +2888,12 @@ elven_hope.0122 = { # Hopeful Music
 		name = elven_hope.0122.a 
 		add_prestige = minor_piety_gain
 	}
+	after = {
+		add_character_flag = {
+			flag = had_yearly_elven_hope_event
+			months = 18
+		}
+	}
 }
 
 elven_hope.0123 = { # An inspired painting
@@ -2060,6 +2905,10 @@ elven_hope.0123 = { # An inspired painting
 	override_background = {
 		reference = relaxing_room
 	}
+	trigger = {
+		NOT = { has_character_flag = had_yearly_elven_hope_event }
+	}
+	cooldown = { months = 9 }
 	left_portrait = {
 		character = root
 		animation = happiness
@@ -2077,5 +2926,11 @@ elven_hope.0123 = { # An inspired painting
 	option = { # Man what a masterpiece
 		name = elven_hope.0123.a 
 		add_prestige = minor_piety_gain
+	}
+	after = {
+		add_character_flag = {
+			flag = had_yearly_elven_hope_event
+			months = 18
+		}
 	}
 }
