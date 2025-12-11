@@ -1,0 +1,213 @@
+﻿#Turns Counts into Oligarch Vassals
+#Local culture must have the parameter, as does the granting character.
+#Recipient does not need to have local culture.
+make_oligarchy_interaction = {
+	icon = grant_titles_interaction
+	interface_priority = 30
+	common_interaction = yes
+	category = interaction_category_vassal
+	ai_min_reply_days = 0
+	ai_max_reply_days = 0
+	popup_on_receive = yes
+	pause_on_receive = yes
+	desc = make_oligarchy_interaction_desc
+
+	greeting = positive
+	notification_text = REQUEST_OLIGARCHY_TEXT
+
+	is_shown = {
+		scope:actor != scope:recipient # Can't make yourself an Oligarchy.
+		scope:actor = {
+			culture = {
+				has_cultural_parameter = can_make_oligarch_vassals
+			}
+			any_held_title = {
+				count > 1
+			}
+		}
+		scope:recipient = {
+			is_ai = yes
+			is_landed = yes
+			target_is_liege_or_above = scope:actor
+			NOT = { government_has_flag = government_is_oligarchy }
+			
+		}
+	}
+
+	is_valid_showing_failures_only = {
+		scope:recipient = { can_be_granted_titles_by = { RULER = scope:actor } }
+		NOT = { scope:actor = { is_at_war_with = scope:recipient } }
+		
+		scope:recipient = {
+			target_is_liege_or_above = scope:actor
+			NOT = { government_has_flag = government_is_oligarchy }
+			is_claimant = no
+
+			custom_description = {
+				text = must_be_one_county_count
+				any_held_title = {
+					count = 1
+					title_tier = county
+				}
+			}
+
+			custom_description = {
+				text = must_not_have_landed_relatives
+				NOT = {
+					any_close_or_extended_family_member = {
+						is_landed_or_landless_administrative = yes
+					}
+				}
+			}
+			
+			custom_description = {
+				text = must_not_be_heir_to_any_title
+				scope:recipient = {
+					any_heir_title = {
+						count < 1
+						tier >= tier_county
+					}
+				}
+			}
+
+			custom_description = {	#The county must be developed or have at least one city
+				text = county_must_have_city
+				any_held_title = {
+					count = 1
+					title_tier = county
+					OR = {
+						any_county_province = {
+							has_holding_type = city_holding
+						}
+						development_level > 20
+					}
+				}
+			}
+			custom_description = { #County must be of a culture that has the tradition parameter
+				text = county_must_have_culture_oligarchy
+				any_held_title = {
+					count >= 1
+					title_tier = county
+					any_county_province = {
+						culture = {
+							has_cultural_parameter = can_make_oligarch_vassals
+						}
+					}
+				}
+			}			
+		}
+
+		trigger_if = {
+			limit = {
+				scope:recipient = {
+					is_ruler = no
+				}
+			}
+			scope:recipient = {
+				is_imprisoned = no
+			}
+		}
+	}
+
+	cost = { prestige = minor_prestige_value }
+	cooldown = { years = 5 }
+	cooldown_against_recipient = { years = 10 }
+
+	on_accept = {
+		scope:actor = {
+			hidden_effect = {
+				send_interface_toast = {
+					type = event_toast_effect_neutral
+					title = appoint_oligarchy_interaction_notification
+
+					left_icon = scope:actor					
+					right_icon = scope:recipient
+
+					scope:recipient = {
+						show_as_tooltip = {
+							change_government = oligarchy_government
+							create_title_and_vassal_change = {
+								type = returned
+								save_scope_as = change
+								add_claim_on_loss = no
+							}
+							every_vassal = {
+								limit = {
+									government_has_flag = government_is_oligarchy
+								}
+								every_held_title = { 
+									change_title_holder = {
+										holder = scope:recipient
+										change = scope:change
+										take_baronies = yes
+									}
+								}
+							}
+							resolve_title_and_vassal_change = scope:change
+						}
+					}
+				}
+			}
+		}
+		scope:recipient = {
+			change_government = oligarchy_government
+			create_title_and_vassal_change = {
+				type = returned
+				save_scope_as = change
+				add_claim_on_loss = no
+			}
+			every_vassal = {
+				limit = {
+					government_has_flag = government_is_oligarchy
+				}
+				every_held_title = { 
+					change_title_holder = {
+						holder = scope:recipient
+						change = scope:change
+						take_baronies = yes
+					}
+				}
+			}
+			resolve_title_and_vassal_change = scope:change
+		}
+
+		# If we're a clan this interaction affects unity
+		add_clan_unity_interaction_effect = {
+			CHARACTER = scope:actor
+			TARGET = scope:recipient
+			VALUE = minor_unity_gain
+			DESC = clan_unity_oligarchy.desc
+			REVERSE_NON_HOUSE_TARGET = no
+		}
+	}
+
+	auto_accept = yes
+
+	# AI
+	ai_potential = {
+		culture = {
+			has_cultural_parameter = can_make_oligarch_vassals
+		}
+		primary_title.tier > tier_county
+	}
+	
+	ai_target_quick_trigger = {
+		adult = yes
+	}
+	ai_targets = {
+		ai_recipients = vassals
+	}
+
+	ai_frequency_by_tier = {
+		barony = 0
+		county = 0
+		duchy = 240
+		kingdom = 60
+		empire = 60
+		hegemony = 60
+	}
+
+	ai_will_do = {
+		base = 100
+	}
+}
