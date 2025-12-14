@@ -526,7 +526,10 @@ PixelShader =
 						// Use the property that only water has lower roughness to adjust the terrain normals to face upward.
 						float WaterNormalAdjustment = smoothstep( 0.6f, 1.0f, 1 - DetailMaterial.a);
 						WaterNormalLerp = max( WaterNormalLerp, WaterNormalAdjustment);
-						float3 ReorientedNormal = ReorientNormal(
+						// MOD(lotr)
+						//float3 ReorientedNormal = ReorientNormal(
+						ReorientedNormal = ReorientNormal( // vanilla bug: unintentional shadowing of ReorientedNormal from the outer scope
+						// END MOD
 							lerp( Normal, float3( 0.0f, 1.0f, 0.0f ), WaterNormalLerp ),
 							DetailNormal );
 
