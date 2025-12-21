@@ -58,6 +58,7 @@
 				trigger = {
 					scope:councillor_liege = {
 						is_maiar_fallen = yes
+						is_evil_istari = no
 						NOT = {
 							capital_county = title:c_amon_lanc
 						}
@@ -732,7 +733,13 @@ task_elven_settlement = {
 		}
 		trigger_if = {
 			limit = {
-				scope:councillor_liege = { is_ai = yes }
+				scope:councillor_liege = {
+					is_ai = yes
+					NAND = { # AI Directives override this
+						has_character_flag = vassal_directive_elven_settlement
+						vassal_is_valid_and_follows_directive_trigger = { VASSAL = this LIEGE = liege }
+					}
+				}
 			}
 			NOT = { scope:councillor_liege = { restricted_culture = yes } }
 			OR = {
@@ -752,25 +759,11 @@ task_elven_settlement = {
 				}
 			}
 			OR = {
-				is_independent_ruler = yes
-				scope:councillor_liege.primary_title.tier > tier_county
-				scope:councillor_liege.culture = { # All AI's are motivated to spread new Hybrid/Divergent cultures
-					OR = {
-						is_hybrid_culture = yes
-						is_divergent_culture = yes
-					}
-					any_parent_culture = {
-						this = scope:county.culture
-					}
-				}
-			}
-			OR = {
 				scope:county = {
 					any_neighboring_county = {
 						culture = scope:councillor_liege.culture # The AI only wants to convert counties bordering their own culture
 					}
 				}
-				
 				AND = {
 					NOT = {
 						scope:county = {
@@ -782,6 +775,33 @@ task_elven_settlement = {
 				}
 			}
 		}
+		trigger_else_if = { # But AI Directives should still try to look pretty
+			limit = {
+				scope:councillor_liege = {
+					is_ai = yes
+					has_character_flag = vassal_directive_elven_settlement
+					vassal_is_valid_and_follows_directive_trigger = { VASSAL = this LIEGE = liege }
+				}
+			}
+			trigger_if = {
+				limit = {
+					scope:county = {
+						any_neighboring_county = {
+							culture = scope:councillor_liege.culture
+						}
+					}
+				}
+				scope:county = {
+					any_neighboring_county = {
+						culture = scope:councillor_liege.culture # The AI only wants to convert counties bordering their own culture
+					}
+				}
+			}
+			trigger_else = {
+				always = yes
+			}
+		}
+		trigger_else = {}
 	}
 
 	on_finish_task_county = {
@@ -836,9 +856,8 @@ task_elven_settlement = {
 			}
 			set_county_culture = scope:councillor_liege.culture
 			set_county_faith = scope:councillor_liege.faith
-			every_province = {
+			every_county_province = {
 				limit = { 
-					county = scope:county
 					has_holding = yes
 				}
 				set_holding_type = elven_holding

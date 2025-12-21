@@ -272,7 +272,7 @@ PixelShader =
 				
 				DebugReturn( Color, MaterialProps, LightingProps, EnvironmentMap );
 				
-				Color *= 0.25;
+				Color *= 0.1;
 				
 				float FinalAlpha = smoothstep( MinCloudAlpha, MaxCloudAlpha, Alpha ) * Mask;
 
@@ -339,13 +339,13 @@ PixelShader =
 				SMaterialProperties MaterialProps = GetMaterialProperties( CloudColor, Normal, 0.9, 0.5, 0.0 );
 				SLightingProperties LightingProps = GetSunLightingProperties( Input.WorldSpacePos, 1.0 );
 				
-				float3 Color = CalculateSunLightingLowSpec( MaterialProps, LightingProps );
+				float3 Color = CalculateTerrainSunLightingLowSpec( MaterialProps, LightingProps );
 				
 				Color = ApplyDistanceFog( Color, Input.WorldSpacePos );
 				
 				DebugReturn( Color, MaterialProps, LightingProps, EnvironmentMap );
 				
-				Color *= 0.25;
+				Color *= 0.1f;
 				
 				float FinalAlpha = smoothstep( MinCloudAlpha, MaxCloudAlpha, Alpha ) * Mask;
 				

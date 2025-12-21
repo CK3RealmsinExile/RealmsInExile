@@ -3,7 +3,7 @@ Includes = {
 	"cw/pdxterrain.fxh"
 	"jomini/jomini_decals.fxh"
 	"jomini/jomini_fog.fxh"
-	"jomini/jomini_lighting.fxh"
+	"jomini/map_lighting.fxh"
 	# MOD(godherja)
 	#"jomini/jomini_fog_of_war.fxh"
 	"gh_atmospheric.fxh"
@@ -11,7 +11,10 @@ Includes = {
 	"bordercolor.fxh"
 	"dynamic_masks.fxh"
 	"legend.fxh"
+	"lowspec.fxh"
 	"disease.fxh"
+	"shadow_tint.fxh"
+	"clouds.fxh"
 	"province_effects.fxh"
 }
 
@@ -96,30 +99,61 @@ PixelShader =
 			#endif
 
 			float2 ColorMapCoords = WorldSpacePos.xz * WorldSpaceToTerrain0To1;
-
+			
 			EffectIntensities ConditionData;
 			SampleProvinceEffectsMask( ColorMapCoords, ConditionData );
 			ApplyProvinceEffectsDecal( ConditionData, Diffuse, ColorMapCoords );
 
 			float SnowHighlight = 0.0f;
-			ApplySnowMaterialMesh( ConditionData, Diffuse, Properties, Normal, WorldSpacePos.xz, SnowHighlight );
+			ApplySnowMaterialMesh( Diffuse, Properties, Normal, WorldSpacePos.xz, ColorMapCoords, SnowHighlight, 4.0f );
 
-			float3 ColorMap = PdxTex2D( ColorTexture, float2( ColorMapCoords.x, 1.0 - ColorMapCoords.y ) ).rgb;
+			float3 ColorMap = ToLinear( PdxTex2D( ColorTexture, float2( ColorMapCoords.x, 1.0 - ColorMapCoords.y ) ).rgb );
 			Diffuse = GetOverlay( Diffuse, ColorMap, 0.5 );
 
-			ApplyHighlightColor( Diffuse, ColorMapCoords );
-			CompensateWhiteHighlightColor( Diffuse, ColorMapCoords, SnowHighlight );
+			float4 HighlightColor = GetHighlightColor( ColorMapCoords );
+			ApplyHighlightColor( Diffuse, HighlightColor );
+			CompensateWhiteHighlightColor( Diffuse, HighlightColor, SnowHighlight );
 
 			SMaterialProperties MaterialProps = GetMaterialProperties( Diffuse, Normal, Properties.a, Properties.g, Properties.b );
-			SLightingProperties LightingProps = GetSunLightingProperties( WorldSpacePos, ShadowTexture );
+			
 
-			float3 Color = CalculateSunLighting( MaterialProps, LightingProps, EnvironmentMap );
-			ApplyLegendDiffuse( Color, WorldSpacePos.xz * WorldSpaceToTerrain0To1 );
-			ApplyDiseaseDiffuse( Color, WorldSpacePos.xz * WorldSpaceToTerrain0To1 );
+			#ifdef LOW_SPEC_SHADERS
+				SLightingProperties LightingProps = GetMapLightingProperties( WorldSpacePos, 1.0f );
+				float3 Color = CalculateTerrainSunLightingLowSpec( MaterialProps, LightingProps );
+			#else
+				SLightingProperties LightingProps = GetMapLightingProperties( WorldSpacePos, ShadowTexture );
+				const float3 TerrainNormal = CalculateNormal( WorldSpacePos.xz );
+				float CloudMask = GetCloudShadowMask( WorldSpacePos.xz );
+				#ifdef FAKE_TERRAIN_SHADOW
+					// Use dual scenario lighting for decals
+					LightingProps._ToLightDir = ToTerrainSunnySunDir;
+					SShadowTintData ShadowTintData = GetShadowTintData( ColorMapCoords );
+					float TerrainShadowTerm = GetShadowTintMask( ShadowTintData, LightingProps._ToLightDir, LightingProps._ShadowTerm, TerrainNormal, Normal );
+					LightingProps._ShadowTerm = LightingProps._ShadowTerm * ( 1.0f - TerrainShadowTerm );
+
+					// Use unified dual scenario lighting for decals
+					float3 Color = CalculateTerrainDualScenarioLighting( LightingProps, MaterialProps, CloudMask, EnvironmentMap );
+
+					// Apply shadow tint with cloud interaction for decals
+					Color = ApplyTerrainShadowTintWithClouds( Color, WorldSpacePos.xz, CloudMask, LightingProps._ShadowTerm, Normal, TerrainNormal );
+				#else
+					float3 Color = CalculateMapObjectsSunnyLighting( LightingProps, MaterialProps, EnvironmentMap );
+
+					// Apply shadow tint with cloud interaction for non-terrain-shadow decals
+					Color = ApplyMapObjectsShadowTintWithClouds( Color, ColorMapCoords, CloudMask, LightingProps._ShadowTerm, Normal, TerrainNormal );
+				#endif
+
+				ApplyLegendDiffuse( Color, ColorMapCoords );
+				ApplyDiseaseDiffuse( Color, ColorMapCoords );
+			#endif
+			// MOD(godherja)
+			//Color = ApplyFogOfWar( Color, WorldSpacePos, FogOfWarAlpha );
 			Color = GH_ApplyAtmosphericEffects( Color, WorldSpacePos, FogOfWarAlpha );
-			Color = ApplyDistanceFog( Color, WorldSpacePos );
+			Color = ApplyMapDistanceFogWithoutFoW( Color, WorldSpacePos );
+			// END MOD
+			
 
-			DebugReturn( Color, MaterialProps, LightingProps, EnvironmentMap );
+			//  DebugReturn( Color, MaterialProps, LightingProps, EnvironmentMap );
 			return Color;
 		}
 	]]
@@ -170,12 +204,13 @@ PixelShader =
 			{
 				float4 Diffuse = PdxTex2D( DiffuseTexture, Input.UV0 );
 				Diffuse.a = PdxMeshApplyOpacity( Diffuse.a, Input.Position.xy, GetOpacity( Input.InstanceIndex ) );
+				clip( Diffuse.a - 1e-5);
 
 				float3 BorderColor;
 				float BorderPreLightingBlend;
 				float BorderPostLightingBlend;
 				GetBorderColorAndBlendGame( Input.WorldSpacePos.xz, Diffuse.rgb, BorderColor, BorderPreLightingBlend, BorderPostLightingBlend );
-				Diffuse.rgb = lerp( Diffuse.rgb, BorderColor, BorderPreLightingBlend );
+				LerpBorderColorWithFogOfWar( Diffuse.rgb, Input.WorldSpacePos.xz, BorderColor, BorderPreLightingBlend );
 
 				float3 Color = CalcDecal( Input.UV0, Input.Bitangent, Input.WorldSpacePos, Diffuse.rgb );
 
@@ -192,12 +227,14 @@ Effect decal_world
 {
 	VertexShader = "VS_standard"
 	PixelShader = "PS_world"
+	Defines = { "FAKE_TERRAIN_SHADOW" }
 }
 
 Effect decal_world_mapobject
 {
 	VertexShader = "VS_mapobject"
 	PixelShader = "PS_world"
+	Defines = { "FAKE_TERRAIN_SHADOW" }
 }
 
 Effect decal_local
@@ -205,7 +242,7 @@ Effect decal_local
 	VertexShader = "VS_standard"
 	PixelShader = "PS_local"
 
-	Defines = { "TANGENT_SPACE_NORMALS" }
+	Defines = { "TANGENT_SPACE_NORMALS" "FAKE_TERRAIN_SHADOW" }
 }
 
 Effect decal_local_mapobject
@@ -213,5 +250,5 @@ Effect decal_local_mapobject
 	VertexShader = "VS_mapobject"
 	PixelShader = "PS_local"
 
-	Defines = { "TANGENT_SPACE_NORMALS" }
+	Defines = { "TANGENT_SPACE_NORMALS" "FAKE_TERRAIN_SHADOW" }
 }

@@ -34,15 +34,26 @@ county_conquest_cb = {
 		NAND = {
 			is_elf = yes
 			has_game_rule = limited_elven_expansion
-			NOT = { # Birthright of the Eldar enables conquest CBs again
-				faith = { has_doctrine = tenet_birthright_eldar }
+			NOT = { # Birthright of the Eldar and Makar tenet enable conquest CBs again
+				faith = { 
+					has_doctrine = tenet_birthright_eldar
+					has_doctrine = tenet_veneration_of_the_makarnea
+				}
 			}
 		}
 		
 		# Necromancer is hidden
 		NOT = { has_character_flag = unknown_sauron_flag } # LOTR
 	}
-
+	
+	allowed_for_character_display_regardless = {
+		# Struggle constraint - Note: This is the CB you get in FP2 opportunity, if you need to debug, test it here first.
+		custom_tooltip = {
+			text = struggle_involvement_cb_check_failure
+			struggle_blocks_invasion_conquest_cb_trigger = yes
+		}
+		tgp_japan_offensive_wars_ban_trigger = yes
+	}
 	allowed_against_character = {
 		scope:attacker = {
 			ALL_FALSE = {
@@ -84,11 +95,15 @@ county_conquest_cb = {
 				}
 			}
 		}
-
+		# HOUSE RELATIONS
+		add = house_relation_ai_score_value
 		# AI in struggles act insularly for wars that don't have a familial or legal basis.
 		multiply = struggle_wars_prioritise_struggle_targets_value
 		# Tell the Romans to stop going adventuring into the steppe for no gods-damned reason.
 		multiply = byzantium_conquests_ai_score_value
+		#LotR
+		#add = frankokratia_leader_protection_value #Set back to 0. Declaring war on the frankokratia leader can really ruin the whole thing
+
 		#Declaring war on the frankokratia leader can really ruin the whole thing
 		if = {
 			limit = {
@@ -177,18 +192,19 @@ county_conquest_cb = {
 
 	valid_to_start = {
 		scope:target = {
+			is_landless_type_title = no
 			neighboring_county_or_viking_conquest_trigger = { CHARACTER = root }
 		}
 		dwarf_and_goblin_underground_county_cb_trigger = yes
 	}
 
-	allowed_for_character_display_regardless = {
-		# Struggle constraint - Note: This is the CB you get in FP2 opportunity, if you need to debug, test it here first.
-		custom_tooltip = {
-			text = struggle_involvement_cb_check_failure
-			struggle_blocks_invasion_conquest_cb_trigger = yes
-		}
-	}
+	# allowed_for_character_display_regardless = { #LotR, seems like a lefover Vanilla bug
+	# 	# Struggle constraint - Note: This is the CB you get in FP2 opportunity, if you need to debug, test it here first.
+	# 	custom_tooltip = {
+	# 		text = struggle_involvement_cb_check_failure
+	# 		struggle_blocks_invasion_conquest_cb_trigger = yes
+	# 	}
+	# }
 
 	should_invalidate = {
 		OR = {
@@ -242,7 +258,7 @@ county_conquest_cb = {
 			value = 0
 			if = {
 				limit = {
-					NOT = { scope:defender.faith = scope:attacker.faith }
+					scope:defender.faith != scope:attacker.faith
 				}
 				add = {
 					value = 50
@@ -281,6 +297,22 @@ county_conquest_cb = {
 
 		# Influence
 		add_influence_attacker_victory_effect = yes
+		
+		# Hope gain for the attacker
+		scope:attacker = {
+			if = { # Gains hope by winning a minor war
+				limit = { is_elf = yes }
+				add_elven_hope_effect = { VALUE = medium_elven_hope_gain HOPE_EFFECT = effect_elven_hope_minor_war_won }
+			}
+		}
+		
+		# Hope loss for the defender
+		scope:defender = {
+			if = { # Loses hope by losing a minor war
+				limit = { is_elf = yes }
+				add_elven_hope_effect = { VALUE = medium_elven_hope_loss HOPE_EFFECT = effect_elven_hope_minor_war_lost }
+			}
+		}
 
 		#EP2 accolade glory gain for winning against higher ranked enemy
 		scope:attacker = { accolade_attacker_war_end_glory_gain_low_effect = yes }
@@ -330,6 +362,9 @@ county_conquest_cb = {
 
 		# EP3: note gold gained from military assistance/join war contracts and their war contribution threshold
 		laamp_as_mercenary_payout_tooltip_effect = yes
+
+		#Mandalas gain or lose piety/devotion depending on Decree
+		mandala_war_victory_effects = yes
 	}
 
 	on_white_peace_desc = {
@@ -404,9 +439,32 @@ county_conquest_cb = {
 
 		# Influence
 		add_influence_attacker_defeat_effect = yes
+		
+		# Hope gain for the defender
+		scope:defender = {
+			if = { # Gains hope by winning a minor war
+				limit = { is_elf = yes }
+				add_elven_hope_effect = { VALUE = medium_elven_hope_gain HOPE_EFFECT = effect_elven_hope_minor_war_won }
+			}
+		}
+		
+		# Hope loss for the attacker
+		scope:attacker = {
+			if = { # Loses hope by losing a minor war
+				limit = { is_elf = yes }
+				add_elven_hope_effect = { VALUE = medium_elven_hope_loss HOPE_EFFECT = effect_elven_hope_minor_war_lost }
+			}
+		}
 
-		#EP2 accolade glory gain for winning against higher ranked enemy
-		scope:defender = { accolade_defender_war_end_glory_gain_low_effect = yes }
+		scope:defender = {
+			mandala_peacemaker_perk_serenity_effect = yes
+			#EP2 accolade glory gain for winning against higher ranked enemy
+			accolade_defender_war_end_glory_gain_low_effect = yes
+			# Prestige for Defender
+			add_prestige_war_defender_effect = {
+				PRESTIGE_VALUE = medium_prestige_value
+			}
+		}
 
 		# Prestige loss for the attacker
 		scope:attacker = {
@@ -414,13 +472,6 @@ county_conquest_cb = {
 				GOLD_VALUE = 2
 			}
 			add_prestige = medium_prestige_loss
-		}
-
-		# Prestige for Defender
-		scope:defender = {
-			add_prestige_war_defender_effect = {
-				PRESTIGE_VALUE = medium_prestige_value
-			}
 		}
 
 		# Allies on both sides get full prestige value for helping in the war, based on their war participation.
@@ -441,6 +492,9 @@ county_conquest_cb = {
 
 		# EP3: note gold gained from military assistance/join war contracts and their war contribution threshold
 		laamp_as_mercenary_payout_tooltip_effect = yes
+
+		#Mandalas gain or lose piety/devotion depending on Decree
+		mandala_war_defeat_effects = yes
 	}
 
 	transfer_behavior = transfer
@@ -547,7 +601,9 @@ duchy_conquest_cb = {
 			text = struggle_involvement_cb_check_failure
 			struggle_blocks_invasion_conquest_cb_trigger = yes
 		}
+		tgp_japan_offensive_wars_ban_trigger = yes
 	}
+	
 
 	allowed_against_character = {
 		scope:attacker = {
@@ -559,6 +615,16 @@ duchy_conquest_cb = {
 			        exists = primary_title.empire
 			        primary_title.empire = title:e_valinor
 		        }
+				# trigger_if = {
+				# 	limit = {
+				# 		government_has_flag = government_is_nomadic
+				# 	}
+				# 	scope:defender = {
+				# 		NOT = {
+				# 			government_has_flag = government_is_nomadic
+				# 		}
+				# 	}
+				# }
 			}
 		}
 		# Necromancer is hidden
@@ -588,13 +654,15 @@ duchy_conquest_cb = {
 				}
 			}
 		}
-
+		# HOUSE RELATIONS
+		add = house_relation_ai_score_value
 		# AI in struggles act insularly for wars that don't have a familial or legal basis.
 		multiply = struggle_wars_prioritise_struggle_targets_value
 		# Tell the Romans to stop going adventuring into the steppe for no gods-damned reason.
 		multiply = byzantium_conquests_ai_score_value
 		multiply = muslim_invasions_prefer_nonmuslims_ai_score_value
-
+		#LotR
+		#add = frankokratia_leader_protection_value #Set back to 0. Declaring war on the frankokratia leader can really ruin the whole thing
 		#Declaring war on the frankokratia leader can really ruin the whole thing
 		if = {
 			limit = {
@@ -683,6 +751,7 @@ duchy_conquest_cb = {
 
 	valid_to_start = {
 		scope:target = {
+			is_landless_type_title = no
 			any_in_de_jure_hierarchy = {
 				tier = tier_county
 				neighboring_county_or_viking_conquest_trigger = { CHARACTER = root }
@@ -717,15 +786,13 @@ duchy_conquest_cb = {
 	}
 
 	should_invalidate = {
-		OR = {
-			NOT = {
-				any_in_list = {
-					list = target_titles
-					any_in_de_jure_hierarchy = {
-						tier = tier_county
-						holder = {
-							target_is_same_character_or_above = scope:defender
-						}
+		NOR = { #LotR
+			any_in_list = {
+				list = target_titles
+				any_in_de_jure_hierarchy = {
+					tier = tier_county
+					holder = {
+						target_is_same_character_or_above = scope:defender
 					}
 				}
 			}
@@ -767,7 +834,7 @@ duchy_conquest_cb = {
 			value = 0
 			if = {
 				limit = {
-					NOT = { scope:defender.faith = scope:attacker.faith }
+					scope:defender.faith != scope:attacker.faith
 				}
 				add = {
 					value = 150
@@ -842,6 +909,22 @@ duchy_conquest_cb = {
 		
 		# Legitimacy
 		add_legitimacy_attacker_victory_effect = yes
+		
+		# Hope gain for the attacker
+		scope:attacker = {
+			if = { # Gains hope by winning a minor war
+				limit = { is_elf = yes }
+				add_elven_hope_effect = { VALUE = medium_elven_hope_gain HOPE_EFFECT = effect_elven_hope_minor_war_won }
+			}
+		}
+		
+		# Hope loss for the defender
+		scope:defender = {
+			if = { # Loses hope by losing a minor war
+				limit = { is_elf = yes }
+				add_elven_hope_effect = { VALUE = medium_elven_hope_loss HOPE_EFFECT = effect_elven_hope_minor_war_lost }
+			}
+		}
 
 		#EP2 accolade glory gain for winning against higher ranked enemy
 		scope:attacker = { accolade_attacker_war_end_glory_gain_med_effect = yes }
@@ -919,44 +1002,47 @@ duchy_conquest_cb = {
 				limit = { tier = tier_duchy }
 				save_scope_as = de_jure_target
 			}
-			if = { #LotR - reorder to fix error log
+		}
+		if = {
+			limit = {
+				any_in_list = {
+					list = target_titles
+					tier = tier_duchy
+					holder = scope:defender
+				}
+			}
+			if = {
+				limit = {
+					scope:defender = {
+						any_held_title = {
+							title_tier = county
+							NOT = { target_is_de_jure_liege_or_above = scope:de_jure_target }
+						}
+					}
+				}
+				custom_tooltip = conquest_title_not_transferred_tt
+			}
+			else = { custom_tooltip = conquest_title_destroyed_tt }
+		}
+		else = {
+			if = {
 				limit = {
 					any_in_list = {
 						list = target_titles
 						tier = tier_duchy
-						holder = scope:defender
+						is_title_created = yes
 					}
 				}
-				if = {
-					limit = {
-						scope:defender = {
-							any_held_title = {
-								tier = tier_county
-								NOT = { target_is_de_jure_liege_or_above = scope:de_jure_target }
-							}
-						}
-					}
-					custom_tooltip = conquest_title_not_transferred_tt
-				}
-				else = { custom_tooltip = conquest_title_destroyed_tt }
+				custom_tooltip = conquest_title_usurp_tt
 			}
-			else = {
-				if = {
-					limit = {
-						any_in_list = {
-							list = target_titles
-							tier = tier_duchy
-							is_title_created = yes
-						}
-					}
-					custom_tooltip = conquest_title_usurp_tt
-				}
-				else = { custom_tooltip = conquest_title_create_tt }
-			}
-			
-			# EP3: note gold gained from military assistance/join war contracts and their war contribution threshold
-			laamp_as_mercenary_payout_tooltip_effect = yes
+			else = { custom_tooltip = conquest_title_create_tt }
 		}
+
+		# EP3: note gold gained from military assistance/join war contracts and their war contribution threshold
+		laamp_as_mercenary_payout_tooltip_effect = yes
+
+		#Mandalas gain or lose piety/devotion depending on Decree
+		mandala_war_victory_effects = yes
 
 		if = {
 			limit = {
@@ -1041,9 +1127,32 @@ duchy_conquest_cb = {
 		
 		# Legitimacy
 		add_legitimacy_attacker_defeat_effect = yes
+		
+		# Hope gain for the defender
+		scope:defender = {
+			if = { # Gains hope by winning a minor war
+				limit = { is_elf = yes }
+				add_elven_hope_effect = { VALUE = medium_elven_hope_gain HOPE_EFFECT = effect_elven_hope_minor_war_won }
+			}
+		}
+		
+		# Hope loss for the attacker
+		scope:attacker = {
+			if = { # Loses hope by losing a minor war
+				limit = { is_elf = yes }
+				add_elven_hope_effect = { VALUE = medium_elven_hope_loss HOPE_EFFECT = effect_elven_hope_minor_war_lost }
+			}
+		}
 
-		#EP2 accolade glory gain for winning against higher ranked enemy
-		scope:defender = { accolade_defender_war_end_glory_gain_med_effect = yes }
+		scope:defender = { 
+			mandala_peacemaker_perk_serenity_effect = yes
+			#EP2 accolade glory gain for winning against higher ranked enemy
+			accolade_defender_war_end_glory_gain_med_effect = yes
+			# Prestige for Defender
+			add_prestige_war_defender_effect = {
+				PRESTIGE_VALUE = major_prestige_value
+			}
+		}
 
 		# Prestige loss for the attacker
 		scope:attacker = {
@@ -1053,13 +1162,6 @@ duchy_conquest_cb = {
 			add_prestige = {
 				value = major_prestige_value
 				multiply = -1.0
-			}
-		}
-
-		# Prestige for Defender
-		scope:defender = {
-			add_prestige_war_defender_effect = {
-				PRESTIGE_VALUE = major_prestige_value
 			}
 		}
 
@@ -1081,6 +1183,9 @@ duchy_conquest_cb = {
 
 		# EP3: note gold gained from military assistance/join war contracts and their war contribution threshold
 		laamp_as_mercenary_payout_tooltip_effect = yes
+
+		#Mandalas gain or lose piety/devotion depending on Decree
+		mandala_war_defeat_effects = yes
 	}
 
 	transfer_behavior = transfer
@@ -1183,6 +1288,7 @@ ducal_conquest_cb = {
 
 	valid_to_start = {
 		scope:target = {
+			is_landless_type_title = no
 			tier = tier_county
 		}
 		scope:attacker = { # The attacker has a County in an uncreated Duchy
@@ -1206,20 +1312,19 @@ ducal_conquest_cb = {
 			text = struggle_involvement_cb_check_failure
 			struggle_blocks_invasion_conquest_cb_trigger = yes
 		}
+		tgp_japan_offensive_wars_ban_trigger = yes
 	}
 
 	should_invalidate = {
-		OR = {
-			NOT = {
-				any_in_list = {
-					list = target_titles
-					any_in_de_jure_hierarchy = {
-						tier = tier_county
-						holder = {
-							OR = {
-								this = scope:defender
-								target_is_liege_or_above = scope:defender
-							}
+		NOR = { #LotR
+			any_in_list = {
+				list = target_titles
+				any_in_de_jure_hierarchy = {
+					tier = tier_county
+					holder = {
+						OR = {
+							this = scope:defender
+							target_is_liege_or_above = scope:defender
 						}
 					}
 				}
@@ -1284,6 +1389,22 @@ ducal_conquest_cb = {
 		
 		# Legitimacy
 		add_legitimacy_attacker_victory_effect = yes
+		
+		# Hope gain for the attacker
+		scope:attacker = {
+			if = { # Gains hope by winning a minor war
+				limit = { is_elf = yes }
+				add_elven_hope_effect = { VALUE = medium_elven_hope_gain HOPE_EFFECT = effect_elven_hope_minor_war_won }
+			}
+		}
+		
+		# Hope loss for the defender
+		scope:defender = {
+			if = { # Loses hope by losing a minor war
+				limit = { is_elf = yes }
+				add_elven_hope_effect = { VALUE = medium_elven_hope_loss HOPE_EFFECT = effect_elven_hope_minor_war_lost }
+			}
+		}
 
 		#EP2 accolade glory gain for winning against higher ranked enemy
 		scope:attacker = { accolade_attacker_war_end_glory_gain_low_effect = yes }
@@ -1331,8 +1452,7 @@ ducal_conquest_cb = {
 				}
 				limit = {
 					tier = tier_county
-					exists = holder
-					holder = {
+					holder ?= {
 						OR = {
 							this = scope:defender
 							target_is_liege_or_above = scope:defender
@@ -1405,6 +1525,9 @@ ducal_conquest_cb = {
 
 		# EP3: note gold gained from military assistance/join war contracts and their war contribution threshold
 		laamp_as_mercenary_payout_tooltip_effect = yes
+
+		#Mandalas gain or lose piety/devotion depending on Decree
+		mandala_war_victory_effects = yes
 	}
 
 	on_white_peace_desc = {
@@ -1466,9 +1589,32 @@ ducal_conquest_cb = {
 		
 		# Legitimacy
 		add_legitimacy_attacker_defeat_effect = yes
+		
+		# Hope gain for the defender
+		scope:defender = {
+			if = { # Gains hope by winning a minor war
+				limit = { is_elf = yes }
+				add_elven_hope_effect = { VALUE = medium_elven_hope_gain HOPE_EFFECT = effect_elven_hope_minor_war_won }
+			}
+		}
+		
+		# Hope loss for the attacker
+		scope:attacker = {
+			if = { # Loses hope by losing a minor war
+				limit = { is_elf = yes }
+				add_elven_hope_effect = { VALUE = medium_elven_hope_loss HOPE_EFFECT = effect_elven_hope_minor_war_lost }
+			}
+		}
 
-		#EP2 accolade glory gain for winning against higher ranked enemy
-		scope:defender = { accolade_defender_war_end_glory_gain_low_effect = yes }
+		scope:defender = {
+			mandala_peacemaker_perk_serenity_effect = yes
+			#EP2 accolade glory gain for winning against higher ranked enemy
+			accolade_defender_war_end_glory_gain_low_effect = yes
+			# Prestige for Defender
+			add_prestige_war_defender_effect = {
+				PRESTIGE_VALUE = medium_prestige_value
+			} 
+		}
 
 		# Prestige loss for the attacker
 		scope:attacker = {
@@ -1506,6 +1652,9 @@ ducal_conquest_cb = {
 
 		# EP3: note gold gained from military assistance/join war contracts and their war contribution threshold
 		laamp_as_mercenary_payout_tooltip_effect = yes
+
+		#Mandalas gain or lose piety/devotion depending on Decree
+		mandala_war_defeat_effects = yes
 	}
 
 	ai_score_mult = { #LotR

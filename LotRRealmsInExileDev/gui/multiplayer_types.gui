@@ -791,6 +791,13 @@ types JominiMultiplayerIngame {
 
 			button_standard = {
 				size = { 300 30 }
+				text = "JOMINI_MULTIPLAYER_GUI_OOS_MESSAGE_RESYNC"
+				visible = "[JominiIsHostOrLocal]"
+				onclick = "[OosWindow.Resync]"
+            }
+
+			button_standard = {
+				size = { 300 30 }
 				text = "JOMINI_MULTIPLAYER_GUI_OOS_MESSAGE_EXIT_BUTTON"
 				onclick = "[OosWindow.GoToMenu]"
 				visible = "[JominiIsHostOrLocal]"
@@ -1889,14 +1896,12 @@ types JominiMultiplayerLobby
 
 	# Module for preparation specific stuff
 	type JominiLobbyViewPreparation = vbox {
-		#visible = "[IsPreparationLobby]"
 		alwaystransparent = no
 		filter_mouse = left|right
 		layoutpolicy_horizontal = expanding
 		margin_left = 10
 		margin_bottom = 10
-		spacing = 10
-
+		spacing = 8
 
 		background = {
 			using = JominiLobbyViewModuleBackground
@@ -1912,19 +1917,69 @@ types JominiMultiplayerLobby
 			text = "JOMINI_MULTIPLAYER_GUI_WAIT_HOST_START"
 		}
 
+		button_standard = {
+			datacontext = "[GetLobbyHelper]"
+			datacontext = "[LobbyView.GetSelectedPlayable.GetCharacter]"
+			visible = "[CanMakeNobleFamilyCharacters]"
+			size = { 380 45 }
+
+			onclick = "[TryStartRulerDesigning( Character.Self, 'noble_family' )]"
+
+			enabled = "[And( LobbyView.HasSelectedPlayable, Character.CanDesignNobleFamily )]"
+
+			tooltip = "[LobbyHelperWindow.GetTryStartLandlessDesigningDesc( Character.Self, 'noble_family' )]"
+			text = RULER_DESIGNER_OPEN_LANDLESS_NOBLE_FAMILY
+
+			icon = {
+				visible = "[And( ShouldPromptForRulerDesigner, LobbyView.CanTryStartRulerDesigning( Character.Self ) )]"
+				size = { 100% 100% }
+				texture = "gfx/interface/component_masks/mask_fade_circle.dds"
+				using = Color_Bright_Yellow
+				alpha = 0
+
+				state = {
+					name = a
+					next = b
+					trigger_on_create = yes
+
+					alpha = 0.3
+					duration = 1
+					using = Animation_Curve_Default
+				}
+
+				state = {
+					name = b
+					next = a
+
+					alpha = 0
+					duration = 2
+					using = Animation_Curve_Default
+				}
+			}
+
+			button_icon = {
+				size = { 30 30 }
+				parentanchor = left|vcenter
+				position = { 5 0 }
+				alwaystransparent = yes
+				texture = "gfx/interface/icons/flat_icons/estate.dds"
+			}
+		}
 
 		button_standard = {
 			datacontext = "[GetLobbyHelper]"
 			datacontext = "[LobbyView.GetSelectedPlayable.GetCharacter]"
-			visible = "[And( Not( IsPreparationLobby ), LobbyView.CanMakeLandlessCharacter )]"
+			visible = "[CanMakeLandlessCharacter]"
 			size = { 380 45 }
 
-			onclick = "[TryStartRulerDesigning( Character.Self, '(bool)yes' )]"
+			onclick = "[TryStartRulerDesigning( Character.Self, 'landless_adventurer' )]"
 
-			enabled = "[LobbyView.HasSelectedPlayable]"
+			# LOTR Modified
+			#enabled = "[LobbyView.HasSelectedPlayable]"
+			enabled = "[And( LobbyView.HasSelectedPlayable, GetScriptedGui('lotr_cannot_play_as_wilderness_or_valinor_adventurer').IsValid( GuiScope.AddScope('selected_ruler',LobbyView.GetSelectedPlayable.GetCharacter.MakeScope).End) )]"
 
-			tooltip = "[LobbyHelperWindow.GetTryStartLandlessDesigningDesc( LobbyView.HasSelectedPlayable )]"
-			text = RULER_DESIGNER_OPEN_LANDLESS
+			tooltip = "[LobbyHelperWindow.GetTryStartLandlessDesigningDesc( Character.Self, 'landless_adventurer' )]"
+			text = RULER_DESIGNER_OPEN_LANDLESS_ADVENTURER
 
 			icon = {
 				visible = "[And( ShouldPromptForRulerDesigner, LobbyView.CanTryStartRulerDesigning( Character.Self ) )]"
@@ -1964,12 +2019,11 @@ types JominiMultiplayerLobby
 
 		button_standard = {
 			datacontext = "[LobbyView.GetSelectedPlayable.GetCharacter]"
-			visible = "[Not( IsPreparationLobby )]"
 			enabled = "[LobbyView.CanTryStartRulerDesigning( Character.Self )]"
-			
+
 			size = { 380 45 }
 
-			onclick = "[TryStartRulerDesigning( Character.Self, '(bool)no' )]"
+			onclick = "[TryStartRulerDesigning( Character.Self, 'default' )]"
 
 			tooltip = "[LobbyView.GetTryStartRulerDesigningDesc( Character.Self )]"
 			text = "RULER_DESIGNER_OPEN"
@@ -2009,6 +2063,24 @@ types JominiMultiplayerLobby
 				texture = "gfx/interface/icons/flat_icons/heir.dds"
 			}
 		}
+		
+		vbox = {
+			hbox = {
+				datacontext = "[LobbyView.GetSelectedPlayable.GetCharacter]"
+				visible = "[Character.IsValid]"
+				
+				textbox = {
+					visible = "[IsBetterPlayedWithTGP( Character )]"
+					name = "better_played_with_tgp_info"
+					size = { 380 50 }
+					multiline = yes
+					align = center|center
+					text = "pdi_better_with_tgp"
+				}
+			}
+			
+		}
+		
 
 		button_primary_big = {
 			visible = "[And( IsPreparationLobby, PlayerIsHost )]"
@@ -2040,7 +2112,7 @@ types JominiMultiplayerLobby
 
 		button_primary_big = {
 			datacontext = "[LobbyView.GetSelectedPlayable.GetCharacter]"
-			
+
 			visible = "[Not( IsPreparationLobby )]"
 			size = { 380 50 }
 
@@ -2240,8 +2312,8 @@ types JominiMultiplayerLobby
 		block "left_panel"
 		{
 			hbox = {
-				layoutpolicy_horizontal = expanding 
-				layoutpolicy_vertical = expanding 
+				layoutpolicy_horizontal = expanding
+				layoutpolicy_vertical = expanding
 
 				spacing = 30
 
@@ -2334,14 +2406,12 @@ types JominiMultiplayerLobby
 
 				expand = {}
 			}
-
-
 		}
 
 		block "right_panel"
 		{
 			widget = {
-				visible = "[Not(GetVariableSystem.Exists('DW_wastelands_window'))]"
+				visible = "[Not(GetVariableSystem.Exists('DW_wastelands_window'))]" #LotR
 				parentanchor = top|right
 				widgetanchor = top|right
 
