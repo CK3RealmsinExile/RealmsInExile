@@ -808,8 +808,8 @@ PixelShader =
 				float3 fire = 1.5*float3(f, fff, fff*fff);
 				//
 				// smoke
-				float smokeNoise = 0.5+snoise(0.4*position+timing*float3(1.0,1.0,0.2))/2.0;
-				float smokeScalar = 0.3*pow(xfuel,3.0)*pow(ypart,2.0)*(smokeNoise+0.4*(1.0-noise));
+				float smokeNoise = 0.9+snoise(0.4*position+timing*float3(1.0,1.0,0.2))/2.0;
+				float smokeScalar = 0.7*pow(xfuel,3.0)*pow(ypart,2.0)*(smokeNoise+0.4*(1.0-noise));
 				float3 smoke = float3(smokeScalar,smokeScalar,smokeScalar);
 				//
 				// sparks
