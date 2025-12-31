@@ -7412,10 +7412,13 @@ lotr_valinor_invasion_cb = {
 	max_attacker_score_from_battles = 150
 	defender_ticking_warscore = 0
 	attacker_wargoal_percentage = 0.5
+	defender_score_from_occupation_scale = 30
 	attacker_score_from_battles_scale = 25
 	defender_score_from_battles_scale = 10
 	landless_attacker_needs_armies = yes
 	full_occupation_by_attacker_gives_victory = yes
+	full_occupation_by_defender_gives_victory = no
+	
 
 	white_peace_possible = no
 
@@ -7426,6 +7429,8 @@ lotr_valinor_invasion_cb = {
 	target_titles = all
 	target_title_tier = all
 	target_de_jure_regions_above = no
+
+	ignore_effect = change_title_holder
 
 	transfer_behavior = transfer
 
@@ -7440,8 +7445,6 @@ lotr_valinor_invasion_cb = {
 	use_de_jure_wargoal_only = yes
 
 	attacker_wargoal_percentage = 0.8
-
-	ignore_effect = change_title_holder
 
 	allowed_for_character = { scope:attacker = { has_variable = invasion_cb_unlock } }
 
@@ -7506,16 +7509,22 @@ lotr_valinor_invasion_cb = {
 	}
 
 	on_victory = {
-		scope:attacker = {
-			create_title_and_vassal_change = {
-				type = conquest
-				save_scope_as = change
-				add_claim_on_loss = yes
-			}
-			every_in_list = {
-				list = target_titles
-				empire = {
-					transfer_conquerred_titles_to_eonwe = yes
+		create_title_and_vassal_change = {
+			type = conquest
+			save_scope_as = change
+			add_claim_on_loss = yes
+		}
+		scope:defender = { ### Any held titles
+			every_held_title = {
+				limit = {
+					tier > tier_barony
+					any_in_de_jure_hierarchy = {
+						save_temporary_scope_as = check_title
+						any_in_list = {
+							list = target_titles
+							this.empire = scope:check_title.empire
+						}
+					}
 				}
 			}
 			get_title = title:h_eonwe_host
@@ -7529,6 +7538,114 @@ lotr_valinor_invasion_cb = {
 		}
 
 		resolve_title_and_vassal_change = scope:change
+
+		### Tributaries ### (indented for easier collapsing)
+		## Evil Tributaries ##
+			create_title_and_vassal_change = {
+				type = conquest
+				save_scope_as = change
+				add_claim_on_loss = yes
+			}
+			scope:defender = { 
+				every_tributary = {
+					limit = { faith_is_evil = yes }
+					random_held_county = {
+						limit = {
+							any_in_de_jure_hierarchy = {
+								any_in_list = {
+									list = target_titles
+									this.empire = prev.empire
+								}
+							}
+						}
+						change_title_holder = {
+							holder = scope:attacker
+							change = scope:change
+						}
+					}
+				}
+			}
+			resolve_title_and_vassal_change = scope:change
+		## Good Tributaries ##
+			create_title_and_vassal_change = {
+				type = swear_fealty
+				save_scope_as = change
+				add_claim_on_loss = yes
+			}
+			scope:defender = { 
+				every_tributary = {
+					limit = { faith_is_good = yes }
+					random_held_county = {
+						limit = {
+							any_in_de_jure_hierarchy = {
+								any_in_list = {
+									list = target_titles
+									this.empire = prev.empire
+								}
+							}
+						}
+						holder = {
+							change_liege = {
+								liege = scope:attacker
+								change = scope:change
+							}
+						}
+					}
+				}
+			}
+			resolve_title_and_vassal_change = scope:change
+		## Neutral Tributaries ##
+			create_title_and_vassal_change = {
+				type = swear_fealty
+				save_scope_as = change
+				add_claim_on_loss = yes
+			}
+			scope:defender = { 
+				every_tributary = {
+					limit = {
+						faith_is_good = no
+						faith_is_evil = no
+					}
+					random_held_county = {
+						limit = {
+							any_in_de_jure_hierarchy = {
+								any_in_list = {
+									list = target_titles
+									this.empire = prev.empire
+								}
+							}
+						}
+						holder = {
+							change_liege = {
+								liege = scope:attacker
+								change = scope:change
+							}
+						}
+					}
+				}
+			}
+			resolve_title_and_vassal_change = scope:change
+
+		add_legitimacy_attacker_victory_effect = yes
+
+		scope:attacker = { show_pow_release_message_effect = yes }
+
+		hidden_effect = {
+			scope:attacker = {
+				create_title_and_vassal_change = {
+					type = conquest
+					save_scope_as = change
+					add_claim_on_loss = yes
+				}
+				every_in_list = {
+					list = target_titles
+					empire = {
+						valinorean_invasion_settle_local_people_effect = yes
+					}
+				}
+				resolve_title_and_vassal_change = scope:change
+			}
+		}
 
 		save_scope_value_as = {
 			name = cb_prestige_factor

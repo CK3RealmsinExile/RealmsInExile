@@ -1,7 +1,4 @@
-﻿
-### LOTR ###
-
-lotr_delete_all_maa_regiments = { # Deletes all MAA regiments this has
+﻿lotr_delete_all_maa_regiments = { # Deletes all MAA regiments this has
 	every_maa_regiment = {
 		destroy_maa_regiment = yes
 	}
@@ -384,67 +381,6 @@ decrease_county_development = {
 	}
 }
 
-transfer_conquerred_titles_to_eonwe = {
-	every_in_de_jure_hierarchy = {
-		limit = {
-			tier < tier_empire
-			exists = holder
-			NOR = { 
-				holder = title:k_wastelands.holder
-				holder = title:h_eonwe_host.holder 
-			}
-			OR = {
-				holder = scope:defender
-				holder.top_liege = scope:defender
-			}
-			holder = { faith_is_evil = yes }
-			NOR = { 
-				holder.liege = title:h_eonwe_host.holder
-				holder.top_liege = title:h_eonwe_host.holder
-			}
-		}
-		create_title_and_vassal_change = {
-			type = conquest
-			save_scope_as = change
-			add_claim_on_loss = yes
-		}
-		change_title_holder = {
-			holder = scope:attacker
-			change = scope:change
-		}
-		resolve_title_and_vassal_change = scope:change
-		}
-}
-
-swear_holder_fealty_to_eonwe = {
-	every_in_de_jure_hierarchy = {
-		limit = {
-			tier < tier_empire
-			exists = holder
-			NOR = { 
-				holder = scope:defender
-				holder = title:k_wastelands.holder
-				holder = title:h_eonwe_host.holder
-			}
-			holder.top_liege = scope:defender
-			holder.liege = { faith_is_evil = yes }
-			holder = { faith_is_evil = no }
-		}
-		create_title_and_vassal_change = {
-			type = swear_fealty
-			save_scope_as = change
-			add_claim_on_loss = yes
-		}
-		holder = {
-			change_liege = {
-				liege = scope:attacker
-				change = scope:change
-			}
-		}
-		resolve_title_and_vassal_change = scope:change
-	}
-}
-
 lotr_invite_non_evil_claimants_effect = {
 	save_scope_as = the_temporary_ruler
 	every_held_title = {
@@ -586,5 +522,620 @@ lotr_make_berserker_effect = {
 	}
 	else = {
 		add_trait = berserker
+	}
+}
+
+################################
+### Valinor Invasion Effects ###
+################################
+
+swear_holder_fealty_to_eonwe = {
+	create_title_and_vassal_change = {
+		type = swear_fealty
+		save_scope_as = change
+		add_claim_on_loss = yes
+	}
+	holder = {
+		change_liege = {
+			liege = scope:attacker
+			change = scope:change
+		}
+	}
+	resolve_title_and_vassal_change = scope:change
+}
+
+transfer_conquerred_titles_to_eonwe = {
+	create_title_and_vassal_change = {
+		type = conquest
+		save_scope_as = change
+		add_claim_on_loss = yes
+	}
+	change_title_holder = {
+		holder = scope:attacker
+		change = scope:change
+	}
+	resolve_title_and_vassal_change = scope:change
+}
+
+valinorean_invasion_settle_local_people_effect = {
+
+	every_in_de_jure_hierarchy = {
+		limit = {
+			tier < tier_empire
+			exists = holder
+			NOR = { 
+				holder = scope:defender
+				holder = title:k_wastelands.holder
+				holder = title:h_eonwe_host.holder
+			}
+			holder.liege = scope:defender
+			holder = { faith_is_evil = no }
+		}
+		swear_holder_fealty_to_eonwe = yes
+	}
+	
+	every_in_de_jure_hierarchy = {
+		limit = {
+			tier < tier_empire
+			exists = holder
+			NOR = { 
+				holder = scope:defender
+				holder = title:k_wastelands.holder
+				holder = title:h_eonwe_host.holder 
+			}
+			holder.liege = scope:defender
+			holder = { faith_is_evil = yes }
+			NOR = { 
+				holder.liege = title:h_eonwe_host.holder
+				holder.top_liege = title:h_eonwe_host.holder
+			}
+		}
+		transfer_conquerred_titles_to_eonwe = yes
+	}
+}
+
+###
+# GEOGRAPHICAL_REGION 	--> Area in which the invading party appears
+# $KEY_1$ = yes 	--> 
+#							KEY_1 => The effect which grabs the specific landing county. 
+#									 Needs to save the county to a scope called landing_county
+#
+# $KEY_2$ = yes		-->
+#							KEY_2 => The effect which grabs the character that needs to be revived
+#
+# $KEY_3$ = yes		-->
+#							KEY_3 => Additional scripted effect which can be used
+#
+# $KEY_4$ = yes		-->
+#							KEY_4 => Additional scripted effect which can be used
+#
+#
+# NOTES: 	If there are no scripted effects the coder wants to add, simply do KEY_4 = "#" (WITH the quotation marks)
+#			This will effectively comment out that line.
+###
+
+sunset_invasion_general_effect = {
+	if = { #Eonwe
+		limit = { geographical_region:$GEOGRAPHICAL_REGION$ = geographical_region:special_eriador_valinor_invasion_region }
+		character:lineofeonwe = { save_scope_as = invader_char }
+	}
+	# else_if = { #Pharazon
+	# 	limit = { $GEOGRAPHICAL_REGION$ = geographical_region:special_bay_of_belfalas_valinor_invasion_region }
+	# 	character:lineofeonwe = { save_scope_as = invader_char }
+	# }
+
+	### Determine Alignment ###
+	if = {
+		limit = { exists = scope:invader_char scope:invader_char = { faith_is_evil = yes } }
+		set_global_variable = {
+			name = alignment_flag
+			value = flag:evil
+		}
+	}
+	else_if = {
+		limit = { exists = scope:invader_char scope:invader_char = { faith_is_good = yes } }
+		set_global_variable = {
+			name = alignment_flag
+			value = flag:good
+		}
+	}
+	else = {
+		set_global_variable = {
+			name = alignment_flag
+			value = flag:neutral
+		}
+	}
+
+	### Grab county at which conqueror will land at. 
+	### Needs to save the county to a scope called landing_county
+	$KEY_1$ = yes
+	
+	if = { #Resurrect effect
+		limit = { exists = scope:invader_char scope:invader_char = { is_alive = no } }
+		$KEY_2$ = yes
+	}
+	scope:invader_char = {
+		$KEY_3$ = yes
+		$KEY_4$ = yes
+	}
+}
+
+####################################
+### Valinor Invasion Sub-effects ###
+####################################
+
+valinor_invasion_grab_landing_county = {
+	title:e_lindon = { # Lindon
+		ordered_in_de_jure_hierarchy = { # Check the main harbours first
+			limit = {
+				tier = tier_county
+				is_coastal_county = yes
+				this = holder.capital_county
+			}
+			order_by = {
+				value = 1
+				if = {
+					limit = { 
+						OR = {
+							title_province = { has_building_or_higher = wonder_mithlond_north_01 }
+							title_province = { has_building_or_higher = wonder_mithlond_south_01 }
+						}
+					}
+					add = 200
+				}
+				if = {
+					limit = { 
+						OR = {
+							title_province = { has_building_or_higher = wonder_harlond_01 }
+							title_province = { has_building_or_higher = wonder_forlond_01 }
+							title_province = { has_building_or_higher = wonder_forlond_02 }
+						}
+					}
+					add = 100
+				}
+			}
+			save_scope_as = landing_county
+		}
+	}
+}
+
+valinor_invasion_landing_effect = {
+	create_title_and_vassal_change = {
+		type = independency
+		save_scope_as = change
+	}
+	scope:landing_county = {
+		every_county_province = {
+			limit = { 
+				NOT = { has_holding_type = castle_holding }
+			}
+			set_holding_type = castle_holding
+		}
+		change_title_holder = {
+			holder = scope:invader_char
+			change = scope:change
+		}
+	}
+	resolve_title_and_vassal_change = scope:change
+
+	scope:invader_char = {
+		create_title_and_vassal_change = {
+			type = independency
+			save_scope_as = independent_change
+		}
+		becomes_independent = {
+			change = scope:independent_change
+		}
+		resolve_title_and_vassal_change = scope:independent_change
+	}
+
+	scope:invader_char = {
+		get_title = title:h_eonwe_host
+	}
+	
+	scope:invader_char = {
+		add_piety_level = 5
+		add_prestige_level = 5
+		if = {
+			limit = { is_landed = yes }
+			add_legitimacy = 3000
+		}
+		add_prestige = 5000
+		add_piety = 5000
+		add_gold = 1500
+		set_variable = invasion_cb_unlock
+	}
+
+	scope:landing_county = {
+		set_county_faith = faith:faith_eldar
+		set_county_culture = culture:noldor
+		
+		every_county_province = {
+			if = {
+				limit = {
+					free_building_slots > 0
+					NOT = { has_building = castle_04 }
+				}
+				add_building = castle_04
+			}
+
+			add_province_modifier = {
+				modifier = landing_of_valinor_host_modifier
+				years = 10
+			}
+		}
+		every_county_province = {
+			if = {
+				limit = {
+					free_building_slots > 0
+					NOT = { has_building = curtain_walls_08 }
+				}
+				add_building = curtain_walls_08
+			}
+		}
+		every_county_province = {
+			if = {
+				limit = {
+					free_building_slots > 0
+					NOT = { has_building = barracks_05 }
+				}
+				add_building = barracks_05
+			}
+		}
+		every_county_province = {
+			if = {
+				limit = {
+					free_building_slots > 0
+					NOT = { has_building = pastures_05 }
+				}
+				add_building = pastures_05
+			}
+		}
+		remove_county_modifier = marauding_orc_drags_modifier
+		remove_county_modifier = hidden_elven_refugees_modifier
+		change_county_control = 100
+		change_development_level = -100 
+		change_development_level = 25
+	}
+
+	valinor_invasion_host_effect = yes
+}
+
+###												 ###
+# Assumes a `landing_county` scope. A county title #
+###												 ###
+
+valinor_invasion_host_effect = {
+	# Evil of Middle Earth Scopes
+	character:lineofsauron = { save_scope_as = sauron }
+	# Valinorian Maia Invader Scopes
+	character:lineofmakar = { save_scope_as = makar }
+	character:lineofmeasse = { save_scope_as = measse }
+	# Valinorian Elven Invader Commander Scopes
+	character:lineofingwe4 = { save_scope_as = ingwion }
+	character:lineoffinarfin1 = { save_scope_as = finrod_felagund }
+	character:lineofolwe3 = { save_scope_as = elulindo }
+	# Valinorian Elven Invader Knight Scopes
+	character:lineofingwe3 = { save_scope_as = indiel }
+	character:lineofmalantur8 = { save_scope_as = astaldo }
+	character:lineofgaldortree = { save_scope_as = galdor_of_the_tree }
+	character:lineofaranwe2 = { save_scope_as = voronwe_the_mariner }
+	character:lineofnellas2 = { save_scope_as = bardir }
+	character:lineofnellas3 = { save_scope_as = oronel }
+	character:lineofhador10 = { save_scope_as = tuor }
+
+	### Courtiers + Councillors ###
+	valinor_invasion_set_courtier_councillor_effect = { # Measse
+		TARGET = scope:makar
+		TYPE = councillor_marshal
+	}
+
+	valinor_invasion_set_courtier_councillor_effect = { # Measse
+		TARGET = scope:measse
+		TYPE = councillor_court_chaplain
+	}
+
+	scope:ingwion = { # Ingwion
+		if = {
+			limit = { is_alive = yes }
+			if = {
+				limit = { is_landed = yes }
+
+				### Title changes
+				create_title_and_vassal_change = {
+					type = usurped
+					save_scope_as = change
+				}
+				every_held_title = {
+					change_title_holder = {
+						holder = character:lineofingwe7
+						change = scope:change
+					}
+				}
+				resolve_title_and_vassal_change = scope:change
+				create_title_and_vassal_change = {
+					type = swear_fealty
+					save_scope_as = change
+				}
+				scope:ingwion = { 
+					change_liege = { 
+						liege = scope:invader_char 
+						change = scope:change
+					}
+				}
+				resolve_title_and_vassal_change = scope:change
+				
+				valinor_invasion_set_courtier_employer_effect = { # Ingwion
+					CHARACTER = scope:ingwion
+				}
+			}
+			else = {
+				valinor_invasion_set_courtier_employer_effect = { # Ingwion
+					CHARACTER = scope:ingwion
+				}
+			}
+		}
+	}
+	
+
+	valinor_invasion_set_courtier_councillor_effect = { # Finrod Felagund
+		TARGET = scope:finrod_felagund
+		TYPE = councillor_chancellor
+	}
+
+	valinor_invasion_set_courtier_councillor_effect = { # Elulindo
+		TARGET = scope:elulindo
+		TYPE = councillor_steward
+	}
+
+	valinor_invasion_set_courtier_employer_effect = { # Indiel
+		CHARACTER = scope:indiel
+	}
+
+	valinor_invasion_set_courtier_councillor_effect = { # Astaldo
+		TARGET = scope:ingwion
+		TYPE = councillor_spymaster
+	}
+	
+	valinor_invasion_set_courtier_employer_effect = { # 
+		CHARACTER = scope:astaldo
+	}
+
+	valinor_invasion_set_courtier_employer_effect = { # Galdor of the Tree
+		CHARACTER = scope:galdor_of_the_tree
+	}
+
+	valinor_invasion_set_courtier_employer_effect = { # Voronwe the Mariner
+		CHARACTER = scope:voronwe_the_mariner
+	}
+
+	valinor_invasion_set_courtier_employer_effect = { # Bardir
+		CHARACTER = scope:bardir
+	}
+
+	valinor_invasion_set_courtier_employer_effect = { # Oronel
+		CHARACTER = scope:oronel
+	}
+
+	valinor_invasion_set_courtier_employer_effect = { # Tuor
+		CHARACTER = scope:tuor
+	}
+
+	scope:invader_char = {
+		every_courtier_or_guest = { trigger_event = race.0001 }
+	}
+
+	### Army ###
+	spawn_army = {
+		levies = 0
+		men_at_arms = {
+			type = high_elven_pikemen
+			stacks = host_of_valinor_special_troop_amount
+		}
+		men_at_arms = {
+			type = high_elven_archers
+			stacks = host_of_valinor_special_troop_amount
+		}
+		men_at_arms = {
+			type = high_elven_heavy_cavalry
+			stacks = host_of_valinor_special_troop_amount
+		}
+		men_at_arms = {
+			type = high_elven_skirmishers
+			stacks = host_of_valinor_special_troop_amount
+		}
+		men_at_arms = {
+			type = high_elven_light_cavalry
+			stacks = host_of_valinor_special_troop_amount
+		}
+		men_at_arms = {
+			type = high_elven_heavy_infantry
+			stacks = host_of_valinor_special_troop_amount
+		}
+		men_at_arms = {
+			type = song_smiths
+			stacks = host_of_valinor_special_troop_amount
+		}
+		location = scope:landing_county.title_province
+		origin = scope:landing_county.title_province
+		inheritable = yes
+		uses_supply = no
+		name = valinorian_invasion_army_name
+	}
+
+	# Global News Event
+	if = {
+		limit = { # Major News
+			NOT = { has_game_rule = no_news }
+		}
+		every_player = { #Global News Announcement
+			trigger_event = news_event.0034
+		}
+	}
+
+	# Effect on elven hope
+	add_elven_hope_global_effect = { VALUE = monumental_elven_hope_gain HOPE_EFFECT = effect_elven_hope_good_realm_rises }
+
+	scope:finrod_felagund ?= { remove_variable = override_valinor_trigger }
+	scope:ingwion ?= { remove_variable = override_valinor_trigger }
+	scope:finrod_felagund ?= { remove_variable = override_valinor_trigger }
+	scope:elulindo ?= { remove_variable = override_valinor_trigger }
+
+	scope:invader_char = {
+		trigger_event = { # Need to do it with slight delay, otherwise event doesn't fire
+			id = lotr_war_events.0005
+			days = 1
+		}
+	}
+	
+	scope:invader_char = {
+		set_variable = invisible_conqueror_story
+		create_story = story_conqueror
+	}
+}
+
+valinor_invasion_set_courtier_employer_effect = {
+	$CHARACTER$ = { # Bardir
+        if = {
+            limit = { is_alive = yes } 
+            set_variable = override_valinor_trigger
+			if = {
+				limit = { has_trait = sailed_west }
+				remove_trait = sailed_west
+			}
+			if = {
+				limit = { NOT = { scope:invader_char = { is_employer_of = $CHARACTER$ } } }
+				set_employer = scope:invader_char
+			}
+			
+			set_location = scope:invader_char.location
+        }
+	}
+	
+}
+
+valinor_invasion_set_courtier_councillor_effect = {
+	valinor_invasion_set_courtier_employer_effect = { CHARACTER = $TARGET$ } 
+
+	scope:invader_char = {
+		assign_councillor_type = {
+			type = $TYPE$
+			remove_existing_councillor = yes
+			target = $TARGET$
+		}
+	}
+}
+
+valinor_invasion_start_invasion_war = {
+	scope:invader_char = {
+		if = {
+			limit = { NOT = { is_at_war_with = character:lineofsauron } }
+		}
+		start_war = {
+			cb = lotr_valinor_invasion_cb
+			target = character:lineofsauron
+			# Lindon
+			target_title = title:e_lindon
+			# target_title = title:d_mithlond
+			# target_title = title:d_emyn_beraid
+			# target_title = title:d_duneriador
+			# target_title = title:d_ardolyalinya
+			# target_title = title:d_elvaedhorien
+			# target_title = title:d_dor_leithan
+			# target_title = title:d_dor_tinuviel
+			# target_title = title:d_geleidhien
+			# target_title = title:d_estolad
+			# target_title = title:d_dor_gweydor
+			# target_title = title:d_thargelion
+			# target_title = title:d_andunaloni
+
+			# Arnor
+			target_title = title:e_arnor
+			# ## Arthedain
+			# target_title = title:d_tarmea
+			# target_title = title:d_eketya
+			# target_title = title:d_nan_turath
+			# target_title = title:d_emyn_sul
+			# target_title = title:d_sarn_athrad
+			# target_title = title:d_hyarromenya
+			# target_title = title:d_siragale
+			# target_title = title:d_norinanya
+			# target_title = title:d_rammas_forn
+			# target_title = title:d_shire
+			# ## Cardolan
+			# target_title = title:d_minhiriath
+			# target_title = title:d_dol_caladir
+			# target_title = title:d_ethir_gwathlo
+			# target_title = title:d_eryn_vorn
+			# target_title = title:d_girithlin
+			# target_title = title:d_tyrn_gorthad
+			# target_title = title:d_dyr_maenason
+			# target_title = title:d_faerdor
+			# ## Rhuduar
+			# target_title = title:d_cameth_brin
+			# target_title = title:d_hithaeglir_harad
+			# target_title = title:d_dor_en_egladil
+			# target_title = title:d_hithaeglir_forn
+			# target_title = title:d_dol_tiriamon
+			# target_title = title:d_dul_glandagol
+			# target_title = title:d_dyr_eldanaryon
+
+			# Blue Mountains
+			## Belegost
+			target_title = title:e_blue_mountains
+			# target_title = title:d_belegost
+			# target_title = title:d_tagakhgershad
+			# target_title = title:d_fahamgathol
+			# target_title = title:d_kallkizdin
+			# target_title = title:d_hadhodor
+			# ## Nogrod
+			# target_title = title:d_nogrod
+			# target_title = title:d_hadnul_dum
+			# target_title = title:d_mount_dolmed
+			# target_title = title:d_khaglakhjuruk
+			# ## Buzra-dum
+			# target_title = title:d_ursel_zabad
+			# target_title = title:d_amakharasi
+			# target_title = title:d_dronun_dum
+
+			# Enedhwaith
+			target_title = title:e_enedhwaith
+			# target_title = title:d_nen_gwathlo
+			# target_title = title:d_angrast
+			# target_title = title:d_iarnburn
+			# target_title = title:d_runnach
+			# target_title = title:d_swanfell
+			# target_title = title:d_dunlandfells
+			# target_title = title:d_dunfearan
+			# target_title = title:d_dathabha
+			# target_title = title:d_westmarches
+			# target_title = title:d_parth_iaur
+			# target_title = title:d_druwaith_iaur
+			# target_title = title:d_drulad
+
+			# Orrostar Noldoron
+			target_title = title:e_orrostar
+			# ## Eregion
+			# target_title = title:d_rhawnen
+			# target_title = title:d_lhadereg
+			# target_title = title:d_dor_maenor
+			# target_title = title:d_eregion
+			# ## Imladris
+			# target_title = title:d_imladris
+
+			# Forodwaith
+			target_title = title:e_forodwaith
+			# ## Forochel
+			# target_title = title:d_jaranikko
+			# target_title = title:d_kotiniemi
+			# target_title = title:d_jokiranta
+			# target_title = title:d_korkein_ma
+			# ## Angmar
+			# target_title = title:d_kanelemas
+			# target_title = title:d_sweicelis
+			# target_title = title:d_nan_angmar
+			# target_title = title:d_haryagsh
+			# target_title = title:d_foryagsh
+		}
 	}
 }
