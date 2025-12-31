@@ -3,6 +3,8 @@
 @dwarven_capital_illustration = "gfx/interface/illustrations/decisions/decision_dwarves_03.dds"
 @lotr_build_fleet_icon = "gfx/interface/icons/activities/activity_sailing.dds"
 @lotr_build_fleet_illustration = "gfx/interface/illustrations/decisions/decision_fleet.dds"
+@lotr_mend_realm_icon = "gfx/interface/icons/faith/custom_elves.dds"
+@lotr_mend_realm_illustration = "gfx/interface/illustrations/event_scenes/elven_holding.dds"
 
 ### The Dwarven Capital Great Project! ~ by Brice Underhill
 
@@ -2611,6 +2613,399 @@ construct_great_fleet = {
 				scope:province.county = {
 					add_county_modifier = { 
 						modifier = lotr_build_great_fleet_merchant_quays_modifier
+					}
+				}
+			}
+			on_contribution_funded = {
+				great_project_notify_contribution = yes
+				great_project_contribution_catalyst_effect = yes
+			}
+
+			ai_check_interval_by_tier = {							
+				barony = 0
+				county = 12
+				duchy = 9
+				kingdom = 6
+				empire = 6
+				hegemony = 6
+			}
+			ai_will_do = {
+				value = chinese_great_projects_contribution_ai_will_do_base_value
+			}
+		}
+	}
+
+	ai_target_quick_trigger = {
+		adult = yes
+	}
+	ai_check_interval_by_tier = {							
+		barony = 0
+		county = 0
+		duchy = 0
+		kingdom = 0
+		empire = 0
+		hegemony = 6
+	}
+	ai_will_do = {
+		value = 500
+		if = {
+			limit = {
+				is_at_war = yes
+			}
+			multiply = 0
+		}
+	}
+
+	completion_sound_effect = @msg_completion_effect_generic
+}
+
+### Mend the Realm ~ by Aerien
+mend_the_realm = {
+	icon = {
+		reference = @lotr_mend_realm_icon 
+	}
+	illustration = {
+		reference = @lotr_mend_realm_illustration 
+	}
+
+	name = {
+		desc = great_project_type_mend_the_realm
+	}
+	
+	is_important = yes
+	
+ 	is_shown = {
+		highest_held_title_tier >= tier_duchy
+		is_elf = yes
+		NOR = {
+			is_planning_great_project = mend_the_realm
+			custom_tooltip = {
+				text = only_single_great_project_type_allowed
+				any_great_project = {
+					great_project_type = mend_the_realm
+				}
+			}
+		}
+		NOT = {
+			any_realm_county = {
+				has_county_modifier = realm_mended_modifier
+			}
+		}
+	}
+
+	can_start_planning = {
+		#is_independent_ruler = yes
+	}
+	
+	is_valid = {
+		#scope:province.county.holder.top_liege ?= scope:owner
+	}
+	
+	province_filter = top_realm
+	
+	is_location_valid = {
+		scope:province = {
+			has_holding_type = elven_holding
+		}
+	}
+
+	cost = {
+		treasury_or_gold = {
+			value = great_project_base_starting_cost
+		}
+		piety = {
+			value = 500 
+		}
+		prestige = {
+			value = 500 
+		}
+	}
+
+	construction_time = {
+		value = great_project_base_construction_time
+		multiply = common_great_project_construction_time_multiplier_value
+	}
+
+	allowed_contributor_filter = {
+		owner = yes
+		vassals = yes
+		liege = yes 
+		top_liege = yes
+	}
+
+	contributor_cooldown = standard_contributor_cooldown_value
+	
+	on_start_build = {}
+	
+	on_complete = {
+		scope:province.county = {
+			add_county_modifier = {
+				modifier = realm_mended_modifier 
+				years = 25
+			}
+		}
+		great_project_notify_completion = { CHARACTER = scope:owner }
+
+		show_as_tooltip = {
+			scope:founder.top_liege ?= { # because the real owner doesn't exist in the effect preview
+				send_interface_toast = {
+					type = event_generic_neutral_text
+					title = great_project_completed_msg_t
+					left_icon = scope:owner
+					right_icon = scope:province.county
+					desc = great_project_completed_msg_desc
+					if = {
+						limit = { is_valid_for_legitimacy_change = yes }
+						add_legitimacy = {
+							value = medium_legitimacy_gain
+						}
+					}
+					dynasty = { add_dynasty_prestige = 500 }
+					if = { # LotR - Elves gain hope
+						limit = { is_good_undying = yes }
+						add_elven_hope_effect = { VALUE = monstrous_elven_hope_gain HOPE_EFFECT = effect_elven_hope_great_project_completed }
+					}
+				}
+			}		
+		}
+		hidden_effect = {
+			scope:owner ?= {
+				send_interface_toast = {
+					type = event_generic_neutral_text
+					title = great_project_completed_msg_t
+					left_icon = scope:owner
+					right_icon = scope:province.county
+					desc = great_project_completed_msg_desc
+					if = {
+						limit = { is_valid_for_legitimacy_change = yes }
+						add_legitimacy = {
+							value = medium_legitimacy_gain
+						}
+					}
+					dynasty = { add_dynasty_prestige = 500 }
+					if = { # LotR - Elves gain hope
+						limit = { is_good_undying = yes }
+						add_elven_hope_effect = { VALUE = monstrous_elven_hope_gain HOPE_EFFECT = effect_elven_hope_great_project_completed }
+					}
+				}
+			}
+		}
+	}
+	
+	on_cancel = {}
+
+	# Top liege pays with the treasury, while vassals may pitch in with gold
+	project_contributions = {
+		provisions = {
+			cost = {
+				treasury_or_gold = {
+					value = great_project_base_contribution_cost
+					multiply = 2
+				}
+			}
+
+			contributor_cooldown = individual_contribution_cooldown_value
+			
+			is_required = yes
+
+			on_complete = {
+				great_project_reward_contribution_completion_notification_effect = {
+					LEVEL = minor
+					NON_OWNER_REWARD_EFFECT = great_project_reward_contribution_completion_null
+					OWNER_REWARD_EFFECT = great_project_reward_contribution_completion_null
+				}
+			}
+			on_contribution_funded = {
+				great_project_notify_contribution = yes
+				great_project_contribution_catalyst_effect = yes
+			}
+
+			ai_check_interval_by_tier = {							
+				barony = 0
+				county = 12
+				duchy = 9
+				kingdom = 6
+				empire = 6
+				hegemony = 6
+			}
+			ai_will_do = {
+				value = chinese_great_projects_contribution_ai_will_do_base_value
+			}
+		}
+		messengers = {
+			cost = {
+				prestige = {
+					value = 500 
+				}
+			}
+
+			contributor_cooldown = individual_contribution_cooldown_value
+			
+			is_required = yes
+
+			on_complete = {
+				great_project_reward_contribution_completion_notification_effect = {
+					LEVEL = minor
+					NON_OWNER_REWARD_EFFECT = great_project_reward_contribution_completion_null
+					OWNER_REWARD_EFFECT = great_project_reward_contribution_completion_null
+				}
+			}
+			on_contribution_funded = {
+				great_project_notify_contribution = yes
+				great_project_contribution_catalyst_effect = yes
+			}
+
+			ai_check_interval_by_tier = {							
+				barony = 0
+				county = 12
+				duchy = 9
+				kingdom = 6
+				empire = 6
+				hegemony = 6
+			}
+			ai_will_do = {
+				value = chinese_great_projects_contribution_ai_will_do_base_value
+			}
+		}
+		encouragement = {
+			cost = {
+				piety = {
+					value = 500 
+				}
+			}
+
+			contributor_cooldown = individual_contribution_cooldown_value
+			
+			is_required = yes
+
+			on_complete = {
+				great_project_reward_contribution_completion_notification_effect = {
+					LEVEL = minor
+					NON_OWNER_REWARD_EFFECT = great_project_reward_contribution_completion_null
+					OWNER_REWARD_EFFECT = great_project_reward_contribution_completion_null
+				}
+			}
+			on_contribution_funded = {
+				great_project_notify_contribution = yes
+				great_project_contribution_catalyst_effect = yes
+			}
+
+			ai_check_interval_by_tier = {							
+				barony = 0
+				county = 12
+				duchy = 9
+				kingdom = 6
+				empire = 6
+				hegemony = 6
+			}
+			ai_will_do = {
+				value = chinese_great_projects_contribution_ai_will_do_base_value
+			}
+		}
+		train_guards = {
+			cost = {
+				treasury_or_gold = {
+					value = great_project_base_contribution_cost
+					multiply = 2
+				}
+			}
+
+			contributor_cooldown = individual_contribution_cooldown_value
+			
+			is_required = no
+
+			on_complete = {
+				great_project_reward_contribution_completion_notification_effect = {
+					LEVEL = major
+					NON_OWNER_REWARD_EFFECT = great_project_reward_contribution_completion_null
+					OWNER_REWARD_EFFECT = great_project_reward_contribution_completion_null
+				}
+				scope:province = {
+					add_province_modifier = { 
+						modifier = lotr_mend_realm_military_modifier
+						years = 25
+					}
+				}
+			}
+			on_contribution_funded = {
+				great_project_notify_contribution = yes
+				great_project_contribution_catalyst_effect = yes
+			}
+
+			ai_check_interval_by_tier = {							
+				barony = 0
+				county = 12
+				duchy = 9
+				kingdom = 6
+				empire = 6
+				hegemony = 6
+			}
+			ai_will_do = {
+				value = chinese_great_projects_contribution_ai_will_do_base_value
+			}
+		}
+		festival_fair = {
+			cost = {
+				prestige = {
+					value = 1000
+				}
+			}
+
+			contributor_cooldown = individual_contribution_cooldown_value
+			
+			is_required = no
+
+			on_complete = {
+				great_project_reward_contribution_completion_notification_effect = {
+					LEVEL = major
+					NON_OWNER_REWARD_EFFECT = great_project_reward_contribution_completion_null
+					OWNER_REWARD_EFFECT = great_project_reward_contribution_completion_null
+				}
+				scope:province = {
+					add_province_modifier = { 
+						modifier = lotr_mend_realm_economic_modifier
+						years = 25
+					}
+				}
+			}
+			on_contribution_funded = {
+				great_project_notify_contribution = yes
+				great_project_contribution_catalyst_effect = yes
+			}
+
+			ai_check_interval_by_tier = {							
+				barony = 0
+				county = 12
+				duchy = 9
+				kingdom = 6
+				empire = 6
+				hegemony = 6
+			}
+			ai_will_do = {
+				value = chinese_great_projects_contribution_ai_will_do_base_value
+			}
+		}
+		gardeners = {
+			cost = {
+				piety = {
+					value = 1000
+				}
+			}
+
+			contributor_cooldown = individual_contribution_cooldown_value
+			
+			is_required = no
+
+			on_complete = {
+				great_project_reward_contribution_completion_notification_effect = {
+					LEVEL = major
+					NON_OWNER_REWARD_EFFECT = great_project_reward_contribution_completion_null
+					OWNER_REWARD_EFFECT = great_project_reward_contribution_completion_null
+				}
+				scope:province = {
+					add_province_modifier = { 
+						modifier = lotr_mend_realm_spiritual_modifier
+						years = 25
 					}
 				}
 			}
