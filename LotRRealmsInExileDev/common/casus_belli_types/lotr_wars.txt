@@ -8379,6 +8379,8 @@ maglor_underground_cb = {
 	max_attacker_score_from_occupation = 150
 }
 
+### Valinor Invasion ###
+
 valinorian_invasion_cb = {
 	# Based on invasion_war CB and has no cost.
 	icon = vassalization
@@ -8396,8 +8398,309 @@ valinorian_invasion_cb = {
 	
 	allowed_for_character = {
 		scope:attacker = {		
-			NOT = { has_culture = culture:wastelands }
+			is_wastelands = no
 			has_title = title:h_eonwe_host
+		}
+	}
+
+	allowed_against_character = {
+		scope:attacker = {
+			ALL_FALSE = {
+				top_liege = scope:defender.top_liege
+				liege = scope:defender
+			}
+		}
+
+		# Only allowed against characters of a non-similar alignment
+		NOT = { scope:attacker = { same_alignment = { TARGET = scope:defender } } }
+		
+		scope:attacker = { is_wastelands = no }
+	}
+
+	
+	valid_to_start = {
+		scope:target = {
+			any_in_de_jure_hierarchy = {
+				tier = tier_county
+				neighboring_county_or_viking_conquest_trigger = { CHARACTER = root }
+			}
+			is_wastelands = no
+		}
+	}
+
+	on_declaration = {
+		on_declared_war = yes
+	}	
+
+	on_victory_desc = {
+		first_valid = {
+			triggered_desc = {
+				trigger = { scope:attacker = { is_local_player = yes } }
+				desc = invasion_war_victory_desc_attacker
+			}
+			desc = invasion_war_victory_desc
+		}
+		triggered_desc = {
+			trigger = { scope:attacker = { is_local_player = yes } }
+			desc = invasion_war_warning_desc
+		}
+	}
+	
+	on_victory = {
+		every_in_list = {
+			list = target_titles
+			every_in_de_jure_hierarchy = {
+				limit = {
+					tier = tier_county
+					OR = {
+						holder = scope:defender
+						holder.top_liege = scope:defender
+						holder.suzerain ?= scope:defender
+					}
+				}
+				add_to_list = initial_invasion_titles
+			}
+		}
+		
+		### Tributaries ### (indented for easier collapsing)
+		## Opposite Alignment ##
+		sunset_invasion_opposite_alignment_vassal_transfer_effect = yes
+		## Same Alignment Tributaries ##
+		sunset_invasion_same_alignment_vassal_transfer_effect = yes
+		## Neutral Tributaries ##
+		sunset_invasion_neutral_faith_vassal_transfer_effect = yes
+
+		### Take the rest of the titles held be the actual defender inside the region
+		sunset_invasion_take_titles_held_by_defender_effect = yes
+
+		# Legitimacy
+		add_legitimacy_attacker_victory_effect = yes
+
+		scope:attacker = { show_pow_release_message_effect = yes }
+
+		# # Attacker gets Prestige Experience, Defender loses Prestige, all other participants gain Prestige based on their war contribution.
+
+		# Truce
+		add_truce_attacker_victory_effect = yes
+
+		# FP1: note the victory for future memorialisation via stele (if applicable).
+		scope:attacker = { fp1_remember_recent_conquest_victory_effect = yes }
+
+		# EP3: note gold gained from military assistance/join war contracts and their war contribution threshold
+		laamp_as_mercenary_payout_tooltip_effect = yes
+	}
+
+	on_white_peace_desc = {
+		first_valid = {
+			triggered_desc = {
+				trigger = { scope:defender = { is_local_player = yes } }
+				desc = invasion_war_white_peace_desc_defender
+			}
+			desc = invasion_war_white_peace_desc
+		}
+	}
+	
+	on_white_peace = {
+		scope:attacker = { show_pow_release_message_effect = yes }
+
+		# Prestige for the attacker's war allies
+		add_from_contribution_attackers = {
+			prestige = major_prestige_value
+			opinion = {
+				modifier = contributed_in_war
+			}
+		}
+
+		# Prestige for the defender's war allies
+		add_from_contribution_defenders = {
+			prestige = major_prestige_value
+			opinion = {
+				modifier = contributed_in_war
+			}
+		}
+
+		# Truce
+		add_truce_white_peace_effect = yes
+
+		scope:attacker = {
+			add_prestige = mongol_invasion_cb_prestige_white_peace
+			stress_impact = {
+				ambitious = medium_stress_impact_gain
+				arrogant = medium_stress_impact_gain
+			}
+		}
+
+		scope:defender = {
+			stress_impact = {
+				arrogant = medium_stress_impact_gain
+			}
+		}
+
+		# EP3: note gold gained from military assistance/join war contracts and their war contribution threshold
+		laamp_as_mercenary_payout_tooltip_effect = yes
+	}
+
+	on_defeat_desc = {
+		first_valid = {
+			triggered_desc = {
+				trigger = { scope:defender = { is_local_player = yes } }
+				desc = invasion_war_white_peace_desc_defender
+			}
+			desc = invasion_war_white_peace_desc
+		}
+	}
+	
+	on_defeat = {
+		# Legitimacy
+		add_legitimacy_attacker_defeat_effect = yes
+
+		scope:attacker = { show_pow_release_message_effect = yes }
+
+		# Prestige loss for the attacker
+		scope:attacker = {
+			pay_short_term_gold = {
+				gold = 5
+				target = scope:defender
+				yearly_income = yes
+			}
+			add_prestige = {
+				value = massive_prestige_value
+				multiply = -1.0
+			}
+		}
+		
+		setup_invasion_cb = {
+			titles = target_titles
+			attacker = scope:attacker
+			defender = scope:defender
+			claimant = scope:claimant
+			victory = no
+		}
+
+		# Attacker loses Prestige, all other war participants gain Prestige (Defender gains full prestige, all allies on both sides gain based on war contribution).
+		modify_all_participants_fame_values = {
+			WINNER = scope:defender
+			LOSER = scope:attacker
+			FAME_BASE = scope:cb_prestige_factor # Set by 'setup_claim_cb'
+			IS_RELIGIOUS_WAR = no
+			WINNER_FAME_SCALE = 10
+			LOSER_FAME_SCALE = -10
+			WINNER_ALLY_FAME_SCALE = 10
+			LOSER_ALLY_FAME_SCALE = 10
+		}
+	
+		add_truce_attacker_defeat_effect = yes
+		
+		scope:attacker = {
+			save_temporary_scope_as = loser
+		}
+		on_lost_aggression_war_discontent_loss = yes
+
+		# EP3: note gold gained from military assistance/join war contracts and their war contribution threshold
+		laamp_as_mercenary_payout_tooltip_effect = yes
+	}
+	
+	on_invalidated_desc = msg_invasion_war_invalidated_message
+	on_invalidated = { }
+
+	ai_score_mult = { #LotR
+		value = 1
+		add = {
+			if = {
+				limit = {
+					scope:attacker.primary_title = title:h_eonwe_host
+				}
+				add = 1000
+			}
+		}
+		# LotR - Sauron and Nazgul should not target eachother
+		add = {
+			if = {
+				limit = {
+					OR = {
+						AND = {
+							scope:attacker = { is_sauron = yes }
+							scope:defender = { has_trait = nazgul }
+						}
+						AND = {
+							scope:defender = { is_sauron = yes }
+							scope:attacker = { has_trait = nazgul }
+						}
+					}
+				}
+				add = -1000
+			}
+		}
+
+		# LotR - Non-Evil faith characters leave poor Radagast alone! 
+		add = {
+			if = {
+				limit = {
+					scope:attacker = { faith_is_evil = no }
+					scope:defender.culture = culture:istari
+				}
+				add = -1000
+			}
+		}
+
+		# LotR - Protectorates are much less aggressive
+		add = {
+			if = {
+				limit = {
+					scope:attacker = {
+						any_tributary = { 
+							this = scope:defender
+							has_subject_contract_group = tributary_protectorate
+						}
+					}
+				}
+				add = -1000
+			}
+		}
+
+		#LotR
+		multiply = elf_target_ai_score_value
+	}
+	
+	transfer_behavior = transfer
+	
+	on_primary_attacker_death = inherit
+	on_primary_defender_death = inherit
+	
+	attacker_allies_inherit = yes
+	defender_allies_inherit = yes
+	
+	war_name = "valinorian_invasion_war_name"
+	war_name_base = "valinorian_invasion_war_name_base"
+	cb_name = "valinorian_invasion_cb_name"
+	
+	interface_priority = 100
+	
+	use_de_jure_wargoal_only = yes
+	
+	attacker_wargoal_percentage = 0.8
+}
+
+### Pharazon Invasion ###
+pharazon_invasion_cb = {
+	# Based on invasion_war CB and has no cost.
+	icon = vassalization
+	group = conquest
+
+	combine_into_one = yes
+	should_show_war_goal_subview = yes
+	mutually_exclusive_titles = { always = yes }
+
+	target_titles = all
+	target_title_tier = empire
+	target_de_jure_regions_above = yes
+
+	ignore_effect = change_title_holder
+	
+	allowed_for_character = {
+		scope:attacker = {		
+			NOT = { has_culture = culture:wastelands }
+			has_title = title:h_numenor
 		}
 	}
 
@@ -8475,16 +8778,6 @@ valinorian_invasion_cb = {
 		scope:attacker = { show_pow_release_message_effect = yes }
 
 		# # Attacker gets Prestige Experience, Defender loses Prestige, all other participants gain Prestige based on their war contribution.
-		# modify_all_participants_fame_values = {
-		# 	WINNER = scope:attacker
-		# 	LOSER = scope:defender
-		# 	FAME_BASE = scope:cb_prestige_factor # Set by 'setup_invasion_cb'
-		# 	IS_RELIGIOUS_WAR = no
-		# 	WINNER_FAME_SCALE = 10
-		# 	LOSER_FAME_SCALE = -10
-		# 	WINNER_ALLY_FAME_SCALE = 10
-		# 	LOSER_ALLY_FAME_SCALE = 10
-		# }
 
 		# Truce
 		add_truce_attacker_victory_effect = yes
@@ -8677,9 +8970,9 @@ valinorian_invasion_cb = {
 	attacker_allies_inherit = yes
 	defender_allies_inherit = yes
 	
-	war_name = "valinorian_invasion_war_name"
-	war_name_base = "valinorian_invasion_war_name_base"
-	cb_name = "valinorian_invasion_cb_name"
+	war_name = "pharazon_invasion_war_name"
+	war_name_base = "pharazon_invasion_war_name_base"
+	cb_name = "pharazon_invasion_cb_name"
 	
 	interface_priority = 100
 	
