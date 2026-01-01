@@ -659,6 +659,172 @@ sunset_invasion_general_effect = {
 	}
 }
 
+###########################################
+### Sunset Invasion General Sub-effects ###
+###########################################
+
+sunset_invasion_cb_add_titles_to_list = {
+	every_sub_realm_county = {
+		limit = {
+			is_wastelands = no
+			any_in_list = {
+				list = initial_invasion_titles
+				this = prev
+			}
+		}
+		add_to_list = targeted_titles
+	}
+}
+
+sunset_invasion_opposite_alignment_vassal_transfer_effect = {
+	scope:defender = {
+		every_subject = { #To account for tributaries
+			limit = { 
+				sunset_invasion_subject_has_opposite_alignment_and_land_in_region = yes
+			}
+			every_sub_realm_county = {
+				limit = {
+					is_wastelands = no
+					any_in_list = {
+						list = initial_invasion_titles
+						this = prev
+					}
+				}
+				add_to_list = targeted_titles
+			}
+		}
+	}
+
+	create_title_and_vassal_change = {
+		type = conquest
+		save_scope_as = opposite_alignment_change
+		add_claim_on_loss = yes
+	}
+	every_in_list = {
+		list = targeted_titles
+		limit = {
+			holder != scope:attacker
+			is_wastelands = no
+		}
+		change_title_holder = {
+			holder = scope:attacker
+			change = scope:opposite_alignment_change
+		}
+	}
+	resolve_title_and_vassal_change = scope:opposite_alignment_change
+}
+
+sunset_invasion_same_alignment_vassal_transfer_effect = {
+	scope:defender = {
+		every_subject = {
+			limit = { 
+				sunset_invasion_subject_has_same_alignment_and_land_in_region = yes
+			}
+			sunset_invasion_cb_add_titles_to_list = yes
+		}
+	}
+	create_title_and_vassal_change = {
+		type = swear_fealty
+		save_scope_as = same_alignment_change
+		add_claim_on_loss = yes
+	}
+	every_in_list = {
+		list = targeted_titles
+		limit = { 
+			is_wastelands = no
+			holder != scope:attacker
+		}
+		holder = {
+			if = {
+				limit = { 
+					is_wastelands = no
+					is_tributary = yes
+				}
+				end_tributary = yes
+			}
+			change_liege = {
+				liege = scope:attacker
+				change = scope:same_alignment_change
+			}
+		}
+	}
+	resolve_title_and_vassal_change = scope:same_alignment_change
+}
+
+sunset_invasion_neutral_faith_vassal_transfer_effect = {
+	scope:defender = {
+		every_subject = {
+			limit = { 
+				is_wastelands = no
+				faith_is_neutral = yes
+				# Check for any held counties inside the region
+				any_held_county = {
+					any_in_list = {
+						list = initial_invasion_titles
+						this = prev
+					}
+					NOT = {
+						any_in_list = {
+							list = targeted_titles
+							this = prev
+						}
+					}
+				}
+			}
+			sunset_invasion_cb_add_titles_to_list = yes
+		}
+	}
+	create_title_and_vassal_change = {
+		type = swear_fealty
+		save_scope_as = neutral_alignment_change
+		add_claim_on_loss = yes
+	}
+	every_in_list = {
+		list = targeted_titles
+		limit = { 
+			is_wastelands = no
+			holder != scope:attacker
+		}
+		holder = {
+			if = {
+				limit = { 
+					is_wastelands = no
+					is_tributary = yes
+				}
+				end_tributary = yes
+			}
+			change_liege = {
+				liege = scope:attacker
+				change = scope:neutral_alignment_change
+			}
+		}
+	}
+	resolve_title_and_vassal_change = scope:neutral_alignment_change
+}
+
+sunset_invasion_take_titles_held_by_defender_effect = {
+	create_title_and_vassal_change = {
+		type = conquest
+		save_scope_as = change
+		add_claim_on_loss = yes
+	}
+	every_in_list = {
+		list = initial_invasion_titles
+		limit = {
+			NOR = {
+				holder = scope:attacker
+				holder.top_liege = scope:attacker
+				holder.suzerain ?= scope:attacker
+			}
+		}
+		change_title_holder = {
+			holder = scope:attacker
+			change = scope:change
+		}
+	}
+	resolve_title_and_vassal_change = scope:change
+}
+
 sunset_invasion_general_variables_effect = {
 	scope:invader_char = {
 		trigger_event = { # Need to do it with slight delay, otherwise event doesn't fire
@@ -670,6 +836,90 @@ sunset_invasion_general_variables_effect = {
 	scope:invader_char = {
 		set_variable = invisible_conqueror_story
 		create_story = story_conqueror
+	}
+}
+
+sunset_invasion_defender_loses_initial_invasion_war_effect = {
+	scope:attacker = {
+		every_held_county = {
+			add_to_list = transfer_titles
+		}
+	}
+
+	create_title_and_vassal_change = {
+		type = conquest
+		save_scope_as = change
+		add_claim_on_loss = yes
+	}
+	
+	every_in_list = {
+		list = transfer_titles
+		change_title_holder = {
+			holder = scope:defender
+			change = scope:change
+		}
+	}
+	resolve_title_and_vassal_change = scope:change
+
+	scope:attacker = {
+		remove_variable = invasion_cb_unlock
+		remove_variable = invisible_conqueror_story
+		remove_variable = conqueror
+	}
+}
+
+sunset_invasion_add_subjects_as_attackers_and_defenders_effect = {
+	### Add same alignment rulers as defenders ###
+	every_county_in_region = {
+		region = $GEOGRAPHICAL_REGION$
+		limit = { 
+			OR = {
+				holder.top_liege = scope:largest_realm_ruler
+				holder.suzerain ?= scope:largest_realm_ruler
+				holder.top_liege.suzerain ?= scope:largest_realm_ruler
+			}
+			holder = { same_alignment = { TARGET = scope:largest_realm_ruler } }
+			holder = { is_wastelands = no }
+			is_wastelands = no
+		}
+		holder = { add_to_list = call_to_invasion_war_defender_side }
+	}
+
+	every_in_list = {
+		list = call_to_invasion_war_defender_side
+		save_temporary_scope_as = curr_char
+		scope:invader_char = {
+			every_character_war = {
+				add_defender = scope:curr_char
+			}
+		}
+	}
+
+	
+	### Add opposite alignment rulers as defenders ###
+	every_county_in_region = {
+		region = $GEOGRAPHICAL_REGION$
+		limit = { 
+			OR = {
+				holder.top_liege = scope:largest_realm_ruler
+				holder.suzerain ?= scope:largest_realm_ruler
+				holder.top_liege.suzerain ?= scope:largest_realm_ruler
+			}
+			holder = { same_alignment = { TARGET = scope:invader_char } }
+			holder = { is_wastelands = no }
+			is_wastelands = no
+		}
+		holder = { add_to_list = call_to_invasion_war_attacker_side }
+	}
+
+	every_in_list = {
+		list = call_to_invasion_war_attacker_side
+		save_temporary_scope_as = curr_char
+		scope:invader_char = {
+			every_character_war = {
+				add_attacker = scope:curr_char
+			}
+		}
 	}
 }
 
@@ -819,10 +1069,6 @@ valinor_invasion_landing_effect = {
 
 	valinor_invasion_host_effect = yes
 }
-
-###												 ###
-# Assumes a `landing_county` scope. A county title #
-###												 ###
 
 valinor_invasion_host_effect = {
 	# Evil of Middle Earth Scopes
@@ -1036,30 +1282,12 @@ valinor_invasion_set_courtier_councillor_effect = {
 
 valinor_invasion_start_invasion_war = {
 	scope:invader_char = {
-		if = {
-			limit = { NOT = { is_at_war_with = scope:largest_realm_ruler } }
-		}
 		start_war = {
 			cb = lotr_valinor_invasion_cb
 			target = scope:largest_realm_ruler
-			# Lindon
-			target_title = title:e_lindon
-
-			# Arnor
-			target_title = title:e_arnor
-
-			# Blue Mountains
-			target_title = title:e_blue_mountains
-
-			# Enedhwaith
-			target_title = title:e_enedhwaith
-
-			# Orrostar Noldoron
-			target_title = title:e_orrostar
-
-			# Forodwaith
-			target_title = title:e_forodwaith
 		}
+
+		sunset_invasion_add_subjects_as_attackers_and_defenders_effect = { GEOGRAPHICAL_REGION = valinor_invasion_region }	
 	}
 }
 
@@ -1307,165 +1535,10 @@ pharazon_invasion_landing_effect = {
 
 pharazon_invasion_start_invasion_war = {
 	scope:invader_char = {
-		if = {
-			limit = { NOT = { is_at_war_with = scope:largest_realm_ruler } }
-		}
-		save_scope_value_as = { 
-			name = gondor_title 
-			value = title:c_minas_tirith.empire
-		}
-
 		start_war = {
 			cb = lotr_pharazon_invasion_cb
 			target = scope:largest_realm_ruler
-			# Umbar
-			target_title = title:e_umbar
-
-			# Gondor
-			target_title = scope:gondor_title
-
-			# Haradwaith
-			target_title = title:e_haradwaith
 		}
+		sunset_invasion_add_subjects_as_attackers_and_defenders_effect = { GEOGRAPHICAL_REGION = pharazon_invasion_region }
 	}
-}
-
-sunset_invasion_cb_add_titles_to_list = {
-	every_sub_realm_county = {
-		limit = {
-			is_wastelands = no
-			any_in_list = {
-				list = initial_invasion_titles
-				this = prev
-			}
-		}
-		add_to_list = targeted_titles
-	}
-}
-
-sunset_invasion_opposite_alignment_vassal_transfer_effect = {
-	scope:defender = {
-		every_subject = {
-			limit = { 
-				sunset_invasion_subject_has_opposite_alignment_and_land_in_region = yes
-			}
-			every_sub_realm_county = {
-				limit = {
-					is_wastelands = no
-					any_in_list = {
-						list = initial_invasion_titles
-						this = prev
-					}
-				}
-				add_to_list = targeted_titles
-			}
-		}
-	}
-
-	create_title_and_vassal_change = {
-		type = conquest
-		save_scope_as = opposite_alignment_change
-		add_claim_on_loss = yes
-	}
-	every_in_list = {
-		list = targeted_titles
-		limit = {
-			holder != scope:attacker
-			is_wastelands = no
-		}
-		change_title_holder = {
-			holder = scope:attacker
-			change = scope:opposite_alignment_change
-		}
-	}
-	resolve_title_and_vassal_change = scope:opposite_alignment_change
-}
-
-
-sunset_invasion_same_alignment_vassal_transfer_effect = {
-	scope:defender = {
-		every_subject = {
-			limit = { 
-				sunset_invasion_subject_has_same_alignment_and_land_in_region = yes
-			}
-			sunset_invasion_cb_add_titles_to_list = yes
-		}
-	}
-	create_title_and_vassal_change = {
-		type = swear_fealty
-		save_scope_as = same_alignment_change
-		add_claim_on_loss = yes
-	}
-	every_in_list = {
-		list = targeted_titles
-		limit = { 
-			is_wastelands = no
-			holder != scope:attacker
-		}
-		holder = {
-			if = {
-				limit = { 
-					is_wastelands = no
-					is_tributary = yes
-				}
-				end_tributary = yes
-			}
-			change_liege = {
-				liege = scope:attacker
-				change = scope:same_alignment_change
-			}
-		}
-	}
-	resolve_title_and_vassal_change = scope:same_alignment_change
-}
-
-sunset_invasion_neutral_faith_vassal_transfer_effect = {
-	scope:defender = {
-		every_subject = {
-			limit = { 
-				is_wastelands = no
-				faith_is_neutral = yes
-				# Check for any held counties inside the region
-				any_held_county = {
-					any_in_list = {
-						list = initial_invasion_titles
-						this = prev
-					}
-					NOT = {
-						any_in_list = {
-							list = targeted_titles
-							this = prev
-						}
-					}
-				}
-			}
-			sunset_invasion_cb_add_titles_to_list = yes
-		}
-	}
-	create_title_and_vassal_change = {
-		type = swear_fealty
-		save_scope_as = neutral_alignment_change
-		add_claim_on_loss = yes
-	}
-	every_in_list = {
-		list = targeted_titles
-		limit = { 
-			is_wastelands = no
-			holder != scope:attacker
-		}
-		holder = {
-			if = {
-				limit = { 
-					is_wastelands = no
-					is_tributary = yes
-				}
-				end_tributary = yes
-			}
-			change_liege = {
-				liege = scope:attacker
-				change = scope:neutral_alignment_change
-			}
-		}
-	}
-	resolve_title_and_vassal_change = scope:neutral_alignment_change
 }
