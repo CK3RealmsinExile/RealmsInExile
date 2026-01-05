@@ -786,7 +786,7 @@ transfer_moria_duchy_titles_effect = {
 			NOT = { $TITLE$.holder = scope:dwarf_in_moria }
 		}
 		create_title_and_vassal_change = {
-			type = swear_fealty
+			type = granted
 			save_scope_as = change
 			add_claim_on_loss = no
 		}
@@ -820,11 +820,55 @@ transfer_moria_duchy_titles_effect = {
 		}
 		resolve_title_and_vassal_change = scope:change
 	}
-
+	every_ruler = {
+		limit = {
+			highest_held_title_tier < scope:dwarf_in_moria.highest_held_title_tier
+			any_held_county = { duchy ?= $TITLE$ }
+			NOT = { has_title = $TITLE$ }
+		}
+		create_title_and_vassal_change = {
+			type = swear_fealty
+			save_scope_as = change
+		}
+		change_liege = {
+			liege = $TITLE$.holder
+			change = scope:change
+		}
+		resolve_title_and_vassal_change = scope:change
+	}
 }
 
 transfer_central_moria_effect = {
-	scope:dwarf_in_moria = { set_variable = grant_wilderness_titles }
+	scope:dwarf_in_moria = { set_variable = grant_wilderness_titles add_character_flag = dwarf_in_moria }
+	if = {
+		limit = { scope:dwarf_in_moria = { is_landed = no } }
+		scope:dwarf_in_moria = {
+			get_title = title:c_durins_hall
+			if = {
+				limit = { NOT = { has_government = feudal_government } }
+				change_government = feudal_government
+			}
+			every_vassal = {
+				limit = { NOT = { has_government = feudal_government } }
+				change_government = feudal_government
+			}
+			every_held_title = {
+				limit = { title_province = { terrain = halls } tier = tier_county }
+				title_province = { set_holding_type = dwarven_holding }
+			}
+			create_title_and_vassal_change = {
+				type = independency
+				save_scope_as = change
+				add_claim_on_loss = no
+			}
+			becomes_independent = { change = scope:change }
+			resolve_title_and_vassal_change = scope:change
+		}
+		ai_colonisation_effect = { WASTELANDS = title:c_durins_hall ROOT_SCOPE = scope:dwarf_in_moria }
+	}
+	moria_wastelands_to_delvings_effect = { DUCHY = title:d_zirakzigil }
+	moria_wastelands_to_delvings_effect = { DUCHY = title:d_barazinbar }
+	moria_wastelands_to_delvings_effect = { DUCHY = title:d_bundushathur }
 	if = {
 		limit = { NOT = { title:k_khazad_dum.holder = scope:dwarf_in_moria } }
 		scope:dwarf_in_moria = { get_title = title:k_khazad_dum }
@@ -832,9 +876,6 @@ transfer_central_moria_effect = {
 	transfer_moria_duchy_titles_effect = { TITLE = title:d_zirakzigil }
 	transfer_moria_duchy_titles_effect = { TITLE = title:d_barazinbar }
 	transfer_moria_duchy_titles_effect = { TITLE = title:d_bundushathur }
-	moria_wastelands_to_delvings_effect = { DUCHY = title:d_zirakzigil }
-	moria_wastelands_to_delvings_effect = { DUCHY = title:d_barazinbar }
-	moria_wastelands_to_delvings_effect = { DUCHY = title:d_bundushathur }
 	scope:dwarf_in_moria = { remove_variable = grant_wilderness_titles }
 	scope:dwarf_in_moria = {
 		if = {
@@ -846,15 +887,69 @@ transfer_central_moria_effect = {
 			change_government = feudal_government
 		}
 	}
+	if = {
+		limit = { OR = { has_title = title:c_caradhras_pass has_title = title:c_dimrill_dale } }
+		create_title_and_vassal_change = {
+			type = granted
+			save_scope_as = change
+			add_claim_on_loss = no
+		}
+		if = {
+			limit = { has_title = title:c_caradhras_pass }
+			title:c_caradhras_pass = {
+				change_title_holder = {
+					holder = scope:dwarf_in_moria
+					change = scope:change
+				}
+				set_county_culture = scope:dwarf_in_moria.culture
+				set_county_faith = scope:dwarf_in_moria.faith
+			}
+		}
+		if = {
+			limit = { has_title = title:c_dimrill_dale }
+			title:c_dimrill_dale = {
+				change_title_holder = {
+					holder = scope:dwarf_in_moria
+					change = scope:change
+				}
+				set_county_culture = scope:dwarf_in_moria.culture
+				set_county_faith = scope:dwarf_in_moria.faith
+			}
+		}
+		resolve_title_and_vassal_change = scope:change
+	}
 }
 
 moria_wastelands_to_delvings_effect = {
+	$DUCHY$ = {
+		every_de_jure_county = {
+			limit = {
+				title_province = { has_holding_type = wastelands_holding }
+			}
+			save_scope_as = county_title
+			ai_colonisation_effect = { WASTELANDS = scope:county_title ROOT_SCOPE = scope:dwarf_in_moria }
+			if = {
+				limit = { scope:county_title.title_province = { terrain = halls } }
+				scope:county_title.title_province = { set_holding_type = dwarven_holding }
+			}
+			else = {
+				scope:county_title.title_province = { set_holding_type = castle_holding }
+			}
+		}
+	}
 	create_title_and_vassal_change = {
 		type = returned
 		save_scope_as = change
 		add_claim_on_loss = no
 	}
 	$DUCHY$ = {
+		if = {
+			limit = { NOT = { exists = holder } }
+			change_title_holder = {
+				holder = scope:dwarf_in_moria
+				change = scope:change
+			}
+		}
 		every_de_jure_county = {
 			limit = { holder = character:k_wastelands_holder }
 			change_title_holder = {
@@ -1078,12 +1173,13 @@ serve_balrog_decision_effect = {
 }
 
 clear_dwarven_kingdom_claims = {
-	every_living_character = {
-		limit = { has_claim_on = $KINGDOM$ }
-		save_scope_as = claimant
-		if = {
-			limit = { NOT = { $KINGDOM$.holder.primary_heir = scope:claimant } }
-			remove_claim = $KINGDOM$
+	$KINGDOM$ = {
+		every_claimant = {
+			save_scope_as = claimant
+			if = {
+				limit = { NOT = { $KINGDOM$.holder.primary_heir = scope:claimant } }
+				remove_claim = $KINGDOM$
+			}
 		}
 	}
 }
@@ -1121,7 +1217,7 @@ add_thorins_tomb_modifiers_effect = {
 		}
 		if = {
 			limit = {
-				NOR = { 
+				NOR = {
 					has_global_variable = orcrist_plundered
 					has_global_variable = arkenstone_plundered
 				}
@@ -1300,24 +1396,6 @@ lotr_crown_dwarven_dynast = {
 	}
 }
 
-generate_thorins_company_list_effect = {
-	if = {
-		limit = { game_start_date >= 6974.11.23 }
-		add_to_global_variable_list = { name = canon_thorins_company target = character:lineofdurin95 }
-		add_to_global_variable_list = { name = canon_thorins_company target = character:lineofdurin96 }
-		add_to_global_variable_list = { name = canon_thorins_company target = character:lineofdurin98 }
-		add_to_global_variable_list = { name = canon_thorins_company target = character:lineofdurin99 }
-		add_to_global_variable_list = { name = canon_thorins_company target = character:lineofdurin86 }
-		add_to_global_variable_list = { name = canon_thorins_company target = character:lineofdurin87 }
-		add_to_global_variable_list = { name = canon_thorins_company target = character:lineofdurin104 }
-		add_to_global_variable_list = { name = canon_thorins_company target = character:lineofdurin105 }
-		add_to_global_variable_list = { name = canon_thorins_company target = character:lineofbifur }
-		add_to_global_variable_list = { name = canon_thorins_company target = character:lineofbomfur2 }
-		add_to_global_variable_list = { name = canon_thorins_company target = character:lineofbomfur1 }
-		add_to_global_variable_list = { name = canon_thorins_company target = character:lineofbaggins12 }
-	}
-}
-
 lotr_set_name = {
 	if = {
 		limit = { is_male = yes }
@@ -1340,12 +1418,1661 @@ lotr_set_name = {
 			1 = { change_first_name = Dania }
 			1 = { change_first_name = Edda }
 			1 = { change_first_name = F_ia }
-			1 = { change_first_name = Janna }
+			1 = { change_first_name = Minna }
 			1 = { change_first_name = P_il }
 			1 = { change_first_name = Ragna }
 			1 = { change_first_name = Tova }
 			1 = { change_first_name = Unna }
 			1 = { change_first_name = V_is }
 		}
+	}
+}
+
+mountains_hegeomy_formation_effect = {
+	if = {
+		limit = { is_dwarf = yes }
+		# Normal Empires
+		title:e_yellow_mountains = { add_to_list = mountains }
+		title:e_blue_mountains = { add_to_list = mountains }
+		title:e_white_mountains = { add_to_list = mountains }
+
+		# Potentially landless
+		if = {
+			limit = {
+				NOT = {
+					is_target_in_global_variable_list = {
+						name = unavailable_unique_decisions
+						target = flag:decision_unify_durins_folk
+					}
+				}
+			}
+			title:e_iron_mountains = { add_to_list = mountains }
+			title:e_misty_mountains = { add_to_list = mountains }
+		}
+		if = {
+			limit = {
+				NOT = {
+					is_target_in_global_variable_list = {
+						name = unavailable_unique_decisions
+						target = flag:decision_reunite_yellow_mountains
+					}
+				}
+			}
+			title:e_western_yellow_mountains = { add_to_list = mountains }
+		}
+		title:e_durins_folk = { add_to_list = mountains }
+		title:e_uris_folk = { add_to_list = mountains }
+		title:e_dwalins_folk = { add_to_list = mountains }
+		title:e_thrars_folk = { add_to_list = mountains }
+		title:e_sindris_folk = { add_to_list = mountains }
+		title:e_bavors_folk = { add_to_list = mountains }
+		title:e_thulins_folk = { add_to_list = mountains }
+	}
+	else = {
+		title:e_yellow_mountains = { add_to_list = mountains }
+		title:e_blue_mountains = { add_to_list = mountains }
+		title:e_white_mountains = { add_to_list = mountains }
+		title:e_iron_mountains = { add_to_list = mountains }
+		title:e_misty_mountains = { add_to_list = mountains }
+		if = {
+			limit = {
+				NOT = {
+					is_target_in_global_variable_list = {
+						name = unavailable_unique_decisions
+						target = flag:decision_reunite_yellow_mountains
+					}
+				}
+			}
+			title:e_western_yellow_mountains = { add_to_list = mountains }
+		}
+	}
+	every_in_list = {
+		list = mountains
+		save_temporary_scope_as = mountain_title
+		scope:mountain_title ?= { set_de_jure_liege_title = title:h_mountains }
+	}
+
+	title:h_mountains = { set_capital_county = root.capital_county }
+
+	if = {
+		limit = { is_dwarf = yes }
+		every_culture_global = {
+			limit = { is_dwarf_culture = yes }
+			add_to_list = dwarf_cultures
+		}
+		custom_tooltip = {
+			text = dwarven_culture_innovation_sharing_tooltip
+			every_in_list = {
+				list = dwarf_cultures
+				save_temporary_scope_as = culture
+				every_culture_global = {
+					limit = {
+						is_dwarf_culture = yes
+						NOT = { this = scope:culture }
+					}
+					get_all_innovations_from = scope:culture
+				}
+			}
+		}
+	}
+}
+
+killed_dwarf_father_effect = {
+	custom_tooltip = {
+		text = dwarf_father_killer_tooltip
+		scope:victim = {
+			dynasty ?= {
+				every_dynasty_member = {
+					limit = {
+						NOT = { this = scope:victim }
+						NOT = { this = scope:executioner }
+					}
+					if = {
+						limit = {
+							can_set_relation_grudge_if_adult_trigger = { CHARACTER = scope:executioner }
+							NOT = { has_relation_grudge = scope:executioner }
+						}
+						set_relation_grudge = {
+							target = scope:executioner
+							reason = lotr_grudge_killed_dorfdad
+						}
+					}
+					else = {
+						remove_relation_friend = scope:executioner
+						remove_relation_best_friend = scope:executioner
+						remove_relation_lover = scope:executioner
+						remove_relation_soulmate = scope:executioner
+						set_relation_grudge = {
+							target = scope:executioner
+							reason = lotr_grudge_killed_dorfdad
+						}
+					}
+					every_child = {
+						limit = { dynasty != scope:victim.dynasty }
+						if = {
+							limit = { can_set_relation_grudge_if_adult_trigger = { CHARACTER = scope:executioner } }
+							set_relation_grudge = {
+								target = scope:executioner
+								reason = lotr_grudge_killed_dorfdad
+							}
+						}
+						else = {
+							remove_relation_friend = scope:executioner
+							remove_relation_best_friend = scope:executioner
+							remove_relation_lover = scope:executioner
+							remove_relation_soulmate = scope:executioner
+							set_relation_grudge = {
+								target = scope:executioner
+								reason = lotr_grudge_killed_dorfdad
+							}
+						}
+					}
+				}
+			}
+			every_ruler = {
+				limit = {
+					highest_held_title_tier >= tier_county
+					culture = { has_same_culture_heritage = scope:victim.culture }
+				}
+				if = {
+					limit = { can_set_relation_grudge_if_adult_trigger = { CHARACTER = scope:executioner } }
+					set_relation_grudge = {
+						target = scope:executioner
+						reason = lotr_grudge_killed_dorfdad
+					}
+				}
+				else = {
+					remove_relation_friend = scope:executioner
+					remove_relation_best_friend = scope:executioner
+					remove_relation_lover = scope:executioner
+					remove_relation_soulmate = scope:executioner
+					set_relation_grudge = {
+						target = scope:executioner
+						reason = lotr_grudge_killed_dorfdad
+					}
+				}
+			}
+		}
+	}
+	scope:executioner = {
+		if = {
+			limit = {
+				is_dwarf = yes
+			}
+			add_piety = monumental_piety_loss
+			add_legitimacy = major_legitimacy_loss
+			add_prestige = major_prestige_loss
+			add_trait = gallowsbait
+			add_trait_xp = {
+				trait = gallowsbait
+				track = marauder
+				value = 100
+			}
+			add_trait = dwarf_father_killer
+		}
+		else = { add_trait = dwarf_father_killer }
+	}
+}
+
+killed_dwarf_father_reflection_effect = {
+	custom_tooltip = {
+		text = dwarf_father_reflection_killer_tooltip
+		scope:victim = {
+			dynasty ?= {
+				every_dynasty_member = {
+					limit = {
+						NOT = { this = scope:victim }
+						NOT = { this = scope:executioner }
+					}
+					if = {
+						limit = {
+							can_set_relation_grudge_if_adult_trigger = { CHARACTER = scope:executioner }
+							NOT = { has_relation_grudge = scope:executioner }
+						}
+						set_relation_grudge = {
+							target = scope:executioner
+							reason = lotr_grudge_killed_dorfdad_reflection
+						}
+					}
+					else = {
+						remove_relation_friend = scope:executioner
+						remove_relation_best_friend = scope:executioner
+						remove_relation_lover = scope:executioner
+						remove_relation_soulmate = scope:executioner
+						set_relation_grudge = {
+							target = scope:executioner
+							reason = lotr_grudge_killed_dorfdad_reflection
+						}
+					}
+					every_child = {
+						limit = { dynasty != scope:victim.dynasty }
+						if = {
+							limit = { can_set_relation_grudge_if_adult_trigger = { CHARACTER = scope:executioner } }
+							set_relation_grudge = {
+								target = scope:executioner
+								reason = lotr_grudge_killed_dorfdad_reflection
+							}
+						}
+						else = {
+							remove_relation_friend = scope:executioner
+							remove_relation_best_friend = scope:executioner
+							remove_relation_lover = scope:executioner
+							remove_relation_soulmate = scope:executioner
+							set_relation_grudge = {
+								target = scope:executioner
+								reason = lotr_grudge_killed_dorfdad_reflection
+							}
+						}
+					}
+				}
+			}
+			every_ruler = {
+				limit = {
+					highest_held_title_tier >= tier_county
+					culture = { has_same_culture_heritage = scope:victim.culture }
+				}
+				if = {
+					limit = { can_set_relation_grudge_if_adult_trigger = { CHARACTER = scope:executioner } }
+					set_relation_grudge = {
+						target = scope:executioner
+						reason = lotr_grudge_killed_dorfdad_reflection
+					}
+				}
+				else = {
+					remove_relation_friend = scope:executioner
+					remove_relation_best_friend = scope:executioner
+					remove_relation_lover = scope:executioner
+					remove_relation_soulmate = scope:executioner
+					set_relation_grudge = {
+						target = scope:executioner
+						reason = lotr_grudge_killed_dorfdad_reflection
+					}
+				}
+			}
+		}
+	}
+	scope:executioner = {
+		if = {
+			limit = {
+				is_dwarf = yes
+			}
+			add_piety = monumental_piety_loss
+			add_legitimacy = major_legitimacy_loss
+			add_prestige = major_prestige_loss
+			add_character_modifier = dwarf_father_reflection_killer_modifier
+		}
+		add_character_modifier = dwarf_father_reflection_killer_modifier
+	}
+}
+
+dwarven_succession_on_death_effect = {
+	if = {
+		limit = {
+			has_realm_law = dwarven_succession_law
+			primary_heir = { is_female = yes }
+		}
+		if = {
+			limit = {
+				primary_heir = {
+					any_child = {
+						house = root.house
+						is_male = yes
+					}
+				}
+			}
+			primary_heir = {
+				ordered_child = {
+					order_by = age
+					limit = {
+						house = root.house
+						is_male = yes
+					}
+					save_scope_as = new_heir
+				}
+			}
+			if = {
+				limit = { exists = scope:new_heir }
+				root = { set_designated_heir_unsafe = scope:new_heir }
+			}
+		}
+		else = {
+			if = {
+				limit = {
+					any_sibling = {
+						house = root.house
+						is_alive = yes
+						is_male = yes
+					}
+				}
+				ordered_sibling = {
+					order_by = age
+					limit = {
+						house = root.house
+						is_alive = yes
+						is_male = yes
+					}
+					save_scope_as = new_heir
+				}
+				if = {
+					limit = { exists = scope:new_heir }
+					root = { set_designated_heir_unsafe = scope:new_heir }
+				}
+			}
+			else_if = {
+				limit = {
+					any_sibling = {
+						house = root.house
+						is_alive = no
+						is_male = yes
+						any_child = {
+							house = root.house
+							is_alive = yes
+							is_male = yes
+						}
+					}
+				}
+				ordered_sibling = {
+					order_by = age
+					limit = {
+						house = root.house
+						is_alive = no
+						is_male = yes
+						any_child = {
+							house = root.house
+							is_alive = yes
+							is_male = yes
+						}
+					}
+					save_scope_as = brother_to_check
+				}
+				scope:brother_to_check ?= {
+					ordered_child = {
+						order_by = age
+						limit = {
+							house = root.house
+							is_alive = yes
+							is_male = yes
+						}
+						save_scope_as = new_heir
+					}
+				}
+				if = {
+					limit = { exists = scope:new_heir }
+					root = { set_designated_heir_unsafe = scope:new_heir }
+				}
+			}
+			else_if = {
+				limit = {
+					any_sibling = {
+						house = root.house
+						is_female = yes
+						any_child = {
+							house = root.house
+							is_alive = yes
+							is_male = yes
+						}
+					}
+				}
+				ordered_sibling = {
+					order_by = age
+					limit = {
+						house = root.house
+						is_female = yes
+						any_child = {
+							house = root.house
+							is_alive = yes
+							is_male = yes
+						}
+					}
+					save_scope_as = sister_to_check
+				}
+				scope:sister_to_check ?= {
+					ordered_child = {
+						order_by = age
+						limit = {
+							house = root.house
+							is_alive = yes
+							is_male = yes
+						}
+						save_scope_as = new_heir
+					}
+				}
+				if = {
+					limit = { exists = scope:new_heir }
+					root = { set_designated_heir_unsafe = scope:new_heir }
+				}
+			}
+			else = {
+				ordered_house_member = {
+					order_by = age
+					limit = {
+						is_male = yes
+						is_alive = yes
+					}
+					save_scope_as = new_heir
+				}
+				if = {
+					limit = { exists = scope:new_heir }
+					root = { set_designated_heir_unsafe = scope:new_heir }
+				}
+			}
+		}
+	}
+}
+
+killed_dwarf_father_effect = {
+	custom_tooltip = {
+		text = dwarf_father_killer_tooltip
+		scope:victim = {
+			dynasty ?= {
+				every_dynasty_member = {
+					limit = {
+						NOT = { this = scope:victim }
+						NOT = { this = scope:executioner }
+					}
+					if = {
+						limit = {
+							can_set_relation_grudge_if_adult_trigger = { CHARACTER = scope:executioner }
+							NOT = { has_relation_grudge = scope:executioner }
+						}
+						set_relation_grudge = {
+							target = scope:executioner
+							reason = lotr_grudge_killed_dorfdad
+						}
+					}
+					else = {
+						remove_relation_friend = scope:executioner
+						remove_relation_best_friend = scope:executioner
+						remove_relation_lover = scope:executioner
+						remove_relation_soulmate = scope:executioner
+						set_relation_grudge = {
+							target = scope:executioner
+							reason = lotr_grudge_killed_dorfdad
+						}
+					}
+					every_child = {
+						limit = { dynasty != scope:victim.dynasty }
+						if = {
+							limit = { can_set_relation_grudge_if_adult_trigger = { CHARACTER = scope:executioner } }
+							set_relation_grudge = {
+								target = scope:executioner
+								reason = lotr_grudge_killed_dorfdad
+							}
+						}
+						else = {
+							remove_relation_friend = scope:executioner
+							remove_relation_best_friend = scope:executioner
+							remove_relation_lover = scope:executioner
+							remove_relation_soulmate = scope:executioner
+							set_relation_grudge = {
+								target = scope:executioner
+								reason = lotr_grudge_killed_dorfdad
+							}
+						}
+					}
+				}
+			}
+			every_ruler = {
+				limit = {
+					highest_held_title_tier >= tier_county
+					culture = { has_same_culture_heritage = scope:victim.culture }
+				}
+				if = {
+					limit = { can_set_relation_grudge_if_adult_trigger = { CHARACTER = scope:executioner } }
+					set_relation_grudge = {
+						target = scope:executioner
+						reason = lotr_grudge_killed_dorfdad
+					}
+				}
+				else = {
+					remove_relation_friend = scope:executioner
+					remove_relation_best_friend = scope:executioner
+					remove_relation_lover = scope:executioner
+					remove_relation_soulmate = scope:executioner
+					set_relation_grudge = {
+						target = scope:executioner
+						reason = lotr_grudge_killed_dorfdad
+					}
+				}
+			}
+		}
+	}
+	scope:executioner = {
+		if = {
+			limit = {
+				is_dwarf = yes
+			}
+			add_piety = monumental_piety_loss
+			add_legitimacy = major_legitimacy_loss
+			add_prestige = major_prestige_loss
+			add_trait = gallowsbait
+			add_trait_xp = {
+				trait = gallowsbait
+				track = marauder
+				value = 100
+			}
+			add_trait = dwarf_father_killer
+		}
+		else = { add_trait = dwarf_father_killer }
+	}
+}
+
+killed_dwarf_father_reflection_effect = {
+	custom_tooltip = {
+		text = dwarf_father_reflection_killer_tooltip
+		scope:victim = {
+			dynasty ?= {
+				every_dynasty_member = {
+					limit = {
+						NOT = { this = scope:victim }
+						NOT = { this = scope:executioner }
+					}
+					if = {
+						limit = {
+							can_set_relation_grudge_if_adult_trigger = { CHARACTER = scope:executioner }
+							NOT = { has_relation_grudge = scope:executioner }
+						}
+						set_relation_grudge = {
+							target = scope:executioner
+							reason = lotr_grudge_killed_dorfdad_reflection
+						}
+					}
+					else = {
+						remove_relation_friend = scope:executioner
+						remove_relation_best_friend = scope:executioner
+						remove_relation_lover = scope:executioner
+						remove_relation_soulmate = scope:executioner
+						set_relation_grudge = {
+							target = scope:executioner
+							reason = lotr_grudge_killed_dorfdad_reflection
+						}
+					}
+					every_child = {
+						limit = { dynasty != scope:victim.dynasty }
+						if = {
+							limit = { can_set_relation_grudge_if_adult_trigger = { CHARACTER = scope:executioner } }
+							set_relation_grudge = {
+								target = scope:executioner
+								reason = lotr_grudge_killed_dorfdad_reflection
+							}
+						}
+						else = {
+							remove_relation_friend = scope:executioner
+							remove_relation_best_friend = scope:executioner
+							remove_relation_lover = scope:executioner
+							remove_relation_soulmate = scope:executioner
+							set_relation_grudge = {
+								target = scope:executioner
+								reason = lotr_grudge_killed_dorfdad_reflection
+							}
+						}
+					}
+				}
+			}
+			every_ruler = {
+				limit = {
+					highest_held_title_tier >= tier_county
+					culture = { has_same_culture_heritage = scope:victim.culture }
+				}
+				if = {
+					limit = { can_set_relation_grudge_if_adult_trigger = { CHARACTER = scope:executioner } }
+					set_relation_grudge = {
+						target = scope:executioner
+						reason = lotr_grudge_killed_dorfdad_reflection
+					}
+				}
+				else = {
+					remove_relation_friend = scope:executioner
+					remove_relation_best_friend = scope:executioner
+					remove_relation_lover = scope:executioner
+					remove_relation_soulmate = scope:executioner
+					set_relation_grudge = {
+						target = scope:executioner
+						reason = lotr_grudge_killed_dorfdad_reflection
+					}
+				}
+			}
+		}
+	}
+	scope:executioner = {
+		if = {
+			limit = {
+				is_dwarf = yes
+			}
+			add_piety = monumental_piety_loss
+			add_legitimacy = major_legitimacy_loss
+			add_prestige = major_prestige_loss
+			add_character_modifier = dwarf_father_reflection_killer_modifier
+		}
+		add_character_modifier = dwarf_father_reflection_killer_modifier
+	}
+}
+
+dwarven_succession_on_death_effect = {
+	if = {
+		limit = {
+			has_realm_law = dwarven_succession_law
+			primary_heir = { is_female = yes }
+		}
+		if = {
+			limit = {
+				primary_heir = {
+					any_child = {
+						house = root.house
+						is_male = yes
+					}
+				}
+			}
+			primary_heir = {
+				ordered_child = {
+					order_by = age
+					limit = {
+						house = root.house
+						is_male = yes
+					}
+					save_scope_as = new_heir
+				}
+			}
+			if = {
+				limit = { exists = scope:new_heir }
+				root = { set_designated_heir_unsafe = scope:new_heir }
+			}
+		}
+		else = {
+			if = {
+				limit = {
+					any_sibling = {
+						house = root.house
+						is_alive = yes
+						is_male = yes
+					}
+				}
+				ordered_sibling = {
+					order_by = age
+					limit = {
+						house = root.house
+						is_alive = yes
+						is_male = yes
+					}
+					save_scope_as = new_heir
+				}
+				if = {
+					limit = { exists = scope:new_heir }
+					root = { set_designated_heir_unsafe = scope:new_heir }
+				}
+			}
+			else_if = {
+				limit = {
+					any_sibling = {
+						house = root.house
+						is_alive = no
+						is_male = yes
+						any_child = {
+							house = root.house
+							is_alive = yes
+							is_male = yes
+						}
+					}
+				}
+				ordered_sibling = {
+					order_by = age
+					limit = {
+						house = root.house
+						is_alive = no
+						is_male = yes
+						any_child = {
+							house = root.house
+							is_alive = yes
+							is_male = yes
+						}
+					}
+					save_scope_as = brother_to_check
+				}
+				scope:brother_to_check ?= {
+					ordered_child = {
+						order_by = age
+						limit = {
+							house = root.house
+							is_alive = yes
+							is_male = yes
+						}
+						save_scope_as = new_heir
+					}
+				}
+				if = {
+					limit = { exists = scope:new_heir }
+					root = { set_designated_heir_unsafe = scope:new_heir }
+				}
+			}
+			else_if = {
+				limit = {
+					any_sibling = {
+						house = root.house
+						is_female = yes
+						any_child = {
+							house = root.house
+							is_alive = yes
+							is_male = yes
+						}
+					}
+				}
+				ordered_sibling = {
+					order_by = age
+					limit = {
+						house = root.house
+						is_female = yes
+						any_child = {
+							house = root.house
+							is_alive = yes
+							is_male = yes
+						}
+					}
+					save_scope_as = sister_to_check
+				}
+				scope:sister_to_check ?= {
+					ordered_child = {
+						order_by = age
+						limit = {
+							house = root.house
+							is_alive = yes
+							is_male = yes
+						}
+						save_scope_as = new_heir
+					}
+				}
+				if = {
+					limit = { exists = scope:new_heir }
+					root = { set_designated_heir_unsafe = scope:new_heir }
+				}
+			}
+			else = {
+				ordered_house_member = {
+					order_by = age
+					limit = {
+						is_male = yes
+						is_alive = yes
+					}
+					save_scope_as = new_heir
+				}
+				if = {
+					limit = { exists = scope:new_heir }
+					root = { set_designated_heir_unsafe = scope:new_heir }
+				}
+			}
+		}
+	}
+}
+
+killed_dwarf_father_effect = {
+	custom_tooltip = {
+		text = dwarf_father_killer_tooltip
+		scope:victim = {
+			dynasty ?= {
+				every_dynasty_member = {
+					limit = {
+						NOT = { this = scope:victim }
+						NOT = { this = scope:executioner }
+					}
+					if = {
+						limit = {
+							can_set_relation_grudge_if_adult_trigger = { CHARACTER = scope:executioner }
+							NOT = { has_relation_grudge = scope:executioner }
+						}
+						set_relation_grudge = {
+							target = scope:executioner
+							reason = lotr_grudge_killed_dorfdad
+						}
+					}
+					else = {
+						remove_relation_friend = scope:executioner
+						remove_relation_best_friend = scope:executioner
+						remove_relation_lover = scope:executioner
+						remove_relation_soulmate = scope:executioner
+						set_relation_grudge = {
+							target = scope:executioner
+							reason = lotr_grudge_killed_dorfdad
+						}
+					}
+					every_child = {
+						limit = { dynasty != scope:victim.dynasty }
+						if = {
+							limit = { can_set_relation_grudge_if_adult_trigger = { CHARACTER = scope:executioner } }
+							set_relation_grudge = {
+								target = scope:executioner
+								reason = lotr_grudge_killed_dorfdad
+							}
+						}
+						else = {
+							remove_relation_friend = scope:executioner
+							remove_relation_best_friend = scope:executioner
+							remove_relation_lover = scope:executioner
+							remove_relation_soulmate = scope:executioner
+							set_relation_grudge = {
+								target = scope:executioner
+								reason = lotr_grudge_killed_dorfdad
+							}
+						}
+					}
+				}
+			}
+			every_ruler = {
+				limit = {
+					highest_held_title_tier >= tier_county
+					culture = { has_same_culture_heritage = scope:victim.culture }
+				}
+				if = {
+					limit = { can_set_relation_grudge_if_adult_trigger = { CHARACTER = scope:executioner } }
+					set_relation_grudge = {
+						target = scope:executioner
+						reason = lotr_grudge_killed_dorfdad
+					}
+				}
+				else = {
+					remove_relation_friend = scope:executioner
+					remove_relation_best_friend = scope:executioner
+					remove_relation_lover = scope:executioner
+					remove_relation_soulmate = scope:executioner
+					set_relation_grudge = {
+						target = scope:executioner
+						reason = lotr_grudge_killed_dorfdad
+					}
+				}
+			}
+		}
+	}
+	scope:executioner = {
+		if = {
+			limit = {
+				is_dwarf = yes
+			}
+			add_piety = monumental_piety_loss
+			add_legitimacy = major_legitimacy_loss
+			add_prestige = major_prestige_loss
+			add_trait = gallowsbait
+			add_trait_xp = {
+				trait = gallowsbait
+				track = marauder
+				value = 100
+			}
+			add_trait = dwarf_father_killer
+		}
+		else = { add_trait = dwarf_father_killer }
+	}
+}
+
+killed_dwarf_father_reflection_effect = {
+	custom_tooltip = {
+		text = dwarf_father_reflection_killer_tooltip
+		scope:victim = {
+			dynasty ?= {
+				every_dynasty_member = {
+					limit = {
+						NOT = { this = scope:victim }
+						NOT = { this = scope:executioner }
+					}
+					if = {
+						limit = {
+							can_set_relation_grudge_if_adult_trigger = { CHARACTER = scope:executioner }
+							NOT = { has_relation_grudge = scope:executioner }
+						}
+						set_relation_grudge = {
+							target = scope:executioner
+							reason = lotr_grudge_killed_dorfdad_reflection
+						}
+					}
+					else = {
+						remove_relation_friend = scope:executioner
+						remove_relation_best_friend = scope:executioner
+						remove_relation_lover = scope:executioner
+						remove_relation_soulmate = scope:executioner
+						set_relation_grudge = {
+							target = scope:executioner
+							reason = lotr_grudge_killed_dorfdad_reflection
+						}
+					}
+					every_child = {
+						limit = { dynasty != scope:victim.dynasty }
+						if = {
+							limit = { can_set_relation_grudge_if_adult_trigger = { CHARACTER = scope:executioner } }
+							set_relation_grudge = {
+								target = scope:executioner
+								reason = lotr_grudge_killed_dorfdad_reflection
+							}
+						}
+						else = {
+							remove_relation_friend = scope:executioner
+							remove_relation_best_friend = scope:executioner
+							remove_relation_lover = scope:executioner
+							remove_relation_soulmate = scope:executioner
+							set_relation_grudge = {
+								target = scope:executioner
+								reason = lotr_grudge_killed_dorfdad_reflection
+							}
+						}
+					}
+				}
+			}
+			every_ruler = {
+				limit = {
+					highest_held_title_tier >= tier_county
+					culture = { has_same_culture_heritage = scope:victim.culture }
+				}
+				if = {
+					limit = { can_set_relation_grudge_if_adult_trigger = { CHARACTER = scope:executioner } }
+					set_relation_grudge = {
+						target = scope:executioner
+						reason = lotr_grudge_killed_dorfdad_reflection
+					}
+				}
+				else = {
+					remove_relation_friend = scope:executioner
+					remove_relation_best_friend = scope:executioner
+					remove_relation_lover = scope:executioner
+					remove_relation_soulmate = scope:executioner
+					set_relation_grudge = {
+						target = scope:executioner
+						reason = lotr_grudge_killed_dorfdad_reflection
+					}
+				}
+			}
+		}
+	}
+	scope:executioner = {
+		if = {
+			limit = {
+				is_dwarf = yes
+			}
+			add_piety = monumental_piety_loss
+			add_legitimacy = major_legitimacy_loss
+			add_prestige = major_prestige_loss
+			add_character_modifier = dwarf_father_reflection_killer_modifier
+		}
+		add_character_modifier = dwarf_father_reflection_killer_modifier
+	}
+}
+
+dwarven_succession_on_death_effect = {
+	if = {
+		limit = {
+			has_realm_law = dwarven_succession_law
+			primary_heir = { is_female = yes }
+		}
+		if = {
+			limit = {
+				primary_heir = {
+					any_child = {
+						house = root.house
+						is_male = yes
+					}
+				}
+			}
+			primary_heir = {
+				ordered_child = {
+					order_by = age
+					limit = {
+						house = root.house
+						is_male = yes
+					}
+					save_scope_as = new_heir
+				}
+			}
+			if = {
+				limit = { exists = scope:new_heir }
+				root = { set_designated_heir_unsafe = scope:new_heir }
+			}
+		}
+		else = {
+			if = {
+				limit = {
+					any_sibling = {
+						house = root.house
+						is_alive = yes
+						is_male = yes
+					}
+				}
+				ordered_sibling = {
+					order_by = age
+					limit = {
+						house = root.house
+						is_alive = yes
+						is_male = yes
+					}
+					save_scope_as = new_heir
+				}
+				if = {
+					limit = { exists = scope:new_heir }
+					root = { set_designated_heir_unsafe = scope:new_heir }
+				}
+			}
+			else_if = {
+				limit = {
+					any_sibling = {
+						house = root.house
+						is_alive = no
+						is_male = yes
+						any_child = {
+							house = root.house
+							is_alive = yes
+							is_male = yes
+						}
+					}
+				}
+				ordered_sibling = {
+					order_by = age
+					limit = {
+						house = root.house
+						is_alive = no
+						is_male = yes
+						any_child = {
+							house = root.house
+							is_alive = yes
+							is_male = yes
+						}
+					}
+					save_scope_as = brother_to_check
+				}
+				scope:brother_to_check ?= {
+					ordered_child = {
+						order_by = age
+						limit = {
+							house = root.house
+							is_alive = yes
+							is_male = yes
+						}
+						save_scope_as = new_heir
+					}
+				}
+				if = {
+					limit = { exists = scope:new_heir }
+					root = { set_designated_heir_unsafe = scope:new_heir }
+				}
+			}
+			else_if = {
+				limit = {
+					any_sibling = {
+						house = root.house
+						is_female = yes
+						any_child = {
+							house = root.house
+							is_alive = yes
+							is_male = yes
+						}
+					}
+				}
+				ordered_sibling = {
+					order_by = age
+					limit = {
+						house = root.house
+						is_female = yes
+						any_child = {
+							house = root.house
+							is_alive = yes
+							is_male = yes
+						}
+					}
+					save_scope_as = sister_to_check
+				}
+				scope:sister_to_check ?= {
+					ordered_child = {
+						order_by = age
+						limit = {
+							house = root.house
+							is_alive = yes
+							is_male = yes
+						}
+						save_scope_as = new_heir
+					}
+				}
+				if = {
+					limit = { exists = scope:new_heir }
+					root = { set_designated_heir_unsafe = scope:new_heir }
+				}
+			}
+			else = {
+				ordered_house_member = {
+					order_by = age
+					limit = {
+						is_male = yes
+						is_alive = yes
+					}
+					save_scope_as = new_heir
+				}
+				if = {
+					limit = { exists = scope:new_heir }
+					root = { set_designated_heir_unsafe = scope:new_heir }
+				}
+			}
+		}
+	}
+}
+
+killed_dwarf_father_effect = {
+	custom_tooltip = {
+		text = dwarf_father_killer_tooltip
+		scope:victim = {
+			dynasty ?= {
+				every_dynasty_member = {
+					limit = {
+						NOT = { this = scope:victim }
+						NOT = { this = scope:executioner }
+					}
+					if = {
+						limit = {
+							can_set_relation_grudge_if_adult_trigger = { CHARACTER = scope:executioner }
+							NOT = { has_relation_grudge = scope:executioner }
+						}
+						set_relation_grudge = {
+							target = scope:executioner
+							reason = lotr_grudge_killed_dorfdad
+						}
+					}
+					else = {
+						remove_relation_friend = scope:executioner
+						remove_relation_best_friend = scope:executioner
+						remove_relation_lover = scope:executioner
+						remove_relation_soulmate = scope:executioner
+						set_relation_grudge = {
+							target = scope:executioner
+							reason = lotr_grudge_killed_dorfdad
+						}
+					}
+					every_child = {
+						limit = { dynasty != scope:victim.dynasty }
+						if = {
+							limit = { can_set_relation_grudge_if_adult_trigger = { CHARACTER = scope:executioner } }
+							set_relation_grudge = {
+								target = scope:executioner
+								reason = lotr_grudge_killed_dorfdad
+							}
+						}
+						else = {
+							remove_relation_friend = scope:executioner
+							remove_relation_best_friend = scope:executioner
+							remove_relation_lover = scope:executioner
+							remove_relation_soulmate = scope:executioner
+							set_relation_grudge = {
+								target = scope:executioner
+								reason = lotr_grudge_killed_dorfdad
+							}
+						}
+					}
+				}
+			}
+			every_ruler = {
+				limit = {
+					highest_held_title_tier >= tier_county
+					culture = { has_same_culture_heritage = scope:victim.culture }
+				}
+				if = {
+					limit = { can_set_relation_grudge_if_adult_trigger = { CHARACTER = scope:executioner } }
+					set_relation_grudge = {
+						target = scope:executioner
+						reason = lotr_grudge_killed_dorfdad
+					}
+				}
+				else = {
+					remove_relation_friend = scope:executioner
+					remove_relation_best_friend = scope:executioner
+					remove_relation_lover = scope:executioner
+					remove_relation_soulmate = scope:executioner
+					set_relation_grudge = {
+						target = scope:executioner
+						reason = lotr_grudge_killed_dorfdad
+					}
+				}
+			}
+		}
+	}
+	scope:executioner = {
+		if = {
+			limit = {
+				is_dwarf = yes
+			}
+			add_piety = monumental_piety_loss
+			add_legitimacy = major_legitimacy_loss
+			add_prestige = major_prestige_loss
+			add_trait = gallowsbait
+			add_trait_xp = {
+				trait = gallowsbait
+				track = marauder
+				value = 100
+			}
+			add_trait = dwarf_father_killer
+		}
+		else = { add_trait = dwarf_father_killer }
+	}
+}
+
+killed_dwarf_father_reflection_effect = {
+	custom_tooltip = {
+		text = dwarf_father_reflection_killer_tooltip
+		scope:victim = {
+			dynasty ?= {
+				every_dynasty_member = {
+					limit = {
+						NOT = { this = scope:victim }
+						NOT = { this = scope:executioner }
+					}
+					if = {
+						limit = {
+							can_set_relation_grudge_if_adult_trigger = { CHARACTER = scope:executioner }
+							NOT = { has_relation_grudge = scope:executioner }
+						}
+						set_relation_grudge = {
+							target = scope:executioner
+							reason = lotr_grudge_killed_dorfdad_reflection
+						}
+					}
+					else = {
+						remove_relation_friend = scope:executioner
+						remove_relation_best_friend = scope:executioner
+						remove_relation_lover = scope:executioner
+						remove_relation_soulmate = scope:executioner
+						set_relation_grudge = {
+							target = scope:executioner
+							reason = lotr_grudge_killed_dorfdad_reflection
+						}
+					}
+					every_child = {
+						limit = { dynasty != scope:victim.dynasty }
+						if = {
+							limit = { can_set_relation_grudge_if_adult_trigger = { CHARACTER = scope:executioner } }
+							set_relation_grudge = {
+								target = scope:executioner
+								reason = lotr_grudge_killed_dorfdad_reflection
+							}
+						}
+						else = {
+							remove_relation_friend = scope:executioner
+							remove_relation_best_friend = scope:executioner
+							remove_relation_lover = scope:executioner
+							remove_relation_soulmate = scope:executioner
+							set_relation_grudge = {
+								target = scope:executioner
+								reason = lotr_grudge_killed_dorfdad_reflection
+							}
+						}
+					}
+				}
+			}
+			every_ruler = {
+				limit = {
+					highest_held_title_tier >= tier_county
+					culture = { has_same_culture_heritage = scope:victim.culture }
+				}
+				if = {
+					limit = { can_set_relation_grudge_if_adult_trigger = { CHARACTER = scope:executioner } }
+					set_relation_grudge = {
+						target = scope:executioner
+						reason = lotr_grudge_killed_dorfdad_reflection
+					}
+				}
+				else = {
+					remove_relation_friend = scope:executioner
+					remove_relation_best_friend = scope:executioner
+					remove_relation_lover = scope:executioner
+					remove_relation_soulmate = scope:executioner
+					set_relation_grudge = {
+						target = scope:executioner
+						reason = lotr_grudge_killed_dorfdad_reflection
+					}
+				}
+			}
+		}
+	}
+	scope:executioner = {
+		if = {
+			limit = {
+				is_dwarf = yes
+			}
+			add_piety = monumental_piety_loss
+			add_legitimacy = major_legitimacy_loss
+			add_prestige = major_prestige_loss
+			add_character_modifier = dwarf_father_reflection_killer_modifier
+		}
+		add_character_modifier = dwarf_father_reflection_killer_modifier
+	}
+}
+
+dwarven_succession_on_death_effect = {
+	if = {
+		limit = {
+			has_realm_law = dwarven_succession_law
+			primary_heir = { is_female = yes }
+		}
+		if = {
+			limit = {
+				primary_heir = {
+					any_child = {
+						house = root.house
+						is_male = yes
+					}
+				}
+			}
+			primary_heir = {
+				ordered_child = {
+					order_by = age
+					limit = {
+						house = root.house
+						is_male = yes
+					}
+					save_scope_as = new_heir
+				}
+			}
+			if = {
+				limit = { exists = scope:new_heir }
+				root = { set_designated_heir_unsafe = scope:new_heir }
+			}
+		}
+		else = {
+			if = {
+				limit = {
+					any_sibling = {
+						house = root.house
+						is_alive = yes
+						is_male = yes
+					}
+				}
+				ordered_sibling = {
+					order_by = age
+					limit = {
+						house = root.house
+						is_alive = yes
+						is_male = yes
+					}
+					save_scope_as = new_heir
+				}
+				if = {
+					limit = { exists = scope:new_heir }
+					root = { set_designated_heir_unsafe = scope:new_heir }
+				}
+			}
+			else_if = {
+				limit = {
+					any_sibling = {
+						house = root.house
+						is_alive = no
+						is_male = yes
+						any_child = {
+							house = root.house
+							is_alive = yes
+							is_male = yes
+						}
+					}
+				}
+				ordered_sibling = {
+					order_by = age
+					limit = {
+						house = root.house
+						is_alive = no
+						is_male = yes
+						any_child = {
+							house = root.house
+							is_alive = yes
+							is_male = yes
+						}
+					}
+					save_scope_as = brother_to_check
+				}
+				scope:brother_to_check ?= {
+					ordered_child = {
+						order_by = age
+						limit = {
+							house = root.house
+							is_alive = yes
+							is_male = yes
+						}
+						save_scope_as = new_heir
+					}
+				}
+				if = {
+					limit = { exists = scope:new_heir }
+					root = { set_designated_heir_unsafe = scope:new_heir }
+				}
+			}
+			else_if = {
+				limit = {
+					any_sibling = {
+						house = root.house
+						is_female = yes
+						any_child = {
+							house = root.house
+							is_alive = yes
+							is_male = yes
+						}
+					}
+				}
+				ordered_sibling = {
+					order_by = age
+					limit = {
+						house = root.house
+						is_female = yes
+						any_child = {
+							house = root.house
+							is_alive = yes
+							is_male = yes
+						}
+					}
+					save_scope_as = sister_to_check
+				}
+				scope:sister_to_check ?= {
+					ordered_child = {
+						order_by = age
+						limit = {
+							house = root.house
+							is_alive = yes
+							is_male = yes
+						}
+						save_scope_as = new_heir
+					}
+				}
+				if = {
+					limit = { exists = scope:new_heir }
+					root = { set_designated_heir_unsafe = scope:new_heir }
+				}
+			}
+			else = {
+				ordered_house_member = {
+					order_by = age
+					limit = {
+						is_male = yes
+						is_alive = yes
+					}
+					save_scope_as = new_heir
+				}
+				if = {
+					limit = { exists = scope:new_heir }
+					root = { set_designated_heir_unsafe = scope:new_heir }
+				}
+			}
+		}
+	}
+}
+
+killed_dwarf_father_effect = {
+	custom_tooltip = {
+		text = dwarf_father_killer_tooltip
+		scope:victim = {
+			dynasty ?= {
+				every_dynasty_member = {
+					limit = {
+						NOT = { this = scope:victim }
+						NOT = { this = scope:executioner }
+					}
+					if = {
+						limit = {
+							can_set_relation_grudge_if_adult_trigger = { CHARACTER = scope:executioner }
+							NOT = { has_relation_grudge = scope:executioner }
+						}
+						set_relation_grudge = {
+							target = scope:executioner
+							reason = lotr_grudge_killed_dorfdad
+						}
+					}
+					else = {
+						remove_relation_friend = scope:executioner
+						remove_relation_best_friend = scope:executioner
+						remove_relation_lover = scope:executioner
+						remove_relation_soulmate = scope:executioner
+						set_relation_grudge = {
+							target = scope:executioner
+							reason = lotr_grudge_killed_dorfdad
+						}
+					}
+					every_child = {
+						limit = { dynasty != scope:victim.dynasty }
+						if = {
+							limit = { can_set_relation_grudge_if_adult_trigger = { CHARACTER = scope:executioner } }
+							set_relation_grudge = {
+								target = scope:executioner
+								reason = lotr_grudge_killed_dorfdad
+							}
+						}
+						else = {
+							remove_relation_friend = scope:executioner
+							remove_relation_best_friend = scope:executioner
+							remove_relation_lover = scope:executioner
+							remove_relation_soulmate = scope:executioner
+							set_relation_grudge = {
+								target = scope:executioner
+								reason = lotr_grudge_killed_dorfdad
+							}
+						}
+					}
+				}
+			}
+			every_ruler = {
+				limit = {
+					highest_held_title_tier >= tier_county
+					culture = { has_same_culture_heritage = scope:victim.culture }
+				}
+				if = {
+					limit = { can_set_relation_grudge_if_adult_trigger = { CHARACTER = scope:executioner } }
+					set_relation_grudge = {
+						target = scope:executioner
+						reason = lotr_grudge_killed_dorfdad
+					}
+				}
+				else = {
+					remove_relation_friend = scope:executioner
+					remove_relation_best_friend = scope:executioner
+					remove_relation_lover = scope:executioner
+					remove_relation_soulmate = scope:executioner
+					set_relation_grudge = {
+						target = scope:executioner
+						reason = lotr_grudge_killed_dorfdad
+					}
+				}
+			}
+		}
+	}
+	scope:executioner = {
+		if = {
+			limit = {
+				is_dwarf = yes
+			}
+			add_piety = monumental_piety_loss
+			add_legitimacy = major_legitimacy_loss
+			add_prestige = major_prestige_loss
+			add_trait = gallowsbait
+			add_trait_xp = {
+				trait = gallowsbait
+				track = marauder
+				value = 100
+			}
+			add_trait = dwarf_father_killer
+		}
+		else = { add_trait = dwarf_father_killer }
+	}
+}
+
+killed_dwarf_father_reflection_effect = {
+	custom_tooltip = {
+		text = dwarf_father_reflection_killer_tooltip
+		scope:victim = {
+			dynasty ?= {
+				every_dynasty_member = {
+					limit = {
+						NOT = { this = scope:victim }
+						NOT = { this = scope:executioner }
+					}
+					if = {
+						limit = {
+							can_set_relation_grudge_if_adult_trigger = { CHARACTER = scope:executioner }
+							NOT = { has_relation_grudge = scope:executioner }
+						}
+						set_relation_grudge = {
+							target = scope:executioner
+							reason = lotr_grudge_killed_dorfdad_reflection
+						}
+					}
+					else = {
+						remove_relation_friend = scope:executioner
+						remove_relation_best_friend = scope:executioner
+						remove_relation_lover = scope:executioner
+						remove_relation_soulmate = scope:executioner
+						set_relation_grudge = {
+							target = scope:executioner
+							reason = lotr_grudge_killed_dorfdad_reflection
+						}
+					}
+					every_child = {
+						limit = { dynasty != scope:victim.dynasty }
+						if = {
+							limit = { can_set_relation_grudge_if_adult_trigger = { CHARACTER = scope:executioner } }
+							set_relation_grudge = {
+								target = scope:executioner
+								reason = lotr_grudge_killed_dorfdad_reflection
+							}
+						}
+						else = {
+							remove_relation_friend = scope:executioner
+							remove_relation_best_friend = scope:executioner
+							remove_relation_lover = scope:executioner
+							remove_relation_soulmate = scope:executioner
+							set_relation_grudge = {
+								target = scope:executioner
+								reason = lotr_grudge_killed_dorfdad_reflection
+							}
+						}
+					}
+				}
+			}
+			every_ruler = {
+				limit = {
+					highest_held_title_tier >= tier_county
+					culture = { has_same_culture_heritage = scope:victim.culture }
+				}
+				if = {
+					limit = { can_set_relation_grudge_if_adult_trigger = { CHARACTER = scope:executioner } }
+					set_relation_grudge = {
+						target = scope:executioner
+						reason = lotr_grudge_killed_dorfdad_reflection
+					}
+				}
+				else = {
+					remove_relation_friend = scope:executioner
+					remove_relation_best_friend = scope:executioner
+					remove_relation_lover = scope:executioner
+					remove_relation_soulmate = scope:executioner
+					set_relation_grudge = {
+						target = scope:executioner
+						reason = lotr_grudge_killed_dorfdad_reflection
+					}
+				}
+			}
+		}
+	}
+	scope:executioner = {
+		if = {
+			limit = {
+				is_dwarf = yes
+			}
+			add_piety = monumental_piety_loss
+			add_legitimacy = major_legitimacy_loss
+			add_prestige = major_prestige_loss
+			add_character_modifier = dwarf_father_reflection_killer_modifier
+		}
+		add_character_modifier = dwarf_father_reflection_killer_modifier
 	}
 }

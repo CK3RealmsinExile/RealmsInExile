@@ -236,7 +236,53 @@ on_game_start = {
 			}
 		}
 
-		setup_tributaries_effect = yes # defined in 00_tributary_setup_effect.txt
+		
+
+		# To prevent the Season Changes event from triggering on game start
+		situation:the_great_steppe ?= {
+			every_participant_group = {
+				every_situation_group_participant = {
+					set_variable = {
+						name = steppe_game_start_var
+						years = 1
+					}
+				}
+			}
+		}
+
+		#CP3 Special Buildings - Goes Before Holy Sites
+		#if = { #LotR
+		#	limit = {
+		#		has_cp3_dlc_trigger = yes
+		#	}
+	    #    title:b_barcelona.title_province = { add_special_building_slot = drassanes_01 } #1892
+	    #    title:b_merv.title_province = { add_special_building = kyz_kala_01 } #4238
+	    #    if = { limit = { game_start_date >= 1178.10.1 } title:b_cluny.title_province = { add_special_building = cluny_abbey_02 } } #2304
+		#	 else_if = { limit = { game_start_date >= 1066.9.15 } title:b_cluny.title_province = { add_special_building = cluny_abbey_01 } }
+	    #    else = { title:b_cluny.title_province = { add_special_building_slot = cluny_abbey_01 } }
+	    #    title:b_york.title_province = { add_special_building = york_walls_01 } #1595
+	    #    title:b_damascus.title_province = { add_special_building = damascus_mosque_01 } #5924
+	    #    title:b_lhasa.title_province = { add_special_building = jokhang_01 } #9237
+	    #    if = { limit = { game_start_date >= 1178.10.1 } title:b_schmalkalden.title_province = { add_special_building = wartburg_01 } } #3010
+	    #    else = { title:b_schmalkalden.title_province = { add_special_building_slot = wartburg_01 } }
+	    #    title:b_lalibela.title_province = { add_special_building_slot = beta_giyorgis_01 } #8301
+	    #    if = { limit = { game_start_date >= 1066.9.15 } title:b_novgorod.title_province = { add_special_building = holy_wisdom_01 } } #5137
+	    #    else = { title:b_novgorod.title_province = { add_special_building_slot = holy_wisdom_01 } }
+	    #    title:b_kano.title_province = { add_special_building_slot = kano_walls_01 } #6519
+	    #    title:b_somapur.title_province = { add_special_building = somapura_university_01 } #848
+	    #    if = { limit = { game_start_date >= 1178.10.1 } title:b_firenze.title_province = { add_special_building = duomo_florence_02 } } #2543
+	    #    else = { title:b_firenze.title_province = { add_special_building = duomo_florence_01 } }
+	    #    title:b_konarak.title_province = { add_special_building_slot = konark_temple_01 } #928
+	    #    title:b_fes.title_province = { add_special_building = al_qarawiyyin_university_01 } #4694
+	    #    title:b_kairouan.title_province = { add_special_building = kairouan_basins_01 } #4594
+	    #    title:b_al-ghaba.title_province = { add_special_building = ghana_palace_01 } #6628 #NOTE: likely existed since the 8th, but earliest (only) source on palace is from 1068
+	    #    title:b_visegrad_hun.title_province = { add_special_building_slot = visegrad_castle_01 } #3803
+	    #    if = { limit = { game_start_date >= 1161.9.15 } title:b_leczyca.title_province = { add_special_building = wawel_cathedral_01 } } #4924 #Date of consecreation of Archcollegiate Church of St. Mary and St. Alexius in Tum
+	    #    else = { title:b_leczyca.title_province = { add_special_building_slot = wawel_cathedral_01 } }
+	    #    title:b_vatapi.title_province = { add_special_building = vatapi_caves_01 } #1198
+	    #    if = { limit = { game_start_date >= 1178.10.1 } title:b_jaisalmer.title_province = { add_special_building = jaisalmer_fort_01 } } #3387
+	    #    else = { title:b_jaisalmer.title_province = { add_special_building_slot = jaisalmer_fort_01 } } #3387
+		#}
 
 		### RELIGIOUS THINGS ###
 		# Set up Holy Site Buildings to be buildable in Holy Sites
@@ -833,7 +879,197 @@ on_game_start = {
 					change_government = tribal_government
 				}
 			}
+			
+			# Set Coronation laws for everyone
+			if = {
+				limit = {
+					coronation_trigger = yes
+				}
+				if = {
+					limit = {
+						highest_held_title_tier = tier_kingdom
+					}
+					add_realm_law_skip_effects = crowned_king
+					set_variable = crowned_king_var
+				}
+				else_if = {
+					limit = {
+						highest_held_title_tier > tier_kingdom
+					}
+					add_realm_law_skip_effects = crowned_emperor
+					set_variable = crowned_emperor_var
+				}
+			}
+
+			# Admin - Let's give existing governors the Governor trait on game start
+			if = {
+				limit = {
+					is_governor = yes
+					NOT = { has_trait = governor }
+					OR = {
+						government_allows = administrative
+						government_is_japanese_trigger = yes
+					}
+				}
+				add_trait = governor
+				add_trait_xp = {
+					trait = governor
+					value = {
+						add = primary_title.title_held_years
+						multiply = 2
+						if = {
+							limit = {
+								age >= 50
+								has_government = japan_administrative_government
+							}
+							add = {
+								value = age
+								divide = 4
+							}
+						}
+					}
+				}
+			}
+			# Clean up TGP governments is the Expansion is not enabled
+			if = {
+				limit = { has_tgp_dlc_trigger = no }
+				# TGP: Clean up maritime tribal govs and revert them to non-dlc tribals
+				if = {
+					limit = {
+						government_has_flag = government_is_wanua
+					}
+					change_government = tribal_government
+				}
+				# TGP: Clean up mandala govs and revert them to non-dlc feudals
+				else_if = {
+					limit = {
+						government_has_flag = government_is_mandala
+					}
+					change_government = feudal_government
+				}
+				### Every Celestial/Meritocratic/Japanese Government becomes feudal if DLC not enabled, pre-lobby history setup ###
+				else_if = {
+					limit = {
+						OR = {
+							has_government = celestial_government
+							has_government = meritocratic_government
+							has_government = steppe_admin_government
+							has_government = japan_administrative_government
+							has_government = japan_feudal_government
+						}
+					}
+					change_government = feudal_government
+
+				}
+				if = {
+					limit = {
+						any_held_title = {
+							is_noble_family_title = yes
+						}
+					}
+					every_held_title = {
+						limit = {
+							is_noble_family_title = yes
+							title_domicile ?= {
+								OR = {
+									is_domicile_type = japanese_manor
+									is_domicile_type = east_asian_estate
+								}
+							}
+						}
+						save_temporary_scope_as = family_title
+						prev = { destroy_title = scope:family_title }
+					}
+				}
+			}
+			# TGP: Adjust China's starting laws
+			#else_if = {
+			#	limit = {
+			#		realm_law_use_celestial_bureaucracy = yes
+			#	}
+			#		if = {
+			#		limit = {
+			#			game_start_date >= 1066.9.15
+			#		}
+			#		add_realm_law_skip_effects = celestial_bureaucracy_2
+			#		if = {
+			#			limit = {
+			#			top_liege != this
+			#			}
+			#		add_realm_law_skip_effects = celestial_army_vassal_law_2
+			#		}
+			#		else = {
+			#			add_realm_law_skip_effects = celestial_army_liege_law_2 # Let's give them the matching army level as well
+			#		}
+			#	}
+			#}
+			if = {
+				limit = {
+					has_domicile = yes
+					any_held_title = {
+						is_noble_family_title = yes
+					}
+				}
+				if = {
+					limit = {
+						is_landed = yes
+						domicile.domicile_location != this.capital_province
+					}
+					random_held_title = {
+						limit = {
+							is_noble_family_title = yes
+						}
+						set_capital_county = prev.capital_county
+					}
+					domicile ?= {
+						move_domicile = prev.capital_province
+					}
+				}
+				if = {
+					limit = {
+						tgp_is_any_minister = yes
+					}
+					random_held_title = {
+						limit = {
+							tier = tier_empire
+						}
+						set_capital_county = prev.top_liege.capital_county
+					}
+					random_held_title = {
+						limit = {
+							is_noble_family_title = yes
+						}
+						set_capital_county = prev.top_liege.capital_county
+					}
+					domicile ?= {
+						move_domicile = prev.top_liege.capital_province
+					}
+				}
+			}
 		}
+		# DYNASTIC CYCLE SETUP
+		#situation:dynastic_cycle ?= { #LotR
+		#	title:h_china = {
+		#		set_variable = {
+		#			name = years_since_imperial_examination
+		#			value = 0
+		#		}
+		#	}
+		#	if = {
+		#		limit = { game_start_date < 868.1.1 }
+		#		tgp_set_wuking_element_effect = { ELEMENT = earth } # Tang
+		#		every_situation_sub_region = {
+		#			add_takeover_phase_points = {
+		#			   phase = situation_dynastic_cycle_phase_chaos
+		#			   points = 800
+		#			}
+		#		}
+		#	}
+		#	else = {
+		#		tgp_set_wuking_element_effect = { ELEMENT = fire } # Song
+		#	}
+		#}
+		setup_tributaries_effect = yes # defined in 00_tributary_setup_effect.txt
 		# Sort custom regencies.
 		## Fatimid Caliphate - basically stuck in the back-end of an entrenched regencies from game start.
 		# if = { #LotR
@@ -1592,9 +1828,12 @@ on_game_start = {
 			}
 			every_religion_global = {
 				every_faith = {
-					remove_doctrine = doctrine_no_anointment
-					remove_doctrine = doctrine_anointment_permitted
-					remove_doctrine = doctrine_imperial_anointment
+					switch = {
+						trigger = has_doctrine
+						doctrine_no_anointment = { remove_doctrine = doctrine_no_anointment }
+						doctrine_anointment_permitted = { remove_doctrine = doctrine_anointment_permitted }
+						doctrine_imperial_anointment = { remove_doctrine = doctrine_imperial_anointment }
+					}
 				}
 			}
 		}
@@ -1619,23 +1858,45 @@ on_game_start = {
 								CHARACTER = scope:ruler
 								FAITH = scope:ruler.faith
 							}
-						}	
+						}
 					}
 					if = {
 						limit = {
 							NOT = {
 								has_game_rule = coronation_laws_off
+								has_realm_law = crowned_emperor
 							}
 						}
 						add_realm_law_skip_effects = crowned_emperor
 					}
 					set_variable = crowned_emperor_var
 				}
+				else_if = { #LotR
+					limit = {
+						is_elf = yes
+						NOR = { # Uncrowned Elves
+							this = character:lineofelrond1 # Elrond
+							this = character:lineoffinarfin5 # Galadriel
+							this = character:lineofcirdan # Cirdan
+						}
+					}
+					if = {
+						limit = {
+							NOT = {
+								has_game_rule = coronation_laws_off
+								has_realm_law = crowned_emperor
+							}
+						}
+						add_realm_law_skip_effects = crowned_elf
+					}
+					set_variable = crowned_elf_var
+				}
 				else = {
 					if = {
 						limit = {
 							NOT = {
 								has_game_rule = coronation_laws_off
+								has_realm_law = crowned_king
 							}
 						}
 						add_realm_law_skip_effects = crowned_king
@@ -1644,6 +1905,112 @@ on_game_start = {
 				}
 			}
 		}
+
+		# TGP: extra legitimacy for the Hegemon, so you don't fold over immediately
+		#if = {
+		#	limit = { has_tgp_dlc_trigger = yes }
+		#	title:h_china.holder = {
+		#		# and even more for the Song, as they were in a pretty good shape on our start dates
+		#		if = {
+		#			limit = {
+		#				situation:dynastic_cycle ?= {
+		#					OR = {
+		#						situation_current_phase = situation_dynastic_cycle_phase_stability_expansion
+		#						situation_current_phase = situation_dynastic_cycle_phase_stability_advancement
+		#					}
+		#				}
+		#			}
+		#			add_legitimacy = 4500
+		#		}
+		#		else = {
+		#			add_legitimacy = 3000
+		#		}
+		#	}
+		#}
+		### TGP SILK ROAD INNOVATIONS
+		#tgp_silk_road_innovation_setup_effect = yes #LotR
+
+		set_global_variable = {
+			name = natural_disaster_initial_grace_period
+			years = natural_disaster_initial_grace_period_years
+		}
+
+		### TGP Earthquake Regions
+		#add_to_global_variable_list = { name = earthquake_region_list target = geographical_region:world_europe }
+		#add_to_global_variable_list = { name = earthquake_region_list target = geographical_region:world_europe_south }
+		#add_to_global_variable_list = { name = earthquake_region_list target = geographical_region:world_asia }
+		#add_to_global_variable_list = { name = earthquake_region_list target = geographical_region:world_asia_china }
+		#add_to_global_variable_list = { name = earthquake_region_list target = geographical_region:world_asia_japan }
+		#add_to_global_variable_list = { name = earthquake_region_list target = geographical_region:world_asia_minor }
+		#add_to_global_variable_list = { name = earthquake_region_list target = geographical_region:world_asia_indonesia }
+		#add_to_global_variable_list = { name = earthquake_region_list target = geographical_region:world_asia_philippines }
+		#add_to_global_variable_list = { name = earthquake_region_list target = geographical_region:world_asia_sakhalin_hokkaido }
+		#add_to_global_variable_list = { name = earthquake_region_list target = geographical_region:world_middle_east }
+		#add_to_global_variable_list = { name = earthquake_region_list target = geographical_region:world_india }
+		#add_to_global_variable_list = { name = earthquake_region_list target = geographical_region:world_steppe }
+		#add_to_global_variable_list = { name = earthquake_region_list target = geographical_region:world_siberia }
+		#add_to_global_variable_list = { name = earthquake_region_list target = geographical_region:world_burma }
+		#add_to_global_variable_list = { name = earthquake_region_list target = geographical_region:custom_arakan_mountains }
+		#add_to_global_variable_list = { name = earthquake_region_list target = geographical_region:custom_bactria }
+		#add_to_global_variable_list = { name = earthquake_region_list target = geographical_region:world_tibet }
+		#add_to_global_variable_list = { name = earthquake_region_list target = geographical_region:world_himalaya }
+		#add_to_global_variable_list = { name = earthquake_region_list target = geographical_region:world_africa }
+		#add_to_global_variable_list = { name = earthquake_region_list target = geographical_region:world_africa_north_east }
+
+		### TGP Flood Regions
+		#add_to_global_variable_list = { name = flood_region_list target = geographical_region:amur_river_region }
+		#add_to_global_variable_list = { name = flood_region_list target = geographical_region:danube_river_region }
+		#add_to_global_variable_list = { name = flood_region_list target = geographical_region:daugava_river_region }
+		#add_to_global_variable_list = { name = flood_region_list target = geographical_region:dnieper_river_region }
+		#add_to_global_variable_list = { name = flood_region_list target = geographical_region:dniester_river_region }
+		#add_to_global_variable_list = { name = flood_region_list target = geographical_region:don_river_region }
+		#add_to_global_variable_list = { name = flood_region_list target = geographical_region:elbe_river_region }
+		#add_to_global_variable_list = { name = flood_region_list target = geographical_region:ganges_river_region }
+		#add_to_global_variable_list = { name = flood_region_list target = geographical_region:garonne_river_region }
+		#add_to_global_variable_list = { name = flood_region_list target = geographical_region:godavari_river_region }
+		#add_to_global_variable_list = { name = flood_region_list target = geographical_region:guadalquivir_river_region }
+		#add_to_global_variable_list = { name = flood_region_list target = geographical_region:guadiana_river_region }
+		#add_to_global_variable_list = { name = flood_region_list target = geographical_region:indus_river_region }
+		#add_to_global_variable_list = { name = flood_region_list target = geographical_region:irrawaddy_river_region }
+		#add_to_global_variable_list = { name = flood_region_list target = geographical_region:kaveri_river_region }
+		#add_to_global_variable_list = { name = flood_region_list target = geographical_region:loire_river_region }
+		#add_to_global_variable_list = { name = flood_region_list target = geographical_region:lovat_river_region }
+		#add_to_global_variable_list = { name = flood_region_list target = geographical_region:mahanadi_river_region }
+		#add_to_global_variable_list = { name = flood_region_list target = geographical_region:mekong_river_region }
+		#add_to_global_variable_list = { name = flood_region_list target = geographical_region:niger_river_region }
+		#add_to_global_variable_list = { name = flood_region_list target = geographical_region:nile_river_region }
+		#add_to_global_variable_list = { name = flood_region_list target = geographical_region:pearl_river_region }
+		#add_to_global_variable_list = { name = flood_region_list target = geographical_region:po_river_region }
+		#add_to_global_variable_list = { name = flood_region_list target = geographical_region:rhine_river_region }
+		#add_to_global_variable_list = { name = flood_region_list target = geographical_region:rhone_river_region }
+		#add_to_global_variable_list = { name = flood_region_list target = geographical_region:seine_river_region }
+		#add_to_global_variable_list = { name = flood_region_list target = geographical_region:tapti_river_region }
+		#add_to_global_variable_list = { name = flood_region_list target = geographical_region:tigris_river_region }
+		#add_to_global_variable_list = { name = flood_region_list target = geographical_region:vistula_river_region }
+		#add_to_global_variable_list = { name = flood_region_list target = geographical_region:volga_river_region }
+		#add_to_global_variable_list = { name = flood_region_list target = geographical_region:yangtze_river_region }
+		#add_to_global_variable_list = { name = flood_region_list target = geographical_region:yellow_river_region }
+		##### HISTORICAL HOUSE RELATIONS - deliberately placed above blocs
+		tgp_setup_historical_house_relation_effect = yes
+		#####  TGP JAPAN #####
+		#if = {
+		#	limit = { has_tgp_dlc_trigger = yes }
+		#	### DYNASTIES
+		#	tgp_dynasty_house_name_setup_effect = yes
+		#	### BLOCS
+		#	tgp_setup_historical_house_bloc_effect = yes
+		#}
+		
+		# if = {
+		# 	limit = {
+		# 		title:k_magyar = {
+		# 			exists = holder
+		# 		}
+		# 	}
+		# 	title:k_magyar = {
+		# 		add_title_law = confederation_elective_succession_law
+		# 	}
+		# }
 	}
 }
 
@@ -1989,6 +2356,22 @@ on_game_start_after_lobby = {
 						}
 					}
 				}
+				#if = { #LotR
+				#	limit = {
+				#		has_mpo_dlc_trigger = yes
+				#		has_tgp_dlc_trigger = yes
+				#	}
+				#	dynasty:1045082 ?= { # Khitan Yelu
+				#		every_dynasty_member = {
+				#			add_trait = nomadic_philosophy
+				#		}
+				#	}
+				#	dynasty:nn_dyn_shulu ?= { # Khitan Xiao
+				#		every_dynasty_member = {
+				#			add_trait = nomadic_philosophy
+				#		}
+				#	}
+				#}
 				switch = {
 					trigger = primary_title.tier
 					tier_county = {
@@ -2256,7 +2639,7 @@ on_game_start_after_lobby = {
 					remove_short_term_gold = 5
 				}
 				# We're fine with them having 10 gold max
-				
+
 				if = {
 					limit = {
 						is_ai = no
@@ -4131,13 +4514,276 @@ on_game_start_after_lobby = {
 			# 	}
 			# }
 			## Taylu Danişmend
-			# character:danishmendid_1 ?= { #LotR
+			# character:danishmendid_1 ?= {
 			# 	if = {
 			# 		limit = {
 			# 			is_alive = yes
-			# 			is_landless_adventurer = yes
+			# 			has_government = landless_adventurer_government
 			# 		}
 			# 		add_realm_law_skip_effects = camp_purpose_mercenaries
+			# 	}
+			# }
+			# ## Prince Takaoka (Shinnyo)
+			# character:japanese_yamato_181 ?= {
+			# 	if = {
+			# 		limit = {
+			# 			is_alive = yes
+			# 			has_government = landless_adventurer_government
+			# 		}
+			# 		add_realm_law_skip_effects = camp_purpose_scholars
+			# 		# and because history in character file does not work...
+			# 		character:japanese_lowborn_1 = { set_employer = character:japanese_yamato_181 } # Anten
+			# 		character:japanese_lowborn_2 = { set_employer = character:japanese_yamato_181 } # Enkaku
+			# 		character:japanese_lowborn_3 = { set_employer = character:japanese_yamato_181 } # Akimaru
+			# 	}
+			# }
+			# ## Ding Hui
+			# character:ding_hui_1 ?= {
+			# 	if = {
+			# 		limit = {
+			# 			is_alive = yes
+			# 			has_government = landless_adventurer_government
+			# 		}
+			# 		add_realm_law_skip_effects = camp_purpose_mercenaries
+			# 	}
+			# }
+			# ## Liang Zhu Quanzhong
+			# character:liang_zhu_1 ?= {
+			# 	if = {
+			# 		limit = {
+			# 			is_alive = yes
+			# 			has_government = landless_adventurer_government
+			# 		}
+			# 		add_realm_law_skip_effects = camp_purpose_mercenaries
+			# 	}
+			# }
+			# ## Miyoshi Kiyotsura
+			# character:miyoshi_kiyotsura_1 ?= {
+			# 	if = {
+			# 		limit = {
+			# 			is_alive = yes
+			# 			has_government = landless_adventurer_government
+			# 		}
+			# 		add_realm_law_skip_effects = camp_purpose_scholars
+			# 	}
+			# }
+			# ## Yang-kil
+			# character:yang_kil_1 ?= {
+			# 	if = {
+			# 		limit = {
+			# 			is_alive = yes
+			# 			has_government = landless_adventurer_government
+			# 		}
+			# 		add_realm_law_skip_effects = camp_purpose_brigands
+			# 	}
+			# }
+			# ## Yŏn'gi Tosŏn
+			# character:toson_1 ?= {
+			# 	if = {
+			# 		limit = {
+			# 			is_alive = yes
+			# 			has_government = landless_adventurer_government
+			# 		}
+			# 		add_realm_law_skip_effects = camp_purpose_scholars
+			# 	}
+			# }
+			# ## Lý Do Độc
+			# character:ly_do_doc_1 ?= {
+			# 	if = {
+			# 		limit = {
+			# 			is_alive = yes
+			# 			has_government = landless_adventurer_government
+			# 		}
+			# 		add_realm_law_skip_effects = camp_purpose_mercenaries
+			# 	}
+			# }
+			# ## Song Jiang
+			# character:song_jiang_1 ?= {
+			# 	if = {
+			# 		limit = {
+			# 			is_alive = yes
+			# 			has_government = landless_adventurer_government
+			# 		}
+			# 		add_realm_law_skip_effects = camp_purpose_mercenaries
+			# 	}
+			# }
+			# ## Yang Zongbao
+			# character:yang_zongbao_1 ?= {
+			# 	if = {
+			# 		limit = {
+			# 			is_alive = yes
+			# 			has_government = landless_adventurer_government
+			# 		}
+			# 		add_realm_law_skip_effects = camp_purpose_mercenaries
+			# 	}
+			# }
+			# character:furong_daokai_1 ?= {
+			# 	if = {
+			# 		limit = {
+			# 			is_alive = yes
+			# 			has_government = landless_adventurer_government
+			# 		}
+			# 		add_realm_law_skip_effects = camp_purpose_scholars
+			# 	}
+			# }
+			# character:jojin_1 ?= {
+			# 	if = {
+			# 		limit = {
+			# 			is_alive = yes
+			# 			has_government = landless_adventurer_government
+			# 		}
+			# 		add_realm_law_skip_effects = camp_purpose_scholars
+			# 	}
+			# }
+			# character:isawa_no_saburo_1 ?= {
+			# 	if = {
+			# 		limit = {
+			# 			is_alive = yes
+			# 			has_government = landless_adventurer_government
+			# 		}
+			# 		add_realm_law_skip_effects = camp_purpose_mercenaries
+			# 	}
+			# }
+			# character:tsukushi_no_koretaka_1 ?= {
+			# 	if = {
+			# 		limit = {
+			# 			is_alive = yes
+			# 			has_government = landless_adventurer_government
+			# 		}
+			# 		add_realm_law_skip_effects = camp_purpose_brigands
+			# 	}
+			# }
+			# character:kim_mu_che_1 ?= {
+			# 	if = {
+			# 		limit = {
+			# 			is_alive = yes
+			# 			has_government = landless_adventurer_government
+			# 		}
+			# 		add_realm_law_skip_effects = camp_purpose_scholars
+			# 	}
+			# }
+			# character:baekho_1 ?= {
+			# 	if = {
+			# 		limit = {
+			# 			is_alive = yes
+			# 			has_government = landless_adventurer_government
+			# 		}
+			# 		add_realm_law_skip_effects = camp_purpose_brigands
+			# 	}
+			# }
+			# character:khong_lo_1 ?= {
+			# 	if = {
+			# 		limit = {
+			# 			is_alive = yes
+			# 			has_government = landless_adventurer_government
+			# 		}
+			# 		add_realm_law_skip_effects = camp_purpose_scholars
+			# 	}
+			# }
+			# character:nga_yamankan_1 ?= {
+			# 	if = {
+			# 		limit = {
+			# 			is_alive = yes
+			# 			has_government = landless_adventurer_government
+			# 		}
+			# 		add_realm_law_skip_effects = camp_purpose_mercenaries
+			# 	}
+			# }
+			# character:mpu_bharada_1 ?= {
+			# 	if = {
+			# 		limit = {
+			# 			is_alive = yes
+			# 			has_government = landless_adventurer_government
+			# 		}
+			# 		add_realm_law_skip_effects = camp_purpose_scholars
+			# 	}
+			# }
+			# character:wang_chuyi_1 ?= {
+			# 	if = {
+			# 		limit = {
+			# 			is_alive = yes
+			# 			has_government = landless_adventurer_government
+			# 		}
+			# 		add_realm_law_skip_effects = camp_purpose_scholars
+			# 	}
+			# }
+			# character:jiang_kui_1 ?= {
+			# 	if = {
+			# 		limit = {
+			# 			is_alive = yes
+			# 			has_government = landless_adventurer_government
+			# 		}
+			# 		add_realm_law_skip_effects = camp_purpose_scholars
+			# 	}
+			# }
+			# character:lembong_1 ?= {
+			# 	if = {
+			# 		limit = {
+			# 			is_alive = yes
+			# 			has_government = landless_adventurer_government
+			# 		}
+			# 		add_realm_law_skip_effects = camp_purpose_brigands
+			# 	}
+			# }
+			# character:zhu_zhongba_1 ?= {
+			# 	if = {
+			# 		limit = {
+			# 			is_alive = yes
+			# 			has_government = landless_adventurer_government
+			# 		}
+			# 		add_realm_law_skip_effects = camp_purpose_explorers
+			# 	}
+			# }
+			# character:quach_boc_1 ?= {
+			# 	if = {
+			# 		limit = {
+			# 			is_alive = yes
+			# 			has_government = landless_adventurer_government
+			# 		}
+			# 		add_realm_law_skip_effects = camp_purpose_mercenaries
+			# 	}
+			# }
+			# character:bojo_jinul_1 ?= {
+			# 	if = {
+			# 		limit = {
+			# 			is_alive = yes
+			# 			has_government = landless_adventurer_government
+			# 		}
+			# 		add_realm_law_skip_effects = camp_purpose_scholars
+			# 	}
+			# }
+			# character:gochi_in_no_tajima_1 ?= {
+			# 	if = {
+			# 		limit = {
+			# 			is_alive = yes
+			# 			has_government = landless_adventurer_government
+			# 		}
+			# 		add_realm_law_skip_effects = camp_purpose_mercenaries
+			# 	}
+			# }
+			# character:shin_capata_1 ?= {
+			# 	if = {
+			# 		limit = {
+			# 			is_alive = yes
+			# 			has_government = landless_adventurer_government
+			# 		}
+			# 		add_realm_law_skip_effects = camp_purpose_scholars
+			# 	}
+			# }
+			# ## Yoshitsune Minamoto
+			# character:japanese_minamoto_seiwa_139 ?= {
+			# 	if = {
+			# 		limit = {
+			# 			is_alive = yes
+			# 			has_government = landless_adventurer_government
+			# 		}
+			# 		add_realm_law_skip_effects = camp_purpose_mercenaries
+			# 		every_courtier = {
+			# 			limit = { dynasty = character:japanese_minamoto_seiwa_139.dynasty }
+			# 			set_employer = character:japanese_minamoto_seiwa_10 # Yoritomo
+			# 		}
+			# 		add_courtier = character:japanese_musashibo_1 # Benkei
+			# 		add_courtier = character:japanese_ise_2_1 # Yoshimori
 			# 	}
 			# }
 			every_independent_ruler = {
@@ -4224,8 +4870,420 @@ on_game_start_after_lobby = {
 				}
 			}
 		}
+		### TGP SETUP ###
+		if = {
+			limit = { has_tgp_dlc_trigger = yes }
+			### JAPAN
+
+			# Special variable that UI uses to display correct title
+			# title:e_japan = { # LOTR
+			# 	# More starting house relations
+			# 	holder = {
+			# 		every_noble_family = {
+			# 			holder.house ?= {
+			# 				save_temporary_scope_as = house_temp
+			# 				every_house_member = {
+			# 					limit = {
+			# 						is_married = yes
+			# 						exists = primary_spouse.house
+			# 						NOT = {
+			# 							primary_spouse.house = { has_house_relation_with = scope:house_temp }
+			# 						}
+			# 					}
+			# 					save_temporary_scope_as = member_temp
+			# 					primary_spouse = { save_temporary_scope_as = spouse_temp }
+			# 					house = {
+			# 						change_house_relation_effect = {
+			# 							HOUSE = scope:member_temp.primary_spouse.house
+			# 							VALUE = house_relation_improve_minor_value
+			# 							REASON = preexisting_marriage
+			# 							CHAR = scope:member_temp
+			# 							TARGET_CHAR = scope:spouse_temp
+			# 							TITLE = scope:dummy_gender
+			# 						}
+			# 					}
+			# 				}
+			# 			}
+			# 		}
+			# 	}
+			# }
+
+			### IMPERIAL FAMILY
+			# title:k_chrysanthemum_throne.holder ?= {
+			# 	save_scope_as = japanese_emperor
+			# 	# Give him some cash
+			# 	add_gold = monumental_gold_value
+			# 	house = {
+			# 		# ENSURE MEMBERS REMAIN IN COURT OF EMPEROR
+			# 		every_house_member = {
+			# 			limit = {
+			# 				is_ruler = no
+			# 				is_married = no
+			# 				NOT = { liege = scope:japanese_emperor }
+			# 			}
+			# 			save_scope_as = imperial_family_member
+			# 			scope:japanese_emperor = { add_courtier = scope:imperial_family_member }
+			# 		}
+			# 	}
+			# 	# GET THOSE ROOKIE NUMBERS UP
+			# 	dynasty = {
+			# 		while = {
+			# 			limit = { dynasty_prestige_level < high_dynasty_prestige_level }
+			# 			add_dynasty_prestige_level = 1
+			# 		}
+			# 	}
+			# }
+
+			### DYNASTY TRACKING SETUP
+			japan_dynasty_tracker_setup_effect = yes
+
+			
+			### TGP NOBLE FAMILIES & DOMICILE SETUP ###
+			# Required due to landless top liege
+			# title:e_japan.holder ?= {
+			# 	add_realm_law_skip_effects = japanese_bureaucracy_1
+			# 	noble_family_title_realm_setup_effect = yes
+			# 	every_vassal_or_below = { # Move Soryo domiciles to their own realm
+			# 		limit = {
+			# 			government_has_flag = government_is_japan_feudal
+			# 		}
+			# 		domicile ?= { move_domicile = owner.capital_province }
+			# 	}
+			# 	every_vassal_or_below = { # Move Ritsuryo domiciles to the capital
+			# 		limit = {
+			# 			government_has_flag = government_is_japan_administrative
+			# 		}
+			# 		domicile ?= { move_domicile = title:e_japan.holder.capital_province }
+			# 	}
+			# }
+
+
+			### MANDALA
+				
+			#Starting Mandala Temple Complexes
+			#Dvaravati
+			# province:10822 = { #LOTR
+			# 	add_great_building = mandala_capital_01
+			# 	if = {
+			# 		limit = {
+			# 			game_start_date >= 1066.1.1
+			# 		}
+			# 		ruin_great_building = yes
+			# 	}
+			# 	add_to_global_variable_list = { # Add to list so it can be found by the PoI
+			# 		name = mandala_poi_list
+			# 		target = this
+			# 	}
+			# }
+			#Haripunjaya
+			# province:11441 = {
+			# 	add_great_building = mandala_capital_01
+			# 	add_to_global_variable_list = { # Add to list so it can be found by the PoI
+			# 		name = mandala_poi_list
+			# 		target = this
+			# 	}
+			# }
+			#Pagan
+			# province:9550 = {
+			# 	if = {
+			# 		limit = {
+			# 			game_start_date < 1066.1.1
+			# 		}
+			# 		add_great_building = mandala_capital_01
+			# 	}
+			# 	else_if = {
+			# 		limit = { game_start_date >= 1066.1.1 }
+			# 		add_great_building = mandala_capital_02
+			# 	}
+			# 	add_to_global_variable_list = { # Add to list so it can be found by the PoI
+			# 		name = mandala_poi_list
+			# 		target = this
+			# 	}
+			# }
+			#Angkor
+			# province:10816 = {
+			# 	if = {
+			# 		limit = {
+			# 			game_start_date < 1066.1.1
+			# 		}
+			# 		add_great_building = mandala_capital_01
+			# 	}
+			# 	else_if = {
+			# 		limit = { game_start_date >= 1066.1.1 }
+			# 		add_great_building = mandala_capital_02
+			# 	}
+			# 	else = {
+			# 		add_great_building = mandala_capital_03
+			# 	}
+			# 	add_to_global_variable_list = { # Add to list so it can be found by the PoI
+			# 		name = mandala_poi_list
+			# 		target = this
+			# 	}
+			# }
+			#Srivijaya/Palembang
+			# province:11296 = {
+			# 	add_great_building = mandala_capital_02
+			# 	if = {
+			# 		limit = {
+			# 			game_start_date >= 1066.1.1
+			# 		}
+			# 		ruin_great_building = yes #Could also be completely destroyed - almost nothing left today
+			# 	}
+			# 	add_to_global_variable_list = { # Add to list so it can be found by the PoI
+			# 		name = mandala_poi_list
+			# 		target = this
+			# 	}
+			# }
+			#Mataram
+			#Prambanan
+			# province:11343 = {
+			# 	add_great_building = mandala_capital_01
+			# 	if = {
+			# 		limit = {
+			# 			game_start_date >= 1066.1.1
+			# 		}
+			# 		ruin_great_building = yes
+			# 	}
+			# 	add_to_global_variable_list = { # Add to list so it can be found by the PoI
+			# 		name = mandala_poi_list
+			# 		target = this
+			# 	}
+			# }
+			#Champa
+			#Indrapura
+			# province:10830 = {
+			# 	if = {
+			# 		limit = {
+			# 			game_start_date < 1066.1.1
+			# 		}
+			# 		add_great_building = mandala_capital_01
+			# 		add_to_global_variable_list = { # Add to list so it can be found by the PoI
+			# 			name = mandala_poi_list
+			# 			target = this
+			# 		}
+			# 	}
+			# }
+			#Vijaya
+			# province:10827 = {
+			# 	if = {
+			# 		limit = { game_start_date >= 1066.1.1 }
+			# 		add_great_building = mandala_capital_01
+			# 		add_to_global_variable_list = { # Add to list so it can be found by the PoI
+			# 			name = mandala_poi_list
+			# 			target = this
+			# 		}
+			# 	}
+			# }
+			#Apply the Godking AI story to Maharajas with a temple
+			every_independent_ruler = {
+				limit = { government_has_flag = government_is_mandala }
+				if = {
+					limit = {
+						is_ai = yes
+						highest_held_title_tier >= tier_kingdom
+						has_mandala_capital_trigger = yes
+						trigger_if = {
+							limit = { has_ruined_mandala_capital_trigger = yes }
+							less_than_max_amount_of_mandala_capitals_trigger = yes
+						}
+					}
+					create_story = story_mandala
+				}
+			}
+			#Tai Migrations #LotR
+			#every_county_in_region = { # save all migration counties to variable list
+			#	region = custom_tai_migration_target
+			#	add_to_global_variable_list = {
+			#		name = tai_migration_target_counties
+			#		target = this
+			#	}
+			#}
+			#every_in_global_list = { # give all saved migration county holders the story
+			#	variable = tai_migration_target_counties
+			#	holder = {
+			#		if = {
+			#			limit = {
+			#				NOT = {
+			#					any_owned_story = {
+			#						type = story_tai_migrations
+			#					}
+			#				}
+			#				has_tgp_dlc_trigger = yes
+			#				any_realm_province = {
+			#					culture = {
+			#						NOT = {
+			#							has_cultural_pillar = heritage_tai
+			#						}
+			#					}
+			#				}
+			#			}
+			#			create_story = story_tai_migrations
+			#		}
+			#	}
+			#}
+		}
+		### TGP MERIT AND TREASURY HANDOUT ON GAME START ###
+		# if = { # LOTR
+		# 	limit = {
+		# 		has_tgp_dlc_trigger = yes
+		# 	}
+		# 	title:h_china.holder ?= {
+		# 		# If the hegemon is from the ruler designer, let's ensure we got decent starting values
+		# 		if = {
+		# 			limit = {
+		# 				is_from_ruler_designer = yes
+		# 			}
+		# 			if = {
+		# 				limit = { # If we don't have enough legitimacy, let's increase it
+		# 					legitimacy < legitimacy_level_3
+		# 				}
+		# 				add_legitimacy = {
+		# 					value = legitimacy_level_3
+		# 					add = 100 # To provide a margin and not drop down a level too quickly
+		# 					subtract = legitimacy
+		# 				}
+		# 			}
+		# 			if = {
+		# 				limit = { # If the royal court is enabled, set it to a decent default
+		# 					has_royal_court = yes
+		# 				}
+		# 				set_current_court_grandeur = court_grandeur_minimum_expected
+		# 			}
+		# 			# Let's add some starting currencies
+		# 			add_prestige = 1000
+		# 			add_piety = 500
+		# 			change_influence = 1000
+		# 			dynasty ?= { add_dynasty_prestige = 500 }
+		# 		}
+		# 		# Set Grand Chancellor as Chinese diarchy
+		# 		try_start_diarchy = grand_secretariat
+		# 	}
+		# }
+		### TGP KOREA SETUP
+		# if = {
+		# 	# Special variable that UI uses to display correct title
+		# 	limit = {
+		# 		exists = title:e_goryeo.holder
+		# 		has_tgp_dlc_trigger = yes
+		# 		game_start_date >= 1066.1.1
+		# 	}
+		# 	# GORYEO GOVERNORSHIP SETUP
+		# 	title:d_bukgye = { add_to_temporary_list = goryeo_military_provinces }
+		# 	title:d_donggye = { add_to_temporary_list = goryeo_military_provinces }
+		# 	title:d_yukju = { add_to_temporary_list = goryeo_military_provinces }
+		# 	every_in_list = {
+		# 		list = goryeo_military_provinces
+		# 		limit = {
+		# 			holder ?= { is_governor = yes }
+		# 		}
+		# 		holder = {
+		# 			vassal_contract_set_obligation_level = {
+		# 				type = meritocratic_provinces
+		# 				level = meritocratic_province_military
+		# 			}
+		# 			add_realm_law_skip_effects = meritocratic_military_appointment_succession_law
+		# 		}
+		# 	}
+		# }
+		# else_if = {
+		# 	limit = {
+		# 		exists = title:k_silla.holder
+		# 		has_tgp_dlc_trigger = yes
+		# 		game_start_date = 867.1.1
+		# 	}
+		# 	# SILLA GOVERNORSHIP SETUP
+		# 	title:d_bukgye = { add_to_temporary_list = silla_military_provinces }
+		# 	title:d_donggye = { add_to_temporary_list = silla_military_provinces }
+		# 	title:d_yukju = { add_to_temporary_list = silla_military_provinces }
+		# 	every_in_list = {
+		# 		list = silla_military_provinces
+		# 		limit = {
+		# 			holder ?= { is_governor = yes }
+		# 		}
+		# 		holder = {
+		# 			vassal_contract_set_obligation_level = {
+		# 				type = meritocratic_provinces
+		# 				level = meritocratic_province_military
+		# 			}
+		# 			add_realm_law_skip_effects = meritocratic_military_appointment_succession_law
+		# 		}
+		# 	}
+		# }
+		### TGP JAPAN SETUP
+		# if = {
+		# 	limit = {
+		# 		exists = title:e_japan.holder
+		# 		has_tgp_dlc_trigger = yes
+		# 	}
+		# 	title:c_chikuzen ?= { # Dazaifu
+		# 		if = {
+		# 			limit = {
+		# 				holder ?= { is_governor = yes }
+		# 			}
+		# 			holder = {
+		# 				vassal_contract_set_obligation_level = {
+		# 					type = japan_administrative_provinces
+		# 					level = japan_administrative_province_trade
+		# 				}
+		# 			}
+		# 		}
+		# 	}
+		# 	title:d_hitakami ?= { add_to_temporary_list = japan_military_provinces } # Mutsu
+		# 	title:d_nushiro ?= { add_to_temporary_list = japan_military_provinces } # Dewa
+		# 	every_in_list = {
+		# 		list = japan_military_provinces
+		# 		limit = {
+		# 			holder ?= { is_governor = yes }
+		# 		}
+		# 		holder = {
+		# 			vassal_contract_set_obligation_level = {
+		# 				type = japan_administrative_provinces
+		# 				level = japan_administrative_province_military
+		# 			}
+		# 			add_realm_law_skip_effects = japanese_military_appointment_succession_law
+		# 		}
+		# 	}
+		# 	if = {
+		# 		limit = {
+		# 			game_start_date >= 1066.1.1
+		# 			game_start_date < 1178.10.1
+		# 		}
+		# 		title:e_japan.holder = {
+		# 			trigger_event = tgp_japan_career.0001
+		# 			every_vassal = {
+		# 				trigger_event = tgp_japan_career.0001
+		# 			}
+		# 		}
+		# 	}
+		# }
+		##TEACH CHINESE TO RELEVENT NOBLES###
+		# title:e_japan.holder ?= {
+		# 	add_to_list = holder_to_learn_chinese
+		# }
+		# title:e_goryeo.holder ?= {
+		# 	add_to_list = holder_to_learn_chinese
+		# }
+		# title:h_china.holder ?= {
+		# 	every_tributary = {
+		# 		add_to_list = holder_to_learn_chinese
+		# 	}
+		# }
+		# every_in_list = {
+		# 	list = holder_to_learn_chinese
+		# 	tgp_learn_chinese_effect_game_start = yes
+		# 	every_noble_family = {
+		# 		holder ?= {
+		# 			tgp_learn_chinese_effect_game_start = yes
+		# 			house = {
+		# 				every_house_member = {
+		# 					tgp_learn_chinese_effect_game_start = yes
+		# 				}
+		# 			}
+		# 		}	
+		# 	}
+		# }
 		# Byzantium naming
-		# title:e_byzantium = { #LotR
+		# title:e_byzantium = {
 		# 	if = {
 		# 		limit = {
 		# 			has_game_rule = eastern_rome_name_of_byzantium
@@ -4236,7 +5294,7 @@ on_game_start_after_lobby = {
 		# 		limit = {
 		# 			has_game_rule = roman_empire_name_of_byzantium
 		# 		}
-		# 		set_title_name = e_roman_empire
+		# 		set_title_name = h_roman_empire
 		# 	}
 		# 	else_if = {
 		# 		limit = {
@@ -4270,256 +5328,324 @@ on_game_start_after_lobby = {
 		# 	every_county_province = { apply_saharan_provisions_debuff_effect = yes }
 		# }
 		# 1066 Buildings
-		# if = {
-		# 	limit = {
-		# 		game_start_date >= 1066.1.1
-		# 		game_start_date < 1178.10.1
-		# 	}
-		# 	every_province = {
-		# 		limit = {
-		# 			has_holding = yes
-		# 		}
-		# 		generate_building = yes
-		# 		brewery_counter_start_effect = yes
-		# 	}
-			every_domicile = {
-				if = {
-					limit = {
-						is_domicile_type = estate
-						exists = owner
-					}
-					if = {
-						limit = {
-							NOT = { has_domicile_building_or_higher = estate_main_02 }
-							owner.culture ?= { has_innovation = innovation_city_planning }
-						}
-						add_domicile_building = estate_main_02
-						add_random_internal_estate_building = yes
-					}
-
-					fill_external_estate_building_effect = yes
-				}
-			}
-		# }
+		#if = {
+		#	limit = {
+		#		game_start_date >= 1066.1.1
+		#		game_start_date < 1178.10.1
+		#	}
+		#	every_province = {
+		#		limit = {
+		#			has_holding = yes
+		#		}
+		#		generate_building = yes
+		#		brewery_counter_start_effect = yes
+		#	}
+		#	every_domicile = {
+		#		limit = { exists = owner }
+		#		switch = {
+		#			trigger = is_domicile_type
+		#			estate = {
+		#				if = {
+		#					limit = {
+		#						NOT = { has_domicile_building_or_higher = estate_main_02 }
+		#						owner.culture ?= { has_innovation = innovation_city_planning }
+		#					}
+		#					add_domicile_building = estate_main_02
+		#					add_random_internal_estate_building = yes
+		#				}
+		#				fill_external_estate_building_effect = yes
+		#			}
+		#			japanese_manor = {
+		#				if = {
+		#					limit = {
+		#						NOT = { has_domicile_building_or_higher = japanese_manor_main_02 }
+		#						owner.culture ?= { has_innovation = innovation_city_planning }
+		#					}
+		#					add_domicile_building = japanese_manor_main_02
+		#					add_random_internal_japanese_manor_building = yes
+		#				}
+		#				fill_external_japanese_manor_building_effect = yes
+		#			}
+		#			east_asian_estate = {
+		#				if = {
+		#					limit = {
+		#						NOT = { has_domicile_building_or_higher = east_asian_estate_main_02 }
+		#						owner.culture ?= { has_innovation = innovation_city_planning }
+		#					}
+		#					add_domicile_building = east_asian_estate_main_02
+		#					add_random_internal_east_asian_estate_building = yes
+		#				}
+		#				fill_external_east_asian_estate_building_effect = yes
+		#			}
+		#		}
+		#	}
+		#}
 		# 1178 Buildings
-		# else_if = {
-		# 	limit = {
-		# 		game_start_date >= 1178.10.1
-		# 	}
-		# 	every_province = {
-		# 		limit = {
-		# 			has_holding = yes
-		# 		}
-		# 		generate_building = yes
-		# 		generate_building = yes
-		# 		generate_building = yes
-		# 		generate_building = yes
-		# 		generate_building = yes
-		# 		generate_building = yes
-		# 		if = {
-		# 			limit = {
-		# 				county.development_level >= 8
-		# 			}
-		# 			generate_building = yes
-		# 			generate_building = yes
-		# 		}
-		# 		if = {
-		# 			limit = {
-		# 				county.development_level >= 10
-		# 			}
-		# 			generate_building = yes
-		# 		}
-		# 		if = {
-		# 			limit = {
-		# 				county.development_level >= 12
-		# 			}
-		# 			generate_building = yes
-		# 		}
-		# 		if = {
-		# 			limit = {
-		# 				county.development_level >= 14
-		# 			}
-		# 			generate_building = yes
-		# 			generate_building = yes
-		# 		}
-		# 		if = {
-		# 			limit = {
-		# 				county.development_level >= 16
-		# 			}
-		# 			generate_building = yes
-		# 		}
-		# 		if = {
-		# 			limit = {
-		# 				county.development_level >= 18
-		# 			}
-		# 			generate_building = yes
-		# 		}
-		# 		if = {
-		# 			limit = {
-		# 				county.development_level >= 20
-		# 			}
-		# 			generate_building = yes
-		# 		}
-		# 		if = {
-		# 			limit = {
-		# 				county.development_level >= 25
-		# 			}
-		# 			generate_building = yes
-		# 			generate_building = yes
-		# 			generate_building = yes
-		# 		}
-		# 		brewery_counter_start_effect = yes
-		# 	}
-			every_domicile = {
-		# 		#if = { # Left in if we want adventurers to spawn with stuff
-		# 		#	limit = {
-		# 		#		is_domicile_type = camp
-		# 		#	}
-		# 		#	add_domicile_building = camp_main_02
-		# 		#	add_domicile_building = camp_main_03
-		# 		#	random_list = {
-		# 		#		10 = {
-		# 		#			add_domicile_building = supply_tent_01
-		# 		#			add_domicile_building = supply_tent_02
-		# 		#			random_list = {
-		# 		#				10 = {
-		# 		#					add_domicile_building = supply_tent_sutler
-		# 		#				}
-		# 		#				10 = {
-		# 		#					add_domicile_building = supply_tent_mender
-		# 		#				}
-		# 		#				10 = {
-		# 		#					add_domicile_building = supply_tent_smithy
-		# 		#				}
-		# 		#				10 = {
-		# 		#					add_domicile_building = supply_tent_arsenal
-		# 		#				}
-		# 		#			}
-		# 		#		}
-		# 		#		10 = {
-		# 		#			add_domicile_building = barber_tent_01
-		# 		#			add_domicile_building = barber_tent_02
-		# 		#			random_list = {
-		# 		#				10 = {
-		# 		#					add_domicile_building = barber_tent_surgeons_tools
-		# 		#				}
-		# 		#				10 = {
-		# 		#					add_domicile_building = barber_tent_dentists_tools
-		# 		#				}
-		# 		#				10 = {
-		# 		#					add_domicile_building = barber_tent_torturers_tools
-		# 		#				}
-		# 		#			}
-		# 		#		}
-		# 		#		10 = {
-		# 		#			add_domicile_building = baggage_train_01
-		# 		#			add_domicile_building = baggage_train_02
-		# 		#			random_list = {
-		# 		#				10 = {
-		# 		#					add_domicile_building = baggage_train_ample_steeds
-		# 		#				}
-		# 		#				10 = {
-		# 		#					add_domicile_building = baggage_train_porters
-		# 		#				}
-		# 		#				10 = {
-		# 		#					add_domicile_building = baggage_train_trackers
-		# 		#				}
-		# 		#				10 = {
-		# 		#					add_domicile_building = baggage_train_kennel
-		# 		#				}
-		# 		#			}
-		# 		#		}
-		# 		#	}
-		# 		#	random_list = {
-		# 		#		10 = {
-		# 		#			add_domicile_building = mess_tent_01
-		# 		#			add_domicile_building = mess_tent_02
-		# 		#			random_list = {
-		# 		#				10 = {
-		# 		#					add_domicile_building = mess_tent_herbalists
-		# 		#				}
-		# 		#				10 = {
-		# 		#					add_domicile_building = mess_tent_brewers
-		# 		#				}
-		# 		#				10 = {
-		# 		#					add_domicile_building = mess_tent_curers
-		# 		#				}
-		# 		#				10 = {
-		# 		#					add_domicile_building = mess_tent_bakers
-		# 		#				}
-		# 		#				10 = {
-		# 		#					add_domicile_building = mess_tent_cooks
-		# 		#				}
-		# 		#			}
-		# 		#		}
-		# 		#		10 = {
-		# 		#			add_domicile_building = camp_fire_01
-		# 		#			add_domicile_building = camp_fire_02
-		# 		#			random_list = {
-		# 		#				10 = {
-		# 		#					add_domicile_building = camp_fire_trailing_musicians
-		# 		#				}
-		# 		#				10 = {
-		# 		#					add_domicile_building = camp_fire_wandering_poets
-		# 		#				}
-		# 		#				10 = {
-		# 		#					add_domicile_building = camp_fire_capering_fools
-		# 		#				}
-		# 		#				10 = {
-		# 		#					add_domicile_building = camp_fire_libations_for_the_lost
-		# 		#				}
-		# 		#			}
-		# 		#		}
-		# 		#	}
-		# 		#	random_list = {
-		# 		#		10 = {
-		# 		#			add_domicile_building = camp_perimeter_01
-		# 		#			add_domicile_building = camp_perimeter_02
-		# 		#			random_list = {
-		# 		#				10 = {
-		# 		#					add_domicile_building = camp_perimeter_good_siting
-		# 		#				}
-		# 		#				10 = {
-		# 		#					add_domicile_building = camp_perimeter_fixed_layout
-		# 		#				}
-		# 		#			}
-		# 		#		}
-		# 		#		10 = {
-		# 		#			add_domicile_building = proving_grounds_01
-		# 		#			add_domicile_building = proving_grounds_02
-		# 		#		}
-		# 		#	}
-		# 		#}
-				if = {
-					limit = {
-						is_domicile_type = estate
-						exists = owner
-					}
-					if = {
-						limit = {
-							NOT = { has_domicile_building_or_higher = estate_main_02 }
-							owner.culture ?= { has_innovation = innovation_city_planning }
-						}
-						add_domicile_building = estate_main_02
-						add_random_internal_estate_building = yes
-					}
-					if = {
-						limit = {
-							has_domicile_building = estate_main_02
-							NOT = { has_domicile_building_or_higher = estate_main_03 }
-							owner.culture ?= { has_innovation = innovation_manorialism }
-						}
-						add_domicile_building = estate_main_03
-						while = {
-							count = 2
-							add_random_internal_estate_building = yes
-						}
-					}
-
-					fill_external_estate_building_effect = yes
-				}
-			}
-		# }
+		#else_if = {
+		#	limit = {
+		#		game_start_date >= 1178.10.1
+		#	}
+		#	every_province = {
+		#		limit = {
+		#			has_holding = yes
+		#		}
+		#		generate_building = yes
+		#		generate_building = yes
+		#		generate_building = yes
+		#		generate_building = yes
+		#		generate_building = yes
+		#		generate_building = yes
+		#		if = {
+		#			limit = {
+		#				county.development_level >= 8
+		#			}
+		#			generate_building = yes
+		#			generate_building = yes
+		#		}
+		#		if = {
+		#			limit = {
+		#				county.development_level >= 10
+		#			}
+		#			generate_building = yes
+		#		}
+		#		if = {
+		#			limit = {
+		#				county.development_level >= 12
+		#			}
+		#			generate_building = yes
+		#		}
+		#		if = {
+		#			limit = {
+		#				county.development_level >= 14
+		#			}
+		#			generate_building = yes
+		#			generate_building = yes
+		#		}
+		#		if = {
+		#			limit = {
+		#				county.development_level >= 16
+		#			}
+		#			generate_building = yes
+		#		}
+		#		if = {
+		#			limit = {
+		#				county.development_level >= 18
+		#			}
+		#			generate_building = yes
+		#		}
+		#		if = {
+		#			limit = {
+		#				county.development_level >= 20
+		#			}
+		#			generate_building = yes
+		#		}
+		#		if = {
+		#			limit = {
+		#				county.development_level >= 25
+		#			}
+		#			generate_building = yes
+		#			generate_building = yes
+		#			generate_building = yes
+		#		}
+		#		brewery_counter_start_effect = yes
+		#	}
+		#	every_domicile = {
+				#if = { # Left in if we want adventurers to spawn with stuff
+				#	limit = {
+				#		is_domicile_type = camp
+				#	}
+				#	add_domicile_building = camp_main_02
+				#	add_domicile_building = camp_main_03
+				#	random_list = {
+				#		10 = {
+				#			add_domicile_building = supply_tent_01
+				#			add_domicile_building = supply_tent_02
+				#			random_list = {
+				#				10 = {
+				#					add_domicile_building = supply_tent_sutler
+				#				}
+				#				10 = {
+				#					add_domicile_building = supply_tent_mender
+				#				}
+				#				10 = {
+				#					add_domicile_building = supply_tent_smithy
+				#				}
+				#				10 = {
+				#					add_domicile_building = supply_tent_arsenal
+				#				}
+				#			}
+				#		}
+				#		10 = {
+				#			add_domicile_building = barber_tent_01
+				#			add_domicile_building = barber_tent_02
+				#			random_list = {
+				#				10 = {
+				#					add_domicile_building = barber_tent_surgeons_tools
+				#				}
+				#				10 = {
+				#					add_domicile_building = barber_tent_dentists_tools
+				#				}
+				#				10 = {
+				#					add_domicile_building = barber_tent_torturers_tools
+				#				}
+				#			}
+				#		}
+				#		10 = {
+				#			add_domicile_building = baggage_train_01
+				#			add_domicile_building = baggage_train_02
+				#			random_list = {
+				#				10 = {
+				#					add_domicile_building = baggage_train_ample_steeds
+				#				}
+				#				10 = {
+				#					add_domicile_building = baggage_train_porters
+				#				}
+				#				10 = {
+				#					add_domicile_building = baggage_train_trackers
+				#				}
+				#				10 = {
+				#					add_domicile_building = baggage_train_kennel
+				#				}
+				#			}
+				#		}
+				#	}
+				#	random_list = {
+				#		10 = {
+				#			add_domicile_building = mess_tent_01
+				#			add_domicile_building = mess_tent_02
+				#			random_list = {
+				#				10 = {
+				#					add_domicile_building = mess_tent_herbalists
+				#				}
+				#				10 = {
+				#					add_domicile_building = mess_tent_brewers
+				#				}
+				#				10 = {
+				#					add_domicile_building = mess_tent_curers
+				#				}
+				#				10 = {
+				#					add_domicile_building = mess_tent_bakers
+				#				}
+				#				10 = {
+				#					add_domicile_building = mess_tent_cooks
+				#				}
+				#			}
+				#		}
+				#		10 = {
+				#			add_domicile_building = camp_fire_01
+				#			add_domicile_building = camp_fire_02
+				#			random_list = {
+				#				10 = {
+				#					add_domicile_building = camp_fire_trailing_musicians
+				#				}
+				#				10 = {
+				#					add_domicile_building = camp_fire_wandering_poets
+				#				}
+				#				10 = {
+				#					add_domicile_building = camp_fire_capering_fools
+				#				}
+				#				10 = {
+				#					add_domicile_building = camp_fire_libations_for_the_lost
+				#				}
+				#			}
+				#		}
+				#	}
+				#	random_list = {
+				#		10 = {
+				#			add_domicile_building = camp_perimeter_01
+				#			add_domicile_building = camp_perimeter_02
+				#			random_list = {
+				#				10 = {
+				#					add_domicile_building = camp_perimeter_good_siting
+				#				}
+				#				10 = {
+				#					add_domicile_building = camp_perimeter_fixed_layout
+				#				}
+				#			}
+				#		}
+				#		10 = {
+				#			add_domicile_building = proving_grounds_01
+				#			add_domicile_building = proving_grounds_02
+				#		}
+				#	}
+				#}
+		#		every_domicile = {
+		#			limit = { exists = owner }
+		#			switch = {
+		#				trigger = is_domicile_type
+		#				estate = {
+		#					if = {
+		#						limit = {
+		#							NOT = { has_domicile_building_or_higher = estate_main_02 }
+		#							owner.culture ?= { has_innovation = innovation_city_planning }
+		#						}
+		#						add_domicile_building = estate_main_02
+		#						add_random_internal_estate_building = yes
+		#					}
+		#					if = {
+		#						limit = {
+		#							has_domicile_building = estate_main_02
+		#							NOT = { has_domicile_building_or_higher = estate_main_03 }
+		#							owner.culture ?= { has_innovation = innovation_manorialism }
+		#						}
+		#						add_domicile_building = estate_main_03
+		#						while = {
+		#							count = 2
+		#							add_random_internal_estate_building = yes
+		#						}
+		#					}
+		#					fill_external_estate_building_effect = yes
+		#				}
+		#				japanese_manor = {
+		#					if = {
+		#						limit = {
+		#							NOT = { has_domicile_building_or_higher = japanese_manor_main_02 }
+		#							owner.culture ?= { has_innovation = innovation_city_planning }
+		#						}
+		#						add_domicile_building = japanese_manor_main_02
+		#						add_random_internal_japanese_manor_building = yes
+		#					}
+		#					if = {
+		#						limit = {
+		#							has_domicile_building = japanese_manor_main_02
+		#							NOT = { has_domicile_building_or_higher = japanese_manor_main_03 }
+		#							owner.culture ?= { has_innovation = innovation_manorialism }
+		#						}
+		#						add_domicile_building = japanese_manor_main_03
+		#						while = {
+		#							count = 2
+		#							add_random_internal_japanese_manor_building = yes
+		#						}
+		#					}
+		#					fill_external_japanese_manor_building_effect = yes
+		#				}
+		#				east_asian_estate = {
+		#					if = {
+		#						limit = {
+		#							NOT = { has_domicile_building_or_higher = east_asian_estate_main_02 }
+		#							owner.culture ?= { has_innovation = innovation_city_planning }
+		#						}
+		#						add_domicile_building = east_asian_estate_main_02
+		#						add_random_internal_east_asian_estate_building = yes
+		#					}
+		#					if = {
+		#						limit = {
+		#							has_domicile_building = east_asian_estate_main_02
+		#							NOT = { has_domicile_building_or_higher = east_asian_estate_main_03 }
+		#							owner.culture ?= { has_innovation = innovation_manorialism }
+		#						}
+		#						add_domicile_building = east_asian_estate_main_03
+		#						while = {
+		#							count = 2
+		#							add_random_internal_east_asian_estate_building = yes
+		#						}
+		#					}
+		#					fill_external_east_asian_estate_building_effect = yes
+		#				}
+		#			}
+		#		}
+		#	}
+		#}
 		# Purge family titles if Admin isn't enabled
 		if = {
 			limit = {
@@ -4529,7 +5655,10 @@ on_game_start_after_lobby = {
 				save_temporary_scope_as = this_ruler
 				every_held_title = {
 					limit = {
-						has_title_law = noble_family_succession_law
+						is_noble_family_title = yes
+						title_domicile ?= {
+							is_domicile_type = estate
+						}
 					}
 					scope:this_ruler = {
 						destroy_title = prev
@@ -4537,264 +5666,63 @@ on_game_start_after_lobby = {
 				}
 			}
 		}
-		#Fully Landlocked Nomad Cultures Setup
-		# if = { #LotR
+
+		##### GENPEI WAR
+		### 1178 - MINATOMO YORITOMO ###
+		# if = {
 		# 	limit = {
-		# 		has_mpo_dlc_trigger = yes
+		# 		character:japanese_minamoto_seiwa_10 ?= { is_alive = yes }
 		# 	}
-		# 	every_culture_global = {
-		# 		limit = {
-		# 			OR = {
-		# 				has_cultural_pillar = heritage_mongolic
-		# 				has_cultural_pillar = heritage_ugro_permian
-		# 			}
+		# 	character:japanese_minamoto_seiwa_10 ?= { trigger_event = tgp_genpei_character.1000 }
+		# }
+		# ### 1178 - MINATOMO YOSHINAKA ###
+		# if = {
+		# 	limit = {
+		# 		character:japanese_minamoto_seiwa_207 ?= { is_alive = yes }
+		# 	}
+		# 	character:japanese_minamoto_seiwa_207 = { trigger_event = tgp_genpei_character.1090 }
+		# }
+		# ### 1178 - MINATOMO YOSHITSUNE ###
+		# if = {
+		# 	limit = {
+		# 		character:japanese_minamoto_seiwa_139 ?= { is_alive = yes }
+		# 	}
+		# 	character:japanese_minamoto_seiwa_139 = { trigger_event = tgp_genpei_character.1100 }
+		# }
+		# ### 1178 - TAIRA KIYOMORI ###
+		# if = {
+		# 	limit = {
+		# 		character:japanese_taira_kanmu_34 ?= { is_alive = yes }
+		# 	}
+		# 	character:japanese_taira_kanmu_34 = {
+		# 		trigger_event = tgp_genpei_character.2000
+		# 		trigger_event = { #Delayed event
+		# 			id = tgp_genpei_character.2010
+		# 			months = 6
 		# 		}
-		# 		add_to_global_variable_list = {
-		# 			name = fully_landlocked_nomad_cultures
-		# 			target = this
-		# 		}
-		# 	}
-		# 	add_to_global_variable_list = {
-		# 		name = fully_landlocked_nomad_cultures
-		# 		target = culture:kipchak
-		# 	}
-		# 	add_to_global_variable_list = {
-		# 		name = fully_landlocked_nomad_cultures
-		# 		target = culture:uyghur
-		# 	}
-		# 	add_to_global_variable_list = {
-		# 		name = fully_landlocked_nomad_cultures
-		# 		target = culture:kirghiz
-		# 	}
-		# 	add_to_global_variable_list = {
-		# 		name = fully_landlocked_nomad_cultures
-		# 		target = culture:tangut
-		# 	}
-		# 	add_to_global_variable_list = {
-		# 		name = fully_landlocked_nomad_cultures
-		# 		target = culture:bashkir
-		# 	}
-		# 	add_to_global_variable_list = {
-		# 		name = fully_landlocked_nomad_cultures
-		# 		target = culture:laktan
 		# 	}
 		# }
-
-		# Nomad setup
-		every_ruler = {
-			limit = {
-				government_has_flag = government_is_nomadic
-			}
-			every_councillor = {
-				limit = {
-					NOR = {
-						has_council_position = councillor_spymaster
-						has_council_position = councillor_court_chaplain
-						has_council_position = councillor_spouse
-					}
-				}
-				prev = { fire_councillor_skip_effects = prev }
-				remove_opinion = {
-					modifier = fired_from_council_opinion
-					target = prev
-				}
-			}
-			create_character = {
-				employer = this
-				random_traits = no
-				culture = this.culture
-				faith = this.faith
-				gender_female_chance = 50
-
-				random_traits_list = {
-					count = 3
-					# Personality traits
-					lustful = {}
-					deceitful = {}
-					brave = {}
-					gregarious = {}
-					ambitious = {}
-					vengeful = {}
-					gluttonous = {}
-					temperate  = {}
-					greedy = {}
-					generous = {}
-					lazy = {}
-					diligent = {}
-					wrathful = {}
-					calm = {}
-					patient = {}
-					impatient = {}
-					arrogant = {}
-					honest = {}
-					arbitrary = {}
-					just = {}
-					paranoid = {}
-					trusting = {}
-					compassionate = {}
-					callous = {}
-					sadistic = {}
-					stubborn = {}
-					fickle = {}
-					forgiving = {}
-					shy = {}
-				}
-				random_traits_list = {
-					count = 1
-					education_learning_3 = {}
-					education_learning_4 = {}
-				}
-				random_traits_list = {
-					count = { 0 1 }
-					# Lifestyle traits
-					lifestyle_herbalist = {}
-					lifestyle_mystic = {}
-				}
-				martial = {
-					min_template_low_skill
-					max_template_average_skill
-				}
-				stewardship = {
-					min_template_low_skill
-					max_template_average_skill
-				}
-				diplomacy = {
-					min_template_low_skill
-					max_template_average_skill
-				}
-				intrigue = {
-					min_template_low_skill
-					max_template_medium_skill
-				}
-				learning = {
-					min_template_high_skill
-					max_template_high_skill
-				}
-
-				after_creation = {
-					save_scope_as = astrologer_character
-					prev = {
-						appoint_court_position = {
-							recipient = scope:astrologer_character
-							court_position = court_astrologer_court_position
-						}
-					}
-				}
-			}
-			if = {
-				limit = {
-					OR = {
-						NOT = { exists = cp:councillor_kurultai_1 }
-						NOT = { exists = cp:councillor_kurultai_2 }
-						NOT = { exists = cp:councillor_kurultai_3 }
-						NOT = { exists = cp:councillor_kurultai_4 }
-					}
-				}
-				ordered_vassal = {
-					order_by = current_military_strength
-					limit = {
-						is_councillor = no
-					}
-					make_councillor_start_up_effect = yes
-				}
-			}
-			if = {
-				limit = {
-					OR = {
-						NOT = { exists = cp:councillor_kurultai_1 }
-						NOT = { exists = cp:councillor_kurultai_2 }
-						NOT = { exists = cp:councillor_kurultai_3 }
-						NOT = { exists = cp:councillor_kurultai_4 }
-					}
-				}
-				every_knight = {
-					limit = {
-						is_councillor = no
-					}
-					make_councillor_start_up_effect = yes
-				}
-			}
-			ordered_councillor = {
-				order_by = stewardship
-				position = 0
-				limit = {
-					NOR = {
-						has_council_position = councillor_spymaster
-						has_council_position = councillor_court_chaplain
-						has_council_position = councillor_spouse
-					}
-				}
-				switch = {
-					trigger = this
-					liege_or_court_owner.cp:councillor_kurultai_1 = {
-						set_council_task = {
-							task_type = task_kurultai_fertility_1
-							target = liege_or_court_owner.capital_province
-						}
-					}
-					liege_or_court_owner.cp:councillor_kurultai_2 = {
-						set_council_task = {
-							task_type = task_kurultai_fertility_2
-							target = liege_or_court_owner.capital_province
-						}
-					}
-					liege_or_court_owner.cp:councillor_kurultai_3 = {
-						set_council_task = {
-							task_type = task_kurultai_fertility_3
-							target = liege_or_court_owner.capital_province
-						}
-					}
-					liege_or_court_owner.cp:councillor_kurultai_4 = {
-						set_council_task = {
-							task_type = task_kurultai_fertility_4
-							target = liege_or_court_owner.capital_province
-						}
-					}
-				}
-			}
-			ordered_councillor = {
-				order_by = learning
-				position = 0
-				limit = {
-					NOR = {
-						has_council_position = councillor_spymaster
-						has_council_position = councillor_court_chaplain
-						has_council_position = councillor_spouse
-						is_performing_council_task = task_kurultai_fertility_1
-						is_performing_council_task = task_kurultai_fertility_2
-						is_performing_council_task = task_kurultai_fertility_3
-						is_performing_council_task = task_kurultai_fertility_4
-					}
-				}
-				switch = {
-					trigger = this
-					liege_or_court_owner.cp:councillor_kurultai_1 = {
-						set_council_task = {
-							task_type = task_kurultai_court_astrologer_1
-							target = liege_or_court_owner.capital_province
-						}
-					}
-					liege_or_court_owner.cp:councillor_kurultai_2 = {
-						set_council_task = {
-							task_type = task_kurultai_court_astrologer_2
-							target = liege_or_court_owner.capital_province
-						}
-					}
-					liege_or_court_owner.cp:councillor_kurultai_3 = {
-						set_council_task = {
-							task_type = task_kurultai_court_astrologer_3
-							target = liege_or_court_owner.capital_province
-						}
-					}
-					liege_or_court_owner.cp:councillor_kurultai_4 = {
-						set_council_task = {
-							task_type = task_kurultai_court_astrologer_4
-							target = liege_or_court_owner.capital_province
-						}
-					}
-				}
-			}
-		}
+		# ### 1178 - FUJIWARA MOTOFUSA ###
+		# if = {
+		# 	limit = {
+		# 		character:japanese_fujiwara_511 ?= { is_alive = yes }
+		# 	}
+		# 	character:japanese_fujiwara_511 = { trigger_event = tgp_genpei_character.3000 }
+		# }
+		# ### 1178 - FUJIWARA HIDEHIRA ###
+		# if = {
+		# 	limit = {
+		# 		character:japanese_fujiwara_497 ?= { is_alive = yes }
+		# 	}
+		# 	character:japanese_fujiwara_497 = { trigger_event = tgp_genpei_character.3100 }
+		# }
+		# ### 1178 - EMPEROR GO-SHIRAKAWA ###
+		# if = {
+		# 	limit = {
+		# 		character:japanese_yamato_51 ?= { is_alive = yes }
+		# 	}
+		# 	character:japanese_yamato_51 = { trigger_event = tgp_genpei_character.4000 }
+		# }
 
 		every_county_in_region = {
 			region = world_steppe
@@ -4836,20 +5764,44 @@ on_game_start_after_lobby = {
  			}
 		}
 
-		#Nomadic Philosophy lobby added realms
-		every_ruler = {
-			limit = {
-				government_has_flag = government_is_nomadic
-				exists = situation:the_great_steppe
-				any_character_situation = {
-					this = situation:the_great_steppe
-				}
-				NOT = {
-					has_trait = nomadic_philosophy
-				}
-			}
-		}
-		
+		# Conquerors
+		# character:144133 ?= {
+		# 	if = {
+		# 		limit = {
+		# 			is_alive = yes
+		# 			NOT = { has_game_rule = no_conquerors_frequency }
+		# 		}
+		# 		create_story = story_conqueror
+		# 	}
+		# }
+		# character:144141 ?= {
+		# 	if = {
+		# 		limit = {
+		# 			is_alive = yes
+		# 			NOT = { has_game_rule = no_conquerors_frequency }
+		# 		}
+		# 		create_story = story_conqueror
+		# 	}
+		# }
+		# character:175080 ?= {
+		# 	if = {
+		# 		limit = {
+		# 			is_alive = yes
+		# 			NOT = { has_game_rule = no_conquerors_frequency }
+		# 		}
+		# 		create_story = story_conqueror
+		# 	}
+		# }
+		# character:226000 ?= {
+		# 	if = {
+		# 		limit = {
+		# 			is_alive = yes
+		# 			NOT = { has_game_rule = no_conquerors_frequency }
+		# 		}
+		# 		create_story = story_conqueror
+		# 	}
+		# }
+
 		every_player = {
 			limit = {
 				is_landed = yes
@@ -4875,7 +5827,7 @@ on_game_start_after_lobby = {
 							after_creation = {
 								random_list = {
 									200 = {
-										# Character is of average weight, nothing happens	
+										# Character is of average weight, nothing happens
 									}
 									25 = {
 										change_current_weight = -25
@@ -4907,7 +5859,7 @@ on_game_start_after_lobby = {
 							after_creation = {
 								random_list = {
 									200 = {
-										# Character is of average weight, nothing happens	
+										# Character is of average weight, nothing happens
 									}
 									25 = {
 										change_current_weight = -25
@@ -4981,13 +5933,94 @@ on_game_start_after_lobby = {
 	        run_setup_tests_effect = yes
     	}
 		set_global_variable = game_has_started
+
+		every_independent_ruler = {
+			# Treasury setup for any government using treasury
+			tgp_treasury_setup_effect = yes
+		}
+
+		# TGP China education track switch
+
+		# if = { #LotR
+		# 	limit = {
+		# 		exists = title:h_china.holder
+		# 	}
+		# 	title:h_china.holder = {
+		# 		add_to_list = realm_potential_education_flip_list
+		# 	}
+		# }
+		# if = { #LotR
+		# 	limit = {
+		# 		exists = title:e_goryeo.holder
+		# 	}
+		# 	title:e_goryeo.holder = {
+		# 		add_to_list = realm_potential_education_flip_list
+		# 	}
+		# }
+		# if = { #LotR
+		# 	limit = {
+		# 		exists = title:k_dali.holder
+		# 	}
+		# 	title:k_dali.holder = {
+		# 		add_to_list = realm_potential_education_flip_list
+		# 	}
+		# }
+		# if = { #LotR
+		# 	limit = {
+		# 		exists = title:k_viet.holder
+		# 	}
+		# 	title:k_viet.holder = {
+		# 		add_to_list = realm_potential_education_flip_list
+		# 	}
+		# }
+		# if = { #LotR
+		# 	limit = {
+		# 		exists = title:k_xia.holder
+		# 	}
+		# 	title:k_xia.holder = {
+		# 		add_to_list = realm_potential_education_flip_list
+		# 	}
+		# }
+		# if = { #LotR
+		# 	limit = {
+		# 		exists = title:e_andong.holder
+		# 	}
+		# 	title:e_andong.holder = {
+		# 		add_to_list = realm_potential_education_flip_list
+		# 	}
+		# }
+
+		# every_in_list = { #LotR
+		# 	list = realm_potential_education_flip_list
+		# 	every_vassal_or_below = {
+		# 		limit = {
+		# 			is_ai = yes
+		# 			OR = {
+		# 				AND = {
+		# 					OR = {
+		# 						vassal_contract_has_flag = celestial_province_military
+		# 						vassal_contract_has_flag = celestial_province_protectorate
+		# 					}
+		# 					has_trait_with_flag = civilian_province
+		# 				}
+		# 				AND = {
+		# 					OR = {
+		# 						vassal_contract_has_flag = celestial_province_standard
+		# 						vassal_contract_has_flag = celestial_province_industrial
+		# 						vassal_contract_has_flag = celestial_province_metropolitan
+		# 					}
+		# 					has_trait_with_flag = military_province
+		# 				}
+		# 			}
+		# 		}
+		# 		tgp_flip_education_track_on_game_start = yes
+		# 	}
+		# }
 	}
 
 	events = {
-		game_rule.1000	#Autopopulate families.
-		# game_rule.1011	#Hungarian Migration management. #LotR
+		#game_rule.1011	#Hungarian Migration management. #LotR
 		historical_artifacts.0023			# Historical Artifacts Generator
-		mpo_misc.0002 # Have the AI release herders if over domain limit
 		coronation_events.0302 # ACH crown giveaway
 	}
 }
@@ -5007,3 +6040,4 @@ on_game_start_after_lobby = {
 #				desc = $DESC$
 #			}
 #		}
+

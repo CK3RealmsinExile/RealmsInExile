@@ -1,0 +1,533 @@
+﻿lotr_story_cycle_purge_of_ray = {
+# NOT by Nick Meredith but by Zeltron
+	
+	on_setup = {
+		set_variable = {
+			name = ruler_ray
+			value = story_owner
+		}
+		set_global_variable = {
+			name = ruler_ray
+			value = story_owner
+		}
+		set_variable = {
+			name = pacification
+			value = 0
+		}
+		set_variable = {
+			name = resistance
+			value = 5
+		}
+		set_global_variable = {
+			name = purge_of_ray
+			value = this
+		}
+	}
+
+	on_end = {
+		debug_log = "Purge of Rây ended on:"
+		debug_log_date = yes
+	}
+
+	on_owner_death = {
+		if = {
+			limit = {
+				exists = story_owner.player_heir
+			}
+			set_global_variable = {
+				name = ruler_ray
+				value = story_owner.player_heir
+			}
+			make_story_owner = story_owner.player_heir
+			scope:story_owner = {
+				add_character_flag = mardat_ongoing_purge
+			}
+		}
+		## This shouldn't be needed; should be handled by the effect group below
+		#else = {
+		#	end_story = yes
+		#	remove_global_variable = purge_of_ray
+		#}
+	}
+
+	#End the Story Cycle if there are no longer any Non-Khäz-gramaze rulers or if no faction rules Rây
+	effect_group = {
+		months = 1
+
+		trigger = {
+			OR = { #Either of these can be untrue
+				story_owner = {
+					any_vassal = {
+						NOR = {
+							faith = faith:faith_vatra
+ 							faith = faith:faith_ray                        
+						}
+					}
+				}
+				NOT = {
+					var:ruler_ray = {
+						faith = faith:faith_haruze	
+					}
+				}
+			}
+		}
+
+		first_valid = {
+			triggered_effect = { #The Heretics are no more - Mardat victory
+				trigger = {
+					story_owner = {
+						NOT = {
+							any_vassal = {
+								OR = {
+									faith = faith:faith_ray
+									faith = faith:faith_vatra     
+								}                             
+							}						
+						}
+						OR = {
+							is_ai = yes
+							NOT = {
+								has_character_flag = mardat_ongoing_purge
+							}
+						}
+					}
+				}
+				effect = {
+					remove_global_variable = purge_of_ray
+					if = {
+						limit = {
+							# Major News
+							NOT = {
+								has_game_rule = no_news
+							}
+						}
+						every_player = {
+							trigger_event = purge_of_ray.0001
+						}					
+					}
+					end_story = yes
+				}
+			}
+			triggered_effect = { #A Vâtraist rules
+				trigger = {
+					story_owner = {
+							faith = faith:faith_vatra                             
+					}
+				}
+				effect = {
+					remove_global_variable = purge_of_ray
+					if = {
+						limit = {
+							# Major News
+							NOT = {
+								has_game_rule = no_news
+							}
+						}
+						every_player = {
+							trigger_event = purge_of_ray.0002
+						}					
+					}
+					end_story = yes
+				}
+			}
+			triggered_effect = { #A Kât-Polzây rules
+				trigger = {
+					story_owner = {
+                            faith = faith:faith_ray    
+					}
+				}
+				effect = {
+					remove_global_variable = purge_of_ray
+					if = {
+						limit = {
+							# Major News
+							NOT = {
+								has_game_rule = no_news
+							}
+						}
+						every_player = {
+							trigger_event = purge_of_ray.0004
+						}					
+					}
+					end_story = yes
+				}
+			}				
+			triggered_effect = { #A foreign power conquers Rây
+				trigger = {
+					story_owner = {
+						NOR = {
+                            faith = faith:faith_ray
+							faith = faith:faith_vatra
+                            faith = faith:faith_haruze
+						}
+					}
+				}
+				effect = {
+					remove_global_variable = purge_of_ray
+					every_ruler = {
+						limit = {
+							capital_province = {
+								geographical_region = middleearth_harad_far_ray
+							}
+						}
+						trigger_event = purge_of_ray.0003
+					}
+					end_story = yes
+				}
+			}
+		}
+	}
+
+	# Events for Mardat
+	effect_group = {
+		days = { 20 40 }
+
+		trigger = {
+			story_owner = {
+				is_alive = yes
+			}
+		}
+
+		first_valid = {
+			triggered_effect = {
+				trigger = { always = yes }
+				effect = {
+					save_scope_as = story_scope
+					story_owner = {
+						trigger_event = {
+							on_action = ongoing_purge_of_ray_owner_events
+						}
+					}
+				}
+			}
+		}
+	}
+
+	# Events for rebels (will be split in the integration phase between the 2 rebel factions)
+	effect_group = {
+		days = { 20 40 }
+
+		trigger = {
+			story_owner = {
+				any_vassal = {
+					OR = {
+                        faith = faith:faith_ray
+						faith = faith:faith_vatra
+                    }
+				}
+			}
+		}
+
+		first_valid = {
+			triggered_effect = {
+				trigger = { always = yes }
+				effect = {
+					save_scope_as = story_scope
+					story_owner = {
+						random_vassal= {
+							limit = {
+								OR = {
+                                    faith = faith:faith_ray
+						            faith = faith:faith_vatra                                    
+                                }
+							}
+							trigger_event = {
+								on_action = ongoing_purge_of_ray_aetheling_events
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
+	### Purge ongoing effects
+	# Set the Pacification variable every month if possible
+	# This checks for the Embrace English Culture decision
+	effect_group = {
+		months = 1
+		first_valid = {
+			triggered_effect = {
+				trigger = {
+					var:pacification > 15
+					var:pacification > var:resistance
+				}
+				effect = {
+					if = {
+						limit = {
+							AND = {
+								NOT = {
+									has_variable = embrace_culture_decision_counter
+								}
+								var:pacification > 15
+								var:pacification > var:resistance								
+							}
+						}
+						set_variable = {
+							name = embrace_culture_decision_counter
+							value = 0
+						}
+					}
+				}
+			}
+			triggered_effect = {
+				trigger = {
+					OR = {
+						var:pacification < 15
+						var:pacification < var:resistance
+					}
+				}
+				effect = {
+					if = {
+						limit = {
+							has_variable = embrace_culture_decision_counter
+						}
+						remove_variable = embrace_culture_decision_counter
+					}
+				}
+			}
+		}
+	}
+
+	# Check to see if you've had pacification over resistance for a year
+	effect_group = {
+		months = 1
+		triggered_effect = {
+			trigger = {
+				var:pacification > 15
+				var:pacification > var:resistance
+				has_variable = embrace_culture_decision_counter
+			}
+			effect = {
+				if = {
+					limit = {
+						AND = {
+							has_variable = embrace_culture_decision_counter
+							var:pacification > 15
+							var:pacification > var:resistance									
+						}
+					}
+					change_variable = {
+						name = embrace_culture_decision_counter
+						add = 1
+					}
+				}
+			}
+		}
+	}
+
+	# Tick dread every month
+	effect_group = {
+		months = 1
+
+		first_valid = {
+			triggered_effect = {
+				trigger = {
+					var:pacification > 14
+					var:pacification > var:resistance
+				}
+				effect = {
+					story_owner = {
+						add_dread = 3
+					}
+				}
+			}
+			triggered_effect = {
+				trigger = {
+					var:pacification > 13
+					var:pacification > var:resistance
+				}
+				effect = {
+					story_owner = {
+						add_dread = 2
+					}
+				}
+			}
+			triggered_effect = {
+				trigger = {
+					var:pacification > 10
+					var:pacification > var:resistance
+				}
+				effect = {
+					story_owner = {
+						add_dread = 1
+					}
+				}
+			}
+		}
+	}
+
+	# Add discontent to targeting factions every 2 months
+	effect_group = {
+		months = 2
+
+		first_valid = {
+			triggered_effect = {
+				trigger = {
+					var:resistance > 16
+					var:resistance > var:pacification
+				}
+				effect = {
+					story_owner = {
+						if = {
+							limit = {
+								has_targeting_faction = yes
+							}
+							add_targeting_factions_discontent = 5
+						}
+					}
+				}
+			}
+			triggered_effect = {
+				trigger = {
+					var:resistance > 13
+					var:resistance > var:pacification
+				}
+				effect = {
+					story_owner = {
+						if = {
+							limit = {
+								has_targeting_faction = yes
+							}
+							add_targeting_factions_discontent = 3
+						}
+					}
+				}
+			}
+			triggered_effect = {
+				trigger = {
+					var:resistance > 10
+					var:resistance > var:pacification
+				}
+				effect = {
+					story_owner = {
+						if = {
+							limit = {
+								has_targeting_faction = yes
+							}
+							add_targeting_factions_discontent = 1
+						}
+					}
+				}
+			}
+		}
+	}
+
+	# Erode Khäz-gramaze County Control every 3 months
+	effect_group = {
+		months = 3
+
+		first_valid = {
+			triggered_effect = {
+				trigger = {
+					var:resistance > 16
+					var:resistance > var:pacification
+				}
+				effect = {
+					story_owner = {
+						every_sub_realm_county = {
+							limit = {
+								holder = {
+										faith = faith:faith_haruze									
+								}
+							}
+							change_county_control = medium_discontent_loss
+						}
+					}
+				}
+			}
+			triggered_effect = {
+				trigger = {
+					var:resistance > 13
+					var:resistance > var:pacification
+				}
+				effect = {
+					story_owner = {
+						every_sub_realm_county = {
+							limit = {
+								holder = {
+										faith = faith:faith_haruze	
+								}
+							}
+							change_county_control = minor_discontent_loss
+						}
+					}
+				}
+			}
+		}
+	}
+
+	# Add Khäz-gramaze County Control every 3 months
+	effect_group = {
+		months = 3
+
+		first_valid = {
+			triggered_effect = {
+				trigger = {
+					var:pacification > 14
+					var:pacification > var:resistance
+				}
+				effect = {
+					story_owner = {
+						every_sub_realm_county = {
+							limit = {
+								holder = {
+										faith = faith:faith_haruze	
+								}
+							}
+							change_county_control = medium_discontent_gain
+						}
+					}
+				}
+			}
+			triggered_effect = {
+				trigger = {
+					var:pacification > 11
+					var:pacification > var:resistance
+				}
+				effect = {
+					story_owner = {
+						every_sub_realm_county = {
+							limit = {
+								holder = {
+										faith = faith:faith_haruze	
+								}
+							}
+							change_county_control = minor_discontent_gain
+						}
+					}
+				}
+			}
+		}
+	}
+
+	#Maintenance group
+	effect_group = {
+		days = 1
+		#Give the story cycle to any Khäz-gramaze if Mardat isn't in charge for some reason
+		triggered_effect = {
+			trigger = {
+				story_owner = {
+					NOT = {
+						has_title = title:k_ray
+					}
+				}
+			}
+			effect = {
+				title:k_ray.holder = {
+					save_scope_as = new_ruler
+				}
+				make_story_owner = scope:new_ruler
+				set_variable = {
+					name = ruler_ray
+					value = story_owner
+				}
+				set_global_variable = {
+					name = ruler_ray
+					value = story_owner
+				}
+			}
+		}
+	}
+}
+

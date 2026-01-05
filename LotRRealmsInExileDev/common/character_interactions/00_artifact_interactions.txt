@@ -19,23 +19,31 @@ gift_artifact_interaction = {
 		ai_recipients = scripted_relations
 		ai_recipients = liege
 		ai_recipients = spouses
-		ai_recipients = vassals
+		max = 10
 	}
 	ai_targets = {
 		ai_recipients = neighboring_rulers
 		ai_recipients = peer_vassals
+		ai_recipients = vassals
 		max = 10
 	}
 	ai_targets = {
 		ai_recipients = family
 		ai_recipients = children
 		ai_recipients = dynasty
-		max = 20
+		max = 10
 	}
 	ai_target_quick_trigger = {
 		adult = yes
 	}
-	ai_frequency = 84
+	ai_frequency_by_tier = {
+		barony = 180
+		county = 90
+		duchy = 90
+		kingdom = 90
+		empire = 90
+		hegemony = 90
+	}
 
 	can_be_picked_artifact = {
 		trigger_if = {
@@ -48,13 +56,6 @@ gift_artifact_interaction = {
 				is_equipped = no
 			}
 		}
-		trigger_if = { #Only the Lord of Gifts will hand out Rings of Power
-			limit = { 
-				scope:target = { has_variable = ring_of_power }
-				sauron_is_alive = yes
-			}
-			scope:actor = { is_sauron = yes }
-		}
 		scope:actor = {
 			any_character_artifact = {
 				this = scope:target
@@ -65,44 +66,54 @@ gift_artifact_interaction = {
 			NOR = {
 				has_variable = 1025_treasure_map
 				has_variable = ungiftable
-				AND = {
-					scope:actor = { is_ai = yes }
-					has_variable = ai_ungiftable
-				}
+				has_variable = is_tribute_mission_artifact
 			}
 		}
+		#LotR
+		trigger_if = { #Only the Lord of Gifts will hand out Rings of Power
+			limit = { 
+				scope:target = { has_variable = ring_of_power }
+				sauron_is_alive = yes
+			}
+			scope:actor = { is_sauron = yes }
+		}
+		trigger_if = { #Story items can't be gifted by the AI
+			limit = { 
+				scope:target = { has_variable = ai_ungiftable }
+			}
+			scope:actor = { is_ai = no }
+		}			
 	}
 
 
 	#You can't give yourself a gift, even if it should count as self-care
 	is_shown = {
-		NOT = {
-			scope:recipient = scope:actor
+		scope:actor = { #LotR
+			NOT = { has_culture = culture:wastelands }
 		}
+		scope:recipient = { #LotR
+			NOT = { has_culture = culture:wastelands }
+			is_in_valinor = no
+		}
+		scope:recipient != scope:actor
 		scope:actor = {
 			has_any_artifact = yes
 			trigger_if = {
 				limit = {
 					exists = involved_activity
 				}
-				involved_activity ?= { #do not give out anything during coronation
-					has_activity_type = activity_coronation
-					activity_host = scope:actor
+				NOT = {
+					involved_activity ?= { #do not give out anything during coronation
+						has_activity_type = activity_coronation
+						activity_host = scope:actor
+					}
 				}
-			}
-			NOT = { has_culture = culture:wastelands }
-		}
-		scope:recipient = {
-			NOT = { has_culture = culture:wastelands }
-		}
-		scope:recipient = {
-			is_in_valinor = no
+			}	
 		}
 	}
 
 	is_valid_showing_failures_only = {
 		# needs to have an artifact to give away
-		scope:recipient = { is_busy_in_events_localised = yes }
 		scope:actor = {
 			NOT = {
 				is_at_war_with = scope:recipient
@@ -385,13 +396,41 @@ gift_artifact_interaction = {
 			# Warning for low opinion gain
 			if = {
 				limit = {
-					scope:target = { artifact_durability <= define:NInventory|ARTIFACT_LOW_DURABILITY }
+					scope:target = {
+						OR = {
+							AND = {
+								artifact_max_durability >= define:NInventory|ARTIFACT_DEFAULT_MAX_DURABILITY 
+								artifact_durability <= define:NInventory|ARTIFACT_LOW_DURABILITY
+							}
+							AND = {  #Check %durability left instead of fixed durability
+								artifact_max_durability < define:NInventory|ARTIFACT_DEFAULT_MAX_DURABILITY 
+								artifact_durability_percent <= {
+									value = define:NInventory|ARTIFACT_LOW_DURABILITY
+									divide = 100
+								}
+							}
+						}
+					}
 				}
 				custom_tooltip = artifact_gift_low_durability_tt
 			}
 			if = {
 				limit = {
-					scope:target = { artifact_durability <= define:NInventory|ARTIFACT_VERY_LOW_DURABILITY }
+					scope:target = {
+						OR = {
+							AND = {
+								artifact_max_durability >= define:NInventory|ARTIFACT_DEFAULT_MAX_DURABILITY
+								artifact_durability <= define:NInventory|ARTIFACT_VERY_LOW_DURABILITY
+							}
+							AND = { #Check %durability left instead of fixed durability
+								artifact_max_durability < define:NInventory|ARTIFACT_DEFAULT_MAX_DURABILITY
+								artifact_durability_percent <= {
+									value = define:NInventory|ARTIFACT_VERY_LOW_DURABILITY
+									divide = 100
+								}
+							}
+						}
+					}
 				}
 				custom_tooltip = artifact_gift_very_low_durability_tt
 			}
@@ -469,7 +508,7 @@ gift_artifact_interaction = {
 
 						# Unity stuff, scales with tier # If we're a clan this interaction affects unity
 						if = { # In a better world, this would be a switch
-							limit = { scope:target = { rarity = Masterwork } } # todo_cd_polish, make the UI show this before you gift
+							limit = { scope:target = { rarity = Masterwork } }
 							add_clan_unity_interaction_effect = {
 								CHARACTER = scope:actor
 								TARGET = scope:recipient
@@ -765,6 +804,28 @@ gift_artifact_interaction = {
 					}
 				}
 			}
+			#LotR - hope gain on receiving Elven artifact
+			if = {
+				limit = { is_elf = yes }
+				if = {
+					limit = {
+						scope:target = {
+							has_variable = elven
+						}
+					}
+					if = {
+						limit = {
+							scope:target = {
+								rarity = illustrious
+							}
+						}
+						add_elven_hope_effect = { VALUE = major_elven_hope_gain HOPE_EFFECT = effect_elven_hope_illustrious_artifact_recovered }
+					}
+					else = {
+						add_elven_hope_effect = { VALUE = medium_elven_hope_gain HOPE_EFFECT = effect_elven_hope_famed_artifact_recovered }
+					}
+				}
+			}
 		}
 	}
 
@@ -798,7 +859,7 @@ gift_artifact_interaction = {
 			#No harm in reusing the wording
 			desc = ARTIFACT_CURSED_REASON
 		}
-		modifier = {
+		modifier = { #LotR
 			add = -500
 			scope:target = {
 				has_variable = ring_of_mortals
@@ -813,7 +874,7 @@ gift_artifact_interaction = {
 		modifier = {
 			add = -1000
 			scope:target = {
-				OR = {
+				OR = { #LotR
 					has_variable = cursed_artifact
 					AND = {
 						has_variable = morgul_blade
@@ -844,10 +905,10 @@ gift_artifact_interaction = {
 			exists = scope:recipient.house
 			trigger_if = {
 				limit = { exists = scope:target.var:banner_dynasty }
-				NOT = { scope:target.var:banner_dynasty = scope:recipient.dynasty }
+				scope:target.var:banner_dynasty != scope:recipient.dynasty
 			}
 			trigger_else = {
-				NOT = { scope:target.var:banner_house = scope:recipient.house }
+				scope:target.var:banner_house != scope:recipient.house
 			}
 			desc = ARTIFACT_USELESS_BANNER_REASON
 		}
@@ -855,7 +916,7 @@ gift_artifact_interaction = {
 		modifier = {
 			desc = AI_STRUGGLE_INTENT
 			scope:recipient = {
-				is_independent_ruler = yes
+				top_liege = this
 				any_character_struggle = {
 					involvement = involved
 				}
@@ -910,6 +971,7 @@ gift_artifact_interaction = {
 			ai_greed <= high_positive_ai_value
 			# the AI shouldn't give away equipped artifacts
 			has_any_unequipped_artifact = yes
+		
 			NOT = {
 				has_trait = greedy
 			}
@@ -924,22 +986,27 @@ gift_artifact_interaction = {
 		
 		modifier = {
 			add = 100
-			scope:recipient = {
+			scope:actor = {
 				OR = {
-					has_relation_friend = scope:actor
-					has_relation_lover = scope:actor
-					is_close_or_extended_family_of = scope:actor
+					has_relation_friend = scope:recipient
+					has_relation_lover = scope:recipient
+					is_close_or_extended_family_of = scope:recipient
 					AND = {
 						exists = dynasty
-						exists = scope:actor.dynasty
-						dynasty = scope:actor.dynasty
+						exists = scope:recipient.dynasty
+						dynasty = scope:recipient.dynasty
 					}
 					
 					AND = {
 						ai_greed <= low_negative_ai_value
 						OR = { # Lieges/vassals, within realm
-							is_vassal_of = scope:actor
-							target_is_vassal_or_below = scope:actor
+							is_vassal_of = scope:recipient
+							target_is_vassal_or_below = scope:recipient
+							house.house_confederation ?= { # House Bloc
+								scope:recipient.house.house_confederation ?= this
+								leading_house ?= scope:recipient.house
+								has_cohesion_level_parameter = bloc_members_send_leader_gifts
+							}
 						}
 						opinion = {
 							target = scope:recipient
@@ -1180,7 +1247,7 @@ gift_artifact_interaction = {
 		# Struggle
 		modifier = {
 			scope:recipient = {
-				is_independent_ruler = yes
+				top_liege = this
 			}
 			scope:actor = {
 				any_character_struggle = {
@@ -1279,7 +1346,7 @@ gift_artifact_interaction = {
 
 		modifier = {
 			factor = 0
-			scope:target = { exists = var:relic_religion}
+			scope:target = { exists = var:relic_religion }
 			scope:actor = {
 				has_religion = scope:target.var:relic_religion
 			}
@@ -1307,6 +1374,14 @@ gift_artifact_interaction = {
 				scope:actor = {
 					has_any_bad_relationship_with_character_trigger = { CHARACTER = scope:recipient }
 				}
+			}
+		}
+
+		modifier = {
+			factor = 2
+			scope:actor.house.house_confederation ?= {
+				has_cohesion_level_parameter = bloc_members_send_leader_gifts
+				leading_house.house_head ?= scope:recipient
 			}
 		}
 	}
@@ -1353,20 +1428,27 @@ demand_artifact_interaction = {
 	ai_target_quick_trigger = {
 		adult = yes
 	}
-	ai_frequency = 60
+	ai_frequency_by_tier = {
+		barony = 0
+		county = 0
+		duchy = 72
+		kingdom = 36
+		empire = 36
+		hegemony = 36
+	}
 
 	is_shown = {
-		NOT = {
-			scope:recipient = scope:actor
-		}
-		scope:actor = { is_in_valinor = no }
-		scope:recipient = { is_in_valinor = no }
+		scope:actor = { is_in_valinor = no } #LotR
+		scope:recipient = { is_in_valinor = no } #LotR
+		scope:recipient != scope:actor
+
 		custom_description = {
 			text = "demand_artifact_interaction_valid_tt_1"
 			scope:recipient = {
 				# needs to have an artifact we can claim
 				any_character_artifact = {
 					can_be_claimed_by = scope:actor
+					NOT = { has_variable = is_tribute_mission_artifact }
 					#those shouldn't be given
 					NOR = {
 						AND = { 
@@ -1384,9 +1466,11 @@ demand_artifact_interaction = {
 				limit = {
 					exists = involved_activity
 				}
-				involved_activity ?= { #do not give out anything during coronation
-					has_activity_type = activity_coronation
-					activity_host = scope:recipient
+				NOT = {
+					involved_activity ?= { #do not give out anything during coronation
+						has_activity_type = activity_coronation
+						activity_host = scope:recipient
+					}
 				}
 			}	
 		}
@@ -1409,7 +1493,7 @@ demand_artifact_interaction = {
 		always = yes
 	}
 	
-	can_be_picked_artifact = {
+	can_be_picked_artifact = { #LotR
 		scope:target = {
 			NOR = {
 				AND = { 
@@ -1422,8 +1506,6 @@ demand_artifact_interaction = {
 	}
 
 	is_valid_showing_failures_only = {
-
-		scope:recipient = { is_busy_in_events_localised = yes }
 		
 		scope:actor = {
 			NOT = {
@@ -1493,6 +1575,28 @@ demand_artifact_interaction = {
 					}
 				}
 			}
+			#LotR - hope gain on receiving Elven artifact
+			if = {
+				limit = { is_elf = yes }
+				if = {
+					limit = {
+						scope:demanded_artifact = {
+							has_variable = elven
+						}
+					}
+					if = {
+						limit = {
+							scope:demanded_artifact = {
+								rarity = illustrious
+							}
+						}
+						add_elven_hope_effect = { VALUE = major_elven_hope_gain HOPE_EFFECT = effect_elven_hope_illustrious_artifact_recovered }
+					}
+					else = {
+						add_elven_hope_effect = { VALUE = medium_elven_hope_gain HOPE_EFFECT = effect_elven_hope_famed_artifact_recovered }
+					}
+				}
+			}
 		}
 		if = {
 			limit = {
@@ -1530,7 +1634,7 @@ demand_artifact_interaction = {
 	
 	send_option = {
 		is_shown = {
-			NOT = { scope:actor = scope:recipient }
+			scope:actor != scope:recipient
 		}
 		is_valid = {
 			scope:actor = {
@@ -1602,11 +1706,6 @@ demand_artifact_interaction = {
 			scope:hook = yes
 			add = 100
 			desc = SCHEME_WEAK_HOOK_USED
-		}
-		modifier = {
-			add = -1000
-			trigger = { scope:target = { is_important_artifact = yes } }
-			desc = IMPORTANT_ARTIFACT
 		}
 
 		# Unity modifiers
@@ -2121,24 +2220,23 @@ challenge_for_artifact_interaction = {
 	answer_reject_key = REQUEST_ARTIFACT_COMBAT_REJECT
 
 	is_shown = {
+		scope:actor = { #LotR
+			is_in_valinor = no
+			is_sauron = no
+		}
+		scope:recipient = { #LotR
+			is_in_valinor = no
+			is_sauron = no
+		}
 		# Can't duel yourself.
-		NOT = { scope:actor = scope:recipient }
-		scope:actor = { 
-			is_in_valinor = no
-			is_sauron = no
-		}
-		scope:recipient = { 
-			is_in_valinor = no
-			is_sauron = no
-		}
+		scope:actor != scope:recipient
 		custom_description = {
 			text = "challenge_for_artifact_interaction_valid_tt_1"
 			scope:recipient = {
 				# needs to have an artifact we can claim
 				any_character_artifact = {
 					can_be_claimed_by = scope:actor
-					#those shouldn't be stolen
-					NOR = {
+					NOR = { #LotR
 						has_variable = silmaril
 						has_variable = elven_ring
 						has_variable = one_ring
@@ -2155,15 +2253,17 @@ challenge_for_artifact_interaction = {
 				limit = {
 					exists = involved_activity
 				}
-				involved_activity ?= { #do not give out anything during coronation
-					has_activity_type = activity_coronation
-					activity_host = scope:recipient
+				NOT = {
+					involved_activity ?= { #do not give out anything during coronation
+						has_activity_type = activity_coronation
+						activity_host = scope:recipient
+					}
 				}
 			}
 		}
 	}
-	
-	can_be_picked_artifact = {
+
+	can_be_picked_artifact = { #LotR
 		scope:target = {
 			NOR = {
 				has_variable = silmaril
@@ -2463,7 +2563,14 @@ challenge_for_artifact_interaction = {
 		max = 10
 	}
 
-	ai_frequency = 60
+	ai_frequency_by_tier = {
+		barony = 0
+		county = 120
+		duchy = 60
+		kingdom = 60
+		empire = 60
+		hegemony = 60
+	}
 
 	ai_will_do = {
 		base = -50
@@ -2903,35 +3010,12 @@ start_stealing_back_artifact = {
 	target_filter = recipient_artifacts
 	
 	is_shown = {
-		NOR = {
-			scope:recipient = scope:actor
-			scope:recipient = { is_imprisoned_by = scope:actor }
-		}
-		OR = {
-			scope:recipient = {
-				# needs to have an artifact we can claim
-				any_character_artifact = {
-					can_be_claimed_by = scope:actor
-				}
-			}
-			scope:actor = {
-				OR = {
-					employs_court_position = master_thief_camp_officer
-					any_character_active_contract = {
-						has_task_contract_type = laamp_steal_artifact_contract
-						var:task_contract_target ?= scope:recipient
-					}
-				}
-			}
-		}
-		scope:actor = { is_in_valinor = no }
-		scope:recipient = {
+		scope:actor = { is_in_valinor = no } #LotR
+		scope:recipient = { #LotR
 			is_in_valinor = no
 			is_sauron = no
-			this != character:lineofeonwe #Can't steal from Eonwë
-			# needs to have an artifact we can claim
+			this != character:lineofeonwe
 			any_character_artifact = {
-				#those shouldn't be stolen
 				NOR = {
 					has_variable = silmaril
 					has_variable = elven_ring
@@ -2943,7 +3027,30 @@ start_stealing_back_artifact = {
 				}
 			}
 		}
-	
+		NOR = {
+			scope:recipient = scope:actor
+			scope:recipient = { is_imprisoned_by = scope:actor }
+		}
+		OR = {
+			scope:recipient = {
+				# needs to have an artifact we can claim
+				any_character_artifact = {
+					can_be_claimed_by = scope:actor
+				}
+			}
+			AND = {
+				scope:recipient = { has_any_artifact = yes }
+				scope:actor = {
+					OR = {
+						employs_court_position = master_thief_camp_officer
+						any_character_active_contract = {
+							task_contract_type = laamp_steal_artifact_contract
+							var:task_contract_target ?= scope:recipient
+						}
+					}
+				}
+			}
+		}
 	}
 	
 	is_highlighted = {
@@ -2970,6 +3077,7 @@ start_stealing_back_artifact = {
 						target_character = scope:recipient
 					}
 				}
+				scope:recipient = { has_any_artifact = yes }
 			}
 		}
 		trigger_if = {
@@ -2978,7 +3086,7 @@ start_stealing_back_artifact = {
 					NOR = {
 						employs_court_position = master_thief_camp_officer 
 						any_character_task_contract = {
-							has_task_contract_type = laamp_steal_artifact_contract
+							task_contract_type = laamp_steal_artifact_contract
 							var:task_contract_target ?= scope:recipient
 						}
 					}
@@ -3023,6 +3131,23 @@ start_stealing_back_artifact = {
 				}
 			}
 		}
+
+		trigger_if = { #In range for LAAMP
+			limit = {
+				scope:actor = { is_landless_adventurer = yes }
+				scope:recipient = {
+					NOT = {
+						any_character_artifact = {
+							scope:actor = { has_artifact_claim = prev }
+						}
+					}
+				}
+			}
+			ep3_laamp_diplo_range_trigger = {
+				TARGET = scope:recipient
+				LAAMP = scope:actor
+			}
+		}
 	}
 
 	desc = {
@@ -3045,7 +3170,7 @@ start_stealing_back_artifact = {
 					NOR = {
 						employs_court_position = master_thief_camp_officer
 						any_character_active_contract = {
-							has_task_contract_type = laamp_steal_artifact_contract
+							task_contract_type = laamp_steal_artifact_contract
 							var:task_contract_object ?= scope:target
 						}
 					}
@@ -3054,6 +3179,9 @@ start_stealing_back_artifact = {
 			scope:actor = {
 				has_artifact_claim = scope:target
 			}
+		}
+		scope:target = {
+			NOT = { has_variable = is_tribute_mission_artifact }
 		}
 		scope:target = { #LotR
 			NOR = {
@@ -3067,6 +3195,7 @@ start_stealing_back_artifact = {
 			}
 		}
 	}
+
 	# Scheme Starter Packages
 	options_heading = schemes.t.agent_packages
 	send_options_exclusive = yes
@@ -3111,13 +3240,13 @@ start_stealing_back_artifact = {
 					if =  {
 						limit = {
 							any_character_active_contract = {
-								has_task_contract_type = laamp_steal_artifact_contract
+								task_contract_type = laamp_steal_artifact_contract
 								var:task_contract_target ?= scope:recipient
 							}
 						}
 						random_character_active_contract = {
+							task_contract_type = laamp_steal_artifact_contract
 							limit = {
-								has_task_contract_type = laamp_steal_artifact_contract
 								var:task_contract_target ?= scope:recipient
 							}
 							save_scope_as = scheme_contract
@@ -3325,7 +3454,14 @@ start_stealing_back_artifact = {
 		max = 10
 	}
 
-	ai_frequency = 60
+	ai_frequency_by_tier = {
+		barony = 0
+		county = 144
+		duchy = 72
+		kingdom = 36
+		empire = 36
+		hegemony = 36
+	}
 
 	ai_will_do = {
 		base = -30
@@ -3711,11 +3847,16 @@ buy_artifact_claim = {
 	target_filter = recipient_artifacts 
 
 	is_shown = {
+		scope:actor = { #LotR
+			is_in_valinor = no
+		}
+		scope:recipient = { #LotR
+			is_in_valinor = no
+		}
 		# interaction locked behind Accomplished Forger perk from the Diplomacy lifestyle
 		scope:actor = {
 			has_perk = accomplished_forger_perk
 			is_landless_adventurer = no
-			is_in_valinor = no
 		}
 		NOR = {
 			# Can't buy from yourself
@@ -3724,7 +3865,6 @@ buy_artifact_claim = {
 			scope:recipient = { is_imprisoned_by = scope:actor }
 		}
 		scope:recipient = {
-			is_in_valinor = no
 			in_diplomatic_range = scope:actor
 			any_character_artifact = {
 				exists = this
@@ -3736,8 +3876,7 @@ buy_artifact_claim = {
 					#has_variable = pope_hat #LotR
 					# This is the only way I have found to exclude dynastic banners
 					artifact_type = wall_big
-					#those shouldn't be stolen
-					has_variable = silmaril
+					has_variable = silmaril #LotR
 					has_variable = elven_ring
 					has_variable = one_ring
 					and = {
@@ -3752,9 +3891,11 @@ buy_artifact_claim = {
 				limit = {
 					exists = involved_activity
 				}
-				involved_activity ?= { #do not give out anything during coronation
-					has_activity_type = activity_coronation
-					activity_host = scope:recipient
+				NOT = {
+					involved_activity ?= { #do not give out anything during coronation
+						has_activity_type = activity_coronation
+						activity_host = scope:recipient
+					}
 				}
 			}
 		}
@@ -3768,8 +3909,8 @@ buy_artifact_claim = {
 				# no pope hats or dynastic banners
 				has_variable = pope_hat
 				artifact_type = wall_big
-				#those shouldn't be stolen
-				has_variable = silmaril
+				has_variable = is_tribute_mission_artifact
+				has_variable = silmaril #LotR
 				has_variable = elven_ring
 				has_variable = one_ring
 				and = {
@@ -3795,7 +3936,6 @@ buy_artifact_claim = {
 					NOT = { has_personal_artifact_claim = prev }
 				}
 			}
-			is_busy_in_events_localised = yes
 		}
 
 		# Claim costs are calculated with scripted values located 00_lifestyle_values. The piety interaction costs copy those used for the regular Buy Claim interaciton and the prestige costs are calculated according to the same method.
@@ -4019,7 +4159,14 @@ buy_artifact_claim = {
 		ai_recipients = neighboring_rulers
 	}
 
-	ai_frequency = 30
+	ai_frequency_by_tier = {
+		barony = 0
+		county = 120
+		duchy = 30
+		kingdom = 30
+		empire = 30
+		hegemony = 30
+	}
 
 	ai_potential = {
 		# The basic requirements
@@ -4076,7 +4223,7 @@ buy_artifact_claim = {
 				OR = {
 					has_relation_friend = scope:actor
 					has_relation_lover = scope:actor
-#					is_close_or_extended_family_of = scope:actor
+					#is_close_or_extended_family_of = scope:actor
 				}
 			}
 			factor = 0
@@ -4125,27 +4272,33 @@ demand_dynasty_banner_interaction = {
 	ai_target_quick_trigger = {
 		adult = yes
 	}
-	ai_frequency = 60
+	ai_frequency_by_tier = {
+		barony = 0
+		county = 0
+		duchy = 0
+		kingdom = 36
+		empire = 36
+		hegemony = 36
+	}
 
 	is_shown = {
-		NOT = {
-			scope:recipient = scope:actor
-		}
+		scope:actor = { is_in_valinor = no } #LotR
+		scope:recipient = { is_in_valinor = no } #LotR
+		scope:recipient != scope:actor
 		NOT = { #Landless have no court in which to display such a banner, and no real authority over a landed relative
 			scope:actor = { government_has_flag = government_is_landless_adventurer }
 		}
-		scope:actor = { is_in_valinor = no }
 		exists = scope:actor.dynasty
 		exists = scope:recipient.dynasty
 		scope:recipient.dynasty = scope:actor.dynasty
 		scope:recipient = {
-			is_in_valinor = no
 			# needs to have a banner of our dynasty
 			any_character_artifact = {
 				AND = {
 					exists = var:banner_dynasty
 					var:banner_dynasty = scope:recipient.dynasty
 					var:banner_dynasty.dynast = scope:actor
+					NOT = { has_variable = is_tribute_mission_artifact }
 				}
 			}
 		}
@@ -4156,9 +4309,6 @@ demand_dynasty_banner_interaction = {
 	}
 
 	is_valid_showing_failures_only = {
-
-		scope:recipient = { is_busy_in_events_localised = yes }
-		
 		scope:actor = {
 			NOT = {
 				is_at_war_with = scope:recipient
@@ -4298,7 +4448,7 @@ demand_dynasty_banner_interaction = {
 	
 	send_option = {
 		is_shown = {
-			NOT = { scope:actor = scope:recipient }
+			scope:actor != scope:recipient
 		}
 		is_valid = {
 			scope:actor = {
@@ -4441,7 +4591,6 @@ destroy_artifact_interaction = {
 	icon = artifact
 	category = interaction_category_friendly
 	desc = destroy_artifact_interaction_desc
-	icon = artifact
 
 	target_type = artifact
 	target_filter = actor_artifacts
@@ -4452,35 +4601,33 @@ destroy_artifact_interaction = {
 
 	# You can only destroy your own artifacts
 	is_shown = {
+		scope:recipient = { #LotR
+			NOT = { has_culture = culture:wastelands }
+		}
+		scope:actor = { #LotR
+			NOT = { has_culture = culture:wastelands }
+		}
 		scope:recipient = scope:actor
 		scope:actor = {
 			has_any_artifact = yes
-			NOT = { has_culture = culture:wastelands }
-		}
-		scope:recipient = {
-			NOT = { has_culture = culture:wastelands }
 		}
 		scope:actor = {
 			trigger_if = {
 				limit = {
 					exists = involved_activity
 				}
-				involved_activity ?= { #do not give out anything during coronation
-					has_activity_type = activity_coronation
-					activity_host = scope:actor
+				NOT = {
+					involved_activity ?= { #do not give out anything during coronation
+						has_activity_type = activity_coronation
+						activity_host = scope:actor
+					}
 				}
 			}
 		}
 	}
 
 	can_be_picked_artifact = {
-		custom_tooltip = {
-			text = artifact_is_related_to_contract_tt
-			NOT = {
-				scope:target = { has_variable = 1025_treasure_map }
-			}
-		}
-		NOT = {
+		NOT = { #LotR
 			custom_tooltip = {
 				text = artifact_has_ring_of_power_var
 				scope:target = { has_variable = ring_of_power }
@@ -4489,6 +4636,22 @@ destroy_artifact_interaction = {
 			custom_tooltip = {
 				text = artifact_has_silmaril_var
 				scope:target = { has_variable = silmaril }
+			}
+		}
+		custom_tooltip = {
+			text = artifact_is_related_to_contract_tt
+			scope:target = {
+				NOR = {
+					has_variable = 1025_treasure_map
+					has_variable = is_tribute_mission_artifact
+					has_variable = mandala_capital_05_unconfirmed_talisman
+				}
+			}
+		}
+		custom_tooltip = {
+			text = artifact_is_related_to_great_project_construction_tt
+			scope:target = {
+				NOT = { has_variable = mandala_capital_05_unconfirmed_talisman }
 			}
 		}
 	}
@@ -4522,7 +4685,7 @@ destroy_artifact_interaction = {
 		}
 		scope:actor = {
 			trigger_if = {
-				limit = { is_landless_adventurer = yes }
+				limit = { has_government = landless_adventurer_government }
 				employs_court_position = armorer_camp_officer
 			}
 		}
@@ -4598,7 +4761,14 @@ destroy_artifact_interaction = {
 		}
 	}
 
-	ai_frequency = 24
+	ai_frequency_by_tier = {
+		barony = 0
+		county = 48
+		duchy = 24
+		kingdom = 24
+		empire = 24
+		hegemony = 24
+	}
 
 	ai_potential = {
 		OR = {
@@ -4608,7 +4778,7 @@ destroy_artifact_interaction = {
 			gold <= minor_gold_value # Poor rulers will consider getting rid of their trash for gold
 			AND = { # Economic boom personalities will bolster their treasury by getting rid of trash more often
 				gold <= medium_gold_value
-				ai_has_economical_boom_personality = yes
+				ai_has_builder_or_pious_builder_personality = yes
 			}
 			any_character_artifact = { # All rulers want to get rid of actively detrimental trash
 				has_variable = unwanted_artifact
@@ -4636,7 +4806,7 @@ destroy_artifact_interaction = {
 				gold <= minor_gold_value # Poor rulers will consider getting rid of their trash for gold
 				AND = { # Economic boom personalities will bolster their treasury by getting rid of trash more often
 					gold <= medium_gold_value
-					ai_has_economical_boom_personality = yes
+					ai_has_builder_or_pious_builder_personality = yes
 				}
 			}
 			scope:target = {
@@ -4657,13 +4827,25 @@ destroy_artifact_interaction = {
 				gold <= minor_gold_value # Poor rulers will consider getting rid of their trash for gold
 				AND = { # Economic boom personalities will bolster their treasury by getting rid of trash more often
 					gold <= medium_gold_value
-					ai_has_economical_boom_personality = yes
+					ai_has_builder_or_pious_builder_personality = yes
 				}
 			}
 			scope:target = {
 				rarity = common
 				artifact_slot_type = miscellaneous
-				artifact_durability <= define:NInventory|ARTIFACT_LOW_DURABILITY
+				OR = {
+					AND = {
+						artifact_max_durability >= define:NInventory|ARTIFACT_DEFAULT_MAX_DURABILITY
+						artifact_durability <= define:NInventory|ARTIFACT_LOW_DURABILITY
+					}
+					AND = {
+						artifact_max_durability < define:NInventory|ARTIFACT_DEFAULT_MAX_DURABILITY
+						artifact_durability_percent <= {
+							value = define:NInventory|ARTIFACT_LOW_DURABILITY
+							divide = 100
+						}
+					}
+				}
 			}
 		}
 		modifier = { # Aniconists destroy most things
@@ -4692,6 +4874,13 @@ destroy_artifact_interaction = {
 				any_character_artifact = {
 					exists = var:relic
 				}
+			}
+		}
+		modifier = { #Piety _and_ gold? Sign me up!
+			add = 50
+			ai_has_pious_builder_personality = yes
+			faith = {
+				has_doctrine_parameter = destroying_artifacts_is_pious
 			}
 		}
 	}
