@@ -445,6 +445,19 @@ lotr_on_title_gain = {
 				set_global_variable = lotr_achievement_77
 			}
 		}
+		if = {
+			limit = {
+				top_liege = { is_ai = no }
+				realms_achievements_enabled = yes
+			}
+			if = {
+				limit = {
+					scope:title = title:c_mispir
+					NOT = { has_variable = conquerored_mispir }
+				}
+				set_variable = conquerored_mispir
+			}
+		}
 		#Maglor stuff
 		if = {
 			limit = {
@@ -490,6 +503,7 @@ lotr_on_title_gain = {
 				name = angmar_rose_again
 				value = yes
 			}
+			root = { add_elven_hope_global_effect = { VALUE = massive_elven_hope_loss HOPE_EFFECT = effect_elven_hope_global_evil_increased } }
 			if = {
 				limit = { # Major News
 					NOT = { has_game_rule = no_news }
@@ -520,7 +534,8 @@ lotr_on_title_gain = {
 			if = {
 				limit = { is_elf = yes }
 				root = { change_government = elven_government }
-			} else_if = {
+			} 
+			else_if = {
 				limit = {
 					OR = {
 						is_orc = yes
@@ -528,10 +543,12 @@ lotr_on_title_gain = {
 					}
 				}
 				root = { change_government = tribal_government }
-			} else_if = {
+			} 
+			else_if = {
 				limit = { is_hobbit = yes }
 				root = { change_government = hobbit_government }
-			} else_if = {
+			} 
+			else_if = {
 				limit = {
 					OR = {
 						is_istari = yes
@@ -550,7 +567,8 @@ lotr_on_title_gain = {
 					if = {
 						limit = { is_elf = yes }
 						set_holding_type = elven_holding
-					} else_if = {
+					} 
+					else_if = {
 						limit = {
 							OR = {
 								is_orc = yes
@@ -558,10 +576,12 @@ lotr_on_title_gain = {
 							}
 						}
 						set_holding_type = tribal_holding
-					} else_if = {
+					} 
+					else_if = {
 						limit = { is_hobbit = yes }
 						set_holding_type = city_holding
-					} else_if = {
+					} 
+					else_if = {
 						limit = {
 							OR = {
 								is_istari = yes
@@ -623,9 +643,8 @@ lotr_on_title_gain = {
 				NOR = {
 					is_dwarf = yes
 					is_orc = yes
-					is_istari = yes
 					is_nazgul = yes
-					is_sauron = yes
+					is_maiar_fallen = yes
 				}
 			}
 			make_settlement_county_wilderness = { COUNTY = scope:title }
@@ -847,6 +866,13 @@ lotr_on_title_gain = {
 					remove_duchy_building_any_level = { BUILDING = dwarven_grand_library }
 
 					#remove_building_any_level = { BUILDING = dwarven_forge }
+					if = { #Ruin Dwarven Capitals
+						limit = { 
+							has_ruined_great_building = no
+							has_building_with_flag = dwarven_capital_building
+						}
+						ruin_great_building = yes
+					}
 				}
 			}
 		}
@@ -1367,9 +1393,11 @@ lotr_on_title_gain = {
 							is_istari = yes
 						}
 					}
+					generate_new_good_faith = yes
+					generate_new_good_culture = yes
 					scope:title ?= {
-						set_county_culture = culture:gondorian
-						set_county_faith = root.faith
+						set_county_culture = scope:new_culture
+						set_county_faith = scope:new_faith
 						add_county_modifier = {
 							modifier = marauding_orc_drags_modifier
 							years = 25
@@ -1663,9 +1691,57 @@ lotr_on_title_gain = {
 				add_title_law = oligarchic_elective_succession_law
 			}
 		}
+		if = {
+			limit = {
+				NOT = { government_has_flag = government_is_oligarchy }
+				any_held_title = { has_title_law = oligarchic_elective_succession_law }
+			}
+			every_held_title = { 
+				limit = { has_title_law = oligarchic_elective_succession_law }
+				remove_title_law = oligarchic_elective_succession_law 
+			}
+		}	
+		if = {
+			limit = { scope:title.tier = tier_hegemony }
+			trigger_event = lotr_hegemony.0001
+		}
+		if = {
+			limit = {
+				scope:title = title:h_mountains
+				scope:previous_holder ?= { NOT = { same_race = { TARGET = root } } }
+				is_underground_race = yes
+			}
+			if = {
+				limit = { is_orc = yes }
+				title:h_mountains = { set_title_name = h_mountains_orcs }
+				remove_title_law = dwarven_hegemonic_elective_succession_law
+			}
+			else = {
+				if = {
+					limit = { title:h_mountains = { NOT = { has_variable = set_dwarven_name } } }
+					trigger_event = dwarven.9999
+					add_title_law = dwarven_hegemonic_elective_succession_law
+				}
+				else = {
+					if = {
+						limit = { title:h_mountains.var:set_dwarven_name = 1 }
+						title:h_mountains = { set_title_name = h_mountains_mountains }
+					}
+					else_if = {
+						limit = { title:h_mountains.var:set_dwarven_name = 2 }
+						title:h_mountains = { set_title_name = h_mountains_mahal }
+					}
+					else_if = {
+						limit = { title:h_mountains.var:set_dwarven_name = 3 }
+						title:h_mountains = { set_title_name = h_mountains_khazad }
+					}
+				}
+			}
+		}
 	}
 	events = {
 		gondor.9999
+		gondor.9998
 		orcs.0010
 		dwarven.6001
 		nordinbad.0200
@@ -2423,7 +2499,15 @@ lotr_on_title_lost = {
 					NOT = { this = scope:title }
 				}
 				OR = {
-					has_title = title:e_durins_folk
+					AND = {
+						NOT = {
+							is_target_in_global_variable_list = {
+								name = unavailable_unique_decisions
+								target = flag:decision_unify_durins_folk
+							}
+						}
+						has_title = title:e_durins_folk
+					}
 					has_title = title:e_uris_folk
 					has_title = title:e_dwalins_folk
 					has_title = title:e_thrars_folk

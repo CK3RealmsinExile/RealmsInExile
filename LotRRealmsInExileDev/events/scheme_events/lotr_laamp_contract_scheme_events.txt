@@ -2625,6 +2625,22 @@ lotr_laamp_contract_schemes.5001 = {
 		character = scope:employer
 	}
 	override_background = { reference = market }
+	#Swedish summer
+	override_effect_2d = {
+		trigger = { has_variable = 5001_is_currently_raining }
+		reference = rain	
+	}
+	override_effect_2d = {	
+		trigger = { has_variable = 5001_is_currently_foggy }
+		reference = fog
+	}
+	widget = {
+		is_shown = {
+			has_variable = 5001_is_currently_snowing
+		}
+		gui = "event_window_widget_vfx_snow"
+		container = "foreground_shader_vfx_container"
+	}
 	widget = {
 		gui = "event_window_widget_scheme"
 		container = "custom_widgets_container"
@@ -2642,7 +2658,99 @@ lotr_laamp_contract_schemes.5001 = {
 			}
 		}
 		scope:employer.capital_province ?= { save_scope_as = target_province }
-		court_position:second_camp_officer = { save_scope_as = officer }
+		#To rain or not to rain
+		if = {
+			limit = {
+				has_variable = return_from_location
+				NOT = { exists = scope:is_unique_location }
+				middle_of_year_season_trigger = yes
+				location_has_winter_trigger = no
+				scope:target_province = {
+					OR = { 
+						geographical_region = middleearth_west
+						geographical_region = middleearth_rhun
+					}
+				}
+			}
+			random_list = {
+				50 = {
+					#No rain
+				}
+				50 = {
+					set_variable = 5001_is_currently_raining
+				}
+			}
+		}
+		#To snow or not to snow
+		if = {
+			limit = {
+				has_variable = return_from_location
+				NOT = { exists = scope:is_unique_location }
+				OR = { #LOTR
+					scope:target_province = { geographical_region = middleearth_forodwaith }
+					AND = {
+						end_of_year_season_trigger = yes #LOTR
+						location_has_winter_trigger = yes #LOTR
+						scope:target_province = { geographical_region = middleearth_west }
+					}
+				}
+			}
+			random_list = {
+				50 = {
+					#No rain
+				}
+				50 = {
+					set_variable = 5001_is_currently_snowing
+				}
+			}
+		}
+		#To fog or not to fog
+		if = {
+			limit = {
+				has_variable = return_from_location
+				OR = { #LOTR
+					scope:target_province = { geographical_region = middleearth_west_arnor }
+					scope:target_province = { geographical_region = middleearth_west_eregion }
+					scope:target_province = { geographical_region = middleearth_west_gondor_highlands }
+					scope:target_province = { geographical_region = middleearth_west_enedhwaith }
+					scope:target_province = { geographical_region = middleearth_west_rhovanion_mirkwood }
+				}
+			}
+			random_list = {
+				50 = {
+					#No rain
+				}
+				50 = {
+					set_variable = 5001_is_currently_foggy
+				}
+			}
+		}
+		if = {
+			limit = { employs_court_position = second_camp_officer }
+			court_position:second_camp_officer = { save_scope_as = officer }
+		}
+		else_if = {
+			limit = {
+				OR = {
+					employs_court_position = bodyguard_court_position
+					employs_court_position = quartermaster_camp_officer
+					employs_court_position = master_of_spoils_camp_officer
+				}
+			}
+			random_courtier = {
+				limit = {
+					OR = {
+						has_court_position = bodyguard_court_position
+						has_court_position = quartermaster_camp_officer
+						has_court_position = master_of_spoils_camp_officer
+					}
+				}
+				save_scope_as = officer
+			}
+		}
+		else = {
+			random_courtier = { save_scope_as = officer }
+		}
 	}
 
 	# Go for a balanced agent mix.
@@ -2831,7 +2939,7 @@ lotr_laamp_contract_schemes.5002 = {
 				scope:scheme.task_contract = { complete_task_contract = success_standard }
 			}
 			33 = {
-				scope:scheme.task_contract = { complete_task_contract = critical_success }
+				scope:scheme.task_contract = { complete_task_contract = success_critical }
 			}
 		}
 
@@ -2894,7 +3002,13 @@ lotr_laamp_contract_schemes.5003 = {
 		scope:scheme.task_contract = { complete_task_contract = failure_standard }
 
 		scope:employer.capital_province = { save_scope_as = target_province }
-		court_position:second_camp_officer = { save_scope_as = officer }
+		if = {
+			limit = { employs_court_position = second_camp_officer }
+			court_position:second_camp_officer = { save_scope_as = officer }
+		}
+		else = {
+			random_courtier = { save_scope_as = officer }
+		}
 		# And wrap things up.
 		scope:scheme ?= { end_scheme = yes }
 	}
@@ -2907,3 +3021,204 @@ lotr_laamp_contract_schemes.5003 = {
 		lotr_laamp_contract_schemes_acknowledge_failure_stress_effect = yes
 	}
 }
+
+####################################################
+# Border Patrol
+# by Aerien
+# 6000 - 6010 
+####################################################
+
+# Intro event
+lotr_laamp_contract_schemes.6000 = {
+	type = character_event
+	content_source = realms_dlc
+	title = lotr_laamp_contract_schemes.6000.t
+	desc = lotr_laamp_contract_schemes.6000.desc
+	theme = migration
+	window = scheme_target_event
+	left_portrait = {
+		character = root
+		animation = throne_room_two_handed_passive_shield
+	}
+	right_portrait = {
+		character = scope:employer
+		animation = writing
+	}
+	override_background = { reference = throne_room }
+
+	immediate = {
+		scope:task_contract = {
+			task_contract_employer = { save_scope_as = employer }
+		}
+		scope:employer = {
+			random_realm_county = {
+				limit = {
+					any_neighboring_county = {
+						NOR = {
+							culture = { has_cultural_pillar = heritage_quendi }
+							culture = { has_cultural_pillar = heritage_calaquendi }
+							culture = { has_cultural_pillar = heritage_lomiquendi }
+							culture = { has_cultural_pillar = heritage_moriquendi }
+						}
+					}
+				}
+				random_neighboring_county = {
+					limit = {
+						NOR = {
+							culture = { has_cultural_pillar = heritage_quendi }
+							culture = { has_cultural_pillar = heritage_calaquendi }
+							culture = { has_cultural_pillar = heritage_lomiquendi }
+							culture = { has_cultural_pillar = heritage_moriquendi }
+						}
+					}
+					save_scope_as = patrol_target_county
+				}
+			}
+		}
+        random_knight = {
+            limit = { is_ai = yes }
+            save_scope_as = knight1
+        }
+        random_knight = {
+            limit = {
+                NOT = { this = scope:knight1 }
+                is_ai = yes
+            }
+            save_scope_as = knight2
+        }
+	}
+
+	# OK, we'll go on patrol
+	option = {
+		name = lotr_laamp_contract_schemes.6000.a
+		custom_tooltip = lotr_laamp_contract_schemes.6000.a.tt
+		start_travel_plan = { #Travel to the border
+			destination = scope:patrol_target_county.title_province
+			players_use_planner = yes
+			on_arrival_event = elven_racial.1402 # Get a random event
+		}
+	}
+    after = {
+		custom_tooltip = {
+			text = lotr_laamp_contract_schemes.6000.tt_1
+			current_travel_plan = { add_companion = scope:knight1 }
+		}
+		custom_tooltip = {
+			text = lotr_laamp_contract_schemes.6000.tt_2
+			current_travel_plan = { add_companion = scope:knight2 }
+		}
+    }
+}
+
+# Success event
+lotr_laamp_contract_schemes.6001 = {
+	type = character_event
+	content_source = realms_dlc
+	window = scheme_successful_event
+	title = lotr_laamp_contract_schemes.6001.t
+	desc = lotr_laamp_contract_schemes.6001.desc
+	theme = migration
+	center_portrait = {
+		character = root
+		animation = marshal
+	}
+	right_portrait = {
+		character = scope:employer
+		animation = admiration
+	}
+	override_background = { reference = throne_room }
+
+	immediate = {
+		# Employer outcome.
+		scope:employer = { add_stress = massive_stress_loss }
+		every_character_active_contract = {
+			limit = { has_task_contract_type = lotr_laamp_6001 }
+			complete_task_contract = success_standard
+		}
+	}
+
+	# Acknowledge and go home
+	option = {
+		name = lotr_laamp_contract_schemes.6001.a
+		custom_tooltip = laamp_base_contract_schemes.0000.f.contract_concluded
+		#lotr_laamp_contract_schemes_acknowledge_success_stress_effect = yes
+		hidden_effect = {
+			current_travel_plan ?= { abort_travel_plan = yes }
+			start_travel_plan = { #Travel to your camp
+				destination = domicile.domicile_location
+				players_use_planner = no
+				#on_arrival_event = lotr_laamp_contract_schemes.6004
+				#on_arrival_destinations = last
+				return_trip = no # One way
+			}
+		}
+	}
+}
+
+# Failure event
+lotr_laamp_contract_schemes.6002 = {
+	type = character_event
+	content_source = realms_dlc
+	window = scheme_failed_event
+	title = lotr_laamp_contract_schemes.6002.t
+	desc = lotr_laamp_contract_schemes.6002.desc
+	theme = dread
+	center_portrait = {
+		character = root
+		animation = shame
+	}
+	right_portrait = {
+		character = scope:employer
+		animation = disapproval
+	}
+	override_background = { reference = council_chamber }
+
+	immediate = {
+		# Employer outcome.
+		scope:employer = { add_stress = massive_stress_gain }
+		every_character_active_contract = {
+			limit = { has_task_contract_type = lotr_laamp_6001 }
+			complete_task_contract = failure_standard
+		}
+	}
+
+	# Acknowledge and go home
+	option = {
+		name = lotr_laamp_base_contract_schemes.6002.a
+		custom_tooltip = laamp_base_contract_schemes.0000.f.contract_concluded
+		#lotr_laamp_contract_schemes_acknowledge_failure_stress_effect = yes
+		hidden_effect = {
+			current_travel_plan ?= { abort_travel_plan = yes }
+			start_travel_plan = { #Travel to your camp
+				destination = domicile.domicile_location
+				players_use_planner = no
+				#on_arrival_event = lotr_laamp_contract_schemes.6004
+				#on_arrival_destinations = last
+				return_trip = no # One way
+			}
+		}
+	}
+}
+
+# Discernment Event 
+lotr_laamp_contract_schemes.6003 = {
+	hidden = yes 
+	immediate = {
+		if = {
+			limit = { has_character_flag = laamp_patrol_failed }
+			remove_character_flag = laamp_patrol_failed
+			trigger_event = lotr_laamp_contract_schemes.6002 
+		}
+		else = {
+			trigger_event = lotr_laamp_contract_schemes.6001
+		}
+	}
+}
+
+# Go Home Event
+# lotr_laamp_contract_schemes.6004 = {
+	# hidden = yes 
+	# immediate = {
+		# current_travel_plan ?= { abort_travel_plan = yes }
+	# }
+# }
