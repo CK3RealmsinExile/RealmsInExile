@@ -10,6 +10,9 @@ Includes = {
 	# END MOD
 	"jomini/jomini_mapobject.fxh"
 	"standardfuncsgfx.fxh"
+	"paper_transition.fxh"
+	"clouds.fxh"
+	"utility_game.fxh"
 }
 
 PixelShader =
@@ -32,6 +35,18 @@ PixelShader =
 		SampleModeU = "Clamp"
 		SampleModeV = "Clamp"
 	}
+
+	TextureSampler ShadowMap
+	{
+		Ref = PdxShadowmap
+		MagFilter = "Linear"
+		MinFilter = "Linear"
+		MipFilter = "Linear"
+		SampleModeU = "Clamp"
+		SampleModeV = "Clamp"
+		CompareFunction = less_equal
+		SamplerType = "Compare"
+	}
 	
 	MainCode PixelShader
 	{
@@ -41,7 +56,9 @@ PixelShader =
 		[[
 			PDX_MAIN
 			{
-				float4 Water = CalcWater( Input )._Color;
+				float4 ShadowProj = mul( ShadowMapTextureMatrix, float4( Input.WorldSpacePos, 1.0f ) );
+				float ShadowTerm = CalculateShadow( ShadowProj, ShadowMap );
+				float4 Water = CalcWater( Input, ShadowTerm )._Color;
 
 				#ifdef WATER_COLOR_OVERLAY
 					// Not enough texture slots, so use only secondary colors on water.
@@ -66,18 +83,15 @@ PixelShader =
 				//Water.rgb = ApplyFogOfWarMultiSampled( Water.rgb, Input.WorldSpacePos, FogOfWarAlpha );
 				Water.rgb = GH_ApplyAtmosphericEffects( Water.rgb, Input.WorldSpacePos, FogOfWarAlpha, 0.4f );
 				// END MOD
-				Water.rgb = ApplyDistanceFog( Water.rgb, Input.WorldSpacePos );
+				Water.rgb = ApplyMapDistanceFogWithoutFoW( Water.rgb, Input.WorldSpacePos );
 
-				Water.rgb = FlatMapLerp > 0.0f ? lerp( Water.rgb, PdxTex2D( FlatMapTexture, Input.UV01 ).rgb, FlatMapLerp ) : Water.rgb;
-
-				// MOD(map-skybox)
-				if (Input.WorldSpacePos.x < 0.0 || Input.WorldSpacePos.x >= WorldExtents.x ||
-					 Input.WorldSpacePos.z < 0.0 || Input.WorldSpacePos.z >= WorldExtents.y)
+				if ( FlatMapLerp > 0.001f )
 				{
-					Water.a = 1.0f;
+					float3 FlatMap = PdxTex2D( FlatMapTexture, Input.UV01 ).rgb;
+					FlatMap = ApplyFlatMapBrightnessAdjustment( FlatMap );
+					float Blend = CalculatePaperTransitionBlend( Input.UV01, FlatMapLerp );
+					Water.rgb = lerp( Water.rgb, FlatMap, Blend );
 				}
-				// END MOD
-
 				return Water;
 			}
 		]]
@@ -114,7 +128,7 @@ PixelShader =
 				//Water.rgb = ApplyFogOfWarMultiSampled( Water.rgb, Input.WorldSpacePos, FogOfWarAlpha );
 				Water.rgb = GH_ApplyAtmosphericEffects( Water.rgb, Input.WorldSpacePos, FogOfWarAlpha, 0.4f );
 				// END MOD
-				Water.rgb = ApplyDistanceFog( Water.rgb, Input.WorldSpacePos );
+				Water.rgb = ApplyMapDistanceFogWithoutFoW( Water.rgb, Input.WorldSpacePos );
 
 				Water.rgb = FlatMapLerp > 0.0f ? lerp( Water.rgb, PdxTex2D( FlatMapTexture, Input.UV01 ).rgb, FlatMapLerp ) : Water.rgb;
 

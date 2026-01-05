@@ -20,6 +20,11 @@ minor_religious_war = {
 			NOT = { has_doctrine_parameter = unreformed }
 			NOT = { has_doctrine_parameter = holy_wars_forbidden }
 		}
+		NOR = {
+			government_has_flag = government_is_landless_adventurer
+			government_has_flag = government_is_nomadic
+			government_has_flag = government_is_celestial
+		}
 		
 		scope:attacker = {		
 			NOR = {
@@ -59,13 +64,10 @@ minor_religious_war = {
 								has_cultural_parameter = cb_lower_piety_level_requirement
 							}
 							# Iberian Struggle Hostility Reward
-							AND = {
-								exists = house
-								house = {
-									OR = {
-										has_house_modifier = fp2_struggle_hostility_house_faith_modifier
-										has_house_modifier = fp2_struggle_hostility_house_combined_modifier
-									}
+							house ?= {
+								OR = {
+									has_house_modifier = fp2_struggle_hostility_house_faith_modifier
+									has_house_modifier = fp2_struggle_hostility_house_combined_modifier
 								}
 							}
 						}
@@ -84,13 +86,10 @@ minor_religious_war = {
 								has_cultural_parameter = cb_lower_piety_level_requirement
 							}
 							# Iberian Struggle Hostility Reward
-							AND = {
-								exists = house
-								house = {
-									OR = {
-										has_house_modifier = fp2_struggle_hostility_house_faith_modifier
-										has_house_modifier = fp2_struggle_hostility_house_combined_modifier
-									}
+							house ?= {
+								OR = {
+									has_house_modifier = fp2_struggle_hostility_house_faith_modifier
+									has_house_modifier = fp2_struggle_hostility_house_combined_modifier
 								}
 							}
 						}
@@ -102,6 +101,7 @@ minor_religious_war = {
 				}
 			}
 		}
+		tgp_japan_offensive_wars_ban_trigger = yes
 		# Elven Expansion CB limitation in game rules
 		custom_tooltip = {
 			text = "only_zealous_elves_can_holy_war"
@@ -155,9 +155,6 @@ minor_religious_war = {
 		# The Necromancer is hidden
 		NOT = { has_character_flag = unknown_sauron_flag } # LOTR
 	}
-	
-	allowed_against_character_display_regardless = {}
-	
 	target_titles = neighbor_land_or_water
 	target_title_tier = all
 	target_de_jure_regions_above = yes
@@ -166,6 +163,7 @@ minor_religious_war = {
 	valid_to_start = {
 		scope:target = {
 			tier = tier_county
+			is_landless_type_title = no
 		}
 		# Filter for struggles
 		trigger_if = {
@@ -251,7 +249,6 @@ minor_religious_war = {
 	}
 
 	on_invalidated = {
-		
 	}
 	
 	ai_score_mult = {
@@ -261,7 +258,7 @@ minor_religious_war = {
 			if = {
 				limit = {
 					scope:attacker = {
-						is_independent_ruler = no
+						top_liege != this
 						vassal_contract_has_flag = vassal_contract_cheaper_religious_war
 					}
 				}
@@ -287,7 +284,8 @@ minor_religious_war = {
 				add = -1000
 			}
 		}
-
+		# HOUSE RELATIONS
+		add = house_relation_ai_score_value
 		# AI in struggles act insularly for wars that don't have a familial or legal basis.
 		multiply = struggle_wars_prioritise_struggle_targets_value
 		# Tell the Romans to stop going adventuring into the steppe for no gods-damned reason.
@@ -366,7 +364,7 @@ minor_religious_war = {
 				limit = {
 					scope:attacker = {
 						any_active_accolade = {
-							has_accolade_parameter = acclaimed_knight_piety_from_battle
+							accolade_parameter = acclaimed_knight_piety_from_battle
 						}
 					}
 				}
@@ -377,7 +375,7 @@ minor_religious_war = {
 				limit = {
 					scope:attacker = {
 						any_active_accolade = {
-							has_accolade_parameter = acclaimed_knight_piety_from_battle_high
+							accolade_parameter = acclaimed_knight_piety_from_battle_high
 						}
 					}
 				}
@@ -407,6 +405,21 @@ minor_religious_war = {
 
 	on_victory = {
 		scope:attacker = { show_pow_release_message_effect = yes }
+		
+		scope:attacker = { # LotR
+			if = { # Gains hope by winning a county war
+				limit = { is_elf = yes }
+				add_elven_hope_effect = { VALUE = medium_elven_hope_gain HOPE_EFFECT = effect_elven_hope_county_war_won }
+			}
+		}
+		
+		# Hope loss for the defender
+		scope:defender = { # LotR
+			if = { # Loses hope by losing a county war
+				limit = { is_elf = yes }
+				add_elven_hope_effect = { VALUE = medium_elven_hope_loss HOPE_EFFECT = effect_elven_hope_county_war_lost }
+			}
+		}
 		
 		# Legitimacy
 		add_legitimacy_attacker_victory_effect = yes
@@ -509,6 +522,9 @@ minor_religious_war = {
 
 		# EP3: note gold gained from military assistance/join war contracts and their war contribution threshold
 		laamp_as_mercenary_payout_tooltip_effect = yes
+
+		#Mandalas gain or lose piety/devotion depending on Decree
+		mandala_war_victory_effects = yes
 	}
 
 	on_white_peace_desc = {
@@ -555,11 +571,30 @@ minor_religious_war = {
 	on_defeat = {
 		scope:attacker = { show_pow_release_message_effect = yes }
 		
+		# Hope gain for the defender
+		scope:defender = { # LotR
+			if = { # Gains hope by winning a county war
+				limit = { is_elf = yes }
+				add_elven_hope_effect = { VALUE = medium_elven_hope_gain HOPE_EFFECT = effect_elven_hope_county_war_won }
+			}
+		}
+		
+		# Hope loss for the attacker
+		scope:attacker = { # LotR
+			if = { # Loses hope by losing a county war
+				limit = { is_elf = yes }
+				add_elven_hope_effect = { VALUE = medium_elven_hope_loss HOPE_EFFECT = effect_elven_hope_county_war_lost }
+			}
+		}
+		
 		# Legitimacy
 		add_legitimacy_attacker_defeat_effect = yes
 
-		#EP2 accolade glory gain for winning against higher ranked enemy
-		scope:defender = { accolade_defender_war_end_glory_gain_low_effect = yes }
+		scope:defender = { 
+			mandala_peacemaker_perk_serenity_effect = yes
+			#EP2 accolade glory gain for winning against higher ranked enemy
+			accolade_defender_war_end_glory_gain_high_effect = yes
+		}
 
 		scope:attacker = {
 			every_vassal = {
@@ -628,6 +663,9 @@ minor_religious_war = {
 
 		# EP3: note gold gained from military assistance/join war contracts and their war contribution threshold
 		laamp_as_mercenary_payout_tooltip_effect = yes
+
+		#Mandalas gain or lose piety/devotion depending on Decree
+		mandala_war_defeat_effects = yes
 	}
 
 	on_primary_attacker_death = inherit
@@ -675,6 +713,10 @@ religious_war = {
 			NOT = { has_doctrine_parameter = unreformed }
 			NOT = { has_doctrine_parameter = holy_wars_forbidden }
 		}
+		NOR = { 
+			government_has_flag = government_is_nomadic
+			government_has_flag = government_is_celestial
+		}
 		
 		scope:attacker = {		
 			NOR = {
@@ -693,48 +735,28 @@ religious_war = {
 	allowed_for_character_display_regardless = {
 		trigger_if = {
 			limit = {
-				is_alive = yes
-				has_variable_list = humsacd_hofs
-				is_target_in_variable_list = {
-					name = humsacd_hofs
-					target = scope:attacker.faith
-				}
+				highest_held_title_tier >= tier_kingdom
 			}
-			trigger_if = {
-				limit = {
-					OR = {
-						culture = {
-							has_cultural_parameter = cb_lower_piety_level_requirement
-						}
-						# Iberian Struggle Hostility Reward
-						AND = {
-							exists = house
-							house = {
-								OR = {
-									has_house_modifier = fp2_struggle_hostility_house_faith_modifier
-									has_house_modifier = fp2_struggle_hostility_house_combined_modifier
-								}
-							}
-						}
-					}
-				}
-				piety_level >= 0
-			}
-			trigger_else = {
-				piety_level >= 1
-			}
+			NOT = { piety_level = -1 }
 		}
 		trigger_else = {
 			trigger_if = {
 				limit = {
-					OR = {
-						culture = {
-							has_cultural_parameter = cb_lower_piety_level_requirement
-						}
-						# Iberian Struggle Hostility Reward
-						AND = {
-							exists = house
-							house = {
+					is_alive = yes
+					has_variable_list = humsacd_hofs
+					is_target_in_variable_list = {
+						name = humsacd_hofs
+						target = scope:attacker.faith
+					}
+				}
+				trigger_if = {
+					limit = {
+						OR = {
+							culture = {
+								has_cultural_parameter = cb_lower_piety_level_requirement
+							}
+							# Iberian Struggle Hostility Reward
+							house ?= {
 								OR = {
 									has_house_modifier = fp2_struggle_hostility_house_faith_modifier
 									has_house_modifier = fp2_struggle_hostility_house_combined_modifier
@@ -742,11 +764,33 @@ religious_war = {
 							}
 						}
 					}
+					piety_level >= 0
 				}
-				piety_level >= 1
+				trigger_else = {
+					piety_level >= 1
+				}
 			}
 			trigger_else = {
-				piety_level >= 2
+				trigger_if = {
+					limit = {
+						OR = {
+							culture = {
+								has_cultural_parameter = cb_lower_piety_level_requirement
+							}
+							# Iberian Struggle Hostility Reward
+							house ?= {
+								OR = {
+									has_house_modifier = fp2_struggle_hostility_house_faith_modifier
+									has_house_modifier = fp2_struggle_hostility_house_combined_modifier
+								}
+							}
+						}
+					}
+					piety_level >= 1
+				}
+				trigger_else = {
+					piety_level >= 2
+				}
 			}
 		}
 		# Elven Expansion CB limitation in game rules
@@ -765,6 +809,7 @@ religious_war = {
 				}
 			}
 		}
+		tgp_japan_offensive_wars_ban_trigger = yes
 	}
 
 	allowed_against_character = {
@@ -812,6 +857,7 @@ religious_war = {
 	valid_to_start = {
 		scope:target = {
 			tier = tier_duchy
+			is_landless_type_title = no
 		}
 		scope:target = {
 			trigger_if = {
@@ -979,7 +1025,7 @@ religious_war = {
 				limit = {
 					scope:attacker = {
 						any_active_accolade = {
-							has_accolade_parameter = acclaimed_knight_piety_from_battle
+							accolade_parameter = acclaimed_knight_piety_from_battle
 						}
 					}
 				}
@@ -990,7 +1036,7 @@ religious_war = {
 				limit = {
 					scope:attacker = {
 						any_active_accolade = {
-							has_accolade_parameter = acclaimed_knight_piety_from_battle_high
+							accolade_parameter = acclaimed_knight_piety_from_battle_high
 						}
 					}
 				}
@@ -1020,6 +1066,21 @@ religious_war = {
 
 	on_victory = {
 		scope:attacker = { show_pow_release_message_effect = yes }
+		
+		scope:attacker = { # LotR
+			if = { # Gains hope by winning a duchy war
+				limit = { is_elf = yes }
+				add_elven_hope_effect = { VALUE = major_elven_hope_gain HOPE_EFFECT = effect_elven_hope_duchy_war_won }
+			}
+		}
+		
+		# Hope loss for the defender
+		scope:defender = { # LotR
+			if = { # Loses hope by losing a duchy war
+				limit = { is_elf = yes }
+				add_elven_hope_effect = { VALUE = major_elven_hope_loss HOPE_EFFECT = effect_elven_hope_duchy_war_lost }
+			}
+		}
 		
 		# Legitimacy
 		add_legitimacy_attacker_victory_effect = yes
@@ -1124,16 +1185,17 @@ religious_war = {
 		# EP3: note gold gained from military assistance/join war contracts and their war contribution threshold
 		laamp_as_mercenary_payout_tooltip_effect = yes
 
+		#Mandalas gain or lose piety/devotion depending on Decree
+		mandala_war_victory_effects = yes
+
+
 		# LotR: Radyani converts all Arien counties if she wins
 		if = {
 		    limit = { 
 			    scope:attacker = { 
-		            is_landed = yes
-		            is_female = yes 
-		            dynasty = dynasty:dynasty_lavrajyatante
-		            has_title = title:k_isra
-					has_faith = faith:faith_yom
+		           has_character_flag = radyani_holy_war
                 }
+				scope:defender.faith = faith:faith_arienism
 			}
 			scope:attacker = { 
 				trigger_event = {
@@ -1191,11 +1253,30 @@ religious_war = {
 	on_defeat = {
 		scope:attacker = { show_pow_release_message_effect = yes }
 		
+		# Hope gain for the defender
+		scope:defender = { # LotR
+			if = { # Gains hope by winning a duchy war
+				limit = { is_elf = yes }
+				add_elven_hope_effect = { VALUE = major_elven_hope_gain HOPE_EFFECT = effect_elven_hope_duchy_war_won }
+			}
+		}
+		
+		# Hope loss for the attacker
+		scope:attacker = { # LotR
+			if = { # Loses hope by losing a duchy war
+				limit = { is_elf = yes }
+				add_elven_hope_effect = { VALUE = major_elven_hope_loss HOPE_EFFECT = effect_elven_hope_duchy_war_lost }
+			}
+		}
+		
 		# Legitimacy
 		add_legitimacy_attacker_defeat_effect = yes
 
-		#EP2 accolade glory gain for winning against higher ranked enemy
-		scope:defender = { accolade_defender_war_end_glory_gain_med_effect = yes }
+		scope:defender = { 
+			mandala_peacemaker_perk_serenity_effect = yes
+			#EP2 accolade glory gain for winning against higher ranked enemy
+			accolade_defender_war_end_glory_gain_high_effect = yes
+		}
 
 		# Allies on both sides get full prestige value for helping in the war, based on their war participation.
 		modify_allies_of_participants_fame_values = {
@@ -1264,6 +1345,9 @@ religious_war = {
 
 		# EP3: note gold gained from military assistance/join war contracts and their war contribution threshold
 		laamp_as_mercenary_payout_tooltip_effect = yes
+
+		#Mandalas gain or lose piety/devotion depending on Decree
+		mandala_war_defeat_effects = yes
 	}
 
 	on_primary_attacker_death = inherit
@@ -1297,7 +1381,7 @@ religious_war = {
 			if = {
 				limit = {
 					scope:attacker = {
-						is_independent_ruler = no
+						top_liege != this
 						vassal_contract_has_flag = vassal_contract_cheaper_religious_war
 					}
 				}
@@ -1323,7 +1407,8 @@ religious_war = {
 				add = -1000
 			}
 		}
-
+		# HOUSE RELATIONS
+		add = house_relation_ai_score_value
 		# AI in struggles act insularly for wars that don't have a familial or legal basis.
 		multiply = struggle_wars_prioritise_struggle_targets_value
 		# Tell the Romans to stop going adventuring into the steppe for no gods-damned reason.
@@ -1408,6 +1493,10 @@ major_religious_war = {
 		scope:attacker.faith = {
 			NOT = { has_doctrine_parameter = unreformed }
 		}
+		NOR = { 
+			government_has_flag = government_is_nomadic
+			government_has_flag = government_is_celestial
+		}
 		
 		scope:attacker = {		
 			NOR = {
@@ -1441,8 +1530,7 @@ major_religious_war = {
 						}
 						# Iberian Struggle Hostility Reward
 						AND = {
-							exists = house
-							house = {
+							house ?= {
 								OR = {
 									has_house_modifier = fp2_struggle_hostility_house_faith_modifier
 									has_house_modifier = fp2_struggle_hostility_house_combined_modifier
@@ -1466,8 +1554,7 @@ major_religious_war = {
 						}
 						# Iberian Struggle Hostility Reward
 						AND = {
-							exists = house
-							house = {
+							house ?= {
 								OR = {
 									has_house_modifier = fp2_struggle_hostility_house_faith_modifier
 									has_house_modifier = fp2_struggle_hostility_house_combined_modifier
@@ -1498,6 +1585,7 @@ major_religious_war = {
 				}
 			}
 		}
+		tgp_japan_offensive_wars_ban_trigger = yes
 		# Elven Expansion CB limitation in game rules
 		custom_tooltip = {
 			text = "only_zealous_elves_can_holy_war"
@@ -1561,6 +1649,7 @@ major_religious_war = {
 	valid_to_start = {
 		scope:target = {
 			tier = tier_kingdom
+			is_landless_type_title = no
 		}
 		# Filter for struggles
 		trigger_if = {
@@ -1674,7 +1763,7 @@ major_religious_war = {
 	}
 	
 	on_invalidated = {
-		
+		scope:attacker = { remove_character_flag = declared_major_religious_war_flag }
 	}
 
 	cost = {
@@ -1689,7 +1778,7 @@ major_religious_war = {
 				limit = {
 					scope:attacker = {
 						any_active_accolade = {
-							has_accolade_parameter = acclaimed_knight_piety_from_battle
+							accolade_parameter = acclaimed_knight_piety_from_battle
 						}
 					}
 				}
@@ -1700,7 +1789,7 @@ major_religious_war = {
 				limit = {
 					scope:attacker = {
 						any_active_accolade = {
-							has_accolade_parameter = acclaimed_knight_piety_from_battle_high
+							accolade_parameter = acclaimed_knight_piety_from_battle_high
 						}
 					}
 				}
@@ -1770,6 +1859,21 @@ major_religious_war = {
 			}
 		}
 		scope:attacker = { show_pow_release_message_effect = yes }
+		
+		scope:attacker = { # LotR
+			if = { # Gains hope by winning a kingdom war
+				limit = { is_elf = yes }
+				add_elven_hope_effect = { VALUE = massive_elven_hope_gain HOPE_EFFECT = effect_elven_hope_kingdom_war_won }
+			}
+		}
+		
+		# Hope loss for the defender
+		scope:defender = { # LotR
+			if = { # Loses hope by losing a major war
+				limit = { is_elf = yes }
+				add_elven_hope_effect = { VALUE = massive_elven_hope_loss HOPE_EFFECT = effect_elven_hope_kingdom_war_lost }
+			}
+		}
 		
 		# Legitimacy
 		add_legitimacy_attacker_victory_effect = yes
@@ -1872,6 +1976,9 @@ major_religious_war = {
 
 		# EP3: note gold gained from military assistance/join war contracts and their war contribution threshold
 		laamp_as_mercenary_payout_tooltip_effect = yes
+
+		#Mandalas gain or lose piety/devotion depending on Decree
+		mandala_war_victory_effects = yes
 	}
 
 	on_white_peace_desc = {
@@ -1922,11 +2029,30 @@ major_religious_war = {
 	on_defeat = {
 		scope:attacker = { show_pow_release_message_effect = yes }
 		
+		# Hope gain for the defender
+		scope:defender = { # LotR
+			if = { # Gains hope by winning a kingdom war
+				limit = { is_elf = yes }
+				add_elven_hope_effect = { VALUE = massive_elven_hope_gain HOPE_EFFECT = effect_elven_hope_kingdom_war_won }
+			}
+		}
+		
+		# Hope loss for the attacker
+		scope:attacker = { # LotR
+			if = { # Loses hope by losing a kingdom war
+				limit = { is_elf = yes }
+				add_elven_hope_effect = { VALUE = massive_elven_hope_loss HOPE_EFFECT = effect_elven_hope_kingdom_war_lost }
+			}
+		}
+		
 		# Legitimacy
 		add_legitimacy_attacker_defeat_effect = yes
 
-		#EP2 accolade glory gain for winning against higher ranked enemy
-		scope:defender = { accolade_defender_war_end_glory_gain_high_effect = yes }
+		scope:defender = { 
+			mandala_peacemaker_perk_serenity_effect = yes
+			#EP2 accolade glory gain for winning against higher ranked enemy
+			accolade_defender_war_end_glory_gain_high_effect = yes
+		}
 
 		# Allies on both sides get full prestige value for helping in the war, based on their war participation.
 		modify_allies_of_participants_fame_values = {
@@ -1995,6 +2121,9 @@ major_religious_war = {
 
 		# EP3: note gold gained from military assistance/join war contracts and their war contribution threshold
 		laamp_as_mercenary_payout_tooltip_effect = yes
+
+		#Mandalas gain or lose piety/devotion depending on Decree
+		mandala_war_defeat_effects = yes
 	}
 
 	on_primary_attacker_death = inherit
@@ -2028,7 +2157,7 @@ major_religious_war = {
 			if = {
 				limit = {
 					scope:attacker = {
-						is_independent_ruler = no
+						top_liege != this
 						vassal_contract_has_flag = vassal_contract_cheaper_religious_war
 					}
 				}
@@ -2054,7 +2183,8 @@ major_religious_war = {
 				add = -1000
 			}
 		}
-
+		# HOUSE RELATIONS
+		add = house_relation_ai_score_value
 		# AI in struggles act insularly for wars that don't have a familial or legal basis.
 		multiply = struggle_wars_prioritise_struggle_targets_value
 		# Tell the Romans to stop going adventuring into the steppe for no gods-damned reason.
@@ -2148,7 +2278,7 @@ excommunication_war = {
 		scope:defender = {
 			#Defender must be an excommunicated member of our faith.
 			has_trait = excommunicated
-			is_independent_ruler = yes
+			top_liege = this
 			faith = {
 				has_doctrine_parameter = excommunication_active
 				this = scope:attacker.faith
@@ -2183,8 +2313,6 @@ excommunication_war = {
 		}
 		
 	}
-
-	allowed_against_character_display_regardless = {}
 
 	target_de_jure_regions_above = yes
 
@@ -2244,6 +2372,9 @@ excommunication_war = {
 
 		# EP3: note gold gained from military assistance/join war contracts and their war contribution threshold
 		laamp_as_mercenary_payout_tooltip_effect = yes
+
+		#Mandalas gain or lose piety/devotion depending on Decree
+		mandala_war_victory_effects = yes
 	}
 
 	on_white_peace_desc = {
@@ -2309,8 +2440,11 @@ excommunication_war = {
 		# Legitimacy
 		add_legitimacy_attacker_defeat_effect = yes
 
-		#EP2 Accolade glory gain for winning against higher ranked enemy
-		scope:defender = { accolade_defender_war_end_glory_gain_med_effect = yes }
+		scope:defender = { 
+			mandala_peacemaker_perk_serenity_effect = yes
+			#EP2 accolade glory gain for winning against higher ranked enemy
+			accolade_defender_war_end_glory_gain_high_effect = yes
+		}
 
 		#Handle all piety gains/losses in scripted effects.
 		excommunication_cb_piety_change = {
@@ -2339,10 +2473,13 @@ excommunication_war = {
 
 		# EP3: note gold gained from military assistance/join war contracts and their war contribution threshold
 		laamp_as_mercenary_payout_tooltip_effect = yes
+
+		#Mandalas gain or lose piety/devotion depending on Decree
+		mandala_war_defeat_effects = yes
 	}
 	
 	should_invalidate = {
-		OR = {
+		OR = { #LotR
 			scope:defender = {
 				NOT = {
 					has_trait = excommunicated
@@ -2422,7 +2559,7 @@ excommunication_war = {
 			if = {
 				limit = {
 					scope:attacker = {
-						is_independent_ruler = no
+						top_liege != this
 						vassal_contract_has_flag = vassal_contract_cheaper_religious_war
 					}
 				}
@@ -2505,6 +2642,13 @@ flowery_war_cb = {
 	group = religious_disorganised
 	ai_only_against_neighbors = yes
 	allow_hostages = no
+	
+	allowed_for_character = {
+		faith = { has_doctrine_parameter = flower_war_cb_active }
+		NOT = {	#Must not have any leftover sacrificial prisoners/easy ability to get any.
+			any_prisoner = { has_character_modifier = designated_human_sacrifice_modifier }
+		}
+	}
 
 	# Root is the title
 	# scope:attacker is the attacker
@@ -2521,7 +2665,7 @@ flowery_war_cb = {
 		}
 
 		scope:defender = {
-			is_independent_ruler = yes
+			top_liege = this
 			trigger_if = {
 				limit = { scope:attacker = { is_ai = no } } # Already pre-filtered by the AI due to ai_only_against_neighbors = yes. any_neighboring_top_liege_realm_owner is expensive
 				scope:attacker = {
@@ -2618,6 +2762,20 @@ flowery_war_cb = {
 
 		#EP2 Accolade glory gain from winning against higher ranked enemy
 		scope:attacker = { accolade_attacker_war_end_glory_gain_low_effect = yes }
+		
+		# Hope 
+		scope:attacker = { # LotR 
+			if = { 
+				limit = { is_elf = yes }
+				add_elven_hope_effect = { VALUE = major_elven_hope_gain HOPE_EFFECT = effect_elven_hope_major_war_won }
+			}
+		}
+		scope:defender = { # LotR 
+			if = { 
+				limit = { is_elf = yes }
+				add_elven_hope_effect = { VALUE = massive_elven_hope_loss HOPE_EFFECT = effect_elven_hope_major_war_lost }
+			}
+		}
 
 		scope:attacker = {
 			if = {	#If the attacker enjoys human sacrifice, then this was sacred.
@@ -3043,6 +3201,9 @@ flowery_war_cb = {
 		# EP3: note gold gained from military assistance/join war contracts and their war contribution threshold
 		laamp_as_mercenary_payout_tooltip_effect = yes
 
+		#Mandalas gain or lose piety/devotion depending on Decree
+		mandala_war_victory_effects = yes
+
 	}
 
 	on_white_peace_desc = {
@@ -3102,11 +3263,28 @@ flowery_war_cb = {
 	on_defeat = {
 		scope:attacker = { show_pow_release_message_effect = yes }
 		
+		# Hope 
+		scope:attacker = { # LotR 
+			if = { 
+				limit = { is_elf = yes }
+				add_elven_hope_effect = { VALUE = major_elven_hope_loss HOPE_EFFECT = effect_elven_hope_major_war_lost }
+			}
+		}
+		scope:defender = { # LotR 
+			if = { 
+				limit = { is_elf = yes }
+				add_elven_hope_effect = { VALUE = major_elven_hope_gain HOPE_EFFECT = effect_elven_hope_kingdom_war_won }
+			}
+		}
+		
 		# Legitimacy
 		add_legitimacy_attacker_defeat_effect = yes
 
-		#EP2 Accolade glory gain from winning against higher ranked enemy
-		scope:defender = { accolade_defender_war_end_glory_gain_low_effect = yes }
+		scope:defender = { 
+			mandala_peacemaker_perk_serenity_effect = yes
+			#EP2 accolade glory gain for winning against higher ranked enemy
+			accolade_defender_war_end_glory_gain_high_effect = yes
+		}
 
 		scope:attacker = {
 			if = {	#If the attacker shares the faith of the defender, and both still enjoy human sacrifice, then this war was at least sacred for them.
@@ -3543,6 +3721,9 @@ flowery_war_cb = {
 
 		# EP3: note gold gained from military assistance/join war contracts and their war contribution threshold
 		laamp_as_mercenary_payout_tooltip_effect = yes
+
+		#Mandalas gain or lose piety/devotion depending on Decree
+		mandala_war_defeat_effects = yes
 	}
 
 	on_primary_attacker_death = inherit
@@ -3583,7 +3764,7 @@ flowery_war_cb = {
 			if = {
 				limit = {
 					scope:attacker = {
-						is_independent_ruler = no
+						top_liege != this
 						vassal_contract_has_flag = vassal_contract_cheaper_religious_war
 					}
 				}
@@ -3834,7 +4015,7 @@ undirected_great_holy_war = {
 					}
 				}
 			}
-			trigger_event = great_holy_war.0051 # LotR
+			trigger_event = great_holy_war.0051
 		}
 		scope:attacker.faith.great_holy_war = {
 			divide_war_chest = {
@@ -3923,6 +4104,21 @@ undirected_great_holy_war = {
 
 	on_victory = {
 		scope:attacker = { show_pow_release_message_effect = yes }
+		
+		scope:attacker = { # LotR
+			if = { # Gains hope by winning a major war
+				limit = { is_elf = yes }
+				add_elven_hope_effect = { VALUE = massive_elven_hope_gain HOPE_EFFECT = effect_elven_hope_kingdom_war_won }
+			}
+		}
+		
+		# Hope loss for the defender
+		scope:defender = { # LotR
+			if = { # Loses hope by losing a major war
+				limit = { is_elf = yes }
+				add_elven_hope_effect = { VALUE = massive_elven_hope_loss HOPE_EFFECT = effect_elven_hope_kingdom_war_lost }
+			}
+		}
 		
 		# Legitimacy
 		add_legitimacy_attacker_victory_effect = yes
@@ -4341,6 +4537,30 @@ undirected_great_holy_war = {
 					}
 				}
 			}
+			every_in_list = {
+				list = beneficiary_fixing_list
+				if = {
+					limit = {
+						has_government = herder_government
+					}
+					every_held_title = {
+						limit = {
+							tier = tier_county
+							title_province = {
+								has_holding_type = herder_holding
+							}
+						}
+						title_province = {
+							set_holding_type = nomad_holding
+						}
+					}
+					change_government = nomad_government
+					domicile = {
+						set_domicile_culture = prev.capital_county.culture
+						set_domicile_faith = prev.capital_county.faith
+					}
+				}
+			}
 		}
 		
 		#Set 30 years cooldown.
@@ -4398,6 +4618,9 @@ undirected_great_holy_war = {
 		scope:title_recipient = {
 			custom_tooltip = legend_seed_ghw.tt
 		}
+
+		#Mandalas gain or lose piety/devotion depending on Decree
+		mandala_war_victory_effects = yes
 	}
 
 	on_white_peace_desc = {
@@ -4411,11 +4634,30 @@ undirected_great_holy_war = {
 	on_defeat = {
 		scope:attacker = { show_pow_release_message_effect = yes }
 		
+		# Hope gain for the defender
+		scope:defender = { # LotR
+			if = { # Gains hope by winning a major war
+				limit = { is_elf = yes }
+				add_elven_hope_effect = { VALUE = massive_elven_hope_gain HOPE_EFFECT = effect_elven_hope_kingdom_war_won }
+			}
+		}
+		
+		# Hope loss for the attacker
+		scope:attacker = { # LotR
+			if = { # Loses hope by losing a major war
+				limit = { is_elf = yes }
+				add_elven_hope_effect = { VALUE = massive_elven_hope_loss HOPE_EFFECT = effect_elven_hope_kingdom_war_lost }
+			}
+		}
+		
 		# Legitimacy
 		add_legitimacy_attacker_defeat_effect = yes
 
-		#EP2 Accolade glory gain to the noble native defenders
-		scope:defender = { accolade_defender_war_end_glory_gain_med_effect = yes }
+		scope:defender = { 
+			mandala_peacemaker_perk_serenity_effect = yes
+			#EP2 accolade glory gain for winning against higher ranked enemy
+			accolade_defender_war_end_glory_gain_high_effect = yes
+		}
 
 		scope:attacker.faith.great_holy_war = {
 			divide_war_chest = {
@@ -4527,6 +4769,8 @@ undirected_great_holy_war = {
 			}
 		}
 		debug_log = undirected_ghw_defeat_debug_message
+		#Mandalas gain or lose piety/devotion depending on Decree
+		mandala_war_defeat_effects = yes
 	}
 }
 
@@ -4600,6 +4844,7 @@ directed_great_holy_war = {
 			text = great_holy_war_cooldown
 			NOT = {	scope:attacker.faith = { exists = var:variable_ghw_cooldown }}
 		}
+		tgp_japan_offensive_wars_ban_trigger = yes
 		# Elven Expansion CB limitation in game rules
 		custom_tooltip = {
 			text = "only_zealous_elves_can_holy_war"
@@ -4742,7 +4987,7 @@ directed_great_holy_war = {
 					is_ai = yes
 					is_playable_character = yes
 					highest_held_title_tier >= tier_county
-					NOT = { this = scope:ghw_sponsor }
+					this != scope:ghw_sponsor
 					exists = scope:attacker.faith.great_holy_war
 					NOT = { scope:attacker.faith.great_holy_war = { has_pledged_attacker = prev } }
 					is_wastelands = no #LotR
@@ -4757,7 +5002,7 @@ directed_great_holy_war = {
 					highest_held_title_tier >= tier_county
 					exists = scope:attacker.faith.great_holy_war
 					NOT = { scope:attacker.faith.great_holy_war = { has_pledged_defender = prev } }
-					NOT = { scope:defender = top_liege }
+					scope:defender != top_liege
 					is_wastelands = no #LotR
 				}
 				trigger_event = great_holy_war.0093 #AI counterpledging.
@@ -4810,6 +5055,20 @@ directed_great_holy_war = {
 
 	on_victory = {
 		scope:attacker = { show_pow_release_message_effect = yes }
+		
+		# Hope 
+		scope:attacker = { # LotR 
+			if = { 
+				limit = { is_elf = yes }
+				add_elven_hope_effect = { VALUE = massive_elven_hope_gain HOPE_EFFECT = effect_elven_hope_kingdom_war_won }
+			}
+		}
+		scope:defender = { # LotR 
+			if = { 
+				limit = { is_elf = yes }
+				add_elven_hope_effect = { VALUE = massive_elven_hope_loss HOPE_EFFECT = effect_elven_hope_kingdom_war_lost }
+			}
+		}
 		
 		# Legitimacy
 		add_legitimacy_attacker_victory_effect = yes
@@ -5034,6 +5293,9 @@ directed_great_holy_war = {
 				}
 			}
 		}
+
+		#Mandalas gain or lose piety/devotion depending on Decree
+		mandala_war_victory_effects = yes
 	}
 
 	on_white_peace_desc = {
@@ -5047,11 +5309,28 @@ directed_great_holy_war = {
 	on_defeat = {
 		scope:attacker = { show_pow_release_message_effect = yes }
 		
+		# Hope 
+		scope:attacker = { # LotR 
+			if = { 
+				limit = { is_elf = yes }
+				add_elven_hope_effect = { VALUE = massive_elven_hope_loss HOPE_EFFECT = effect_elven_hope_kingdom_war_lost }
+			}
+		}
+		scope:defender = { # LotR 
+			if = { 
+				limit = { is_elf = yes }
+				add_elven_hope_effect = { VALUE = massive_elven_hope_gain HOPE_EFFECT = effect_elven_hope_kingdom_war_won }
+			}
+		}
+		
 		# Legitimacy
 		add_legitimacy_attacker_defeat_effect = yes
 
-		#EP2 Accolade glory gain to the noble native defenders
-		scope:defender = { accolade_defender_war_end_glory_gain_med_effect = yes }
+		scope:defender = { 
+			mandala_peacemaker_perk_serenity_effect = yes
+			#EP2 accolade glory gain for winning against higher ranked enemy
+			accolade_defender_war_end_glory_gain_high_effect = yes
+		}
 
 		scope:attacker.faith.great_holy_war.ghw_target_title = { #Loc keys for localization fluff.
 			save_scope_as = target_kingdom
@@ -5118,9 +5397,10 @@ directed_great_holy_war = {
 				}
 			}
 		}
-	}
 
-	on_invalidated_desc = msg_invalidate_war_title
+		#Mandalas gain or lose piety/devotion depending on Decree
+		mandala_war_defeat_effects = yes
+	}
 
 	max_ai_diplo_distance_to_title = 750
 }

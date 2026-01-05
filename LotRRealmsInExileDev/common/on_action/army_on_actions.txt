@@ -91,9 +91,9 @@ on_county_occupied = {
 					AND = {
 						exists = global_var:mongol_empire_has_spawned
 						NOT = { exists = global_var:mongol_story_has_ended }
-						# any_owned_story = { #LotR
-						# 	story_type = story_mongol_invasion
-						# }
+						any_owned_story = {
+							story_type = story_mongol_invasion
+						}
 					}
 					any_owned_story = {
 						story_type = story_greatest_of_khans
@@ -166,6 +166,43 @@ on_county_occupied = {
 					scope:county = {
 						mongols_devastate_county_effect = yes
 					}
+				}
+			}
+		}
+		# Admin house power bonus for getting influence
+		if = {
+			limit = {
+				house ?= {
+					OR = {
+						has_house_power_parameter = occupations_give_bonuses_1
+						has_house_power_parameter = occupations_give_bonuses_2
+						has_house_power_parameter = occupations_give_bonuses_3
+					}
+				}
+			}
+			send_interface_message = {
+				type = msg_siege_effect
+				title = tactical_besiegers_house_power
+				left_icon = root
+				right_icon = scope:barony
+				
+				if = {
+					limit = {
+						house = { has_house_power_parameter = occupations_give_bonuses_3 }
+					}
+					add_gold = occupations_give_bonuses_3_value
+					change_influence = occupations_give_bonuses_3_value
+				}
+				else_if = {
+					limit = {
+						house = { has_house_power_parameter = occupations_give_bonuses_2 }
+					}
+					add_gold = occupations_give_bonuses_2_value
+					change_influence = occupations_give_bonuses_2_value
+				}
+				else = {
+					add_gold = occupations_give_bonuses_1_value
+					change_influence = occupations_give_bonuses_1_value
 				}
 			}
 		}
@@ -247,6 +284,19 @@ on_siege_completion = {
 				}
 			}
 		}
+		# If you have the Sacred Destruction tenet get piety/destroy development
+		if = {
+			limit = {
+				faith = { has_doctrine_parameter = successful_sieges_give_piety }
+			}
+			send_interface_toast = {
+				title = successful_sieges_give_piety_toast
+				left_icon = root
+				add_piety = minor_piety_gain
+				scope:barony.county = { change_development_progress_with_overflow = -2 }
+			}
+		}
+		
 		# We change your legend to reflect this siege
 		if = {
 			limit = {
@@ -319,6 +369,75 @@ on_siege_completion = {
 						}
 					}
 				}
+				army_commander ?= {
+					if = {  
+						limit = {
+							has_trait = peasant_leader
+							is_commanding_army = yes
+						}
+						add_trait_xp = {
+							trait = peasant_leader
+							value = {
+								value = 0.1
+								add = {
+									value = martial
+									divide = 20
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+
+		#Mandalas be looting other Mandala's capital
+		if = {
+			limit = { 
+				has_realm_law_flag = piety_for_sieging_capital_temple_complexes
+				scope:previous_controller = { has_same_government = root }
+				scope:barony.title_province = { has_building_with_flag = mandala_capital_building }
+			} 
+			send_interface_message = {
+				type = msg_siege_piety
+				if = {
+					limit = {
+						scope:barony.title_province = { has_building_with_flag = final_tier_mandala_capital_building }
+					}
+					add_piety = monumental_piety_gain
+				}
+				else_if = {
+					limit = {
+						scope:barony.title_province = { has_building_with_flag = fourth_tier_mandala_capital_building }
+					}
+					add_piety = massive_piety_gain
+				}
+				else_if = {
+					limit = {
+						scope:barony.title_province = { has_building_with_flag = third_tier_mandala_capital_building }
+					}
+					add_piety = major_piety_gain
+				}
+				else_if = {
+					limit = {
+						scope:barony.title_province = { has_building_with_flag = second_tier_mandala_capital_building }
+					}
+					add_piety = medium_piety_gain
+				}
+				else = { add_piety = minor_piety_gain }
+				scope:county = {
+					if = {
+						limit = { has_county_modifier = mandala_capital_sacked_modifier }
+						hidden_effect = { remove_county_modifier = mandala_capital_sacked_modifier }
+					}
+					if = {
+						limit = { has_county_modifier = mandala_capital_restored_modifier }
+						hidden_effect = { remove_county_modifier = mandala_capital_restored_modifier }
+					}
+					add_county_modifier = {
+						modifier = mandala_capital_sacked_modifier
+						years = 10
+					}
+				}
 			}
 		}
 	}
@@ -353,6 +472,8 @@ on_siege_looting = {
 				multiply = 5
 			}
 		}
+		tgp_treasury_raided_effect = yes
+
 	}
 }
 
@@ -510,6 +631,21 @@ on_raid_action_completion = {
 					}
 				}
 			}
+			house ?= {
+				if = {
+					limit = {
+						exists = scope:county.holder.house
+					}
+					change_house_relation_effect = {
+						HOUSE = scope:county.holder.house
+						VALUE = house_relation_damage_minor_value
+						REASON = raid
+						CHAR = scope:raider
+						TARGET_CHAR = scope:county.holder
+						TITLE = scope:dummy_gender
+					}
+				}
+			}
 		}
 		scope:barony.title_province = {
 			add_province_modifier = {
@@ -539,6 +675,8 @@ on_raid_action_completion = {
 						}
 					}
 				}
+				# Silk Road
+				#tgp_silk_road_raid_effect = yes #LotR
 			}
 		}
 		scope:county.holder = { add_to_list = raid_targets }
@@ -605,6 +743,78 @@ on_raid_action_completion = {
 							divide = 10
 						}
 					}
+				}
+			}
+		}
+
+		tgp_treasury_raided_effect = yes
+		
+		# LotR - Elves lose hope when successfully raided 
+		if = {
+			limit = { 
+				scope:county.holder = { 
+					is_ai = no 
+					is_elf = yes
+				}
+			}
+			scope:county.holder = { 
+				send_interface_message = {
+					type = event_generic_bad
+					title = hope_loss_raid_notification
+					left_icon = scope:raider
+					right_icon = scope:barony
+					add_elven_hope_effect = { VALUE = minor_elven_hope_loss HOPE_EFFECT = effect_elven_hope_got_raided }
+				}
+			}
+		}
+		else_if = {
+			limit = { 
+				scope:county.holder.liege ?= { 
+					is_ai = no 
+					is_elf = yes
+				}
+			}
+			scope:county.holder = { 
+				send_interface_message = {
+					type = event_generic_bad
+					title = hope_loss_raid_notification
+					left_icon = scope:raider
+					right_icon = scope:barony
+					add_elven_hope_effect = { VALUE = minor_elven_hope_loss HOPE_EFFECT = effect_elven_hope_got_raided }
+				}
+			}
+		}
+		else_if = {
+			limit = { 
+				scope:county.holder.liege.liege ?= { 
+					is_ai = no 
+					is_elf = yes
+				}
+			}
+			scope:county.holder = { 
+				send_interface_message = {
+					type = event_generic_bad
+					title = hope_loss_raid_notification
+					left_icon = scope:raider
+					right_icon = scope:barony
+					add_elven_hope_effect = { VALUE = minor_elven_hope_loss HOPE_EFFECT = effect_elven_hope_got_raided }
+				}
+			}
+		}
+		else_if = {
+			limit = { 
+				scope:county.holder.liege.liege.liege ?= { 
+					is_ai = no 
+					is_elf = yes
+				}
+			}
+			scope:county.holder = { 
+				send_interface_message = {
+					type = event_generic_bad
+					title = hope_loss_raid_notification
+					left_icon = scope:raider
+					right_icon = scope:barony
+					add_elven_hope_effect = { VALUE = minor_elven_hope_loss HOPE_EFFECT = effect_elven_hope_got_raided }
 				}
 			}
 		}
