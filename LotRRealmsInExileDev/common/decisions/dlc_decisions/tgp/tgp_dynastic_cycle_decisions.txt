@@ -256,6 +256,7 @@ situation_dynastic_cycle_favor_own_culture_for_appointments = {
 }
 
 #only for Players - ability to choose a participation group in the Dynastic Cycle
+### Join Movement ###
 situation_dynastic_cycle_choose_movement_decision = {
 	decision_group_type = dynastic_cycle
 	title = situation_dynastic_cycle_choose_movement_decision
@@ -379,66 +380,97 @@ situation_dynastic_cycle_choose_movement_decision = {
 
 	cost = {
 		influence = {
-			value = monumental_influence_value
-			#more expensive for each disciple
-			add = {
-				value = 10
-				multiply = root.number_of_disciples
-			}
-			#less expensive to go out of the undecided movement to any other movement
+			value = 0
 			if = {
 				limit = {
-					situation:dynastic_cycle ?= {
-						situation_participant_group:undecided_movement = {
-							participant_group_has_character = root
-						}
-					}
+					government_allows = administrative
 				}
-				multiply = 0.5
-			}
-			#reduce the cost if your elder is in the selected movement
-			if = {
-				limit = {
-					any_relation = {
-						type = elder
-						save_temporary_scope_as = elder
-					}
-					situation:dynastic_cycle ?= {
-						OR = {
-							AND = {
-								situation_participant_group:pro_hegemon_movement = {
-									participant_group_has_character = scope:elder
-								}
-								scope:pro_hegemon_movement ?= yes
-							}
-							AND = {
-								situation_participant_group:expansion_movement = {
-									participant_group_has_character = scope:elder
-								}
-								scope:expansion_movement ?= yes
-							}
-							AND = {
-								situation_participant_group:advancement_movement = {
-									participant_group_has_character = scope:elder
-								}
-								scope:advancement_movement ?= yes
-							}
-							AND = {
-								situation_participant_group:conservative_movement = {
-									participant_group_has_character = scope:elder
-								}
-								scope:conservative_movement ?= yes
+				# Base cost
+				value = monumental_influence_value
+				# More expensive for each disciple
+				add = {
+					value = 10
+					multiply = root.number_of_disciples
+				}
+				# Less expensive to go out of the undecided movement to any other movement
+				if = {
+					limit = {
+						situation:dynastic_cycle ?= {
+							situation_participant_group:undecided_movement = {
+								participant_group_has_character = root
 							}
 						}
 					}
+					multiply = 0.5
 				}
-				multiply = 0.5
+				# Reduce the cost if your elder is in the selected movement
+				if = {
+					limit = {
+						any_relation = {
+							type = elder
+							save_temporary_scope_as = elder
+						}
+						situation:dynastic_cycle ?= {
+							OR = {
+								AND = {
+									situation_participant_group:pro_hegemon_movement = {
+										participant_group_has_character = scope:elder
+									}
+									scope:pro_hegemon_movement ?= yes
+								}
+								AND = {
+									situation_participant_group:expansion_movement = {
+										participant_group_has_character = scope:elder
+									}
+									scope:expansion_movement ?= yes
+								}
+								AND = {
+									situation_participant_group:advancement_movement = {
+										participant_group_has_character = scope:elder
+									}
+									scope:advancement_movement ?= yes
+								}
+								AND = {
+									situation_participant_group:conservative_movement = {
+										participant_group_has_character = scope:elder
+									}
+									scope:conservative_movement ?= yes
+								}
+							}
+						}
+					}
+					multiply = 0.5
+				}
+			}
+		}
+		# Non-admins pay prestige instead
+		prestige = {
+			value = 0
+			if = {
+				limit = {
+					NOT = { government_allows = administrative }
+				}
+				# Base cost
+				value = {
+					value = monumental_influence_value
+					multiply = 2
+				}
+				# Less expensive to go out of the undecided movement to any other movement
+				if = {
+					limit = {
+						situation:dynastic_cycle ?= {
+							situation_participant_group:undecided_movement = {
+								participant_group_has_character = root
+							}
+						}
+					}
+					multiply = 0.5
+				}
 			}
 		}
 	}
 
 	effect = {
-		remove_variable = movement_member
 		save_scope_as = recipient #for loc
 		switch = {
 			trigger = yes
@@ -542,6 +574,26 @@ situation_dynastic_cycle_choose_movement_decision = {
 				}
 			}
 		}
+		if = { # break up with the elder if the movement is not the same after applying previous effects and changing your own
+			limit = {
+				any_relation = {
+					type = elder
+					save_temporary_scope_as = elder
+				}
+				scope:elder = {
+					top_participant_group:dynastic_cycle = root.top_participant_group:dynastic_cycle
+				}
+			}
+			custom_tooltip = {
+				text = situation_dynastic_cycle_choose_movement_decision_elder_tt
+				run_interaction = {
+					interaction = break_with_elder
+					actor = root
+					recipient = scope:elder
+					execute_threshold = accept
+				}
+			}
+		}
 		hidden_effect = { recalculate_participant_group = situation:dynastic_cycle }
 	}
 
@@ -549,6 +601,7 @@ situation_dynastic_cycle_choose_movement_decision = {
 	ai_check_interval = 0
 }
 # a petition in the name of your movement to be delivered to hegemon/relevant minister
+### Make Movement Petition ###
 movement_petition_decision = {
 	decision_group_type = dynastic_cycle
 	title = movement_petition_decision
@@ -882,6 +935,7 @@ movement_petition_decision = {
 	ai_check_interval = 0
 }
 # a second step of the decision above to select the details of the petition
+### Movement Petition Change Laws Decision ###
 movement_petition_change_laws_decision = {
 	decision_group_type = dynastic_cycle
 	title = movement_petition_decision
@@ -945,8 +999,20 @@ movement_petition_change_laws_decision = {
 				# title:h_china.holder ?= { # LOTR
                 top_liege ?= { # LOTR
 					NOT = {
-						has_realm_law = imperial_bureaucracy_3
+						realm_law_group_at_maximum_level = celestial_bureaucracy
 					}
+					trigger_if = {
+						limit = {
+							has_realm_law = celestial_bureaucracy_2
+						}
+						situation:dynastic_cycle ?= {
+							NOR = {
+								situation_current_phase = situation_dynastic_cycle_phase_instability
+								situation_current_phase = situation_dynastic_cycle_phase_instability_conquest
+							}
+						}
+					}
+					culture = { has_innovation = innovation_all_things }
 				}
 			}
 			current_description = change_celestial_bureaucracy_increase_desc
@@ -965,7 +1031,7 @@ movement_petition_change_laws_decision = {
 				# title:h_china.holder ?= { # LOTR
                 top_liege ?= { # LOTR
 					NOT = {
-						has_realm_law = imperial_bureaucracy_0
+						realm_law_group_at_minimum_level = celestial_bureaucracy
 					}
 				}
 			}
@@ -986,18 +1052,11 @@ movement_petition_change_laws_decision = {
                 top_liege ?= { # LOTR
 					trigger_if = {
 						limit = {
-							has_realm_law = celestial_bureaucracy_3
-							situation:dynastic_cycle ?= {
-								situation_current_phase = situation_dynastic_cycle_phase_stability_expansion
-							}
-						}
-						NOT = {
-							has_realm_law = celestial_army_liege_law_3
-						}
-					}
-					trigger_else = {
-						NOT = {
 							has_realm_law = celestial_army_liege_law_2
+						}
+						has_realm_law = celestial_bureaucracy_3
+						situation:dynastic_cycle ?= {
+							situation_current_phase = situation_dynastic_cycle_phase_stability_expansion
 						}
 					}
 					trigger_if = {
@@ -1010,8 +1069,8 @@ movement_petition_change_laws_decision = {
 						custom_tooltip = {
 							text = have_bureaucracy_2_or_higher
 							OR = {
-								has_realm_law = imperial_bureaucracy_2
-								has_realm_law = imperial_bureaucracy_3
+								has_realm_law = celestial_bureaucracy_2
+								has_realm_law = celestial_bureaucracy_3
 							}
 						}
 					}
@@ -2273,6 +2332,7 @@ favor_dynastic_cycle_era_decision = {
 }
 
 #only for Players - ability to choose a favored Movement, the AI will always follow the Debates activity outcomes instead
+### Favor a Movement ###
 favor_movement_decision = {
 	decision_group_type = dynastic_cycle
 	title = favor_movement_decision

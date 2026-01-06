@@ -34,6 +34,8 @@
 #			wastelands.2801 - 3000 
 #		# Shadow of Mordor Events:
 #			wastelands.3201 - 3300
+#		# Pirate Remnants Events (from AGOT with permission)
+#			wastelands.3301 - 3400
 #
 ##########################################
 
@@ -187,20 +189,20 @@ wastelands.0006 = {
 		NOT = { any_owned_story = { story_type = story_conqueror } } #Conquerors have their own logic
 
 	 	trigger_if = {
-			limit = { is_independent_ruler = no }
+			limit = { top_liege != root }
 			has_character_flag = vassal_directive_settle_wastelands
 		}
 
 		###
 		### Culture/Character ID triggers
 		###
-		NOR = { #Stop Sauron colonising
+		NOR = {
 			is_sauron = yes
 			has_title = title:e_mordor
 		}
 		is_in_valinor = no
+		is_wastelands = no
 		NOT = { this = character:linesteward38 }
-		NOT = { has_culture = culture:wastelands }
 
 		###
 		### Character Income Trigger
@@ -233,7 +235,7 @@ wastelands.0006 = {
 		###
 		any_sub_realm_county = {
 			any_title_to_title_neighboring_and_across_water_county = {
-				culture = culture:wastelands
+				is_wastelands = no
 				NOT = { has_county_modifier = block_settlement_ability }
 			}
 		}
@@ -242,69 +244,50 @@ wastelands.0006 = {
 		### Check whether the ruler is above their settlement limit
 		###
 		above_settlement_limit = no
-
 		
 		###
-		### Check, dependent on game rules, who can colonize
-		### 
-
-		trigger_if = { #default game rules
-			limit = { has_game_rule = default_colonisation_speed }
-			OR = {
-				dynasty = dynasty:dynasty_elendil # Can only start colonising after Aragorn returns
-				dynasty = dynasty:dynasty_oropher # Can only start colonising after Aragorn returns
-				culture = culture:woodmen # Can only start colonising after Aragorn returns
-				culture = culture:valemen # Can only start colonising after Aragorn returns
-				culture = { any_parent_culture_or_above = { this = culture:valemen } } # Can only start colonising after Aragorn returns
-				culture = { any_parent_culture_or_above = { this = culture:woodmen } } # Can only start colonising after Aragorn returns
-				is_nazgul = yes # Can colonise from the start
-				is_dwarf = yes # Can colonise from the start
-				is_orc = yes # Can colonise from the start
-			}
-			OR = {
-				is_nazgul = yes # Can colonise from the start
-				is_dwarf = yes # Can colonise from the start
-				is_orc = yes # Can colonise from the start
-				is_target_in_global_variable_list = {
-					name = unavailable_unique_decisions
-					target = flag:aragorn_returned_to_gondor
-				}
-			}
-		}
-		trigger_else = { always = yes } # if different game rule, anyone can colonize, just county picking logic is changed
-
+		### Check if they're at war 
+		###
+		is_at_war = no
 	}
 	immediate = {
 		debug_log = "Wastelands.0006: AI considering colonization..."
-		
+			
 		### MAKING LIST OF APPROPRIATE COUNTIES TO BE COLONISED PER GAME RULE ###
-		if = { # GAME RULE --> default_colonisation_speed
+		if = {
 			limit = { has_game_rule = default_colonisation_speed }
 			### HUMAN ###
-			if = { ## COUNTIES AVAILABLE FOR HUMAN AI ##
-				limit = { 
-					is_human = yes
-					NOR = {
-						culture = culture:woodmen # Can only start colonising after Aragorn returns
-						culture = culture:valemen # Can only start colonising after Aragorn returns
-					}
-				} 
+			if = {
+				limit = { is_human = yes }
 				debug_log = "Wastelands.0006: Humans List Made"
 				every_sub_realm_county = {
 					every_title_to_title_neighboring_and_across_water_county = {
 						limit = {
-							culture = culture:wastelands
-							this = { save_temporary_scope_as = target }
+							is_wastelands = yes
+							is_underground_county = no
+
+							trigger_if = {
+								limit = {
+									NOT = {
+										is_target_in_global_variable_list = {
+											name = unavailable_unique_decisions
+											target = flag:decision_destroy_mordor
+										}
+									}
+								}
+								NOR = {
+									empire = title:e_arnor
+									empire = title:e_enedhwaith
+									empire = title:e_greenwood
+									empire = title:c_minas_tirith.empire
+									empire = title:e_forodwaith
+								}
+							}
+							
 							NOR = {
 								has_county_modifier = elven_homeland_county_modifier
 								has_county_modifier = block_settlement_ability
-								holder = root
 							}
-							OR = {
-								title:e_arnor = { is_de_jure_liege_or_above_target = scope:target }
-								title:e_enedhwaith = { is_de_jure_liege_or_above_target = scope:target }
-							}
-							title_province ?= { NOT = { terrain = halls } }
 						}
 						add_to_list = adjacent_wastelands
 					}
@@ -318,18 +301,18 @@ wastelands.0006 = {
 				every_sub_realm_county = {
 					every_title_to_title_neighboring_and_across_water_county = {
 						limit = {
-							culture = culture:wastelands
+							is_wastelands = yes
+							is_underground_county = no
+						
 							has_county_modifier = elven_homeland_county_modifier
-							this = { save_temporary_scope_as = target }
+
 							NOR = {
+								empire = title:e_orrostar
+								empire = title:e_greenwood
+								empire = title:e_laurelindorenan
+								empire = title:e_lindon
 								has_county_modifier = block_settlement_ability
-								holder = root
 							}
-							OR = {
-								title:e_greenwood = { is_de_jure_liege_or_above_target = scope:target }
-								title:e_laurelindorenan = { is_de_jure_liege_or_above_target = scope:target }
-							}
-							title_province ?= { NOT = { terrain = halls } }
 						}
 						add_to_list = adjacent_wastelands
 					}
@@ -343,29 +326,32 @@ wastelands.0006 = {
 				every_sub_realm_county = {
 					every_title_to_title_neighboring_and_across_water_county = {
 						limit = {
-							culture = culture:wastelands
-							this = { save_temporary_scope_as = target }
+							is_wastelands = yes
+
 							NOR = {
 								has_county_modifier = block_settlement_ability
-								holder = root
 								has_county_modifier = elven_homeland_county_modifier
 							}
 							OR = {
-								title_province ?= { terrain = desert_mountains }
-								title_province ?= { terrain = caverns }
-								title_province ?= { terrain = halls }
+								county_has_province_with_terrain = {
+									terrain = mountains
+									terrain = desert_mountains
+									terrain = caverns
+									terrain = halls
+								}
 								AND = {
-									title_province ?= { terrain = hills }
-									any_neighboring_county = {
-										OR = {
-											title_province ?= { terrain = desert_mountains }
-											title_province ?= { terrain = caverns }
-											title_province ?= { terrain = halls }
-											title_province ?= { terrain = mountains }
+									any_county_province = {
+										terrain = hills
+										any_neighboring_province = {
+											OR = {
+												terrain = desert_mountains
+												terrain = caverns
+												terrain = halls
+												terrain = mountains
+											}
 										}
 									}
 								}
-								title_province ?= { terrain = mountains }
 							}
 						}
 						add_to_list = adjacent_wastelands
@@ -380,15 +366,11 @@ wastelands.0006 = {
 				every_sub_realm_county = {
 					every_title_to_title_neighboring_and_across_water_county = {
 						limit = {
-							culture = culture:wastelands
+							is_wastelands = yes
 							this = { save_temporary_scope_as = target }
 							NOR = {
 								has_county_modifier = block_settlement_ability
 								holder = root
-							}
-							OR = {
-								title:e_greenwood = { is_de_jure_liege_or_above_target = scope:target }
-								title:k_ehwathrumavuld = { is_de_jure_liege_or_above_target = scope:target }
 							}
 						}
 						add_to_list = adjacent_wastelands
@@ -403,74 +385,43 @@ wastelands.0006 = {
 				every_sub_realm_county = {
 					every_title_to_title_neighboring_and_across_water_county = {
 						limit = {
-							culture = culture:wastelands
-							this = { save_temporary_scope_as = target }
-							NOR = {
-								has_county_modifier = block_settlement_ability
-								holder = root
-							}
-							OR = {
-								title_province ?= { terrain = desert_mountains }
-								title_province ?= { terrain = caverns }
-								title_province ?= { terrain = halls }
-								title_province ?= { terrain = hills }
-								title_province ?= { terrain = mountains }
-							}
-						}
-						add_to_list = adjacent_wastelands
-					}
-				}
-			}
+							is_wastelands = yes
 
-			### VALEMEN/WOODMEN ###
-			else_if = { ## COUNTIES AVAILABLE FOR HUMAN AI ##
-				limit = { 
-					is_human = yes
-					OR = {
-						culture = culture:woodmen # Can only start colonising after Aragorn returns
-						culture = culture:valemen # Can only start colonising after Aragorn returns
-						culture = { any_parent_culture_or_above = { this = culture:valemen } } # Can only start colonising after Aragorn returns
-						culture = { any_parent_culture_or_above = { this = culture:woodmen } } # Can only start colonising after Aragorn returns
-					}
-				} 
-				debug_log = "Wastelands.0006: Valemen/Woodmen List Made"
-				every_sub_realm_county = {
-					limit = { NOT = { culture = culture:wastelands } }
-					every_title_to_title_neighboring_and_across_water_county = {
-						limit = {
-							culture = culture:wastelands
-							this = { save_temporary_scope_as = target }
-							NOR = {
-								has_county_modifier = block_settlement_ability
-								holder = root
+							NOT = { has_county_modifier = block_settlement_ability }
+
+							county_has_province_with_terrain = {
+								terrain = mountains
+								terrain = desert_mountains
+								terrain = caverns
+								terrain = halls
+								terrain = hills
 							}
-							OR = {
-								title:e_greenwood = { is_de_jure_liege_or_above_target = scope:target }
-								title:e_anduin_vale = { is_de_jure_liege_or_above_target = scope:target }
-							}
-							title_province ?= { NOT = { terrain = halls } }
 						}
 						add_to_list = adjacent_wastelands
 					}
 				}
 			}
 		}
-		if = { # GAME RULE --> weighted_colonisation_speed
+		if = {
 			limit = { has_game_rule = weighted_colonisation_speed }
 
 			### HUMAN ###
-			if = { ## COUNTIES AVAILABLE FOR HUMAN AI ##
-				limit = { OR = { is_human = yes is_hobbit = yes } }
+			if = {
+				limit = { 
+					OR = {
+						is_human = yes 
+						is_hobbit = yes
+					}
+				}
 				every_sub_realm_county = {
 					every_title_to_title_neighboring_and_across_water_county = {
 						limit = {
-							culture = culture:wastelands
+							is_wastelands = yes
+							is_underground_county = no
 							NOR = {
-								holder = root
 								has_county_modifier = elven_homeland_county_modifier
 								has_county_modifier = block_settlement_ability
 							}
-							title_province ?= { NOT = { terrain = halls } }
 						}
 						add_to_list = adjacent_wastelands
 					}
@@ -482,24 +433,23 @@ wastelands.0006 = {
 				limit = { is_elf = yes }
 				### COUNTY COLONISATION PRIORITY ###
 				every_sub_realm_county = {
-					limit = { NOT = { culture = culture:wastelands } }
 					every_title_to_title_neighboring_and_across_water_county = {
 						limit = {
 							culture = culture:wastelands
-							NOR = {
-								has_county_modifier = block_settlement_ability
-								holder = root
-							}
+							NOT = { has_county_modifier = block_settlement_ability }
 							OR = {
 								has_county_modifier = elven_homeland_county_modifier
-								title_province ?= { terrain = deep_forest }
-								title_province ?= { terrain = forest }
-								title_province ?= { terrain = plains }
-								title_province ?= { terrain = mallorn_forest }
-								title_province ?= { terrain = hills }
-								title_province ?= { terrain = farmlands }
-								title_province ?= { terrain = wetlands }
-								title_province ?= { terrain = floodplains }
+								
+								county_has_province_with_terrain = {
+									terrain = deep_forest
+									terrain = forest
+									terrain = plains
+									terrain = mallorn_forest
+									terrain = hills
+									terrain = farmlands
+									terrain = wetlands
+									terrain = floodplains
+								}
 							}
 						}
 						add_to_list = adjacent_wastelands
@@ -511,24 +461,22 @@ wastelands.0006 = {
 			else_if = { ## COUNTIES AVAILABLE FOR DWARF AI ##
 				limit = { is_dwarf = yes }
 				every_sub_realm_county = {
-					limit = { NOT = { culture = culture:wastelands } }
 					every_title_to_title_neighboring_and_across_water_county = {
 						limit = {
-							culture = culture:wastelands
+							is_wastelands = yes
 							NOR = {
 								has_county_modifier = block_settlement_ability
-								holder = root
 								has_county_modifier = elven_homeland_county_modifier
 							}
-							OR = {
-								title_province ?= { terrain = plains }
-								title_province ?= { terrain = steppe }
-								title_province ?= { terrain = forest }
-								title_province ?= { terrain = desert_mountains }
-								title_province ?= { terrain = caverns }
-								title_province ?= { terrain = halls }
-								title_province ?= { terrain = hills }
-								title_province ?= { terrain = mountains }
+							county_has_province_with_terrain = {
+								terrain = plains
+								terrain = steppe
+								terrain = forest
+								terrain = desert_mountains
+								terrain = caverns
+								terrain = halls
+								terrain = hills
+								terrain = mountains
 							}
 						}
 						add_to_list = adjacent_wastelands
@@ -541,15 +489,11 @@ wastelands.0006 = {
 				limit = { is_nazgul = yes }
 				debug_log = "Wastelands.0006: Nazgul List Made"
 				every_sub_realm_county = {
-					limit = { NOT = { culture = culture:wastelands } }
 					every_title_to_title_neighboring_and_across_water_county = {
 						limit = {
-							culture = culture:wastelands
-							NOR = {
-								has_county_modifier = block_settlement_ability
-								holder = root
-							}
-							title_province ?= { NOT = { terrain = halls } }
+							is_wastelands = yes
+							is_underground_county = no
+							NOT = { has_county_modifier = block_settlement_ability }
 						}
 						add_to_list = adjacent_wastelands
 					}
@@ -561,53 +505,15 @@ wastelands.0006 = {
 				limit = { is_orc = yes } 
 				debug_log = "Wastelands.0006: Orc List Made"
 				every_sub_realm_county = {
-					limit = { NOT = { culture = culture:wastelands } }
 					every_title_to_title_neighboring_and_across_water_county = {
 						limit = {
-							culture = culture:wastelands
-							NOR = {
-								has_county_modifier = block_settlement_ability
-								holder = root
-							}
+							is_wastelands = yes
+							NOT = { has_county_modifier = block_settlement_ability }
 						}
 						add_to_list = adjacent_wastelands
 					}
 				}
 			}
-
-			### VALEMEN/WOODMEN ###
-			else_if = { ## COUNTIES AVAILABLE FOR HUMAN AI ##
-				limit = { 
-					is_human = yes
-					OR = {
-						culture = culture:woodmen # Can only start colonising after Aragorn returns
-						culture = culture:valemen # Can only start colonising after Aragorn returns
-						culture = { any_parent_culture_or_above = { this = culture:valemen } } # Can only start colonising after Aragorn returns
-						culture = { any_parent_culture_or_above = { this = culture:woodmen } } # Can only start colonising after Aragorn returns
-					}
-				} 
-				debug_log = "Wastelands.0006: Valemen/Woodmen List Made"
-				every_sub_realm_county = {
-					limit = { NOT = { culture = culture:wastelands } }
-					every_title_to_title_neighboring_and_across_water_county = {
-						limit = {
-							culture = culture:wastelands
-							this = { save_temporary_scope_as = target }
-							NOR = {
-								has_county_modifier = block_settlement_ability
-								holder = root
-							}
-							OR = {
-								title:e_greenwood = { is_de_jure_liege_or_above_target = scope:target }
-								title:e_anduin_vale = { is_de_jure_liege_or_above_target = scope:target }
-							}
-							title_province ?= { NOT = { terrain = halls } }
-						}
-						add_to_list = adjacent_wastelands
-					}
-				}
-			}
-		
 		}
 		if = { # GAME RULE --> normal_colonisation_speed
 			limit = { has_game_rule = normal_colonisation_speed }
@@ -624,11 +530,8 @@ wastelands.0006 = {
 				every_sub_realm_county = {
 					every_title_to_title_neighboring_and_across_water_county = {
 						limit = {
-							culture = culture:wastelands
-							NOR = {
-								has_county_modifier = block_settlement_ability
-								holder = root
-							}
+							is_wastelands = yes
+							NOT = { has_county_modifier = block_settlement_ability }
 						}
 						add_to_list = adjacent_wastelands
 					}
@@ -636,15 +539,11 @@ wastelands.0006 = {
 			} 
 			else = {
 				every_sub_realm_county = {
-					limit = { NOT = { culture = culture:wastelands } }
 					every_title_to_title_neighboring_and_across_water_county = {
 						limit = {
-							culture = culture:wastelands
-							NOR = {
-								has_county_modifier = block_settlement_ability
-								holder = root
-							}
-							title_province ?= { NOT = { terrain = halls } }
+							is_wastelands = yes
+							is_underground_county = no
+							NOT = { has_county_modifier = block_settlement_ability }
 						}
 						add_to_list = adjacent_wastelands
 					}
@@ -656,31 +555,31 @@ wastelands.0006 = {
 		ordered_in_list = {
 			list = adjacent_wastelands
 			order_by = {
-				value = 0
-				every_neighboring_county = { 
-					limit = { holder = root }
-					add = 2
+				value = 1
+				every_neighboring_county = {
+					limit = { holder.top_liege = root }
+					add = 20
 				}
 				every_neighboring_county = { 
 					limit = { 
-						holder = root 
+						holder.top_liege = root 
 						duchy = prev.duchy
 					}
-					add = 16
+					add = 15
 				}
 				every_neighboring_county = { 
 					limit = { 
-						holder = root 
+						holder.top_liege = root 
 						kingdom = prev.kingdom
 					}
-					add = 8
+					add = 10
 				}
 				every_neighboring_county = { 
 					limit = { 
-						holder = root 
+						holder.top_liege = root 
 						empire = prev.empire
 					}
-					add = 4
+					add = 5
 				}
 			}
 			save_scope_as = wastelands
@@ -701,7 +600,7 @@ wastelands.0006 = {
 				}
 			}
 			ai_colonisation_effect = { WASTELANDS = scope:wastelands ROOT_SCOPE = root }
-		}		
+		}
 	}
 }
 
@@ -1754,7 +1653,7 @@ wastelands.1001 = { # Clearing out the Wolves
 
 	left_portrait = {
 		character = root
-		animation = personality_bold
+		animation = inspect_weapon
 	}
 	
 	right_portrait = {
@@ -1992,7 +1891,7 @@ wastelands.1002 = { # Surrounded
 
 	left_portrait = {
 		character = root
-		animation = personality_bold
+		animation = marshal
 	}
 	
 	right_portrait = {
@@ -2570,7 +2469,7 @@ wastelands.1007 = { # Howls from the Hills
     type = character_event
     title = wastelands.1007.t
     desc = wastelands.1007.desc
-    theme = realm
+    theme = dread
 
     left_portrait = {
         character = root
@@ -3210,7 +3109,7 @@ wastelands.1203 = { # The Raid
 
 	left_portrait = {
 		character = root
-		animation = sadness
+		animation = anger
 	}
 	
 	option = { # Kill the bear yourself
@@ -3788,7 +3687,7 @@ wastelands.1208 = { # Bear-Baiting
     type = character_event
     title = wastelands.1208.t
     desc = wastelands.1208.desc
-    theme = realm
+    theme = hunting
 
     left_portrait = root
 
@@ -4881,7 +4780,7 @@ wastelands.1601 = { # The Outcasts
 			desc = wastelands.1601.desc.3.scholar
 		}
 	}
-	theme = realm
+	theme = intrigue
 
 	left_portrait = {
 		character = root
@@ -5158,7 +5057,7 @@ wastelands.1602 = { # The Corral
 			desc = wastelands.1602.desc.knight
 		}
 	}
-	theme = realm
+	theme = intrigue
 
 	left_portrait = {
 		character = root
@@ -5299,9 +5198,8 @@ wastelands.1603 = { # The Brotherhood
 	type = character_event
 	title = wastelands.1603.t
 	desc = wastelands.1603.desc
-
-	theme = realm
-
+	theme = martial
+	override_background = { reference = market_tribal }
 	left_portrait = {
 		character = root
 		animation = personality_cynical
@@ -5415,7 +5313,7 @@ wastelands.1604 = { # Tribes of the North
 	type = character_event
 	title = wastelands.1604.t
 	desc = wastelands.1604.desc
-	theme = realm
+	theme = migration
 	override_background = {
 		reference = wilderness_mountains
 	}
@@ -5547,7 +5445,7 @@ wastelands.1605 = { # The Traitor
 	type = character_event
 	title = wastelands.1605.t
 	desc = wastelands.1605.desc
-	theme = realm
+	theme = intrigue
 
 	left_portrait = {
 		character = root
@@ -5686,7 +5584,7 @@ wastelands.1606 = { # The Cunning Brigand
 	type = character_event
 	title = wastelands.1606.t
 	desc = wastelands.1606.desc
-	theme = realm
+	theme = intrigue
 
 	left_portrait = {
 		character = root
@@ -6378,7 +6276,7 @@ wastelands.1703 = { # The Ancient Ruin
 	type = character_event
 	title = wastelands.1703.t
 	desc = wastelands.1703.desc
-	theme = stewardship
+	theme = realm
 	override_background = {
 		reference = eregion_ruins
 	}
@@ -7072,7 +6970,7 @@ wastelands.1901 = { # The Orcish leader
 	type = character_event
 	title = wastelands.1901.t
 	desc = wastelands.1901.desc
-	theme = martial
+	theme = orcs
 
 	left_portrait = {
 		character = root
@@ -7375,7 +7273,7 @@ wastelands.1903 = { # More Orcs arrive
 	type = character_event
 	title = wastelands.1903.t
 	desc = wastelands.1903.desc
-	theme = war
+	theme = orcs
 
 	left_portrait = {
 		character = root
@@ -7446,8 +7344,8 @@ wastelands.1904 = { # The Crafty Goblin
 	type = character_event
 	title = wastelands.1904.t
 	desc = wastelands.1904.desc
-	theme = martial
-
+	theme = orcs
+	override_background = { reference = market_tribal }
 	left_portrait = {
 		character = root
 		animation = anger
@@ -7455,7 +7353,7 @@ wastelands.1904 = { # The Crafty Goblin
 
 	right_portrait = {
 		character = scope:goblin_leader
-		animation = lunatic
+		animation = personality_dishonorable
 	}
 	
 	immediate = {
@@ -7514,7 +7412,7 @@ wastelands.1904 = { # The Crafty Goblin
 					multiplier = -2
 					min = -10
 				}
-				desc = wastelands.2001.a.duel_failure
+				desc = wastelands.1904.a.failure
 				send_interface_toast = {
 					left_icon = root
 					title = wastelands.1904.a.failure
@@ -7803,7 +7701,7 @@ wastelands.1905 = { # Orcish Weapons
 	type = character_event
 	title = wastelands.1905.t
 	desc = wastelands.1905.desc
-	theme = stewardship
+	theme = raid
 
 	left_portrait = {
 		character = root
@@ -7858,7 +7756,7 @@ wastelands.2001 = { # Ditch and Drain
 	type = character_event
 	title = wastelands.2001.t
 	desc = wastelands.2001.desc
-	theme = journey_activity
+	theme = wanderer_destination_focus
 
 	left_portrait = {
 		character = root
@@ -8110,6 +8008,92 @@ wastelands.2003 = { # Treasure in the Glade
 	}
 }
 
+wastelands.2004 = { # Flash Flood
+	content_source = realms_dlc
+	type = character_event
+	title = wastelands.2004.t
+	desc = wastelands.2004.desc
+	theme = disaster
+	trigger = {
+		scope:obstacle_province = {
+			OR = {
+				geographical_region = lhun_river_region
+				geographical_region = brandywine_river_region
+				geographical_region = gwathlo_river_region
+				geographical_region = angren_river_region
+				geographical_region = anghir_river_region
+				geographical_region = lefnui_river_region
+				geographical_region = morthond_river_region
+				geographical_region = gilrain_river_region
+				geographical_region = anduin_river_region
+				geographical_region = celduin_river_region
+				geographical_region = upper_anduin_river_region
+				geographical_region = harnen_river_region
+				geographical_region = bay_of_umbar_river_region
+				geographical_region = felayia_river_region
+				geographical_region = riyesha_river_region
+				geographical_region = zaja_river_region
+				geographical_region = usira_river_region
+				geographical_region = rusek_river_region
+				geographical_region = ruil_river_region
+				geographical_region = mumakan_river_region
+				geographical_region = siresha_river_region
+				geographical_region = nuar_river_region
+				geographical_region = acaadoky_river_region
+		    }
+		}
+	}
+		  
+	left_portrait = {
+		character = root
+		animation = shock
+	}
+	
+	override_background = {
+		reference = docks_tribal
+	}
+	
+
+	option = { # Get the settlers to prepare
+		name = wastelands.2004.a
+		scope:obstacle_province.county = { change_development_progress_with_overflow = 50 }
+		hidden_effect = { scope:obstacle_province = { remove_building = flooded_lands_cleared } }
+		stress_impact = {
+			diligent = medium_stress_loss
+			compassionate = minor_stress_loss
+			lazy = minor_stress_gain
+		}
+		scope:obstacle_province.county = {
+			spawn_flood_in_county_effect = { COUNTY = this }
+		}
+	}
+	
+	option = { # Build canals for the water to flow through 
+		name = wastelands.2004.c 
+		custom_tooltip = wastelands.2004.c.tt 
+		hidden_effect = { scope:obstacle_province = { remove_building = flooded_lands_cleared } }
+		scope:obstacle_province = { add_building = flooded_lands }
+	}
+
+	option = { # Might be best to evacuate
+		name = wastelands.2004.b
+		add_short_term_gold = 50
+		hidden_effect = {
+			scope:obstacle_province = { 
+				remove_building = flooded_lands_cleared
+			}			
+		}
+		scope:obstacle_province = { 
+			scope:obstacle_province = { add_building = flooded_lands }
+		}			
+		
+		make_settlement_county_wilderness = {
+			COUNTY = scope:obstacle_province.county
+		}
+	}
+}
+
+
 #############################
 # Ghosts Settlement Blocker #
 #############################
@@ -8126,7 +8110,7 @@ wastelands.2101 = { # SpoOooOOoky sightings
 	}
 	right_portrait = {
 		character = scope:scared_settler
-		animation = lunatic
+		animation = fear
 	}
 	immediate = {
 		create_character = {
@@ -8384,6 +8368,126 @@ wastelands.2103 = { # Discover a desecrated burial site nearby
 		remove_short_term_gold = minor_gold_value
 		hidden_effect = { scope:obstacle_province = { remove_building = ghosts_cleared } }
 		add_prestige = minor_prestige_loss
+	}
+}
+
+wastelands.2104 = { #Clearing Barrow Wights
+	content_source = realms_dlc
+	type = character_event
+	title = wastelands.2104.t
+	desc = wastelands.2104.desc
+	theme = battle
+	
+	override_background = { reference = barrow }
+
+	left_portrait = {
+		character = root
+		animation = marshal
+	}
+
+	
+	right_portrait = {
+		character = scope:knight
+		animation = aggressive_sword
+	}
+	
+	lower_center_portrait = {
+		character = scope:hooked_character
+	}
+
+	immediate = {
+		if = {
+			limit = { 
+				any_knight = { 
+					is_ai = yes
+					count > 0
+				}
+			}
+			ordered_knight = {
+				limit = { is_ai = yes }
+				order_by = prowess
+				save_scope_as = knight
+			}
+		}
+		if = {
+			limit = { 
+				any_hooked_character = { 
+					is_ai = yes
+					count > 0
+				}
+			}
+			ordered_hooked_character = {
+				limit = { is_ai = yes }
+				order_by = prowess
+				save_scope_as = hooked_character
+			}
+		}
+	}
+	
+	option = { # Rally a Force and Cleanse the Barrow Downs
+		name = wastelands.2104.a
+		skill = martial
+		duel = {
+			skill = martial 
+			value = 10
+			30 = { 
+				compare_modifier = {
+					value = scope:duel_value
+					multiplier = 2
+					min = -10
+				}
+				desc = wastelands.2104.a.duel_success
+				send_interface_toast = {
+					left_icon = root
+					title = wastelands.2104.success.toast.t
+					hidden_effect = {
+						scope:obstacle_province = { 
+							remove_building = barrow_wights_cleared
+						}			
+					}
+					add_prestige = major_prestige_gain
+					add_piety = major_piety_gain
+				}
+			}
+			60 = {
+				compare_modifier = {
+					value = scope:duel_value
+					multiplier = -2
+					min = -25
+				}
+				desc = wastelands.2104.a.duel_failure
+				send_interface_toast = {
+					left_icon = root
+					title = wastelands.2104.failure.toast.t
+					hidden_effect = {
+						scope:obstacle_province = { 
+							remove_building = barrow_wights_cleared
+						}			
+					}
+					scope:obstacle_province = { 
+						scope:obstacle_province = { add_building = barrow_wights }
+					}	
+					add_piety = medium_piety_loss
+					increase_wounds_effect = { REASON = fight }
+				}
+			}
+		}
+	}
+
+	option = { # Leave!
+		name = wastelands.2104.b
+		hidden_effect = {
+			scope:obstacle_province = { 
+				remove_building = barrow_wights_cleared
+			}			
+		}
+		scope:obstacle_province = { 
+			scope:obstacle_province = { add_building = barrow_wights }
+		}			
+		
+		make_settlement_county_wilderness = {
+			COUNTY = scope:obstacle_province.county
+		}
 	}
 }
 	
@@ -9683,11 +9787,11 @@ wastelands.2604 = { # Too much trolling (icy, ispanets)
 	type = character_event
 	title = wastelands.2604.t
 	desc = wastelands.2604.desc
-	theme = trollshaws
+	theme = raid
 
 	left_portrait = {
 		character = root
-		animation = personality_bold
+		animation = marshal
 	}
 	
 	option = { # Charge!
@@ -9831,7 +9935,10 @@ wastelands.2801 = { # Noises and shadows (ispanets)
 		
 		random_directly_owned_province = {
 			limit = {
-				has_building = ghosts_eregion
+				OR = { 
+					has_building = ghosts_eregion
+					has_building = ghosts_ost_in_edhil
+				}
 			}
 			save_scope_as = obstacle_province
 		}
@@ -9935,7 +10042,10 @@ wastelands.2802 = { # Noises and Shadows
 		
 		random_directly_owned_province = {
 			limit = {
-				has_building = ghosts_eregion
+				OR = { 
+					has_building = ghosts_eregion
+					has_building = ghosts_ost_in_edhil
+				}
 			}
 			save_scope_as = obstacle_province
 		}
@@ -10303,7 +10413,13 @@ wastelands.2804 = { # Artifacts of old
 					title = wastelands.2804.a.success.toast.t
 					hidden_effect = {
 						scope:obstacle_province = { 
-							remove_building = ghosts_eregion_cleared
+							if = {
+								limit = { has_building = ghosts_ost_in_edhil_cleared }
+								remove_building = ghosts_ost_in_edhil_cleared
+							}
+							else = { 
+								remove_building = ghosts_eregion_cleared
+							}
 						}
 					}
 					
@@ -10322,7 +10438,13 @@ wastelands.2804 = { # Artifacts of old
 					title = wastelands.2804.a.success.toast.t
 					hidden_effect = {
 						scope:obstacle_province = { 
-							remove_building = ghosts_eregion_cleared
+							if = {
+								limit = { has_building = ghosts_ost_in_edhil_cleared }
+								remove_building = ghosts_ost_in_edhil_cleared
+							}
+							else = { 
+								remove_building = ghosts_eregion_cleared
+							}
 						}
 					}
 					
@@ -10350,7 +10472,13 @@ wastelands.2804 = { # Artifacts of old
 					title = wastelands.2804.b.success.toast.t
 					hidden_effect = {
 						scope:obstacle_province = { 
-							remove_building = ghosts_eregion_cleared
+							if = {
+								limit = { has_building = ghosts_ost_in_edhil_cleared }
+								remove_building = ghosts_ost_in_edhil_cleared
+							}
+							else = { 
+								remove_building = ghosts_eregion_cleared
+							}
 						}
 					}
 					
@@ -10369,7 +10497,13 @@ wastelands.2804 = { # Artifacts of old
 					title = wastelands.2804.b.success.toast.t
 					hidden_effect = {
 						scope:obstacle_province = { 
-							remove_building = ghosts_eregion_cleared
+							if = {
+								limit = { has_building = ghosts_ost_in_edhil_cleared }
+								remove_building = ghosts_ost_in_edhil_cleared
+							}
+							else = { 
+								remove_building = ghosts_eregion_cleared
+							}
 						}
 					}
 					scope:obstacle_province = {
@@ -10401,7 +10535,13 @@ wastelands.2804 = { # Artifacts of old
 					title = wastelands.2804.c.success.toast.t
 					hidden_effect = {
 						scope:obstacle_province = { 
-							remove_building = ghosts_eregion_cleared
+							if = {
+								limit = { has_building = ghosts_ost_in_edhil_cleared }
+								remove_building = ghosts_ost_in_edhil_cleared
+							}
+							else = { 
+								remove_building = ghosts_eregion_cleared
+							}
 						}
 					}
 					
@@ -10420,7 +10560,13 @@ wastelands.2804 = { # Artifacts of old
 					title = wastelands.2804.c.success.toast.t
 					hidden_effect = {
 						scope:obstacle_province = { 
-							remove_building = ghosts_eregion_cleared							
+							if = {
+								limit = { has_building = ghosts_ost_in_edhil_cleared }
+								remove_building = ghosts_ost_in_edhil_cleared
+							}
+							else = { 
+								remove_building = ghosts_eregion_cleared
+							}
 						}
 					}
 					scope:obstacle_province = {
@@ -10438,7 +10584,13 @@ wastelands.2804 = { # Artifacts of old
 		name = wastelands.2804.d
 		hidden_effect = {
 			scope:obstacle_province = { 
-				remove_building = ghosts_eregion_cleared
+				if = {
+					limit = { has_building = ghosts_ost_in_edhil_cleared }
+					remove_building = ghosts_ost_in_edhil_cleared
+				}
+				else = { 
+					remove_building = ghosts_eregion_cleared
+				}
 			}
 		}
 		random_list = {
@@ -10446,6 +10598,20 @@ wastelands.2804 = { # Artifacts of old
 				trigger = { 
 					cannot_be_killed = no
 					is_elf = no
+					NOT = { lotr_has_numenorean_culture_trigger = yes }
+				}
+				desc = wastelands.2804.d.duel_failure
+				send_interface_toast = {
+					left_icon = root
+					title = wastelands.2804.d.failure.toast.t
+					add_trait = possessed_1
+				}
+			}
+			30 = {
+				trigger = { 
+					cannot_be_killed = no
+					is_elf = no
+					lotr_has_numenorean_culture_trigger = yes
 				}
 				desc = wastelands.2804.d.duel_failure
 				send_interface_toast = {
@@ -10951,6 +11117,624 @@ wastelands.3203 = { # The Bold Explorer
 	
 }
 
+#######################
+# Pirate Remnants Den #
+#######################
+# From AGOT with permission 
+
+wastelands.3301 = { # The Last Raid
+	type = character_event
+	title = wastelands.3301.t
+	desc = wastelands.3301.desc
+	theme = raid
+
+	left_portrait = {
+		character = root
+		animation = anger
+	}
+
+	override_background = {
+		reference = docks_tribal
+	}
+
+	trigger = {
+		is_lotr_adult = yes
+	}
+
+	immediate = {
+		scope:obstacle_province.county = {
+			add_county_modifier = {
+				modifier = sacked_by_pirates_modifier
+				years = 1
+			}
+		}
+	}
+
+	option = { # Pursue them
+		name = wastelands.3301.a
+		skill = martial
+		duel = {
+			skill = martial
+			value = 12
+			40 = {
+				desc = wastelands.3301.a.duel_success
+				compare_modifier = {
+					value = scope:duel_value
+					multiplier = 1.5
+				}
+				send_interface_toast = {
+					left_icon = root
+					title = wastelands.3301.success.toast.t
+					scope:obstacle_province = { remove_building = pirate_remnants_cleared }
+				}
+			}
+			30 = {
+				desc = wastelands.3301.a.duel_failure
+				compare_modifier = {
+					value = scope:duel_value
+					multiplier = -1.5
+				}
+				send_interface_toast = {
+					left_icon = root
+					title = wastelands.3301.failure.toast.t
+					hidden_effect = {
+						scope:obstacle_province = { remove_building = pirate_remnants_cleared }
+					}
+					scope:obstacle_province = { add_building = pirate_remnants }
+				}
+			}
+		}
+
+		stress_impact = {
+			brave = medium_stress_impact_loss
+			vengeful = medium_stress_impact_loss
+			wrathful = medium_stress_impact_loss
+			calm = medium_stress_impact_gain
+			craven = medium_stress_impact_gain
+		}
+		ai_chance = {
+			base = 10
+			ai_value_modifier = {
+				ai_vengefulness = 0.5
+				ai_boldness = 0.5
+			}
+		}
+	}
+
+	option = { # Fortify the defenses
+		name = wastelands.3301.b
+		skill = stewardship
+		duel = {
+			skill = stewardship
+			value = 15
+			40 = {
+				desc = wastelands.3301.b.duel_success
+				compare_modifier = {
+					value = scope:duel_value
+					multiplier = 1.5
+				}
+				send_interface_toast = {
+					left_icon = root
+					title = wastelands.3301.success.toast.t
+					scope:obstacle_province = { remove_building = pirate_remnants_cleared }
+				}
+			}
+			30 = {
+				desc = wastelands.3301.b.duel_failure
+				compare_modifier = {
+					value = scope:duel_value
+					multiplier = -1.5
+				}
+				send_interface_toast = {
+					left_icon = root
+					title = wastelands.3301.failure.toast.t
+					hidden_effect = {
+						scope:obstacle_province = { remove_building = pirate_remnants_cleared }
+					}
+					scope:obstacle_province = { add_building = pirate_remnants }
+				}
+			}
+		}
+
+		stress_impact = {
+			diligent = medium_stress_impact_loss
+			calm = medium_stress_impact_loss
+		}
+		ai_chance = {
+			base = 10
+			ai_value_modifier = {
+				ai_rationality = 1
+			}
+		}
+	}
+
+	option = { # Abandon the Colony
+		name = wastelands.3301.c
+		make_settlement_county_wilderness = {
+			COUNTY = scope:obstacle_province.county
+		}
+		scope:obstacle_province = { add_building = pirate_remnants }
+		stress_impact = {
+			lazy = medium_stress_impact_loss
+			paranoid = medium_stress_impact_loss
+			craven = medium_stress_impact_loss
+		}
+	}
+}
+
+wastelands.3302 = { # Shadows Off the Shore
+	type = character_event
+	title = wastelands.3302.t
+	desc = wastelands.3302.desc
+	theme = skull
+
+	left_portrait = {
+		character = root
+		animation = fear
+	}
+
+	override_background = {
+		reference = docks_tribal
+	}
+
+	trigger = {
+		is_available_adult = yes
+	}
+
+	option = {
+		name = wastelands.3302.a
+		skill = martial
+		duel = {
+			skill = martial
+			value = 15
+			40 = {
+				desc = wastelands.3302.a.duel_success
+				compare_modifier = {
+					value = scope:duel_value
+					multiplier = 1.5
+				}
+				send_interface_toast = {
+					left_icon = root
+					title = wastelands.3302.success.toast.t
+					scope:obstacle_province = { remove_building = pirate_remnants_cleared }
+				}
+			}
+			30 = {
+				desc = wastelands.3302.a.duel_failure
+				compare_modifier = {
+					value = scope:duel_value
+					multiplier = -1.5
+				}
+				send_interface_toast = {
+					left_icon = root
+					title = wastelands.3302.failure.toast.t
+					hidden_effect = {
+						scope:obstacle_province = { remove_building = pirate_remnants_cleared }
+					}
+					scope:obstacle_province = {
+						add_building = pirate_remnants
+						county = {
+							add_county_modifier = {
+								modifier = sacked_by_pirates_modifier
+								years = 1
+							}
+						}
+					}
+				}
+			}
+		}
+
+		stress_impact = {
+			brave = medium_stress_impact_loss
+			vengeful = medium_stress_impact_loss
+			wrathful = medium_stress_impact_loss
+			craven = medium_stress_impact_gain
+			calm = medium_stress_impact_gain
+		}
+		ai_chance = {
+			base = 10
+			ai_value_modifier = {
+				ai_vengefulness = 0.5
+				ai_boldness = 0.5
+			}
+		}
+	}
+
+	option = {
+		name = wastelands.3302.b
+		skill = diplomacy
+		remove_short_term_gold = medium_gold_value
+		duel = {
+			skill = diplomacy
+			value = 15
+			40 = {
+				desc = wastelands.3302.b.duel_success
+				compare_modifier = {
+					value = scope:duel_value
+					multiplier = 1.5
+				}
+				send_interface_toast = {
+					left_icon = root
+					title = wastelands.3302.success.toast.t
+					scope:obstacle_province = { remove_building = pirate_remnants_cleared }
+				}
+			}
+			30 = {
+				desc = wastelands.3302.b.duel_failure
+				compare_modifier = {
+					value = scope:duel_value
+					multiplier = -1.5
+				}
+				send_interface_toast = {
+					left_icon = root
+					title = wastelands.3302.failure.toast.t
+					hidden_effect = {
+						scope:obstacle_province = { remove_building = pirate_remnants_cleared }
+					}
+					scope:obstacle_province = {
+						add_building = pirate_remnants
+						county = {
+							add_county_modifier = {
+								modifier = sacked_by_pirates_modifier
+								years = 1
+							}
+						}
+					}
+				}
+			}
+		}
+
+		stress_impact = {
+			diligent = medium_stress_impact_loss
+			greedy = medium_stress_impact_gain
+		}
+		ai_chance = {
+			base = 10
+			ai_value_modifier = {
+				ai_rationality = 0.5
+				ai_greed = -0.5
+			}
+		}
+	}
+
+	option = {
+		name = wastelands.3302.c
+		make_settlement_county_wilderness = {
+			COUNTY = scope:obstacle_province.county
+		}
+
+		stress_impact = {
+			lazy = medium_stress_impact_gain
+			paranoid = medium_stress_impact_loss
+			craven = medium_stress_impact_loss
+		}
+	}
+}
+
+wastelands.3303 = { # The Pirate Commander
+	type = character_event
+	title = wastelands.3303.t
+	desc = wastelands.3303.desc
+	theme = martial_chivalry_focus
+
+	left_portrait = {
+		character = root
+		animation = personality_rational
+	}
+
+	right_portrait = {
+		character = scope:pirate_leader
+		animation = aggressive_sword
+	}
+
+	override_background = {
+		reference = docks
+	}
+
+	trigger = {
+		is_available_adult = yes
+	}
+
+	immediate = {
+		create_character = {
+			template = new_warrior_character
+			location = root.location
+			faith = faith:faith_corsair
+			culture = culture:corsair
+			gender_female_chance = 30
+			save_scope_as = pirate_leader
+		}
+	}
+
+	option = {
+		name = wastelands.3303.a
+		skill = prowess
+		duel = {
+			skill = prowess
+			target = scope:pirate_leader
+			40 = {
+				desc = wastelands.3303.a.duel_success
+				compare_modifier = {
+					value = scope:duel_value
+					multiplier = 3
+				}
+				send_interface_toast = {
+					left_icon = root
+					title = wastelands.3303.success.toast.t
+					scope:obstacle_province = { remove_building = pirate_remnants_cleared }
+					scope:pirate_leader = {
+						death = {
+							death_reason = death_duel
+							killer = root
+						}
+					}
+				}
+			}
+			30 = {
+				desc = wastelands.3303.a.duel_failure
+				compare_modifier = {
+					value = scope:duel_value
+					multiplier = -3
+				}
+				send_interface_toast = {
+					left_icon = root
+					title = wastelands.3303.failure.toast.t
+					hidden_effect = {
+						scope:obstacle_province = { remove_building = pirate_remnants_cleared }
+					}
+					scope:obstacle_province = { add_building = pirate_remnants }
+					death = {
+						death_reason = death_duel
+						killer = scope:pirate_leader
+					}
+				}
+			}
+		}
+
+		stress_impact = {
+			brave = medium_stress_impact_loss
+			vengeful = medium_stress_impact_loss
+			calm = medium_stress_impact_gain
+			craven = medium_stress_impact_gain
+		}
+		ai_chance = {
+			base = 10
+			ai_value_modifier = {
+				ai_boldness = 0.5
+				ai_vengefulness = 0.5
+			}
+			modifier = {
+				prowess < 15
+				factor = 0
+			}
+		}
+	}
+
+	option = {
+		name = wastelands.3303.b
+		skill = martial
+		duel = {
+			skills = { martial intrigue }
+			value = 15
+			40 = {
+				desc = wastelands.3303.b.duel_success
+				compare_modifier = {
+					value = scope:duel_value
+					multiplier = 1.5
+				}
+				send_interface_toast = {
+					left_icon = root
+					title = wastelands.3303.success.toast.t
+					scope:obstacle_province = { remove_building = pirate_remnants_cleared }
+				}
+			}
+			30 = {
+				desc = wastelands.3303.b.duel_failure
+				compare_modifier = {
+					value = scope:duel_value
+					multiplier = -1.5
+				}
+				send_interface_toast = {
+					left_icon = root
+					title = wastelands.1503.failure.toast.t
+					hidden_effect = {
+						scope:obstacle_province = { remove_building = pirate_remnants_cleared }
+					}
+					scope:obstacle_province = { add_building = pirate_remnants }
+				}
+			}
+		}
+		stress_impact = {
+			brave = medium_stress_impact_loss
+			vengeful = medium_stress_impact_loss
+		}
+		ai_chance = {
+			base = 10
+			ai_value_modifier = {
+				ai_boldness = 0.5
+				ai_vengefulness = 0.5
+			}
+		}
+	}
+
+	option = {
+		name = wastelands.3303.c
+		skill = diplomacy
+		remove_short_term_gold = medium_gold_value
+		duel = {
+			skill = diplomacy
+			value = 15
+			40 = {
+				desc = wastelands.3303.c.duel_success
+				compare_modifier = {
+					value = scope:duel_value
+					multiplier = 1.5
+				}
+				send_interface_toast = {
+					left_icon = root
+					title = wastelands.3303.success.toast.t
+					scope:obstacle_province = { remove_building = pirate_remnants_cleared }
+				}
+			}
+			30 = {
+				desc = wastelands.3303.c.duel_failure
+				compare_modifier = {
+					value = scope:duel_value
+					multiplier = -1.5
+				}
+				send_interface_toast = {
+					left_icon = root
+					title = wastelands.3303.failure.toast.t
+					hidden_effect = {
+						scope:obstacle_province = { remove_building = pirate_remnants_cleared }
+					}
+					scope:obstacle_province = { add_building = pirate_remnants }
+				}
+			}
+		}
+
+		stress_impact = {
+			forgiving = medium_stress_impact_loss
+			vengeful = medium_stress_impact_gain
+			paranoid = medium_stress_impact_gain
+			greedy = medium_stress_impact_gain
+		}
+		ai_chance = {
+			base = 10
+			ai_value_modifier = {
+				ai_compassion = 0.5
+				ai_greed = -0.5
+			}
+		}
+	}
+
+	option = {
+		name = wastelands.3303.d
+		hidden_effect = {
+			scope:obstacle_province = { remove_building = pirate_remnants_cleared }
+		}
+		scope:obstacle_province = { add_building = pirate_remnants }
+
+		stress_impact = {
+			lazy = medium_stress_impact_loss
+			craven = medium_stress_impact_loss
+			paranoid = medium_stress_impact_loss
+		}
+	}
+}
+
+wastelands.3304 = { # The Ambush
+	type = character_event
+	title = wastelands.3304.t
+	desc = wastelands.3304.desc
+	theme = intrigue_skulduggery_focus
+
+	left_portrait = {
+		character = root
+		animation = stress
+	}
+
+	override_background = {
+		reference = docks
+	}
+
+	trigger = {
+		is_available_adult = yes
+	}
+
+	option = {
+		name = wastelands.3304.a
+		skill = martial
+		duel = {
+			skill = martial
+			value = 18
+			40 = {
+				desc = wastelands.3304.a.duel_success
+				compare_modifier = {
+					value = scope:duel_value
+					multiplier = 1.5
+				}
+				send_interface_toast = {
+					left_icon = root
+					title = wastelands.3304.success.toast.t
+					scope:obstacle_province = { remove_building = pirate_remnants_cleared }
+				}
+			}
+			30 = {
+				desc = wastelands.3304.a.duel_failure
+				compare_modifier = {
+					value = scope:duel_value
+					multiplier = -1.5
+				}
+				send_interface_toast = {
+					left_icon = root
+					title = wastelands.3304.failure.toast.t
+					hidden_effect = {
+						scope:obstacle_province = { remove_building = pirate_remnants_cleared }
+					}
+					scope:obstacle_province = { add_building = pirate_remnants }
+				}
+			}
+		}
+
+		stress_impact = {
+			brave = medium_stress_impact_loss
+			vengeful = medium_stress_impact_loss
+			wrathful = medium_stress_impact_loss
+			craven = medium_stress_impact_gain
+		}
+		ai_chance = {
+			base = 10
+			ai_value_modifier = {
+				ai_vengefulness = 0.5
+				ai_boldness = 0.5
+			}
+		}
+	}
+
+	option = {
+		name = wastelands.3304.b
+		hidden_effect = {
+			scope:obstacle_province = { remove_building = pirate_remnants_cleared }
+		}
+		scope:obstacle_province = { add_building = pirate_remnants }
+		hidden_effect = {
+			random = {
+				chance = 50
+				trigger_event = wastelands.3305
+			}
+		}
+		stress_impact = {
+			paranoid = medium_stress_impact_gain
+			brave = medium_stress_impact_gain
+			diligent = medium_stress_impact_gain
+			craven = medium_stress_impact_loss
+			lazy = medium_stress_impact_loss
+		}
+	}
+}
+
+wastelands.3305 = {
+	hidden = yes
+
+	immediate = {
+		create_character = {
+			template = new_warrior_character
+			dynasty = generate
+			location = scope:obstacle_province
+			gender_female_chance = 30
+			save_scope_as = potential_pirate
+			age = { 18 28 }
+			culture = culture:corsair
+			faith = faith:faith_corsair
+		}
+		pirate_adventurer_start_war_effect = { PIRATE = scope:potential_pirate TARGET = scope:obstacle_province.county }
+		scope:obstacle_province = {
+			add_building = pirate_remnants
+		}
+	}
+}
+
 wastelands.9000 = {
 	hidden = yes
 
@@ -10975,6 +11759,9 @@ wastelands.9000 = {
 			scope:obstacle_province = { has_building = stale_air_cleared }
 			scope:obstacle_province = { has_building = strange_creatures_cleared }
 			scope:obstacle_province = { has_building = shadow_of_mordor_cleared }
+			scope:obstacle_province = { has_building = ghosts_ost_in_edhil_cleared  }
+			scope:obstacle_province = { has_building = barrow_wights_cleared }
+			scope:obstacle_province = { has_building = pirate_remnants_cleared }
 		}
 	}
 
@@ -11001,6 +11788,9 @@ wastelands.9000 = {
 				stale_air_cleared = { scope:obstacle_province = { remove_building = stale_air_cleared } }
 				strange_creatures_cleared = { scope:obstacle_province = { remove_building = strange_creatures_cleared } }
 				shadow_of_mordor_cleared = { scope:obstacle_province = { remove_building = shadow_of_mordor_cleared } }
+				ghosts_ost_in_edhil_cleared  = { scope:obstacle_province = { remove_building = ghosts_ost_in_edhil_cleared  } }
+				barrow_wights_cleared = { scope:obstacle_province = { remove_building = barrow_wights_cleared } }
+				pirate_remnants_cleared = { scope:obstacle_province = { remove_building = pirate_remnants_cleared } }
 			}
 		}
 	}

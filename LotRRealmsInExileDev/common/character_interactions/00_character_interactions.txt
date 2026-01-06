@@ -513,6 +513,15 @@ offer_vassalization_interaction = {
 		modifier = { #I am a King! Or Emperor!
 			desc = offer_vassalization_interaction_aibehavior_hightier_tt
 			trigger = {
+				NAND = {
+					scope:actor = {
+						government_has_flag = government_is_celestial
+						highest_held_title_tier >= tier_hegemony
+					}
+					scope:recipient = {
+						government_has_flag = government_is_celestial
+					}
+				}
 				scope:recipient = { highest_held_title_tier >= tier_kingdom }
 			}
 			add = {
@@ -1533,9 +1542,21 @@ offer_fealty_interaction = {
 		}
 		scope:actor.highest_held_title_tier < scope:recipient.highest_held_title_tier
 		scope:actor = {
-			is_landed = yes
-			top_liege = this # You have to be independent - This check exists to prevent a lot of edge-cases where you can change liege
-			NOT = { government_has_flag = cannot_be_vassal_or_liege }
+			OR = {
+                AND = { 
+                    is_landed = yes # You have land
+                    top_liege = this # You have to be independent - This check exists to prevent a lot of edge-cases where you can change liege
+                }
+                AND = { #LotR - Rangers can swear fealty
+                    has_realm_law = camp_purpose_rangers
+                    is_tributary = no
+                }
+            }
+			# NOT = { government_has_flag = cannot_be_vassal_or_liege }
+            trigger_if = { #LotR - Rangers can swear fealty
+                limit = { government_has_flag = cannot_be_vassal_or_liege }
+                has_realm_law = camp_purpose_rangers
+            }
 			is_confederation_member = no
 		}
 	}
@@ -1544,7 +1565,7 @@ offer_fealty_interaction = {
 		scope:actor = {
 			is_imprisoned = no
 			is_at_war = no
-            trigger_if = { #LOTR
+            trigger_if = { #LOTR - Rangers can't swear fealty to just anyone
                 limit = { has_realm_law = camp_purpose_rangers }
                 ranger_can_swear_fealty_to_trigger = { CHARACTER = scope:recipient }
             }
@@ -1961,7 +1982,18 @@ offer_fealty_interaction = {
 	send_options_exclusive = yes
 
 	on_accept = {
-		offer_fealty_interaction_effect = yes
+		if = { #LotR - Setting up Ranger fealty
+            limit = {
+                scope:actor = {
+                    has_realm_law = camp_purpose_rangers
+                }
+            }
+            offer_fealty_ranger_interaction_effect = {
+                TRIBUTARY = scope:actor
+                SUZERAIN = scope:recipient
+            }
+        }
+        else = { offer_fealty_interaction_effect = yes }
 
 		scope:actor = {
 			trigger_event = char_interaction.0010
@@ -2027,6 +2059,14 @@ offer_fealty_interaction = {
 					}
 				}
 			}
+
+			
+            if = { #LotR
+                limit = { has_realm_law = camp_purpose_rangers }
+                hidden_effect = {
+                    trigger_event = rangers.9200
+                }
+            }
 		}
 		scope:recipient = {
 			if = {
@@ -2316,7 +2356,10 @@ grant_independence_interaction = {
 			is_in_valinor = no
 		}
 		scope:actor = {
-			is_confederation_member = no
+			trigger_if = {
+				limit = { is_confederation_member = yes }
+				exists = house.house_confederation
+			}
 		}
 		scope:recipient = {
 			is_vassal_of = scope:actor
@@ -2370,11 +2413,10 @@ grant_independence_interaction = {
 			text = can_only_remove_diarch_by_elevating_them.tt
 			NOT = { scope:recipient ?= scope:actor.diarch }
 		}
-		# LOTR Disabled
-	#	tgp_blocked_action_against_tenno_trigger = {
-	#		ACTOR = scope:actor
-	#		TARGET = scope:recipient
-	#	}
+		tgp_blocked_action_against_tenno_trigger = {
+			ACTOR = scope:actor
+			TARGET = scope:recipient
+		}
 	}
 
 	auto_accept = yes
@@ -2682,6 +2724,49 @@ expose_secret_interaction = {
 						secret_owner = scope:recipient
 					}
 					expose_secret = scope:actor
+				}
+			}
+			if = {
+				limit = {
+					has_title = title:e_minister_of_justice
+					top_participant_group:dynastic_cycle ?= {
+						NOT = { participant_group_type = other_rulers }
+					}
+					OR = {
+						scope:recipient = {
+							top_participant_group:dynastic_cycle ?= {
+								NOT = { participant_group_type = other_rulers }
+							}
+						}
+						scope:target.secret_target = {
+							top_participant_group:dynastic_cycle ?= {
+								NOT = { participant_group_type = other_rulers }
+							}
+						}
+					}
+				}
+				add_merit_if_relevant_effect = {
+					MERIT = minor_merit_value
+				}
+				if = {
+					limit = {
+						government_has_flag = government_has_influence
+					}
+					change_influence = {
+						value = minor_influence_gain
+						multiply = scope:recipient.highest_held_title_tier
+					}
+				}
+				situation:dynastic_cycle = {
+					if = {
+						limit = {
+							situation_top_has_catalyst = catalyst_minister_exposed_secret
+						}
+						trigger_situation_catalyst = {
+							catalyst = catalyst_minister_exposed_secret
+							character = scope:actor
+						}
+					}
 				}
 			}
 

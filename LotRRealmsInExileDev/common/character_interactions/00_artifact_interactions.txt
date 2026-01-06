@@ -56,13 +56,6 @@ gift_artifact_interaction = {
 				is_equipped = no
 			}
 		}
-		trigger_if = { #Only the Lord of Gifts will hand out Rings of Power
-			limit = { 
-				scope:target = { has_variable = ring_of_power }
-				sauron_is_alive = yes
-			}
-			scope:actor = { is_sauron = yes }
-		}
 		scope:actor = {
 			any_character_artifact = {
 				this = scope:target
@@ -76,6 +69,20 @@ gift_artifact_interaction = {
 				has_variable = is_tribute_mission_artifact
 			}
 		}
+		#LotR
+		trigger_if = { #Only the Lord of Gifts will hand out Rings of Power
+			limit = { 
+				scope:target = { has_variable = ring_of_power }
+				sauron_is_alive = yes
+			}
+			scope:actor = { is_sauron = yes }
+		}
+		trigger_if = { #Story items can't be gifted by the AI
+			limit = { 
+				scope:target = { has_variable = ai_ungiftable }
+			}
+			scope:actor = { is_ai = no }
+		}			
 	}
 
 
@@ -389,13 +396,41 @@ gift_artifact_interaction = {
 			# Warning for low opinion gain
 			if = {
 				limit = {
-					scope:target = { artifact_durability <= define:NInventory|ARTIFACT_LOW_DURABILITY }
+					scope:target = {
+						OR = {
+							AND = {
+								artifact_max_durability >= define:NInventory|ARTIFACT_DEFAULT_MAX_DURABILITY 
+								artifact_durability <= define:NInventory|ARTIFACT_LOW_DURABILITY
+							}
+							AND = {  #Check %durability left instead of fixed durability
+								artifact_max_durability < define:NInventory|ARTIFACT_DEFAULT_MAX_DURABILITY 
+								artifact_durability_percent <= {
+									value = define:NInventory|ARTIFACT_LOW_DURABILITY
+									divide = 100
+								}
+							}
+						}
+					}
 				}
 				custom_tooltip = artifact_gift_low_durability_tt
 			}
 			if = {
 				limit = {
-					scope:target = { artifact_durability <= define:NInventory|ARTIFACT_VERY_LOW_DURABILITY }
+					scope:target = {
+						OR = {
+							AND = {
+								artifact_max_durability >= define:NInventory|ARTIFACT_DEFAULT_MAX_DURABILITY
+								artifact_durability <= define:NInventory|ARTIFACT_VERY_LOW_DURABILITY
+							}
+							AND = { #Check %durability left instead of fixed durability
+								artifact_max_durability < define:NInventory|ARTIFACT_DEFAULT_MAX_DURABILITY
+								artifact_durability_percent <= {
+									value = define:NInventory|ARTIFACT_VERY_LOW_DURABILITY
+									divide = 100
+								}
+							}
+						}
+					}
 				}
 				custom_tooltip = artifact_gift_very_low_durability_tt
 			}
@@ -766,6 +801,28 @@ gift_artifact_interaction = {
 					}
 					scope:target = {
 						equip_artifact_to_owner_replace = yes
+					}
+				}
+			}
+			#LotR - hope gain on receiving Elven artifact
+			if = {
+				limit = { is_elf = yes }
+				if = {
+					limit = {
+						scope:target = {
+							has_variable = elven
+						}
+					}
+					if = {
+						limit = {
+							scope:target = {
+								rarity = illustrious
+							}
+						}
+						add_elven_hope_effect = { VALUE = major_elven_hope_gain HOPE_EFFECT = effect_elven_hope_illustrious_artifact_recovered }
+					}
+					else = {
+						add_elven_hope_effect = { VALUE = medium_elven_hope_gain HOPE_EFFECT = effect_elven_hope_famed_artifact_recovered }
 					}
 				}
 			}
@@ -1515,6 +1572,28 @@ demand_artifact_interaction = {
 					}
 					scope:recipient = {
 						set_relation_potential_rival = scope:actor
+					}
+				}
+			}
+			#LotR - hope gain on receiving Elven artifact
+			if = {
+				limit = { is_elf = yes }
+				if = {
+					limit = {
+						scope:demanded_artifact = {
+							has_variable = elven
+						}
+					}
+					if = {
+						limit = {
+							scope:demanded_artifact = {
+								rarity = illustrious
+							}
+						}
+						add_elven_hope_effect = { VALUE = major_elven_hope_gain HOPE_EFFECT = effect_elven_hope_illustrious_artifact_recovered }
+					}
+					else = {
+						add_elven_hope_effect = { VALUE = medium_elven_hope_gain HOPE_EFFECT = effect_elven_hope_famed_artifact_recovered }
 					}
 				}
 			}
@@ -2959,12 +3038,15 @@ start_stealing_back_artifact = {
 					can_be_claimed_by = scope:actor
 				}
 			}
-			scope:actor = {
-				OR = {
-					employs_court_position = master_thief_camp_officer
-					any_character_active_contract = {
-						task_contract_type = laamp_steal_artifact_contract
-						var:task_contract_target ?= scope:recipient
+			AND = {
+				scope:recipient = { has_any_artifact = yes }
+				scope:actor = {
+					OR = {
+						employs_court_position = master_thief_camp_officer
+						any_character_active_contract = {
+							task_contract_type = laamp_steal_artifact_contract
+							var:task_contract_target ?= scope:recipient
+						}
 					}
 				}
 			}
@@ -2995,6 +3077,7 @@ start_stealing_back_artifact = {
 						target_character = scope:recipient
 					}
 				}
+				scope:recipient = { has_any_artifact = yes }
 			}
 		}
 		trigger_if = {
@@ -3048,6 +3131,23 @@ start_stealing_back_artifact = {
 				}
 			}
 		}
+
+		trigger_if = { #In range for LAAMP
+			limit = {
+				scope:actor = { is_landless_adventurer = yes }
+				scope:recipient = {
+					NOT = {
+						any_character_artifact = {
+							scope:actor = { has_artifact_claim = prev }
+						}
+					}
+				}
+			}
+			ep3_laamp_diplo_range_trigger = {
+				TARGET = scope:recipient
+				LAAMP = scope:actor
+			}
+		}
 	}
 
 	desc = {
@@ -3095,6 +3195,7 @@ start_stealing_back_artifact = {
 			}
 		}
 	}
+
 	# Scheme Starter Packages
 	options_heading = schemes.t.agent_packages
 	send_options_exclusive = yes
@@ -4122,7 +4223,7 @@ buy_artifact_claim = {
 				OR = {
 					has_relation_friend = scope:actor
 					has_relation_lover = scope:actor
-#					is_close_or_extended_family_of = scope:actor
+					#is_close_or_extended_family_of = scope:actor
 				}
 			}
 			factor = 0
@@ -4490,7 +4591,6 @@ destroy_artifact_interaction = {
 	icon = artifact
 	category = interaction_category_friendly
 	desc = destroy_artifact_interaction_desc
-	icon = artifact
 
 	target_type = artifact
 	target_filter = actor_artifacts
@@ -4733,7 +4833,19 @@ destroy_artifact_interaction = {
 			scope:target = {
 				rarity = common
 				artifact_slot_type = miscellaneous
-				artifact_durability <= define:NInventory|ARTIFACT_LOW_DURABILITY
+				OR = {
+					AND = {
+						artifact_max_durability >= define:NInventory|ARTIFACT_DEFAULT_MAX_DURABILITY
+						artifact_durability <= define:NInventory|ARTIFACT_LOW_DURABILITY
+					}
+					AND = {
+						artifact_max_durability < define:NInventory|ARTIFACT_DEFAULT_MAX_DURABILITY
+						artifact_durability_percent <= {
+							value = define:NInventory|ARTIFACT_LOW_DURABILITY
+							divide = 100
+						}
+					}
+				}
 			}
 		}
 		modifier = { # Aniconists destroy most things

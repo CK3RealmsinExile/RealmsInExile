@@ -11,6 +11,7 @@ Includes = {
 	"bordercolor.fxh"
 	"dynamic_masks.fxh"
 	"legend.fxh"
+	"lowspec.fxh"
 	"disease.fxh"
 	"shadow_tint.fxh"
 	"clouds.fxh"
@@ -98,49 +99,59 @@ PixelShader =
 			#endif
 
 			float2 ColorMapCoords = WorldSpacePos.xz * WorldSpaceToTerrain0To1;
-
+			
 			EffectIntensities ConditionData;
 			SampleProvinceEffectsMask( ColorMapCoords, ConditionData );
 			ApplyProvinceEffectsDecal( ConditionData, Diffuse, ColorMapCoords );
 
 			float SnowHighlight = 0.0f;
-			ApplySnowMaterialMesh( ConditionData, Diffuse, Properties, Normal, WorldSpacePos.xz, SnowHighlight );
+			ApplySnowMaterialMesh( Diffuse, Properties, Normal, WorldSpacePos.xz, ColorMapCoords, SnowHighlight, 4.0f );
 
 			float3 ColorMap = ToLinear( PdxTex2D( ColorTexture, float2( ColorMapCoords.x, 1.0 - ColorMapCoords.y ) ).rgb );
 			Diffuse = GetOverlay( Diffuse, ColorMap, 0.5 );
 
-			ApplyHighlightColor( Diffuse, ColorMapCoords );
-			CompensateWhiteHighlightColor( Diffuse, ColorMapCoords, SnowHighlight );
+			float4 HighlightColor = GetHighlightColor( ColorMapCoords );
+			ApplyHighlightColor( Diffuse, HighlightColor );
+			CompensateWhiteHighlightColor( Diffuse, HighlightColor, SnowHighlight );
 
 			SMaterialProperties MaterialProps = GetMaterialProperties( Diffuse, Normal, Properties.a, Properties.g, Properties.b );
-			SLightingProperties LightingProps = GetMapLightingProperties( WorldSpacePos, ShadowTexture );
-			const float3 TerrainNormal = CalculateNormal( WorldSpacePos.xz );
-			float CloudMask = GetCloudShadowMask( WorldSpacePos.xz );
-			#ifdef FAKE_TERRAIN_SHADOW
-				// Use dual scenario lighting for decals
-				LightingProps._ToLightDir = ToTerrainSunnySunDir;
-				float TerrainShadowTerm = GetShadowTintMask( ColorMapCoords, LightingProps._ToLightDir, LightingProps._ShadowTerm, TerrainNormal, Normal );
-				LightingProps._ShadowTerm = LightingProps._ShadowTerm * ( 1.0f - TerrainShadowTerm );
+			
 
-				// Use unified dual scenario lighting for decals
-				float3 Color = CalculateTerrainDualScenarioLighting( LightingProps, MaterialProps, CloudMask, EnvironmentMap );
-
-				// Apply shadow tint with cloud interaction for decals
-				Color = ApplyTerrainShadowTintWithClouds( Color, WorldSpacePos.xz, CloudMask, LightingProps._ShadowTerm, Normal, TerrainNormal );
+			#ifdef LOW_SPEC_SHADERS
+				SLightingProperties LightingProps = GetMapLightingProperties( WorldSpacePos, 1.0f );
+				float3 Color = CalculateTerrainSunLightingLowSpec( MaterialProps, LightingProps );
 			#else
-				float3 Color = CalculateMapObjectsSunnyLighting( LightingProps, MaterialProps, EnvironmentMap );
+				SLightingProperties LightingProps = GetMapLightingProperties( WorldSpacePos, ShadowTexture );
+				const float3 TerrainNormal = CalculateNormal( WorldSpacePos.xz );
+				float CloudMask = GetCloudShadowMask( WorldSpacePos.xz );
+				#ifdef FAKE_TERRAIN_SHADOW
+					// Use dual scenario lighting for decals
+					LightingProps._ToLightDir = ToTerrainSunnySunDir;
+					SShadowTintData ShadowTintData = GetShadowTintData( ColorMapCoords );
+					float TerrainShadowTerm = GetShadowTintMask( ShadowTintData, LightingProps._ToLightDir, LightingProps._ShadowTerm, TerrainNormal, Normal );
+					LightingProps._ShadowTerm = LightingProps._ShadowTerm * ( 1.0f - TerrainShadowTerm );
 
-				// Apply shadow tint with cloud interaction for non-terrain-shadow decals
-				Color = ApplyMapObjectsShadowTintWithClouds( Color, WorldSpacePos.xz, CloudMask, LightingProps._ShadowTerm, Normal, TerrainNormal );
+					// Use unified dual scenario lighting for decals
+					float3 Color = CalculateTerrainDualScenarioLighting( LightingProps, MaterialProps, CloudMask, EnvironmentMap );
+
+					// Apply shadow tint with cloud interaction for decals
+					Color = ApplyTerrainShadowTintWithClouds( Color, WorldSpacePos.xz, CloudMask, LightingProps._ShadowTerm, Normal, TerrainNormal );
+				#else
+					float3 Color = CalculateMapObjectsSunnyLighting( LightingProps, MaterialProps, EnvironmentMap );
+
+					// Apply shadow tint with cloud interaction for non-terrain-shadow decals
+					Color = ApplyMapObjectsShadowTintWithClouds( Color, ColorMapCoords, CloudMask, LightingProps._ShadowTerm, Normal, TerrainNormal );
+				#endif
+
+				ApplyLegendDiffuse( Color, ColorMapCoords );
+				ApplyDiseaseDiffuse( Color, ColorMapCoords );
 			#endif
-
-			ApplyLegendDiffuse( Color, ColorMapCoords );
-			ApplyDiseaseDiffuse( Color, ColorMapCoords );
 			// MOD(godherja)
 			//Color = ApplyFogOfWar( Color, WorldSpacePos, FogOfWarAlpha );
 			Color = GH_ApplyAtmosphericEffects( Color, WorldSpacePos, FogOfWarAlpha );
-			// END MOD
 			Color = ApplyMapDistanceFogWithoutFoW( Color, WorldSpacePos );
+			// END MOD
+			
 
 			//  DebugReturn( Color, MaterialProps, LightingProps, EnvironmentMap );
 			return Color;

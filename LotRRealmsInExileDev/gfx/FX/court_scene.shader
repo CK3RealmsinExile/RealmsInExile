@@ -823,7 +823,7 @@ PixelShader =
 		// END MOD
 		{
 			GetSpecularAA( Normal, 1.0f, 1.0f, Properties.a );
-			
+
 			SMaterialProperties MaterialProps = GetMaterialProperties( Diffuse.rgb, Normal, saturate( Properties.a ), Properties.g, Properties.b );
 			SLightingProperties LightingProps = GetSunLightingProperties( Input.WorldSpacePos, ShadowTexture );
 
