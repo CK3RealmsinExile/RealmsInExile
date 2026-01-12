@@ -339,7 +339,7 @@ PixelShader =
 				SMaterialProperties MaterialProps = GetMaterialProperties( CloudColor, Normal, 0.9, 0.5, 0.0 );
 				SLightingProperties LightingProps = GetSunLightingProperties( Input.WorldSpacePos, 1.0 );
 				
-				float3 Color = CalculateSunLightingLowSpec( MaterialProps, LightingProps );
+				float3 Color = CalculateTerrainSunLightingLowSpec( MaterialProps, LightingProps );
 				
 				Color = ApplyDistanceFog( Color, Input.WorldSpacePos );
 				

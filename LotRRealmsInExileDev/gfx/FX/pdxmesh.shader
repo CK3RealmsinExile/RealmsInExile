@@ -532,29 +532,21 @@ PixelShader =
 					Diffuse.rgb *= Unique.bbb;
 				#endif
 
-				float2 ColorMapCoords =  Input.WorldSpacePos.xz *  WorldSpaceToTerrain0To1;
+				float2 ColorMapCoords = Input.WorldSpacePos.xz *  WorldSpaceToTerrain0To1;
 				#if defined( APPLY_WINTER )
 					float SnowHighlight = 0.0;
-					EffectIntensities ConditionData;
-					SampleProvinceEffectsMask( ColorMapCoords, ConditionData );
-					ApplySnowMaterialMesh( ConditionData, Diffuse.rgb, Properties, Normal, Input.WorldSpacePos.xz, SnowHighlight, 2.0f );
+					ApplySnowMaterialMesh( Diffuse.rgb, Properties, Normal, Input.WorldSpacePos.xz, ColorMapCoords, SnowHighlight, 2.0f );
 				#endif
 
-				float FogOfWarAlphaValue = PdxTex2D( FogOfWarAlpha, 
-					Input.WorldSpacePos.xz * WorldSpaceToTerrain0To1 ).r;
+				float FogOfWarAlphaValue = PdxTex2D( FogOfWarAlpha, ColorMapCoords ).r;
 
 				#ifdef MAP_LIGHTING_HACK
-					// Adjust material properties based on FoW
-					float Roughness = Properties.a;
-					float SpecIntensity = Properties.g;
-					float Metalness = Properties.b;
-
 					SMaterialProperties MaterialProps = GetMaterialProperties(
 						Diffuse.rgb,
 						Normal,
-						Roughness,      // Max roughness in FoW 
-						SpecIntensity,  // No specular in FoW
-						Metalness       // No metalness in FoW
+						Properties.a,
+						Properties.g,
+						Properties.b
 					);
 				#else
 					SMaterialProperties MaterialProps = GetMaterialProperties( Diffuse.rgb, Normal, Properties.a, Properties.g, Properties.b );
@@ -564,8 +556,12 @@ PixelShader =
 				#if defined( LOW_SPEC_SHADERS )
 					SLightingProperties LightingProps = GetMapLightingProperties( 
 						Input.WorldSpacePos, 1.0f );
-					float3 Color = CalculateSunLightingLowSpec( MaterialProps, 
-						LightingProps );
+					#ifdef MAP_LIGHTING_HACK
+						float3 Color = CalculateMapObjectsSunLightingLowSpec( MaterialProps, LightingProps );
+					#else
+						float3 Color = CalculateSunLightingLowSpec( MaterialProps, LightingProps );
+					#endif
+
 				#else
 					SLightingProperties LightingProps = GetMapLightingProperties(
 						Input.WorldSpacePos, ShadowTexture );
@@ -580,14 +576,15 @@ PixelShader =
 						float3 TerrainNormal = CalculateNormal( Input.WorldSpacePos.xz );
 
 						LightingProps._ToLightDir = ToTerrainSunnySunDir;
-						float TerrainShadowTerm = GetShadowTintMask( ColorMapCoords, LightingProps._ToLightDir, LightingProps._ShadowTerm, TerrainNormal, Normal );
+						SShadowTintData ShadowTintData = GetShadowTintData( ColorMapCoords );
+						float TerrainShadowTerm = GetShadowTintMask( ShadowTintData, LightingProps._ToLightDir, LightingProps._ShadowTerm, TerrainNormal, Normal );
 						LightingProps._ShadowTerm = LightingProps._ShadowTerm * ( 1.0f - TerrainShadowTerm );
 
 						// Use dual scenario lighting wrapper function for all map objects
 						float3 Color = CalculateMapObjectsDualScenarioLighting( LightingProps, MaterialProps, CloudMask, EnvironmentMap );
 						
 						// Apply shadow tint with cloud interaction for map objects
-						Color = ApplyMapObjectsShadowTintWithClouds( Color, Input.WorldSpacePos.xz, CloudMask, LightingProps._ShadowTerm, Normal, TerrainNormal );
+						Color = ApplyMapObjectsShadowTintWithClouds( Color, ColorMapCoords, CloudMask, LightingProps._ShadowTerm, Normal, TerrainNormal );
 					#else
 						float3 Color = CalculateSunLighting( MaterialProps, LightingProps, EnvironmentMap );
 					#endif
@@ -737,7 +734,7 @@ PixelShader =
 				SMaterialProperties MaterialProps = GetMaterialProperties( Diffuse.rgb, Normal, Properties.a, Properties.g, Properties.b );
 				#if defined( LOW_SPEC_SHADERS )
 					SLightingProperties LightingProps = GetSunLightingProperties( Input.WorldSpacePos, 1.0 );
-					float3 Color = CalculateSunLightingLowSpec( MaterialProps, LightingProps );
+					float3 Color = CalculateMapObjectsSunLightingLowSpec( MaterialProps, LightingProps );
 				#else
 					SLightingProperties LightingProps = GetSunLightingProperties( Input.WorldSpacePos, ShadowTexture );
 					float3 Color = CalculateSunLighting( MaterialProps, LightingProps, EnvironmentMap );

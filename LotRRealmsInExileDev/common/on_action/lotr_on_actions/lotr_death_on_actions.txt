@@ -1,0 +1,547 @@
+﻿# character just about to die in root scope
+# if a killer is known, it's set as scope:killer
+
+lotr_on_death = {
+    effect = {
+		if = {
+			limit = { is_sauron = yes }
+
+			set_global_variable = {
+				name = fourth_age_date
+				value = current_year
+			}
+		}
+
+        if = { #Initial setup of ""potential"" challengers for the throne
+            limit = {
+                government_has_flag = government_is_orcish 
+                OR = {
+					exists = primary_heir
+					exists = player_heir
+					exists = designated_heir
+				}
+            }
+			if = {
+				limit = { exists = designated_heir designated_heir = { cannot_be_killed = no } }
+				save_scope_as = previous_ruler
+				designated_heir = { trigger_event = { id = orc_government_events.0001 } }
+			}
+			else_if = {
+				limit = { exists = player_heir player_heir = { cannot_be_killed = no } }
+				save_scope_as = previous_ruler
+				player_heir = { trigger_event = { id = orc_government_events.0001 } }
+			}
+			else_if = { 
+				limit = { exists = primary_heir primary_heir = { cannot_be_killed = no } }
+				save_scope_as = previous_ruler
+				primary_heir = { trigger_event = { id = orc_government_events.0001 } }
+			}
+        }
+
+        if = { #Achievements
+			limit = {
+				scope:killer ?= { is_ai = no }
+				realms_achievements_enabled = yes
+			}
+			if = { # My new Death-Ray | Achievement
+				limit = {
+					NOT = { exists = global_var:lotr_achievement_14 }
+					scope:killer ?= { has_primary_title = title:k_ray }
+				}
+				if = {
+					limit = { NOT = { title:k_ray = { has_variable = achievement_variable } } }
+					title:k_ray = {
+						set_variable = {
+							name = achievement_variable
+							value = 1
+						}
+					}
+				}
+				else = {
+					title:k_ray = {
+						change_variable = {
+							name = achievement_variable
+							add = 1
+						}
+					}
+				}
+				if = {
+					limit = {
+						exists = title:k_ray.var:achievement_variable
+						title:k_ray.var:achievement_variable > 199
+					}
+					set_global_variable = lotr_achievement_14
+				}
+			}
+			if = { # Eleven ears and Hobbit toes! | Achievement
+				limit = {
+					scope:killer = { is_orc = yes }
+					NOT = { exists = global_var:lotr_achievement_45 }
+				}
+
+				if = {
+					limit = {
+						NOT = { has_variable = killed_elf }
+						root = { is_elf = yes }
+					}
+					scope:killer = { set_variable = killed_elf }
+				}
+				if = {
+					limit = {
+						NOT = { has_variable = killed_hobbit }
+						root = { is_hobbit = yes }
+					}
+					scope:killer = { set_variable = killed_hobbit }
+				}
+
+				if = {
+					limit = {
+						scope:killer = { has_variable = killed_hobbit }
+						scope:killer = { has_variable = killed_elf }
+					}
+					set_global_variable = lotr_achievement_45
+				}
+			}
+		}
+
+		if = {
+			limit = { has_realm_law = dwarven_succession_law }
+			dwarven_succession_on_death_effect = yes
+		}
+
+        if = { #Ensure that we hand off Leader of Balan-lai before death to avoid swearing fealty issues when title tier of old holder > new holder
+			limit = {
+				has_title = title:d_balan_lai_leader
+			}
+			create_title_and_vassal_change = {
+				type = election
+				save_scope_as = title_change
+				add_claim_on_loss = no
+			}
+			title:d_balan_lai_leader = {
+				change_title_holder = {
+					holder = title:d_balan_lai_leader.current_heir
+					change = scope:title_change
+				}
+			}
+			resolve_title_and_vassal_change = scope:title_change
+		}
+
+        if = { #Pass on Balan-lai member trait to heir
+			limit = {
+				has_trait = balan_lai_member
+			}
+			save_scope_as = former_member
+			title:k_wastelands = { remove_list_variable = { name = balan_lai_members target = scope:former_member } }
+			if = {
+				limit = {
+					exists = player_heir
+					is_landed = yes
+				}
+				player_heir = {
+					trigger_event = {
+						id = lotr_thani_hazad.9000
+						days = 1
+					}
+				}
+			}
+		}
+
+		# Imrazor & Arimith event chain
+
+		if = { # If Imrazor dies, Arimith loses cannot marry trait
+			limit = {
+				character:linealsariastwo37 ?= { is_alive = no } # Imrazor
+				character:lineofkrassabarohin103 ?= { is_alive = yes } # Arimith
+			}
+			character:lineofkrassabarohin103 ?= {
+				trigger_event = {
+					id = lotr_thani_hazad.3027
+					days = 1
+				}
+			}
+		}
+
+		if = { # If Arimith dies, Imrazor loses cannot marry trait
+			limit = {
+				character:lineofkrassabarohin103 ?= { is_alive = no } # Arimith
+				character:linealsariastwo37 ?= { is_alive = yes } # Imrazor
+			}
+			character:linealsariastwo37 ?= {
+				trigger_event = {
+					id = lotr_thani_hazad.3027
+					days = 1
+				}
+			}
+		}
+
+        if = {
+			limit = {
+				has_trait = elf_pregnant
+				any_spouse = {
+					count > 0
+				}
+			}
+			every_spouse = {
+				if = {
+					limit = { has_trait = elf_pregnant_1 }
+					remove_trait = elf_pregnant_1
+				} else_if = {
+					limit = { has_trait = elf_pregnant_2 }
+					remove_trait = elf_pregnant_2
+				} else_if = {
+					limit = { has_trait = elf_pregnant_3 }
+					remove_trait = elf_pregnant_3
+				} else_if = {
+					limit = { has_trait = elf_pregnant_4 }
+					remove_trait = elf_pregnant_4
+				}
+			}
+
+		}
+
+		if = {
+			limit = {
+				primary_title = title:d_balins_expedition
+				trigger_if = {
+					limit = {
+						title:k_khazad_dum = {
+							any_county_struggle = {
+								this = struggle:balrog_struggle
+							}
+						}
+						player_heir = { is_landed = yes }
+					}
+					NOT = { player_heir.capital_county.title_province = { geographical_region = middleearth_mountains_misty_balrog_struggle_region } }
+				}
+				trigger_if = {
+					limit = { player_heir = { is_landed = no } }
+					always = no
+				}
+			}
+			title:k_khazad_dum = {
+				every_in_de_jure_hierarchy = {
+					limit = { tier = tier_county holder = root }
+					make_settlement_county_wilderness = { COUNTY = this }
+				}
+			}
+			destroy_title = title:d_balins_expedition
+			send_interface_toast = {
+				title = balin_expedition_wastelands
+				left_icon = root
+				custom_tooltip = balin_expedition_wastelands
+			}
+		}
+
+		if = {
+			limit = {
+				has_variable_list = defensive_allies
+			}
+			every_in_list = {
+				variable = defensive_allies
+				save_scope_as = defensive_ally
+			}
+			clear_variable_list = defensive_allies
+			scope:defensive_ally = { clear_variable_list = defensive_allies }
+		}
+
+		if = { #Heirloom artifact returns to its previous holder
+			limit = {
+				any_character_artifact = {
+					has_variable = heirloom_of_title
+					root != var:heirloom_of_title.holder
+				}
+			}
+			random_character_artifact = {
+				limit = {
+					has_variable = heirloom_of_title
+					root != var:heirloom_of_title.holder
+				}
+				if = {
+					limit = {
+						var:heirloom_of_title.holder = {
+							dynasty = root.dynasty
+							is_liege_or_above_of = root
+						}
+					}
+					set_owner = var:heirloom_of_title.holder
+					add_artifact_history = {
+						type = inherited
+						actor = root
+						recipient = var:heirloom_of_title.holder
+					}
+					root =  { save_scope_as = dead_heir }
+					var:heirloom_of_title.holder = {
+						trigger_event = {
+							id = lotr_artifact.0013
+							days = 1
+						}
+					}
+					root =  { save_scope_as = dead_heir }
+				}
+			}
+		}
+
+		#LotR - Hope decreases when a notable elf dies
+		if = {
+			limit = {
+				is_elf = yes
+				OR = { #Important enough that anyone cares
+					is_ruler = yes
+					any_close_or_extended_family_member = { is_ruler = yes }
+					any_spouse = { is_ruler = yes }
+				}
+			}
+			if = {
+				limit = { is_ruler = yes }
+				switch = {
+					trigger = primary_title.tier
+					tier_county = {
+						add_elven_hope_effect = { VALUE = medium_elven_hope_loss HOPE_EFFECT = effect_elven_hope_count_died }
+					}
+					tier_duchy = {
+						add_elven_hope_effect = { VALUE = major_elven_hope_loss HOPE_EFFECT = effect_elven_hope_duke_died }
+					}
+					tier_kingdom = {
+						add_elven_hope_effect = { VALUE = massive_elven_hope_loss HOPE_EFFECT = effect_elven_hope_king_died }
+					}
+					tier_empire = {
+						add_elven_hope_effect = { VALUE = monumental_elven_hope_loss HOPE_EFFECT = effect_elven_hope_emperor_died }
+					}
+				}
+			}
+			else_if = {
+				limit = {
+					any_spouse = { is_ruler = yes }
+				}
+				primary_spouse = {
+					switch = {
+						trigger = primary_title.tier
+						tier_county = {
+							add_elven_hope_effect = { VALUE = minor_elven_hope_loss HOPE_EFFECT = effect_elven_hope_elf_died }
+						}
+						tier_duchy = {
+							add_elven_hope_effect = { VALUE = medium_elven_hope_loss HOPE_EFFECT = effect_elven_hope_elf_died }
+						}
+						tier_kingdom = {
+							add_elven_hope_effect = { VALUE = major_elven_hope_loss HOPE_EFFECT = effect_elven_hope_elf_died }
+						}
+						tier_empire = {
+							add_elven_hope_effect = { VALUE = massive_elven_hope_loss HOPE_EFFECT = effect_elven_hope_elf_died }
+						}
+					}
+				}
+			}
+			else_if = {
+				limit = {
+					any_close_family_member = { is_ruler = yes }
+				}
+				random_close_family_member = { #Find highest ranked close family member
+					limit = {
+						is_ruler = yes
+						save_temporary_scope_as = important_relative
+						root = {
+							any_close_family_member = {
+								count = 0
+								is_ruler = yes
+								primary_title.tier > scope:important_relative.primary_title.tier
+							}
+						}
+					}
+				}
+				scope:important_relative = {
+					switch = {
+						trigger = primary_title.tier
+						tier_county = {
+							add_elven_hope_effect = { VALUE = minor_elven_hope_loss HOPE_EFFECT = effect_elven_hope_elf_died }
+						}
+						tier_duchy = {
+							add_elven_hope_effect = { VALUE = medium_elven_hope_loss HOPE_EFFECT = effect_elven_hope_elf_died }
+						}
+						tier_kingdom = {
+							add_elven_hope_effect = { VALUE = major_elven_hope_loss HOPE_EFFECT = effect_elven_hope_elf_died }
+						}
+						tier_empire = {
+							add_elven_hope_effect = { VALUE = massive_elven_hope_loss HOPE_EFFECT = effect_elven_hope_elf_died }
+						}
+					}
+				}
+			}
+			else = {
+				add_elven_hope_effect = { VALUE = minimal_elven_hope_loss HOPE_EFFECT = effect_elven_hope_elf_died }
+			}
+		}
+
+		# If a Dwarf or Orc dies without an heir won't send their realm to their liege if their liege is a different race and will send it to someone who can actually hold it
+		if = {
+			limit = {
+				any_held_title = { title_province ?= { terrain = halls } }
+				NOT = { exists = player_heir }
+				NOT = { primary_heir = { same_race = { TARGET = root } } }
+				is_independent_ruler = no
+			}
+			random_vassal = {
+				limit = { same_race = { TARGET = root } }
+				save_scope_as = new_heir
+			}
+			if = {
+				limit = { NOT = { exists = scope:new_heir } }
+				random_courtier = {
+					limit = { same_race = { TARGET = root } }
+					save_scope_as = new_heir
+				}
+			}
+			if = {
+				limit = { NOT = { exists = scope:new_heir } }
+				if = {
+					limit = { is_orc = yes }
+					create_character = {
+						location = root.location
+						culture = root.culture
+						faith = root.faith
+						gender_female_chance = 0
+						age = { 16 40 }
+						save_scope_as = new_heir
+					}
+				}
+				else = {
+					create_character = {
+						location = root.location
+						culture = root.culture
+						faith = root.faith
+						gender_female_chance = 0
+						age = { 40 90 }
+						save_scope_as = new_heir
+					}
+				}
+				scope:new_heir = { set_employer = root }
+			}
+			set_designated_heir_unsafe = scope:new_heir
+		}
+
+		if = {
+			limit = {
+				has_trait = dwarf_father
+				OR = {
+					any_owned_story = { story_type = story_dorfdad_reincarnation }
+					is_canon_dorfdad = yes
+				}
+			}
+			save_scope_as = my_dorfdad
+			scope:killer ?= { save_scope_as = my_dorfdad_killer }
+			# Minor news for everyone else, major news for dwarves
+			if = {
+				limit = { # Minor News
+					has_game_rule = all_news
+				}
+				if = {
+					limit = { NOT = { exists = scope:my_dorfdad_killer } }
+					every_player = { #Global News Announcement
+						trigger_event = {
+							id = news_event.0027
+							days = 5
+						}
+					}
+					trigger_event = news_event.0027
+				}
+				else = {
+					every_player = { #Global News Announcement
+						trigger_event = {
+							id = news_event.0070
+							days = 5
+						}
+					}
+					trigger_event = news_event.0070
+				}
+			}
+			else_if = {
+				limit = { # Major News
+					NOT = { has_game_rule = no_news }
+				}
+				if = {
+					limit = { NOT = { exists = scope:my_dorfdad_killer } }
+					every_player = { #Global News Announcement
+						limit = { is_dwarf = yes }
+						trigger_event = {
+							id = news_event.0027
+							days = 5
+						}
+					}
+					trigger_event = news_event.0027
+				}
+				else = {
+					every_player = { #Global News Announcement
+						limit = { is_dwarf = yes }
+						trigger_event = {
+							id = news_event.0070
+							days = 5
+						}
+					}
+					trigger_event = news_event.0070
+				}
+			}
+			character:k_wastelands_holder = {
+				trigger_event = {
+					id = dwarven_racial.2000
+					days = 1
+				}
+			}
+		}
+
+		### LotR - transferring any crafting materials
+		transfer_materials_effect = yes
+
+		if = { #LotR - Elf Crowned laws reset
+			limit = {
+				coronation_trigger = yes
+				NOT = { has_game_rule = coronation_laws_off }
+			}
+			if = {
+				limit = { is_elf = yes }
+				if = {
+					limit = {
+						has_realm_law = crowned_elf
+					}
+					remove_realm_law = crowned_elf
+					add_realm_law_skip_effects = uncrowned
+				}
+				else = {
+					make_trait_inactive = uncrowned_elf
+				}
+			}
+
+		}
+    }
+
+    events = {
+        #LotR Events on Death
+		orcs.0031		# Remove counties under Orc slavery from Hatred of Free Folk event
+		numenoreanblood.1000	# Gives the widow trait assignment event for Dúnedain culture group
+		# dwarven.0100			# Gives the widow trait assignment event for Dwarf culture group #Event does not exist
+		tedjin.0101				# Checks for death of Tedjin Ayal to kick off civil war chain
+		tedjin.0400				# Checks for death of Bôr, if he was successful he will be canonized as a saint
+		gondor.0518				# Handling of death of Aragorn
+		gondor.2105				# Handling of unexpected sauron death
+		# rhuduar.2500				# Death of Hwaldar
+		saruman_event_chain.2200			# White Hand Religious conversion on Saruman death
+    }
+}
+
+# Root = character
+# Triggered when someone is about to die from a natural death but is given a second chance by meeting
+# the has_natural_death_second_chance scripted rule
+lotr_on_natural_death_second_chance = {
+    effect = {
+		if = {
+			limit = {
+				has_trait = tamska
+				any_tamska_heir = {
+					count = 0
+					faith = root.faith
+					mother = root
+				}
+			}
+			trigger_event = tamska.0002
+		}
+    }
+}
