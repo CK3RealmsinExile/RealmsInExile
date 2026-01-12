@@ -170,8 +170,6 @@ remove_building_any_level_max_6 = {
 	}
 }
 
-
-
 remove_duchy_building_any_level = {
 	if = {
 		limit = {
@@ -457,8 +455,6 @@ foundations_of_stone_county_setup_effect = {
 
 }
 
-
-
 ### ORC MAINTENANCE ###
 
 # expel_orcs = {
@@ -527,3 +523,432 @@ foundations_of_stone_county_setup_effect = {
 # 	}
 
 # }
+
+##########################
+### Orcish Inheritance ###
+##########################
+
+### Get list of orcish challengsers ###
+create_orc_challenger_list_authority_0 = {
+	every_courtier = { 
+		limit = { lotr_create_orc_challenger_list_authority_0_trigger = yes }
+		root = { add_to_variable_list = { name = orc_challengers target = prev } }
+	}
+	every_vassal_or_below = { 
+		limit = { lotr_create_orc_challenger_list_authority_0_trigger = yes }
+		root = { add_to_variable_list = { name = orc_challengers target = prev } }
+	}
+	every_councillor = {
+		limit = { lotr_create_orc_challenger_list_authority_0_trigger = yes }
+		root = { add_to_variable_list = { name = orc_challengers target = prev } }
+	}
+	every_child = {
+		limit = { lotr_create_orc_challenger_list_authority_0_trigger = yes }
+		root = { add_to_variable_list = { name = orc_challengers target = prev } }
+	}
+}
+
+create_orc_challenger_list_authority_1 = {
+	every_vassal_or_below = { 
+		limit = { lotr_create_orc_challenger_list_authority_1_trigger = yes }
+		root = { add_to_variable_list = { name = orc_challengers target = prev } }
+	}
+	every_councillor = {
+		limit = { lotr_create_orc_challenger_list_authority_1_trigger = yes }
+		root = { add_to_variable_list = { name = orc_challengers target = prev } }
+	}
+	every_child = {
+		limit = { lotr_create_orc_challenger_list_authority_1_trigger = yes }
+		root = { add_to_variable_list = { name = orc_challengers target = prev } }
+	}
+}
+
+create_orc_challenger_list_authority_2 = {
+	every_vassal = { 
+		limit = { lotr_create_orc_challenger_list_authority_2_trigger = yes }
+		root = { add_to_variable_list = { name = orc_challengers target = prev } }
+	}
+	every_councillor = {
+		limit = { lotr_create_orc_challenger_list_authority_2_trigger = yes }
+		root = { add_to_variable_list = { name = orc_challengers target = prev } }
+	}
+	every_child = {
+		limit = { lotr_create_orc_challenger_list_authority_2_trigger = yes }
+		root = { add_to_variable_list = { name = orc_challengers target = prev } }
+	}
+}
+
+create_orc_challenger_list_authority_3 = {
+	every_powerful_vassal = { 
+		limit = { lotr_create_orc_challenger_list_authority_3_trigger = yes }
+		root = { add_to_variable_list = { name = orc_challengers target = prev } }
+	}
+	every_councillor = {
+		limit = { lotr_create_orc_challenger_list_authority_3_trigger = yes }
+		root = { add_to_variable_list = { name = orc_challengers target = prev } }
+	}
+}
+
+create_orc_challenger_list_authority_4 = {
+	every_councillor = {
+		limit = { lotr_create_orc_challenger_list_authority_4_trigger = yes }
+		root = { add_to_variable_list = { name = orc_challengers target = prev } }
+	}
+}
+
+order_orc_challenger_list_according_to_duel_chance = {
+	if = {
+		limit = { has_variable_list = orc_challengers }
+		every_in_list = { #Save every challenger into temp list | temp_orc_challengers
+			variable = orc_challengers
+			save_scope_as = challenger_char
+			root = {
+				add_to_variable_list = { name = temp_orc_challengers target = scope:challenger_char }
+			}
+		}
+		
+		clear_variable_list = orc_challengers
+
+		while = {
+			limit = {
+				has_variable_list = temp_orc_challengers
+				variable_list_size = {
+					name = temp_orc_challengers
+					value > 0
+				}
+			}
+			root = { save_scope_as = orc_challenger_liege } 
+			ordered_in_list = { #Save the character with the highest success chance
+				variable = temp_orc_challengers
+				order_by = {
+					value = 0
+					add = lotr_orc_succession_martial_weighting
+					add = lotr_orc_succession_intrigue_weighting
+					add = lotr_orc_succession_prowess_weighting
+					add = lotr_orc_succession_learning_weighting
+					add = lotr_orc_succession_relationship_weighting
+					add = lotr_orc_succession_ordering_troops_weighting
+					add = lotr_orc_succession_dread_weighting
+				}
+				max = 1
+				save_scope_as = new_challenger_char
+				
+				root = {
+					remove_list_variable = {
+						name = temp_orc_challengers
+						target = scope:new_challenger_char
+					}
+				}
+			}
+			if = { #Esnure we're not adding the character twice to the ordered list
+				limit = {
+					NOT = {
+						is_target_in_variable_list = {
+							name = orc_challengers
+							target = scope:new_challenger_char
+						}
+					}
+				}
+				root = { add_to_variable_list = { name = orc_challengers target = scope:new_challenger_char } }
+			}
+		}
+	}
+}
+
+####################################
+### Succession Challenge Effects ###
+####################################.
+
+##################################################
+# SETUP & CLEANUP EFFECTS
+
+lotr_orc_government_succession_single_combat_effect = {
+	# Sort parties.
+	$SC_INITIATOR$ = { save_scope_as = sc_initiator }
+	$SC_ATTACKER$ = { save_scope_as = sc_attacker }
+	$SC_DEFENDER$ = { save_scope_as = sc_defender }
+	# Arrange aftermath.
+	## We're doing this early so we can invalidate well in a sec.
+	if = {
+		limit = { exists = scope:sc_finished }
+		clear_saved_scope = sc_finished
+	}
+	save_scope_value_as = {
+		name = follow_up_event
+		value = event_id:$OUTPUT_EVENT$
+	}
+	save_scope_value_as = {
+		name = invalidation_event
+		value = event_id:$INVALIDATION_EVENT$
+	}
+	# Invalidation check: have we managed to set scope:sc_attacker and scope:sc_defender to the same person?
+	## If so, invalidate the duel, because this will cause crashes on Mac due to the duel's logic then looping in on itself later.
+	### Shocking to hear Mac has problems, I know.
+	if = {
+		limit = {
+			scope:sc_attacker != scope:sc_defender
+		}
+		# Make sure they're clean for setup.
+		hidden_effect = { remove_single_combat_info_effect = yes }
+		# Set them both to busy for the single combat.
+		scope:sc_attacker ?= {
+			set_variable = {
+				name = engaged_in_single_combat
+				value = yes
+			}
+		}
+		scope:sc_defender ?= {
+			set_variable = {
+				name = engaged_in_single_combat
+				value = yes
+			}
+		}
+		## Then try to take shirts off.
+		single_combat_apply_default_shirtlessness_effect = {
+			ATTACKER = scope:sc_attacker
+			DEFENDER = scope:sc_defender
+		}
+		# Set rules.
+		save_scope_value_as = {
+			name = fatality
+			value = flag:$FATALITY$
+		}
+		save_scope_value_as = {
+			name = fixed
+			value = flag:$FIXED$
+		}
+		save_scope_value_as = {
+			name = locale
+			value = flag:$LOCALE$
+		}
+		## Note where the fight is taking place, if we're using a specific location.
+		if = {
+			limit = { scope:locale = flag:terrain_scope }
+			scope:sc_defender.location = { save_scope_as = background_terrain_scope }
+		}
+		# Configure starting bonus/threshold variables.
+		scope:sc_attacker ?= {
+			set_variable = {
+				name = sc_attacker_injury_bonus
+				value = starting_injury_bonus
+			}
+		}
+		scope:sc_defender ?= {
+			set_variable = {
+				name = sc_defender_injury_bonus
+				value = starting_injury_bonus
+			}
+			set_variable = {
+				name = success_threshold
+				value = starting_success_threshold
+			}
+		}
+		# Configure starting round variables.
+		scope:sc_attacker ?= {
+			set_variable = {
+				name = sc_attacker_injury_risk_score
+				value = 0
+			}
+			set_variable = {
+				name = sc_attacker_duel_success_score
+				value = 0
+			}
+			# Including local variables for combat buffs & debuffs.
+			set_local_variable = {
+				name = current_duel_edge_buff
+				value = 0
+			}
+			set_local_variable = {
+				name = current_duel_edge_debuff
+				value = 0
+			}
+			# If the character lacks a preferred weapon, pick one.
+			set_signature_weapon_effect = yes
+		}
+		scope:sc_defender ?= {
+			set_variable = {
+				name = sc_defender_injury_risk_score
+				value = 0
+			}
+			set_variable = {
+				name = sc_defender_duel_success_score
+				value = 0
+			}
+			# Including local variables for combat buffs & debuffs.
+			set_local_variable = {
+				name = current_duel_edge_buff
+				value = 0
+			}
+			set_local_variable = {
+				name = current_duel_edge_debuff
+				value = 0
+			}
+			# Set up the combat rounds.
+			set_variable = {
+				name = current_round
+				value = 1
+			}
+			# If the character lacks a preferred weapon, pick one.
+			set_signature_weapon_effect = yes
+		}
+		# Finally, send the first event.
+		if = {
+			limit = { scope:sc_defender = { highest_held_title_tier > tier_duchy } }
+			scope:sc_defender = { trigger_event = lotr_orc_government_single_combat.0001 }
+		} else_if = {
+			limit = { scope:sc_defender = { highest_held_title_tier < tier_kingdom } }
+			scope:sc_defender = { trigger_event = lotr_orc_government_single_combat.0002 }
+		}
+	}
+	# Otherwise, invalidate the duel immediately.
+	else = {
+		scope:sc_initiator = {
+			trigger_event = { saved_event_id = scope:invalidation_event }
+		}
+		# And fire an error to the debug log for us.
+		error_log = debug_log.single_combat_setup.attacker_and_defender_same_person
+		debug_log = debug_log.single_combat_setup.attacker_and_defender_same_person.notice
+		debug_log_scopes = yes
+	}
+}
+
+lotr_transfer_duel_to_new_ruler = { #In the event a challenger wins, he now needs to turn around and potentially face other challengers
+	scope:sc_defender ?= {
+		if = {
+			limit = {
+				variable_list_size = {
+					name = final_orc_challengers
+					value > 0
+				}
+			}
+			every_in_list = {
+				variable = final_orc_challengers
+				save_scope_as = orc_challenger
+				scope:sc_attacker ?= { add_to_variable_list = { name = final_orc_challengers target = scope:orc_challenger } }
+			}
+		}
+	}
+	scope:sc_attacker = { trigger_event = { id = orc_government_events.0004 } }
+}
+
+grab_scariest_orc_from_challenger_list_effect = {
+	if = {
+		limit = {
+			trigger_if = {
+				limit = { 
+					exists = scope:orc_fighting_ruler
+					scope:orc_fighting_ruler = { is_alive = yes }
+				}
+				NOT = {
+					is_target_in_variable_list = {
+						name = final_orc_challengers
+						target = scope:orc_fighting_ruler
+					}
+				}
+			}
+		}
+		ordered_in_list = {
+			variable = final_orc_challengers
+			order_by = {
+				value = 0
+				add = lotr_orc_succession_martial_weighting
+				add = lotr_orc_succession_intrigue_weighting
+				add = lotr_orc_succession_prowess_weighting
+				add = lotr_orc_succession_learning_weighting
+				add = lotr_orc_succession_relationship_weighting
+				add = lotr_orc_succession_ordering_troops_weighting
+				add = lotr_orc_succession_dread_weighting
+			}
+			max = 1
+			limit = { is_alive = yes }
+			save_scope_as = orc_fighting_ruler
+		}
+	}
+}
+
+############################################
+### Debug Orc Effects (Government Based) ###
+############################################
+
+set_government_to_orcish = {
+	change_government = orcish_government
+	switch = {
+		trigger = has_realm_law
+		crown_authority_0 = { remove_realm_law = crown_authority_0 }
+		crown_authority_1 = { remove_realm_law = crown_authority_1 }
+		crown_authority_2 = { remove_realm_law = crown_authority_2 }
+		crown_authority_3 = { remove_realm_law = crown_authority_3 }
+		
+		tribal_authority_0 = { remove_realm_law = tribal_authority_0 }
+		tribal_authority_1 = { remove_realm_law = tribal_authority_1 }
+		tribal_authority_2 = { remove_realm_law = tribal_authority_2 }
+		tribal_authority_3 = { remove_realm_law = tribal_authority_3 }
+
+		nomadic_authority_1 = { remove_realm_law = nomadic_authority_1 }
+		nomadic_authority_2 = { remove_realm_law = nomadic_authority_2 }
+		nomadic_authority_3 = { remove_realm_law = nomadic_authority_3 }
+		nomadic_authority_4 = { remove_realm_law = nomadic_authority_4  }
+		nomadic_authority_5 = { remove_realm_law = nomadic_authority_5 }
+		
+		japanese_bureaucracy_0 = { remove_realm_law = japanese_bureaucracy_0 }
+		japanese_bureaucracy_1 = { remove_realm_law = japanese_bureaucracy_1 }
+		japanese_bureaucracy_2 = { remove_realm_law = japanese_bureaucracy_2  }
+		japanese_bureaucracy_3 = { remove_realm_law = japanese_bureaucracy_3 }
+
+		imperial_bureaucracy_0 = { remove_realm_law = imperial_bureaucracy_0 }
+		imperial_bureaucracy_1 = { remove_realm_law = imperial_bureaucracy_1 }
+		imperial_bureaucracy_2 = { remove_realm_law = imperial_bureaucracy_2 }
+		imperial_bureaucracy_3 = { remove_realm_law = imperial_bureaucracy_3 }
+	}
+	if = {
+		limit = {
+			NOR = { 
+				has_realm_law = orc_authority_1
+				has_realm_law = orc_authority_2
+				has_realm_law = orc_authority_3
+				has_realm_law = orc_authority_4
+				has_realm_law = orc_authority_5
+			}
+		}
+		if = {
+			limit = { highest_held_title_tier = tier_barony }
+			add_realm_law = orc_authority_1
+		} else_if = {
+			limit = { highest_held_title_tier = tier_county }
+			add_realm_law = orc_authority_1
+		} else_if = {
+			limit = { highest_held_title_tier = tier_duchy }
+			add_realm_law = orc_authority_1
+		} else_if = {
+			limit = { highest_held_title_tier = tier_kingdom }
+			add_realm_law = orc_authority_2
+		} else_if = {
+			limit = { highest_held_title_tier = tier_empire }
+			add_realm_law = orc_authority_3
+		} else_if = {
+			limit = { highest_held_title_tier = tier_hegemony }
+			add_realm_law = orc_authority_4
+		}
+	}
+}
+
+set_every_orc_vassal_government_to_orcish = {
+	every_vassal_or_below = {
+		limit = { 
+			is_orc = yes
+			NOT = { has_government = orcish_government }
+		}
+		set_government_to_orcish = yes
+	}
+}
+
+set_every_orc_realm_to_orcish_government = {
+	every_ruler = {
+		limit = {
+			is_orc = yes
+			is_ruler = yes
+			NOT = { government_has_flag = government_is_orcish }
+		}
+		set_government_to_orcish = yes
+	}
+}
