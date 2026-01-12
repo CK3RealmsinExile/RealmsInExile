@@ -42,8 +42,11 @@ murder_scheme_maintenance.1 = {
 			}
 			NOR = {
 				is_child_of = root
-				is_grandchild_of = root
-				is_great_grandchild_of = root
+				trigger_if = { #LotR
+					limit = { is_orc = no }
+					is_grandchild_of = root
+					is_great_grandchild_of = root
+				}
 			}
 			this != root
 			# No targets you're Cowed by	
@@ -76,8 +79,11 @@ murder_scheme_maintenance.1 = {
 				}
 				NOR = {
 					is_child_of = root
-					is_grandchild_of = root
-					is_great_grandchild_of = root
+					trigger_if = { #LotR
+						limit = { is_orc = no }
+						is_grandchild_of = root
+						is_great_grandchild_of = root
+					}
 					root = { # No targets you're Cowed by	
 						has_dread_level_towards = {
 							target = prev
@@ -440,6 +446,14 @@ murder_scheme_maintenance.1 = {
 							has_variable = ring_of_power
 							NOT = { has_variable = elven_ring }
 						}
+					}
+				}
+				modifier = { #LotR - Orcs more willing to murder
+					add = 500
+					root = { is_orc = yes }
+					OR = {
+						has_relation_rival = root
+						has_relation_nemesis = root
 					}
 				}
 				root = {
@@ -807,6 +821,281 @@ murder_scheme_maintenance.2 = {
 				root = {
 					start_scheme = {
 						type = abduct
+						target_character = prev
+					}
+				}
+			}
+		}
+	}
+}
+
+
+### LotR - Orcs are very eager to stabby-stabby
+murder_scheme_maintenance.3 = {
+	type = character_event
+	
+	hidden = yes
+
+	trigger = {
+		is_ai = yes # Only AI will get this hidden event
+		is_orc = yes
+		NOT = {
+			any_scheme = {
+				OR = {
+					scheme_type = murder
+					scheme_type = abduct
+					scheme_type = claim_throne
+					scheme_type = fabricate_hook
+				}
+			}
+		}
+
+		lotr_build_orc_murder_targets_trigger = yes
+
+		any_in_list = {
+			list = murder_targets
+			root = {
+				can_start_scheme = {
+					target_character = prev
+					type = murder
+				}
+			}
+			NOT = { is_child_of = root }
+			this != root
+			# No targets you're Cowed by	
+			NOT = {
+				root = {
+					has_dread_level_towards = {
+						target = prev
+						level = 2
+					}
+				}
+			}
+		}
+	}
+	
+	immediate = {
+		if = {
+			limit = { lotr_build_orc_murder_targets_trigger = yes }
+		}
+
+		random_in_list = {
+			list = murder_targets
+			limit = {
+				root = {
+					can_start_scheme = {
+						target_character = prev
+						type = murder
+					}
+				}
+				NOT = { this = root }
+				# No targets you're Cowed by	
+				NOT = {
+					root = {
+						has_dread_level_towards = {
+							target = prev
+							level = 2
+						}
+					}
+				}
+				can_start_hostile_scheme_against_trigger = { TARGET = prev }
+			}
+			weight = {
+				base = 0
+				modifier = {
+					add = -100
+					has_relation_friend = root
+				}
+				modifier = {
+					add = -25
+					has_relation_lover = root
+				}
+				modifier = {
+					add = -500
+					OR = {
+						has_relation_best_friend = root
+						has_relation_soulmate = root
+					}
+				}
+				modifier = {
+					add = root.ai_vengefulness.mult2
+					root.ai_vengefulness > 0
+					OR = {
+						has_relation_rival = root
+						has_relation_nemesis = root
+						exposed_cheating_on_spouse_trigger = { SPOUSE = root }
+					}
+				}
+				modifier = {
+					add = 10
+					has_trait = extolled
+					house ?= root.house
+					root = {
+						ai_greed >= 0
+						ai_vengefulness >= 0
+						ai_compassion <= medium_negative_ai_value
+						house.house_head ?= {
+							is_ruler = yes
+							government_has_flag = government_is_clan
+						}
+						ai_wants_low_unity = yes
+					}
+				}
+				modifier = {
+					add = root.ai_greed.mult2
+					root.ai_greed > 0
+					OR = {
+						any_held_title = {
+							tier >= root.highest_held_title_tier
+							place_in_line_of_succession = {
+								target = root
+								value <= 3
+							}
+						}
+						any_heir_title = {
+							NOT = { holder = root }
+							tier >= root.highest_held_title_tier
+							place_in_line_of_succession = {
+								target = root
+								value <= 3
+							}
+						}
+					}
+				}
+				modifier = {
+					add = root.ai_greed.mult2
+					root.ai_greed > 0
+					root = {
+						is_ruler = yes
+						is_independent_ruler = no
+						liege ?= {
+							any_tax_collector = {
+								any_tax_collector_vassal = {
+									this = root
+								}
+								check_tax_collector_aptitude = {
+									CHARACTER = this
+									VALUE >= 4
+								}
+							}
+						}
+					}
+				}
+				modifier = { # If you're really good at murdering, killing claimants makes a lot of sense
+					add = 50
+					root = {
+						OR = {
+							has_perk = a_job_done_right_perk
+							has_focus = intrigue_skulduggery_focus
+						}
+					}
+					save_temporary_scope_as = the_murder_target
+					root = {
+						is_landed = yes
+						primary_title.tier >= tier_duchy
+						any_targeting_faction = {
+							faction_is_type = claimant_faction
+							special_character = {
+								this = scope:the_murder_target
+							}
+						}
+					}
+				}
+			}
+			random = {
+				chance = 25
+				modifier = {
+					add = -100
+					has_relation_friend = root
+				}
+				modifier = {
+					add = -25
+					has_relation_lover = root
+				}
+				modifier = {
+					add = -500
+					OR = {
+						has_relation_best_friend = root
+						has_relation_soulmate = root
+					}
+				}
+				modifier = {
+					add = {
+						value = root.ai_vengefulness
+						multiply = 2.5
+					}
+					root.ai_vengefulness > 0
+					OR = {
+						has_relation_rival = root
+						has_relation_nemesis = root
+						exposed_cheating_on_spouse_trigger = { SPOUSE = root }
+					}
+				}
+				modifier = { # Rational people understand that certain threats need to be taken care of
+					add = {
+						value = root.ai_rationality
+						multiply = 1.5
+					}
+					root.ai_rationality > 0
+					save_temporary_scope_as = the_abduct_target
+					root = {
+						is_landed = yes
+						primary_title.tier >= tier_duchy
+						any_targeting_faction = {
+							faction_is_type = claimant_faction
+							special_character = {
+								this = scope:the_abduct_target
+							}
+						}
+					}
+				}
+				modifier = { # If you're really good at abducting, killing claimants makes a lot of sense
+					add = 50
+					root = {
+						OR = {
+							has_perk = a_job_done_right_perk
+							has_focus = intrigue_skulduggery_focus
+						}
+					}
+					save_temporary_scope_as = the_abduct_target
+					root = {
+						is_landed = yes
+						primary_title.tier >= tier_duchy
+						any_targeting_faction = {
+							faction_is_type = claimant_faction
+							special_character = {
+								this = scope:the_abduct_target
+							}
+						}
+					}
+				}
+				# Halve the chance if they're Intimidating
+				modifier = {
+					factor = 0.5
+					root = {
+						has_dread_level_towards = {
+							target = prev
+							level >= 3
+						}
+					}
+				}
+				modifier = { #LotR - Intricate Plotters
+					factor = 100
+					root.culture = {
+						has_cultural_tradition = tradition_intricate_plotters
+					}
+				}
+				modifier = { #LotR - Orcs more willing to murder
+					add = 500
+					root = { is_orc = yes }
+					OR = {
+						has_relation_rival = root
+						has_relation_nemesis = root
+					}
+				}
+				root = {
+					start_scheme = {
+						type = murder
 						target_character = prev
 					}
 				}
