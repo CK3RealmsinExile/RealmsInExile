@@ -1042,7 +1042,7 @@ call_ally_interaction = {
 			trigger_else = {
 				has_relation_friend = scope:target.casus_belli.primary_defender
 			}
-			desc = WONT_FIGHT_FRIEND
+			desc = WONT_FIGHT_FRIEND_REASON
 		}
 
 		modifier = { # Reluctant to join against Best Friends
@@ -1056,7 +1056,7 @@ call_ally_interaction = {
 			trigger_else = {
 				has_relation_best_friend = scope:target.casus_belli.primary_defender
 			}
-			desc = WONT_FIGHT_BEST_FRIEND
+			desc = WONT_FIGHT_BEST_FRIEND_REASON
 		}
 		modifier = { # Reluctant to join against Lovers
 			add = -100
@@ -1069,7 +1069,7 @@ call_ally_interaction = {
 			trigger_else = {
 				has_relation_lover = scope:target.casus_belli.primary_defender
 			}
-			desc = WONT_FIGHT_LOVER
+			desc = WONT_FIGHT_LOVER_REASON
 		}
 		modifier = { # Reluctant to join against Soulmate
 			add = -200
@@ -1082,7 +1082,7 @@ call_ally_interaction = {
 			trigger_else = {
 				has_relation_soulmate = scope:target.casus_belli.primary_defender
 			}
-			desc = WONT_FIGHT_SOULMATE
+			desc = WONT_FIGHT_SOULMATE_REASON
 		}
 		modifier = { # Reluctant to join tributaries
 			add = -200
@@ -1280,7 +1280,7 @@ negotiate_alliance_interaction = {
 						scope:recipient = { is_ai = yes} 
 					}
 				}
-				lotr_race_and_alignment_compatibility_trigger = { CHARACTER = scope:recipient } #racial/alignment compatibility trigger
+				lotr_tolerance_trigger = { CHARACTER = scope:recipient } #racial/alignment compatibility trigger
 			}
 		}
 		scope:recipient = { #LotR
@@ -1509,7 +1509,7 @@ negotiate_alliance_interaction = {
 			if = {
 				limit = {
 					scope:hook = yes
-					has_hook = scope:recipient
+					has_usable_hook = scope:recipient
 				}
 				use_hook = scope:recipient
 			}
@@ -3552,10 +3552,10 @@ join_war_interaction = {
 			}
 			
 			is_in_valinor = no #LotR
-			custom_tooltip = {
+			custom_tooltip = { #LotR
 				text = not_wastelands
 				NOT = { has_culture = culture:wastelands } #LotR
-			} #LotR
+			}
 		}
 
 		scope:actor = { #LotR
@@ -3818,11 +3818,35 @@ join_war_interaction = {
 				trigger_else = { always = yes }
 			}
 
+			#allow targets of a Grand Campaign to bypass the requirements
+			trigger_else_if = {
+				limit = {
+					var:grand_campaign_project ?= {
+						save_temporary_scope_as = great_project
+	        			any_in_list = {
+	            			variable = grand_campaign_titles
+	            			any_in_de_jure_hierarchy = {
+	            				exists = holder
+								holder.top_overlord = {
+									OR = {
+										this = scope:recipient
+										this = scope:actor
+	            					}
+	            				}
+	            			}
+						}
+					}
+				}
+			}
+
 			#allow laamp_join_war_contract to bypass the requirements
 			trigger_else_if = {
 				limit = {
 					scope:actor = {
-						has_government = landless_adventurer_government
+						OR = { #LotR
+							has_government = landless_adventurer_government
+							government_has_flag = government_is_orcish #LotR
+						}
 					}
 				}
 			}
@@ -4283,15 +4307,24 @@ join_vassal_war_interaction = {
 						any_target_title = {
 							OR = {
 								target_is_de_facto_liege_or_above = scope:actor.primary_title
-								target_is_de_jure_liege_or_above = scope:actor.primary_title
+								is_de_facto_liege_or_above_target = scope:actor.primary_title
 							}
 						}
 					}
 				}
 			}
 			#Unless you're a guaranteed tributary
+			trigger_else_if = {
+				limit = {
+					scope:recipient = { is_tributary_of_suzerain_or_above = scope:actor }
+				}
+				custom_tooltip = {
+					text = suzerain_war_participation_guarantee_tt
+					scope:recipient = { subject_contract_has_flag = tributary_contract_suzerain_guarantee_override }
+				}
+			}
 			trigger_else = {
-				scope:recipient = { subject_contract_has_flag = tributary_contract_suzerain_guarantee_override }
+				always = yes
 			}
 			custom_tooltip = {
 				text = war_aid_liege_cooldown_tt

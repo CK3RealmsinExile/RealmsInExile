@@ -203,6 +203,10 @@ PixelShader =
 		// Terrain dual scenario lighting - uses IBL for both sunny and shadow scenarios
 		float3 CalculateTerrainDualScenarioLighting( SLightingProperties LightingProps, SMaterialProperties MaterialProps, float ShadowMask, PdxTextureSamplerCube EnvironmentMap )
 		{
+			if ( ShadowMask > 0.99f )
+			{
+				return CalculateTerrainShadowLighting( LightingProps, MaterialProps, EnvironmentMap );
+			}
 			if ( ShadowMask > 0.0f )
 			{
 				// Calculate both lighting scenarios
@@ -219,6 +223,10 @@ PixelShader =
 		// Map objects dual scenario lighting - uses IBL for both sunny and shadow scenarios
 		float3 CalculateMapObjectsDualScenarioLighting( SLightingProperties LightingProps, SMaterialProperties MaterialProps, float ShadowMask, PdxTextureSamplerCube EnvironmentMap)
 		{
+			if ( ShadowMask > 0.99f )
+			{
+				return CalculateMapObjectsShadowLighting( LightingProps, MaterialProps, EnvironmentMap );
+			}
 			if ( ShadowMask > 0.0f )
 			{
 				// Calculate both lighting scenarios
@@ -275,15 +283,20 @@ PixelShader =
 		// Apply shadow tint for terrain using terrain lighting directions
 		float3 ApplyTerrainShadowTintWithClouds( float3 Color, float2 WorldPosition, float CloudMask, float ShadowTerm, float3 Normal, float3 TerrainNormal )
 		{
+			#ifdef LOW_SPEC_SHADERS
+				return Color;
+			#endif
+
 			// Calculate terrain-specific values
 			float3 ToLightDir = ToTerrainSunnySunDir;
 			float2 ColorMapCoords = WorldPosition * WorldSpaceToTerrain0To1;
+			SShadowTintData ShadowTintData = GetShadowTintData( ColorMapCoords );
 
 			// Calculate shadow tint mask for terrain
-			float ShadowTintMask = GetTerrainShadowTintMask( ColorMapCoords, ToLightDir, ShadowTerm, Normal );
-			float DiffuseShadowTintMask = GetTerrainShadowTintMask( ColorMapCoords, ToLightDir, ShadowTerm, TerrainNormal );
+			float ShadowTintMask = GetTerrainShadowTintMask( ShadowTintData, ToLightDir, ShadowTerm, Normal );
+			float DiffuseShadowTintMask = GetTerrainShadowTintMask( ShadowTintData, ToLightDir, ShadowTerm, TerrainNormal );
 
-			Color = ApplyShadowTintWithClouds( Color, WorldPosition, CloudMask, ShadowTintMask, 1.0f, 0.0f );
+			Color = ApplySunnyShadowTintWithClouds( Color, ShadowTintData._TintColor.rgb, CloudMask, ShadowTintMask, 1.0f );
 
 			float BlendAmount = DiffuseShadowTintMask * CloudMask;
 
@@ -294,34 +307,44 @@ PixelShader =
 
 		float3 ApplyTerrainShadowTintWithClouds( float3 Color, float2 WorldPosition, float CloudMask, float ShadowTerm )
 		{
+			#ifdef LOW_SPEC_SHADERS
+				return Color;
+			#endif
+
 			float3 TerrainNormal = CalculateNormal( WorldPosition );
 			return ApplyTerrainShadowTintWithClouds( Color, WorldPosition, CloudMask, ShadowTerm, TerrainNormal, TerrainNormal );
 		}
 
 		// Apply shadow tint for map objects using map objects lighting directions
-		float3 ApplyMapObjectsShadowTintWithClouds( float3 Color, float2 WorldPosition, float CloudMask, float ShadowTerm, float3 ObjectNormal, float3 TerrainNormal )
+		float3 ApplyMapObjectsShadowTintWithClouds( float3 Color, float2 ColorMapCoords, float CloudMask, float ShadowTerm, float3 ObjectNormal, float3 TerrainNormal )
 		{
+			#ifdef LOW_SPEC_SHADERS
+				return Color;
+			#endif
+
 			// Calculate map objects-specific values
 			float3 ToLightDir = ToMapObjectsSunnySunDir;
-			float2 ColorMapCoords = WorldPosition * WorldSpaceToTerrain0To1;
 
+			SShadowTintData ShadowTintData = GetShadowTintData( ColorMapCoords );
 			// Calculate shadow tint mask for map objects (uses both terrain and object normals)
-			float ShadowTintMask = GetShadowTintMask( ColorMapCoords, ToLightDir, ShadowTerm, TerrainNormal, ObjectNormal );
+			float ShadowTintMask = GetShadowTintMask( ShadowTintData, ToLightDir, ShadowTerm, TerrainNormal, ObjectNormal );
 
-			return ApplyShadowTintWithClouds( Color, WorldPosition, CloudMask, ShadowTintMask, 1.0f, 0.0f );
+			return ApplySunnyShadowTintWithClouds( Color, ShadowTintData._TintColor.rgb, CloudMask, ShadowTintMask, 1.0f );
 		}
 
-		float3 ApplyTreeShadowTintWithClouds( float3 Color, float2 WorldPosition, float CloudMask, float ShadowTerm, float3 ObjectNormal, float3 TerrainNormal )
+		float3 ApplyTreeShadowTintWithClouds( float3 Color, SShadowTintData ShadowTintData, float CloudMask, float ShadowTerm, float3 ObjectNormal, float3 TerrainNormal )
 		{
+			#ifdef LOW_SPEC_SHADERS
+				return Color;
+			#endif
+
 			// Calculate terrain-specific values
 			float3 ToLightDir = ToTerrainSunnySunDir;
-			float2 ColorMapCoords = WorldPosition * WorldSpaceToTerrain0To1;
-
 			// Calculate shadow tint mask for terrain
-			float ShadowTintMask = GetShadowTintMask( ColorMapCoords, ToLightDir, ShadowTerm, TerrainNormal, ObjectNormal );
-			float DiffuseShadowTintMask = GetTerrainShadowTintMask( ColorMapCoords, ToLightDir, ShadowTerm, TerrainNormal );
+			float ShadowTintMask = GetShadowTintMask( ShadowTintData, ToLightDir, ShadowTerm, TerrainNormal, ObjectNormal );
+			float DiffuseShadowTintMask = GetTerrainShadowTintMask( ShadowTintData, ToLightDir, ShadowTerm, TerrainNormal );
 
-			Color = ApplyShadowTintWithClouds( Color, WorldPosition, CloudMask, ShadowTintMask, 1.0f, 0.0f );
+			Color = ApplySunnyShadowTintWithClouds( Color, ShadowTintData._TintColor.rgb, CloudMask, ShadowTintMask, 1.0f );
 
 			float BlendAmount = DiffuseShadowTintMask * CloudMask;
 

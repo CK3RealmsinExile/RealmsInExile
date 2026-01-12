@@ -506,557 +506,500 @@ lotr_increase_settler_maa = {
 	}
 }
 
-lotr_conqueror_settle_wastelands_effect = {
-	root.story_owner = { save_scope_as = root_scope }
-	every_held_county = {
-		limit = { title_province = { has_holding_type = settlement_holding } }
-		if = {
-			limit = { title_province = { has_building = settlement_01 } }
-			title_province = { add_building = settlement_02 }
-		} else_if = {
-			limit = { title_province = { has_building = settlement_02 } }
-			title_province = { add_building = settlement_03 }
-		} else_if = {
-			limit = { title_province = { has_building = settlement_03 } }
-			if = {
-				limit = { scope:root_scope = { is_elf = yes } }
-				title_province = { set_holding_type = elven_holding }
-			} else_if = {
-				limit = { title_province = { terrain = halls } }
-				title_province = { set_holding_type = dwarven_holding }
-			} else_if = {
-				limit = { scope:root_scope = { is_hobbit = yes } }
-				title_province = { set_holding_type = city_holding }
-			} else = {
-				if = {
-					limit = { scope:root_scope = { has_government = tribal_government } }
-					title_province = { set_holding_type = tribal_holding }
-				} else = {
-					title_province = { set_holding_type = castle_holding }
-				}
-			}
+pirate_adventurer_start_war_effect = {
+	$PIRATE$ = { save_scope_as = pirate_adventurer }
+	$TARGET$ = { save_scope_as = adventurer_target }
+
+	#Give the adventurer a dynamic title to tide them over.
+	create_dynamic_title = {
+		tier = duchy
+		name = PIRATE_ARMY_NEUTRAL_NAME
+	}
+	create_title_and_vassal_change = {
+		type = created
+		save_scope_as = change
+		add_claim_on_loss = no
+	}
+	scope:new_title = {
+		set_capital_county = scope:adventurer_target
+		set_landless_title = yes
+		set_destroy_on_gain_same_tier = yes
+		set_no_automatic_claims = yes
+		set_can_be_named_after_dynasty = no
+		change_title_holder = {
+			holder = scope:pirate_adventurer
+			change = scope:change
 		}
 	}
-	if = { #default game rule
+	resolve_title_and_vassal_change = scope:change
+	scope:new_title = {
+		generate_coa = yes
+		set_variable = {
+			name = temporary_title
+			value = yes
+		}
+	}
+	#Declare the war.
+	scope:pirate_adventurer = {
+		start_war = {
+			casus_belli = fp1_scandi_adventurer_conquest
+			target = scope:adventurer_target.holder.top_liege
+			target_title = scope:adventurer_target.duchy
+		}
+	}
+	# Setup event troops.
+	scope:pirate_adventurer = {
+		add_character_modifier = pirate_adventurer_modifier
+		add_trait = adventurer
+		# Work out how many event troops we should give the adventurer for a 60:40 fight.
+		spawn_army = {
+			levies = {
+				add = {
+					#Base of 400.
+					add = scope:adventurer_target.holder.top_liege.max_military_strength
+					#Multiply that by the realm size of the target's top_liege.
+					multiply = 1.5
+					#Account for allies, adding more without just nullifying them.
+					scope:adventurer_target.holder.top_liege = {
+						every_ally = { add = this.max_military_strength }
+					}
+					#Cut it off so things don't get too ridiculous.
+					max = 8000
+					#Make sure all adventurers have a moderately respectable force.
+					min = 1000
+				}
+			}
+			inheritable = no
+			location = scope:adventurer_target.title_province
+			name = pirate_adventurer_event_troops
+		}
+		spawn_army = {
+			men_at_arms = {
+				type = corsair_warriors
+				stacks = {
+					value = 1
+					multiply = scope:adventurer_target.holder.top_liege.primary_title.tier
+				}
+			}
+			inheritable = yes
+			location = scope:adventurer_target.title_province
+			name = pirate_adventurer_event_troops
+		}
+		spawn_army = {
+			men_at_arms = {
+				type = mardrukan_pikemen
+				stacks = {
+					value = 1
+					multiply = scope:adventurer_target.holder.top_liege.primary_title.tier
+				}
+			}
+			inheritable = yes
+			location = scope:adventurer_target.title_province
+			name = pirate_adventurer_event_troops
+		}
+		spawn_army = {
+			men_at_arms = {
+				type = mangonel
+				stacks = 2
+			}
+			inheritable = yes
+			location = scope:adventurer_target.title_province
+			name = pirate_adventurer_event_troops
+		}
+	}
+	# Loan a little gold in case they're in debt/to keep them going.
+	scope:pirate_adventurer = { add_gold = medium_gold_value }
+}
+
+############################################
+### Wastelands for on-game start effects ###
+############################################
+
+set_every_county_wilderness = {
+	$SELECTED_TITLE$.holder ?= {
+		every_tributary = {
+			limit = { 
+				OR = {
+					suzerain = character:k_wastelands_holder
+					suzerain = { is_landed = no } 
+				}
+			}
+			end_tributary = yes
+		}
+	}
+
+	create_title_and_vassal_change = {
+		type = granted
+		save_scope_as = change
+		add_claim_on_loss = no
+	}
+
+	if = {
+		limit = { NOT = { exists = global_var:used_wastelands_gui } }
+		set_global_variable = used_wastelands_gui 
+	}
+
+	if = {
 		limit = {
-			has_game_rule = default_colonisation_speed
-			scope:root_scope = {
-				OR = {
-					dynasty = dynasty:dynasty_elendil # Can only start colonising after Aragorn returns
-					dynasty = dynasty:dynasty_oropher # Can only start colonising after Aragorn returns
-					culture = culture:woodmen # Can only start colonising after Aragorn returns
-					culture = culture:valemen # Can only start colonising after Aragorn returns
-					culture = { any_parent_culture_or_above = { this = culture:valemen } } # Can only start colonising after Aragorn returns
-					culture = { any_parent_culture_or_above = { this = culture:woodmen } } # Can only start colonising after Aragorn returns
-					is_nazgul = yes # Can colonise from the start
-					is_dwarf = yes # Can colonise from the start
-					is_orc = yes # Can colonise from the start
-				}
-				OR = {
-					is_nazgul = yes # Can colonise from the start
-					is_dwarf = yes # Can colonise from the start
-					is_orc = yes # Can colonise from the start
-					is_target_in_global_variable_list = {
-						name = unavailable_unique_decisions
-						target = flag:aragorn_returned_to_gondor
-					}
-				}
+			OR = {
+				$SELECTED_TITLE$ = title:e_rhovanion
+				$SELECTED_TITLE$ = title:e_rhun
 			}
 		}
-		### HUMAN ###
-		if = { ## COUNTIES AVAILABLE FOR HUMAN AI ##
-			limit = {
-				scope:root_scope = {
-					is_human = yes
-					NOR = {
-						culture = culture:woodmen # Can only start colonising after Aragorn returns
-						culture = culture:valemen # Can only start colonising after Aragorn returns
-					}
+		title:e_golden_realm_rhun = { holder ?= { destroy_title = prev } }
+	}
+	if = {
+		limit = { $SELECTED_TITLE$ = title:e_bozisha_miraz }
+		title:e_thon_an_kharlokh = { holder ?= { destroy_title = prev } } 
+	}
+	if = {
+		limit = { $SELECTED_TITLE$ = title:e_calenardhon }
+		title:d_isengard = {
+			every_de_jure_county = {
+				if = {
+					limit = { exists = global_var:wastelands_colonisable }
+               		add_county_modifier = block_settlement_ability
 				}
-			}
-			debug_log = "Wastelands.0006: Humans List Made"
-			every_sub_realm_county = {
-				every_title_to_title_neighboring_and_across_water_county = {
+				if = {
 					limit = {
-						culture = culture:wastelands
-						this = { save_temporary_scope_as = target }
-						NOR = {
-							has_county_modifier = elven_homeland_county_modifier
-							has_county_modifier = block_settlement_ability
-							holder = scope:root_scope
-						}
-						OR = {
-							title:e_arnor = { is_de_jure_liege_or_above_target = scope:target }
-							title:e_enedhwaith = { is_de_jure_liege_or_above_target = scope:target }
-						}
-						trigger_if = {
-							limit = { title:c_throne_of_erebor.title_province = { has_building = smaug } }
-							NOT = { scope:target.county.title_province = { has_building = smaug_desolation } }
-						}
-						title_province ?= { NOT = { terrain = halls } }
-					}
-					add_to_list = adjacent_wastelands
-				}
-			}
-		}
-
-		### ELF ###
-		else_if = { ## COUNTIES AVAILABLE FOR ELF AI ##
-			limit = { scope:root_scope = { is_elf = yes } }
-			debug_log = "Wastelands.0006: Elves List Made"
-			every_sub_realm_county = {
-				every_title_to_title_neighboring_and_across_water_county = {
-					limit = {
-						culture = culture:wastelands
-						has_county_modifier = elven_homeland_county_modifier
-						this = { save_temporary_scope_as = target }
-						NOR = {
-							has_county_modifier = block_settlement_ability
-							holder = scope:root_scope
-						}
-						OR = {
-							title:e_greenwood = { is_de_jure_liege_or_above_target = scope:target }
-							title:e_laurelindorenan = { is_de_jure_liege_or_above_target = scope:target }
-						}
-						trigger_if = {
-							limit = { title:c_throne_of_erebor.title_province = { has_building = smaug } }
-							NOT = { scope:target.county.title_province = { has_building = smaug_desolation } }
-						}
-						title_province ?= { NOT = { terrain = halls } }
-					}
-					add_to_list = adjacent_wastelands
-				}
-			}
-		}
-
-		### DWARF ###
-		else_if = { ## COUNTIES AVAILABLE FOR DWARF AI ##
-			limit = { scope:root_scope = { is_dwarf = yes } }
-			debug_log = "Wastelands.0006: Dwarves List Made"
-			every_sub_realm_county = {
-				every_title_to_title_neighboring_and_across_water_county = {
-					limit = {
-						culture = culture:wastelands
-						this = { save_temporary_scope_as = target }
-						NOR = {
-							has_county_modifier = block_settlement_ability
-							holder = scope:root_scope
-							has_county_modifier = elven_homeland_county_modifier
-						}
-						OR = {
-							title_province ?= { terrain = desert_mountains }
-							title_province ?= { terrain = caverns }
-							title_province ?= { terrain = halls }
-							AND = {
-								title_province ?= { terrain = hills }
-								any_neighboring_county = {
-									OR = {
-										title_province ?= { terrain = desert_mountains }
-										title_province ?= { terrain = caverns }
-										title_province ?= { terrain = halls }
-										title_province ?= { terrain = mountains }
-									}
-								}
+						NOT = {
+							any_in_list = {
+								list = prev_title_holder
+								this = holder
 							}
-							title_province ?= { terrain = mountains }
-						}
-						trigger_if = {
-							limit = { title:c_throne_of_erebor.title_province = { has_building = smaug } }
-							NOT = { scope:target.county.title_province = { has_building = smaug_desolation } }
+							holder = character:k_wastelands_holder
 						}
 					}
-					add_to_list = adjacent_wastelands
+					holder = { add_to_list = prev_title_holder }
 				}
-			}
-		}
-
-		### NAZGUL ###
-		else_if = {## COUNTIES AVAILABLE FOR NAZGUL AI ##
-			limit = { scope:root_scope = { is_nazgul = yes } }
-			debug_log = "Wastelands.0006: Nazgul List Made"
-			every_sub_realm_county = {
-				every_title_to_title_neighboring_and_across_water_county = {
+	
+				every_county_province = {
 					limit = {
-						culture = culture:wastelands
-						this = { save_temporary_scope_as = target }
-						NOR = {
-							has_county_modifier = block_settlement_ability
-							holder = scope:root_scope
-						}
+						is_county_capital = yes
 						OR = {
-							title:e_greenwood = { is_de_jure_liege_or_above_target = scope:target }
-							title:k_ehwathrumavuld = { is_de_jure_liege_or_above_target = scope:target }
-						}
-						trigger_if = {
-							limit = { title:c_throne_of_erebor.title_province = { has_building = smaug } }
-							NOT = { scope:target.county.title_province = { has_building = smaug_desolation } }
+							has_holding_type = city_holding
+							has_holding_type = church_holding
+							has_holding_type = settlement_holding
+							has_holding_type = tribal_holding
+							has_holding_type = castle_holding
+							has_holding_type = elven_holding
 						}
 					}
-					add_to_list = adjacent_wastelands
+					set_holding_type = wastelands_holding
 				}
-			}
-		}
-
-		### ORC ###
-		else_if = {## COUNTIES AVAILABLE FOR ORC AI ##
-			limit = { scope:root_scope = { is_orc = yes } }
-			debug_log = "Wastelands.0006: Orc List Made"
-			every_sub_realm_county = {
-				every_title_to_title_neighboring_and_across_water_county = {
+				every_county_province = {
 					limit = {
-						culture = culture:wastelands
-						this = { save_temporary_scope_as = target }
-						NOR = {
-							has_county_modifier = block_settlement_ability
-							holder = scope:root_scope
-						}
+						is_county_capital = no
 						OR = {
-							title_province ?= { terrain = desert_mountains }
-							title_province ?= { terrain = caverns }
-							title_province ?= { terrain = halls }
-							title_province ?= { terrain = mountains }
-						}
-						trigger_if = {
-							limit = { title:c_throne_of_erebor.title_province = { has_building = smaug } }
-							NOT = { scope:target.county.title_province = { has_building = smaug_desolation } }
+							has_holding_type = city_holding
+							has_holding_type = church_holding
+							has_holding_type = settlement_holding
+							has_holding_type = tribal_holding
+							has_holding_type = castle_holding
+							has_holding_type = elven_holding
 						}
 					}
-					add_to_list = adjacent_wastelands
+					remove_holding = yes
 				}
+				
+				change_title_holder = {
+					holder = character:k_wastelands_holder
+					change = scope:change
+					take_baronies = yes
+				}
+				change_development_level = -100
 			}
 		}
+		
+	}
 
-		### VALEMEN/WOODMEN ###
-		else_if = { ## COUNTIES AVAILABLE FOR HUMAN AI ##
-			limit = {
-				scope:root_scope = {
-					is_human = yes
-					OR = {
-						culture = culture:woodmen # Can only start colonising after Aragorn returns
-						culture = culture:valemen # Can only start colonising after Aragorn returns
-						culture = { any_parent_culture_or_above = { this = culture:valemen } } # Can only start colonising after Aragorn returns
-						culture = { any_parent_culture_or_above = { this = culture:woodmen } } # Can only start colonising after Aragorn returns
-					}
-				}
-			}
-			debug_log = "Wastelands.0006: Valemen/Woodmen List Made"
-			every_sub_realm_county = {
-				limit = { NOT = { culture = culture:wastelands } }
-				every_title_to_title_neighboring_and_across_water_county = {
-					limit = {
-						culture = culture:wastelands
-						this = { save_temporary_scope_as = target }
-						NOR = {
-							has_county_modifier = block_settlement_ability
-							holder = scope:root_scope
-						}
-						OR = {
-							title:e_greenwood = { is_de_jure_liege_or_above_target = scope:target }
-							title:e_anduin_vale = { is_de_jure_liege_or_above_target = scope:target }
-						}
-						title_province ?= { NOT = { terrain = halls } }
-						trigger_if = {
-							limit = { title:c_throne_of_erebor.title_province = { has_building = smaug } }
-							NOT = { scope:target.county.title_province = { has_building = smaug_desolation } }
-						}
-					}
-					add_to_list = adjacent_wastelands
-				}
-			}
-		}
-	} else_if = {
-		limit = { has_game_rule = weighted_colonisation_speed }
-		### HUMAN ###
-		if = { ## COUNTIES AVAILABLE FOR HUMAN AI ##
-			limit = { scope:root_scope = { OR = { is_human = yes is_hobbit = yes } } }
-			every_sub_realm_county = {
-				every_title_to_title_neighboring_and_across_water_county = {
-					limit = {
-						culture = culture:wastelands
-						this = { save_temporary_scope_as = target }
-						NOR = {
-							holder = scope:root_scope
-							has_county_modifier = elven_homeland_county_modifier
-							has_county_modifier = block_settlement_ability
-						}
-						title_province ?= { NOT = { terrain = halls } }
-						trigger_if = {
-							limit = { title:c_throne_of_erebor.title_province = { has_building = smaug } }
-							NOT = { scope:target.county.title_province = { has_building = smaug_desolation } }
-						}
-					}
-					add_to_list = adjacent_wastelands
-				}
-			}
-		}
+	$SELECTED_TITLE$ = {
+		every_de_jure_county = {
+			if = {
+				limit = { exists = global_var:wastelands_colonisable }
+            	add_county_modifier = block_settlement_ability
 
-		### ELF ###
-		else_if = { ## COUNTIES AVAILABLE FOR ELF AI ##
-			limit = { scope:root_scope = { is_elf = yes } }
-			### COUNTY COLONISATION PRIORITY ###
-			every_sub_realm_county = {
-				limit = { NOT = { culture = culture:wastelands } }
-				every_title_to_title_neighboring_and_across_water_county = {
-					limit = {
-						culture = culture:wastelands
-						this = { save_temporary_scope_as = target }
-						NOR = {
-							has_county_modifier = block_settlement_ability
-							holder = scope:root_scope
-						}
-						OR = {
-							has_county_modifier = elven_homeland_county_modifier
-							title_province ?= { terrain = deep_forest }
-							title_province ?= { terrain = forest }
-							title_province ?= { terrain = plains }
-							title_province ?= { terrain = mallorn_forest }
-							title_province ?= { terrain = hills }
-							title_province ?= { terrain = farmlands }
-							title_province ?= { terrain = wetlands }
-							title_province ?= { terrain = floodplains }
-						}
-						trigger_if = {
-							limit = { title:c_throne_of_erebor.title_province = { has_building = smaug } }
-							NOT = { scope:target.county.title_province = { has_building = smaug_desolation } }
-						}
-					}
-					add_to_list = adjacent_wastelands
-				}
+				set_color_from_title = title:k_invisible_title
+				set_title_name = k_wastelands
 			}
-		}
+			if = {
+				limit = {
+					NOT = {
+						any_in_list = {
+							list = prev_title_holder
+							this = holder
+						}
+						holder = { 
+							any_held_title = {
+								tier = tier_county
+								count > 0 
+							}
+						}
+						holder = character:k_wastelands_holder
+					}
+				}
+				holder = { add_to_list = prev_title_holder }
+			}
 
-		### DWARF ###
-		else_if = { ## COUNTIES AVAILABLE FOR DWARF AI ##
-			limit = { scope:root_scope = { is_dwarf = yes } }
-			every_sub_realm_county = {
-				limit = { NOT = { culture = culture:wastelands } }
-				every_title_to_title_neighboring_and_across_water_county = {
-					limit = {
-						culture = culture:wastelands
-						this = { save_temporary_scope_as = target }
-						NOR = {
-							has_county_modifier = block_settlement_ability
-							holder = scope:root_scope
-							has_county_modifier = elven_homeland_county_modifier
-						}
-						OR = {
-							title_province ?= { terrain = plains }
-							title_province ?= { terrain = steppe }
-							title_province ?= { terrain = forest }
-							title_province ?= { terrain = desert_mountains }
-							title_province ?= { terrain = caverns }
-							title_province ?= { terrain = halls }
-							title_province ?= { terrain = hills }
-							title_province ?= { terrain = mountains }
-						}
-						trigger_if = {
-							limit = { title:c_throne_of_erebor.title_province = { has_building = smaug } }
-							NOT = { scope:target.county.title_province = { has_building = smaug_desolation } }
-						}
-					}
-					add_to_list = adjacent_wastelands
+			every_county_province = {
+				limit = {
+					is_county_capital = yes
+					NOT = { has_holding_type = wastelands_holding }
 				}
+				set_holding_type = wastelands_holding
 			}
+			every_county_province = {
+				limit = {
+					is_county_capital = no
+					has_holding = yes
+				}
+				remove_holding = yes
+			}
+			
+			change_title_holder = {
+				holder = character:k_wastelands_holder
+				change = scope:change
+				take_baronies = yes
+			}
+			change_development_level = -100
 		}
+	}
 
-		### NAZGUL ###
-		else_if = { ## COUNTIES AVAILABLE FOR NAZGUL AI ##
-			limit = { scope:root_scope = { is_nazgul = yes } }
-			debug_log = "Wastelands.0006: Nazgul List Made"
-			every_sub_realm_county = {
-				limit = { NOT = { culture = culture:wastelands } }
-				every_title_to_title_neighboring_and_across_water_county = {
-					limit = {
-						culture = culture:wastelands
-						this = { save_temporary_scope_as = target }
-						NOR = {
-							has_county_modifier = block_settlement_ability
-							holder = scope:root_scope
-						}
-						title_province ?= { NOT = { terrain = halls } }
-						trigger_if = {
-							limit = { title:c_throne_of_erebor.title_province = { has_building = smaug } }
-							NOT = { scope:target.county.title_province = { has_building = smaug_desolation } }
-						}
-					}
-					add_to_list = adjacent_wastelands
-				}
-			}
-		}
+	resolve_title_and_vassal_change = scope:change
 
-		### ORC ###
-		else_if = {## COUNTIES AVAILABLE FOR ORC AI ##
-			limit = { scope:root_scope = { is_orc = yes } }
-			debug_log = "Wastelands.0006: Orc List Made"
-			every_sub_realm_county = {
-				limit = { NOT = { culture = culture:wastelands } }
-				every_title_to_title_neighboring_and_across_water_county = {
-					limit = {
-						culture = culture:wastelands
-						this = { save_temporary_scope_as = target }
-						OR = {
-							title_province ?= { terrain = desert_mountains }
-							title_province ?= { terrain = caverns }
-							title_province ?= { terrain = halls }
-							title_province ?= { terrain = hills }
-							title_province ?= { terrain = mountains }
-						}
-						NOR = {
-							has_county_modifier = block_settlement_ability
-							holder = scope:root_scope
-						}
-						trigger_if = {
-							limit = { title:c_throne_of_erebor.title_province = { has_building = smaug } }
-							NOT = { scope:target.county.title_province = { has_building = smaug_desolation } }
-						}
-					}
-					add_to_list = adjacent_wastelands
-				}
-			}
-		}
-
-		### VALEMEN/WOODMEN ###
-		else_if = { ## COUNTIES AVAILABLE FOR HUMAN AI ##
-			limit = {
-				scope:root_scope = {
-					is_human = yes
-					OR = {
-						culture = culture:woodmen # Can only start colonising after Aragorn returns
-						culture = culture:valemen # Can only start colonising after Aragorn returns
-						culture = { any_parent_culture_or_above = { this = culture:valemen } } # Can only start colonising after Aragorn returns
-						culture = { any_parent_culture_or_above = { this = culture:woodmen } } # Can only start colonising after Aragorn returns
-					}
-				}
-			}
-			debug_log = "Wastelands.0006: Valemen/Woodmen List Made"
-			every_sub_realm_county = {
-				limit = { NOT = { culture = culture:wastelands } }
-				every_title_to_title_neighboring_and_across_water_county = {
-					limit = {
-						culture = culture:wastelands
-						this = { save_temporary_scope_as = target }
-						NOR = {
-							has_county_modifier = block_settlement_ability
-							holder = scope:root_scope
-						}
-						OR = {
-							title:e_greenwood = { is_de_jure_liege_or_above_target = scope:target }
-							title:e_anduin_vale = { is_de_jure_liege_or_above_target = scope:target }
-						}
-						trigger_if = {
-							limit = { title:c_throne_of_erebor.title_province = { has_building = smaug } }
-							NOT = { scope:target.county.title_province = { has_building = smaug_desolation } }
-						}
-						title_province ?= { NOT = { terrain = halls } }
-					}
-					add_to_list = adjacent_wastelands
-				}
-			}
-		}
-
-	} else_if = {
-		limit = { has_game_rule = normal_colonisation_speed }
+	# Kills off all the previous rulers, stops courtier bloat
+	every_in_list = {
+		list = prev_title_holder
 		if = {
 			limit = {
-				scope:root_scope = {
-					OR = {
-						is_dwarf = yes
-						is_orc = yes
-						is_nazgul = yes
-						is_istari = yes
-						is_maiar = yes
-					}
+				NOR = {
+					this = character:lineofsauron
+					this = character:nazgul1
+					this = character:nazgul2
+					this = character:nazgul7
+					this = character:nazgul4
+					this = character:nazgul5
+					this = character:nazgul6
+					this = character:nazgul3
+					this = character:nazgul8
+					this = character:nazgul9
+					this = character:lineofsaruman
+					this = character:lineofgandalf
+					this = character:lineofradagast
 				}
 			}
-			every_sub_realm_county = {
-				every_title_to_title_neighboring_and_across_water_county = {
-					limit = {
-						culture = culture:wastelands
-						this = { save_temporary_scope_as = target }
-						NOR = {
-							has_county_modifier = block_settlement_ability
-							holder = scope:root_scope
-						}
-						trigger_if = {
-							limit = { title:c_throne_of_erebor.title_province = { has_building = smaug } }
-							NOT = { scope:target.county.title_province = { has_building = smaug_desolation } }
-						}
-					}
-					add_to_list = adjacent_wastelands
-				}
+			death = { death_reason = death_disappearance }
+
+			every_close_family_member = {
+				limit = { is_ruler = no }
+				death = { death_reason = death_disappearance }
 			}
 		}
 		else = {
-			every_sub_realm_county = {
-				limit = { NOT = { culture = culture:wastelands } }
-				every_title_to_title_neighboring_and_across_water_county = {
-					limit = {
-						culture = culture:wastelands
-						this = { save_temporary_scope_as = target }
-						NOR = {
-							has_county_modifier = block_settlement_ability
-							holder = scope:root_scope
+			set_character_faith_with_conversion = faith:faith_ainur
+			set_location = province:3900
+		}
+	}
+		
+	character:k_wastelands_holder = {
+		every_held_county = {
+			set_county_faith = faith:faith_wastelands_pagan
+			set_county_culture = culture:wastelands
+			change_development_level = -100
+			generate_coa = yes
+
+			if = {
+				limit = {
+					kingdom = {
+						any_in_de_jure_hierarchy = {
+							tier = tier_county
+							NOT = { holder = character:k_wastelands_holder }
 						}
-						trigger_if = {
-							limit = { title:c_throne_of_erebor.title_province = { has_building = smaug } }
-							NOT = { scope:target.county.title_province = { has_building = smaug_desolation } }
-						}
-						title_province ?= { NOT = { terrain = halls } }
 					}
-					add_to_list = adjacent_wastelands
+				}
+			} 
+			else_if = { 
+				limit = {
+					trigger_if = {
+						limit = {
+							NOT = { $SELECTED_TITLE$ = title:k_eregion }
+						}
+						NOT = { kingdom = title:k_eregion }
+					}
 				}
 			}
 		}
 	}
+	kill_random_courtiers = yes
+	stop_wastelands_wars = yes
+}
 
-	ordered_in_list = {
-		list = adjacent_wastelands
-		order_by = {
-			value = 0
-			every_neighboring_county = {
-				limit = { holder = scope:root_scope }
-				add = 2
-			}
-			every_neighboring_county = {
-				limit = {
-					holder = scope:root_scope
-					trigger_if = {
-						limit = { exists = scope:curr_county }
-						duchy = scope:curr_county.duchy
+add_empires_to_global_list = {
+	every_empire = {
+		limit = {
+			NOT = { this = title:e_valinor }
+			any_de_jure_county = { count > 0 }
+		}
+		add_to_global_variable_list = {
+			name = all_empires_in_game
+			target = this
+		}
+	}
+}
+
+add_kingdom_titles_to_list = {
+	every_in_global_list = {
+		variable = all_empires_in_game
+		save_scope_as = curr_empire
+		every_de_jure_county = {
+			duchy = { save_scope_as = curr_duchy }
+			duchy.kingdom = {
+				if = {
+					limit = {
+						NOT = {
+							scope:curr_empire = {
+								is_target_in_variable_list = {
+									name = de_jure_kingdoms
+									target = prev
+								}
+							}
+						}
 					}
-					save_temporary_scope_as = curr_county
-				}
-				add = 16
-			}
-			every_neighboring_county = {
-				limit = {
-					holder = scope:root_scope
-					trigger_if = {
-						limit = { exists = scope:curr_county }
-						kingdom = scope:curr_county.kingdom
+					scope:curr_empire = {
+						add_to_variable_list = {
+							name = de_jure_kingdoms
+							target = prev
+						}
 					}
-					save_temporary_scope_as = curr_county
 				}
-				add = 8
 			}
-			every_neighboring_county = {
+			if = {
 				limit = {
-					holder = scope:root_scope
-					trigger_if = {
-						limit = { exists = scope:curr_county }
-						empire = scope:curr_county.empire
+					NOT = {
+						kingdom = {
+							is_target_in_variable_list = {
+								name = de_jure_duchies
+								target = scope:curr_duchy
+							}
+						}
 					}
-					save_temporary_scope_as = curr_county
 				}
-				add = 4
+				
+				kingdom = {
+					add_to_variable_list = {
+						name = de_jure_duchies
+						target = scope:curr_duchy
+					}
+				}
 			}
 		}
-		save_scope_as = wastelands
+	}
+}
+
+canon_area_empires = {
+	every_in_global_list = {
+		variable = all_empires_in_game
+		limit = {
+			NOT = {
+				title_capital_county.title_province = { # Juke note: Tried to improve code so we dont have to update this list repeatedly
+					OR = {
+						geographical_region = middleearth_mountains_blue
+						geographical_region = middleearth_mountains_misty
+						geographical_region = middleearth_mountains_iron
+						geographical_region = middleearth_mountains_white
+
+						geographical_region = middleearth_west
+						geographical_region = middleearth_forodwaith
+						geographical_region = middleearth_harad_near
+						geographical_region = middleearth_mordor
+						geographical_region = middleearth_rhun_dorwinion
+						geographical_region = middleearth_rhun_seaofrhun
+						geographical_region = middleearth_rhun_khand
+						geographical_region = middleearth_rhun_nurunkizdin
+					}
+				}
+			}
+		}
+		add_to_global_variable_list = {
+			name = non_canon_areas
+			target = this
+		}
+	}
+}
+
+kill_random_courtiers = {
+	every_living_character = {
+		limit = {
+			NOR = {
+				exists = top_liege
+				top_liege ?= title:k_wastelands.holder
+				is_sauron = yes
+				is_nazgul = yes
+				is_maiar_fallen = yes
+				is_maiar = yes
+				is_istari = yes
+			}
+		}
+		save_scope_as = lore_char
 		if = {
-			limit = { scope:root_scope = { above_settlement_limit = no } }
-			scope:root_scope = {
-				ai_colonisation_effect = { WASTELANDS = scope:wastelands ROOT_SCOPE = scope:root_scope }
-				correct_wastelands_tracker = yes
+			limit = { has_variable = lotr_type_of_content }
+			title:k_wastelands = {
+				remove_list_variable = {
+					name = lore_character_list
+					target = scope:lore_char
+				}
+			}
+			remove_variable = lotr_type_of_content
+		}
+		scope:lore_char = { death = { death_reason = death_disappearance } }
+	}
+
+}
+
+stop_wastelands_wars = {
+	character:k_wastelands_holder = { every_character_war = { end_war = white_peace } }
+}
+
+remove_kingdom_and_duchy_variables_from_empires = {
+	every_in_global_list = {
+		variable = all_empires_in_game
+		save_scope_as = curr_empire
+		every_de_jure_county = {
+			duchy = { save_scope_as = curr_duchy }
+			duchy.kingdom = {
+				if = {
+					limit = {
+						scope:curr_empire = {
+							is_target_in_variable_list = {
+								name = de_jure_kingdoms
+								target = prev
+							}
+						}
+					}
+					scope:curr_empire = {
+						remove_list_variable = {
+							name = de_jure_kingdoms
+							target = prev
+						}
+					}
+				}
+			}
+			if = {
+				limit = {
+					kingdom = {
+						is_target_in_variable_list = {
+							name = de_jure_duchies
+							target = scope:curr_duchy
+						}
+					}
+				}
+				
+				kingdom = {
+					remove_list_variable = {
+						name = de_jure_duchies
+						target = scope:curr_duchy
+					}
+				}
 			}
 		}
 	}
