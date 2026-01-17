@@ -43,7 +43,7 @@ ray_story.0001 = { # Mardat Makes His Choice
 				is_ai = yes
 			}
 			trigger_event = {
-				id = ray_story.0163
+				id = ray_story.0002
 				days = 3650
 			}
 		}
@@ -65,6 +65,47 @@ ray_story.0001 = { # Mardat Makes His Choice
 	}
 
 }
+
+ray_story.0002{#AI check for coup code
+	content_source = realms_dlc
+	type = character_event
+	immediate = {
+		title:k_haruzan.holder = { save_scope_as = haruzan_king }
+		if = {
+			limit = {
+				title:e_bozisha_miraz = { is_title_created = no }
+			}
+			add_character_flag = mardat_coup_transition
+		}		
+	}
+	theme = intrigue
+	title =	ray_story.0103.t
+	desc = ray_story.0103.desc
+	override_background = {
+		reference = harad_drylands	
+	}
+	
+	left_portrait = {
+		character = root
+		animation = chancellor
+	}
+
+	right_portrait = {
+		character = scope:haruzan_king
+		animation = interested
+	}
+
+	option = {
+		name = ray_story.0103.a
+		trigger_event = {
+			id = ray_story.0163
+		}		
+		ai_chance = {
+			base = 100
+		}
+	}
+}
+
 
 ### Haruzan Story Branch ###
 
@@ -3977,9 +4018,10 @@ ray_story.0158 = {#Mardat wins the civil war
 	theme = war
 	immediate = {
 		title:d_dar.holder = { save_scope_as = ray_king_lost }
-		title:d_iunastiy.holder = { save_scope_as = revolutionary }		
+		title:d_iunastiy.holder = { save_scope_as = revolutionary }	
 		hidden_effect = {
-			scope:ray_king_lost = {
+			scope:ray_king_lost = {				
+				get_title = title:e_bozisha_miraz
 				create_title_and_vassal_change = {
 					type = usurped
 					save_scope_as = title_change
@@ -3991,8 +4033,14 @@ ray_story.0158 = {#Mardat wins the civil war
 						change = scope:title_change
 					}
 				}
-				resolve_title_and_vassal_change = scope:title_change		
+				resolve_title_and_vassal_change = scope:title_change
 			}
+			if = {
+				limit = {
+					has_character_flag = mardat_coup_transition
+				}
+				destroy_title = title:e_bozisha_miraz
+			}			
 		}		
 		set_realm_capital = title:c_bozisha_dar
 	}
@@ -4025,12 +4073,20 @@ ray_story.0158 = {#Mardat wins the civil war
 				days = 10
 			}
 		}		
-		scope:ray_king_lost = {
-			death = {
-				death_reason = death_execution
-				killer = root
+		if = {
+			limit = {
+				NOT = {
+					scope:ray_king_lost = root
+				}
 			}
+			scope:ray_king_lost = {
+				death = {
+					death_reason = death_torture
+					killer = root
+				}
+			}			
 		}
+
 		if = {
 			limit = {
 				OR = {
@@ -4059,11 +4115,18 @@ ray_story.0158 = {#Mardat wins the civil war
 				days = 10
 			}
 		}		
-		scope:ray_king_lost = {
-			death = {
-				death_reason = death_execution
-				killer = root
+		if = {
+			limit = {
+				NOT = {
+					scope:ray_king_lost = root
+				}
 			}
+			scope:ray_king_lost = {
+				death = {
+					death_reason = death_torture
+					killer = root
+				}
+			}			
 		}
 		
 		title:c_bozisha_dar = {
@@ -9183,7 +9246,7 @@ ray_story.0333 = { # Mardat wins Doom War
 		}		
 		scope:attacker = {
 			death = {
-				death_reason = death_execution
+				death_reason = death_torture
 				killer = root
 			}
 		}
@@ -9303,8 +9366,7 @@ ray_story.0334 = { # Rebels win Doom War
 		name = ray_story.0334.a
 		scope:defender = {
 			death = {
-				death_reason = death_execution
-				killer = root
+				death_reason = death_mardat_execution
 			}
 		}
 		add_prestige = 1000	
@@ -9631,14 +9693,25 @@ ray_story.0403 = {# Chose what to investigate
 	title =	ray_story.0403.t
 	desc = {
 		desc = ray_story.0403.desc
-		first_valid = {
-			triggered_desc = {
-				trigger = {
-					NOT = {has_character_flag = ray_mardat_trust}
-				}
-				desc = ray_story.0403.desc.none
+		triggered_desc = {
+			trigger = {
+				NOT = {has_character_flag = vatalinar_criminal_completion}
 			}
-		}		
+			desc = ray_story.0403.desc.crime
+		}
+		triggered_desc = {
+			trigger = {
+				NOT = {has_character_flag = vatalinar_army_completion}
+			}
+			desc = ray_story.0403.desc.army
+		}
+		triggered_desc = {
+			trigger = {
+				NOT = {has_character_flag = vatalinar_lords_completion}
+			}
+			desc = ray_story.0403.desc.lords
+		}
+				
 	}
 	override_background = { reference = corridor_night }
 	
@@ -9654,7 +9727,15 @@ ray_story.0403 = {# Chose what to investigate
 
 	option = { # Investigate the criminals
 		name = ray_story.0403.a
+		trigger = {
+			NOT = {
+				has_character_flag = vatalinar_criminal_completion
+			}
+		}
 		custom_tooltip = vatalinar_investigate_criminals
+		trigger_event = {
+			id = ray_story.0404
+		}
 		ai_chance = {
 			base = 33
 		}
@@ -9674,6 +9755,479 @@ ray_story.0403 = {# Chose what to investigate
 			base = 33
 		}
 	}		
+}
+
+ray_story.0404 = {# Crime : Capturing the informant
+	content_source = realms_dlc
+	type = character_event
+	theme = intrigue
+	immediate = {
+		title:d_suza_riy.holder = { save_scope_as = mardat }
+		debug_log = "Vâtalinar: Informant Leader"
+		create_character = {
+			name = Vatrak
+			gender = male
+			age = 32
+			culture = culture:bozishnarud
+			faith = faith:faith_vatra
+			trait = greedy
+			trait = deceitful
+			trait = callous
+			trait = education_intrigue_2
+			location = capital_province
+			
+			save_scope_as = informant
+		}			
+	}
+	title =	ray_story.0404.t
+	desc = ray_story.0404.desc
+	override_background = { reference = alley_night }
+	
+	left_portrait = {
+		character = root
+		animation = spymaster
+	}
+
+	right_portrait = {
+		character = scope:informant
+		animation = scheme
+	}
+
+	option = { # Kidnap the guy
+		name = ray_story.0404.a
+		add_stress = 5
+		reverse_add_opinion = {
+			modifier = attempted_abduction_opinion
+			target = scope:informant
+			opinion = -80
+		}		
+		duel = {
+			skill = intrigue
+			target = scope:informant	
+			75 = { # success
+			compare_modifier = {
+				value = scope:duel_value
+				multiplier = 2
+				min = -29
+			}						
+				custom_tooltip = ray_story.crime.success
+				imprison = {
+					target = scope:informant
+					type = dungeon
+				}				
+				trigger_event = {
+					id = ray_story.0406
+				}
+			}
+			25 = { # failure
+			compare_modifier = {
+				value = scope:duel_value
+				multiplier = -2
+				min = -29
+			}						
+				custom_tooltip = ray_story.crime.fail
+				trigger_event = {
+					id = ray_story.0405
+				}
+			}
+		}		
+		ai_chance = {
+			base = 100
+		}
+	}
+	option = { # Make a deal
+		name = ray_story.0404.b	
+		duel = {
+			skill = diplomacy
+			target = scope:informant	
+			75 = { # success
+			compare_modifier = {
+				value = scope:duel_value
+				multiplier = 2
+				min = -29
+			}						
+				custom_tooltip = ray_story.crime.success			
+				pay_short_term_gold = {
+					gold = 500
+					target = scope:informant
+				}				
+				trigger_event = {
+					id = ray_story.0407
+				}
+			}
+			25 = { # failure
+			compare_modifier = {
+				value = scope:duel_value
+				multiplier = -2
+				min = -29
+			}						
+				custom_tooltip = ray_story.crime.fail
+				trigger_event = {
+					id = ray_story.0405
+				}
+			}
+		}		
+		ai_chance = {
+			base = 100
+		}
+	}	
+	option = { # Pull out
+		name = ray_story.0404.c
+		custom_tooltip = vatalinar_investigate_pull_out
+		ai_chance = {
+			base = 100
+		}
+	}	
+}
+
+ray_story.0405 = {# Failed the crime path
+	content_source = realms_dlc
+	type = character_event
+	theme = intrigue
+	immediate = {
+		title:d_suza_riy.holder = { save_scope_as = mardat }		
+	}
+	title =	ray_story.0405.t
+	desc = ray_story.0405.desc
+	override_background = { reference = corridor_night }
+	
+	left_portrait = {
+		character = root
+		animation = disappointed
+	}
+
+	option = {
+		name = ray_story.0405.a
+		custom_tooltip = vatalinar_failed_criminal_investigation		
+		add_stress = 50
+		add_character_flag = vatalinar_criminal_completion
+		ai_chance = {
+			base = 100
+		}
+	}	
+}
+
+ray_story.0406 = {# Crime : Interrogation
+	content_source = realms_dlc
+	type = character_event
+	theme = intrigue
+	immediate = {
+		title:d_suza_riy.holder = { save_scope_as = mardat }		
+	}
+	title =	ray_story.0406.t
+	desc = ray_story.0406.desc
+	override_background = { reference = dungeon }
+	
+	left_portrait = {
+		character = root
+		animation = thinking
+	}
+
+	right_portrait = {
+		character = scope:informant
+		animation = prisondungeon
+	}
+
+	option = { # Standard interrogation
+		name = ray_story.0406.a	
+		duel = {
+			skill = intrigue
+			target = scope:informant	
+			65 = { # success
+			compare_modifier = {
+				value = scope:duel_value
+				multiplier = 3
+				min = -29
+			}						
+				custom_tooltip = ray_story.crime.success				
+				trigger_event = {
+					id = ray_story.0407
+				}
+			}
+			35 = { # failure
+			compare_modifier = {
+				value = scope:duel_value
+				multiplier = -3
+				min = -29
+			}						
+				custom_tooltip = ray_story.crime.fail
+				trigger_event = ray_story.0405
+			}
+		}	
+		ai_chance = {
+			base = 100
+		}
+	}
+	option = { # Torture
+		name = ray_story.0406.b
+		# Vâtalinar becomes evil trait effects
+		if = {
+			limit = {
+				has_trait = gregarious
+			}
+			remove_trait = gregarious
+			add_trait = callous
+		}
+		###		
+		reverse_add_opinion = {
+			modifier = tortured_me
+			target = scope:informant
+			opinion = -100
+		}
+		duel = {
+			skill = intrigue
+			target = scope:informant
+			90 = { # success
+			compare_modifier = {
+				value = scope:duel_value
+				multiplier = 3
+				min = -29
+			}						
+				custom_tooltip = ray_story.crime.success				
+				trigger_event = {
+					id = ray_story.0407
+				}
+			}
+			10 = { # failure
+			compare_modifier = {
+				value = scope:duel_value
+				multiplier = -3
+				min = -29
+			}						
+				custom_tooltip = ray_story.crime.fail
+				trigger_event = {
+					id = ray_story.0405
+				}
+			}
+		}	
+		ai_chance = {
+			base = 100
+		}
+	}
+	option = { # Bribe
+		name = ray_story.0406.c		
+		duel = {
+			skill = diplomacy
+			target = scope:informant	
+			80 = { # success
+			compare_modifier = {
+				value = scope:duel_value
+				multiplier = 3
+				min = -29
+			}						
+				pay_short_term_gold = {
+					gold = 300
+					target = scope:informant
+				}					
+				custom_tooltip = ray_story.crime.success			
+				trigger_event = {
+					id = ray_story.0407
+				}
+			}
+			20 = { # failure
+			compare_modifier = {
+				value = scope:duel_value
+				multiplier = -3
+				min = -29
+			}						
+				custom_tooltip = ray_story.crime.fail
+				trigger_event = {
+					id = ray_story.0405
+				}
+			}
+		}	
+		ai_chance = {
+			base = 100
+		}
+	}	
+	option = { # Pull out
+		name = ray_story.0406.d
+		custom_tooltip = vatalinar_pull_out_end
+		add_stress = 10
+		add_character_flag = vatalinar_criminal_completion		
+		ai_chance = {
+			base = 100
+		}
+	}	
+}
+
+ray_story.0407 = {# Raid conspiracy spies
+	content_source = realms_dlc
+	type = character_event
+	theme = intrigue
+	immediate = {
+		title:d_suza_riy.holder = { save_scope_as = mardat }	
+		cp:councillor_spymaster= {
+			save_scope_as = spymaster
+		}				
+	}
+	title =	ray_story.0407.t
+	desc = ray_story.0407.desc
+	override_background = { reference = alley_night }
+	
+	left_portrait = {
+		character = root
+		animation = personality_vengeful
+	}
+
+	right_portrait = {
+		character = scope:spymaster
+		animation = spymaster
+	}
+
+	option = { # Open raid
+		name = ray_story.0407.a	
+		duel = {
+			skill = martial
+			target = scope:mardat	
+			40 = { # success
+			compare_modifier = {
+				value = scope:duel_value
+				multiplier = 3
+				min = -29
+			}						
+				custom_tooltip = ray_story.crime.success.last			
+				trigger_event = {
+					id = ray_story.0408
+				}
+			}
+			60 = { # failure
+			compare_modifier = {
+				value = scope:duel_value
+				multiplier = -3
+				min = -29
+			}						
+				custom_tooltip = ray_story.crime.fail.last
+				trigger_event = {
+					id = ray_story.0405
+				}
+			}
+		}	
+		ai_chance = {
+			base = 100
+		}
+	}
+	option = { # Inflitration
+		name = ray_story.0407.b	
+		duel = {
+			skill = intrigue
+			target = scope:mardat
+			100 = { # success
+			compare_modifier = {
+				value = scope:duel_value
+				multiplier = 3
+				min = -29
+			}						
+				custom_tooltip = ray_story.crime.success.last					
+				trigger_event = {
+					id = ray_story.0408
+				}
+			}
+			0 = { # failure
+			compare_modifier = {
+				value = scope:duel_value
+				multiplier = -3
+				min = -29
+			}						
+				custom_tooltip = ray_story.crime.fail.last
+				trigger_event = {
+					id = ray_story.0405
+				}
+			}
+		}	
+		ai_chance = {
+			base = 100
+		}
+	}	
+	option = { # Pull out
+		name = ray_story.0407.c
+		custom_tooltip = vatalinar_pull_out_end
+		add_stress = 10	
+		ai_chance = {
+			base = 100
+		}
+	}	
+}
+
+ray_story.0408 = {# Discover Mardat
+	content_source = realms_dlc
+	type = character_event
+	theme = intrigue
+	immediate = {
+		title:d_suza_riy.holder = { save_scope_as = mardat }
+		add_character_flag = vatalinar_criminal_completion			
+	}
+	title =	ray_story.0408.t
+	desc = ray_story.0408.desc
+	override_background = { reference = corridor_night }
+	
+	left_portrait = {
+		character = root
+		animation = spymaster
+	}
+
+	right_portrait = {
+		character = scope:mardat
+		animation = shock
+	}
+
+	option = {
+		name = ray_story.0408.a
+		custom_tooltip = vatalinar_succeeded_criminal_investigation
+		scope:mardat = {
+			trigger_event = {
+				id = ray_story.0409
+			}			
+		}
+		set_relation_rival = {
+            target = scope:mardat
+            reason = rival_claimed_my_title
+            involved_character = root
+		}		
+		add_stress = -50
+		add_character_flag = vatalinar_criminal_completion
+		add_character_flag = vatalinar_discovered_mardat
+		ai_chance = {
+			base = 100
+		}
+	}	
+}
+
+ray_story.0409 = {# Mardat is discovered Mardat POV
+	content_source = realms_dlc
+	type = character_event
+	theme = intrigue
+	immediate = {
+		title:k_ray.holder = { save_scope_as = ray_king }		
+	}
+	title =	ray_story.0409.t
+	desc = ray_story.0409.desc
+	override_background = { reference = corridor_night }
+	
+	left_portrait = {
+		character = root
+		animation = shock
+	}
+
+	right_portrait = {
+		character = scope:ray_king
+		animation = spymaster
+	}
+
+	option = {
+		name = ray_story.0409.a
+		custom_tooltip = vatalinar_may_act
+		show_as_tooltip = {
+			set_relation_rival = {
+            	target = scope:ray_king
+           		reason = rival_claimed_my_title
+            	involved_character = root
+			}
+		}
+		ai_chance = {
+			base = 100
+		}
+	}	
 }
 
 
