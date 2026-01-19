@@ -29,6 +29,7 @@ lotr_on_title_destroyed = {
 		if = {
 			limit = { scope:landed_title = title:e_golden_realm_rhun }
 			title:e_golden_realm_rhun = { add_to_temporary_list = titles_to_destroy }
+			save_scope_as = attacker
 			lotr_achievement_30_effect = yes
 		}
 		#Tracking Imperial Khand Time Held
@@ -43,6 +44,7 @@ lotr_on_title_destroyed = {
 				remove_variable = year_khand_founded
 				remove_variable = ruling_dynasty
 				remove_variable = successive_rulers
+				remove_variable = ovathas_heir
 			}
 		}
 		#Tamska system upkeep
@@ -192,13 +194,15 @@ lotr_on_title_gain = {
 			limit = {
 				scope:title.tier = tier_county
 				scope:title = {
-					has_county_modifier = druadan_watch_stone_modifier
+					any_county_province = {
+						has_province_modifier = druadan_watch_stone_modifier
+					}
 				}
 				is_druedain = no
 			}
-			remove_county_modifier = druadan_watch_stone_modifier
+			remove_province_modifier = druadan_watch_stone_modifier
 		}
-		
+
 		# Achievements
 		if = {
 			limit = {
@@ -450,6 +454,15 @@ lotr_on_title_gain = {
 			}
 			if = {
 				limit = {
+					NOT = { exists = global_var:lotr_achievement_41 }
+					primary_title = title:k_abrakhan
+					completely_controls = title:e_dune_sea
+					completely_controls = title:e_haradwaith
+				}
+				set_global_variable = lotr_achievement_41
+			}
+			if = {
+				limit = {
 					NOT = { exists = global_var:lotr_achievement_77 }
 					scope:title = title:k_amon_lanc
 					has_character_flag = gor_good
@@ -549,10 +562,7 @@ lotr_on_title_gain = {
 			} 
 			else_if = {
 				limit = {
-					OR = {
-						is_orc = yes
-						is_human = yes
-					}
+					is_human = yes
 				}
 				root = { change_government = tribal_government }
 			} 
@@ -568,6 +578,10 @@ lotr_on_title_gain = {
 					}
 				}
 				root = { change_government = feudal_government }
+			}
+			else_if = {
+				limit = { is_orc = yes }
+				root = { change_government = orcish_government }
 			}
 			scope:title ?= {
 				set_county_culture = root.culture
@@ -1532,6 +1546,30 @@ lotr_on_title_gain = {
 				days = 1
 			}
 		}
+		#Ovatha Name Change
+		if = {
+			limit = {
+				scope:title ?= {
+					this = title:e_khand
+					NOT = { has_variable = ovathas_heir }
+				}
+    			OR = {
+					culture = culture:variag
+					culture = { any_parent_culture_or_above = { this = culture:variag } }
+    			}
+				has_primary_title = title:e_khand
+			}
+			trigger_event = {
+				id = khand.0001
+				days = 7
+			}
+			title:e_khand = {
+				set_variable = {
+					name = ovathas_heir
+					value = 1
+				}
+			}
+		}
 		#LotR - Tracking Imperial Khand Time Held
 		if = {
 			limit = {
@@ -1557,22 +1595,6 @@ lotr_on_title_gain = {
 					name = successive_rulers
 					value = 1
 				}
-			}
-		}
-		if = {
-			limit = {
-				scope:title ?= {
-					this = title:e_khand
-				}
-    			OR = {
-					culture = culture:variag
-					culture = { any_parent_culture_or_above = { this = culture:variag } }
-    			}
-				has_primary_title = title:e_khand
-			}
-			trigger_event = {
-				id = khand.0001
-				days = 7
 			}
 		}
 		if = {
@@ -1754,8 +1776,7 @@ lotr_on_title_gain = {
 		}
 	}
 	events = {
-		gondor.9999
-		gondor.9998
+		gondor.9998 #Isengard switching
 		orcs.0010
 		dwarven.6001
 		nordinbad.0200
@@ -1874,15 +1895,22 @@ lotr_on_title_gain_inheritance = {
 			}
 		}
 
-		#LotR - make sure elves remain with the elven government type
+		#LotR - make sure races remain with correct government types
 		if = {
-			limit = {
-				is_elf = yes
-				is_landless_adventurer = no
+			limit = { is_landless_adventurer = no }
+			if = {
+				limit = { is_elf = yes }
+				trigger_event = {
+					id = elven_racial.0011
+					days = 1
+				}
 			}
-			trigger_event = {
-				id = elven_racial.0011
-				days = 1
+			if = {
+				limit = { is_orc = yes }
+				trigger_event = {
+					id = orcs.9950
+					days = 1
+				}
 			}
 		}
 
@@ -2056,7 +2084,7 @@ lotr_on_title_gain_inheritance = {
 				}
 			}
 		}
-		if = {
+		if = { #Variag Succession Handling
 			limit = {
 				root.highest_held_title_tier = tier_empire
 				scope:previous_holder.culture = { has_cultural_parameter = realms_shatter_on_succession }
@@ -2102,18 +2130,35 @@ lotr_on_title_gain_inheritance = {
 				resolve_title_and_vassal_change = scope:change
 			}
 		}
-		scope:title ?= {
+		root.primary_title ?= {
 			if = {
 				limit = {
 					root.culture = { has_cultural_parameter = realms_destroyed_on_succession }
 					tier >= tier_kingdom
 					root = { is_independent_ruler = yes }
-					any_de_jure_top_liege = {
+					any_de_jure_county = {
 						percent < 0.5
-						this = root
+						holder.top_liege = root
 					}
 				}
-				root = { destroy_title = scope:title }
+				root = { destroy_title = root.primary_title }
+			}
+		}
+		if = {
+			limit = {
+				scope:title ?= {
+					this = title:e_khand
+					has_variable = ovathas_heir
+				}
+    			OR = {
+					culture = culture:variag
+					culture = { any_parent_culture_or_above = { this = culture:variag } }
+    			}
+				has_primary_title = title:e_khand
+			}
+			trigger_event = {
+				id = khand.0001
+				days = 7
 			}
 		}
 
