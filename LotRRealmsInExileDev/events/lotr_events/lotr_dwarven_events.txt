@@ -450,23 +450,54 @@ scripted_trigger dwarven.5001_direct_male_line = {
 	}
 }
 
+scripted_trigger dwarven.5001_direct_female_line = {
+	NOT = {
+		any_sibling = {
+			is_alive = yes
+			is_female = yes
+			age >= prev.age
+			dynasty = ROOT.dynasty
+			NOR = {
+				has_trait = bastard
+				has_trait = bastard_founder
+
+			}
+			trigger_if = {
+				limit = {
+					exists = mother
+				}
+				mother = prev.mother
+			}
+		}
+	}
+}
+
 dwarven.5001 = { # On childbirth: Random chance to be a reincarnation
 	type = character_event
 	hidden = yes
 	trigger = {
 		# Basic Stuff
 		trigger_if = {
-			limit = {
-				exists = scope:father
-				exists = scope:real_father
+			limit = { NOT = { has_game_rule = inversed_gender_equality } }
+			trigger_if = {
+				limit = {
+					exists = scope:father
+					exists = scope:real_father
+				}
+				scope:father = scope:real_father
 			}
-			scope:father = scope:real_father
 		}
 		NOR = {
 			has_trait = bastard
 			has_trait = bastard_founder
 		}
-		is_female = no
+		trigger_if = {
+			limit = { has_game_rule = inversed_gender_equality }
+			is_female = yes
+		}
+		trigger_else = {
+			is_female = no
+		}
 		is_lowborn = no
 		is_dwarf = yes
 		# Must be in royal dynasty, must have reincarnated less than seven times
@@ -515,57 +546,60 @@ dwarven.5001 = { # On childbirth: Random chance to be a reincarnation
 	}
 
 	immediate = {
-		if = { # See if they could be a reincarnation
-			limit = {
-				# Dad must be able to inherit
-				NOR = {
-					father = {
+		if = {
+			limit = { has_game_rule = inversed_gender_equality }
+			if = { # See if they could be a reincarnation
+				limit = {
+					# Mum must be able to inherit
+					NOR = {
+						mother = {
+							house = root.house
+							has_trait = disinherited
+						}
+						mother.mother = {
+							house = root.house
+							has_trait = disinherited
+						}
+						mother.mother.mother = {
+							house = root.house
+							has_trait = disinherited
+						}
+					}
+					# 100 Year Cooldown after the death of the last guy
+					trigger_if = {
+						limit = {
+							dynasty = { exists = var:dorfdad_cooldown_year }
+						}
+						dynasty = { current_year >= var:dorfdad_cooldown_year }
+					}
+					# Must be direct female-line descendant and oldest child
+					dwarven.5001_direct_female_line = yes
+					mother = {
+						is_alive = yes
 						house = root.house
-						has_trait = disinherited
-					}
-					father.father = {
-						house = root.house
-						has_trait = disinherited
-					}
-					father.father.father = {
-						house = root.house
-						has_trait = disinherited
-					}
-				}
-				# 100 Year Cooldown after the death of the last guy
-				trigger_if = {
-					limit = {
-						dynasty = { exists = var:dorfdad_cooldown_year }
-					}
-					dynasty = { current_year >= var:dorfdad_cooldown_year }
-				}
-				# Must be direct male-line descendant and oldest child
-				dwarven.5001_direct_male_line = yes
-				father = {
-					is_alive = yes
-					house = root.house
-					OR = {
-						is_dynast = yes
-						AND = {
-							dwarven.5001_direct_male_line = yes
-							father = {
-								is_alive = yes
-								house = root.house
-								OR = {
-									is_dynast = yes
-									AND = {
-										dwarven.5001_direct_male_line = yes
-										father = {
-											is_alive = yes
-											house = root.house
-											OR = {
-												is_dynast = yes
-												AND = {
-													dwarven.5001_direct_male_line = yes
-													father = {
-														is_alive = yes
-														house = root.house
-														is_dynast = yes
+						OR = {
+							is_dynast = yes
+							AND = {
+								dwarven.5001_direct_female_line = yes
+								mother = {
+									is_alive = yes
+									house = root.house
+									OR = {
+										is_dynast = yes
+										AND = {
+											dwarven.5001_direct_female_line = yes
+											mother = {
+												is_alive = yes
+												house = root.house
+												OR = {
+													is_dynast = yes
+													AND = {
+														dwarven.5001_direct_female_line = yes
+														mother = {
+															is_alive = yes
+															house = root.house
+															is_dynast = yes
+														}
 													}
 												}
 											}
@@ -575,88 +609,235 @@ dwarven.5001 = { # On childbirth: Random chance to be a reincarnation
 							}
 						}
 					}
-				}
-				# # Parent, grandparent or great grandparent must be a king or higher
-				any_ancestor = {
-					house = root.house
-					is_landed = yes
-					highest_held_title_tier >= tier_kingdom
-				}
-			}
-			debug_log = "Testing for dorfdad reincarnation!"
-			random = {
-				chance = {
-					value = 10
-					if = { # Some characters historically sire incarnates
-						limit = {
-							father = {
-								is_alive = yes
-								house = root.house
-								has_character_flag = historically_conceived_dorfdad
-							}
-							has_game_rule = default_ai_behavior
-						}
-						add = 90
+					# # Parent, grandparent or great grandparent must be a king or higher
+					any_ancestor = {
+						house = root.house
+						is_landed = yes
+						highest_held_title_tier >= tier_kingdom
 					}
-					else_if = { # Some characters historically sire incarnates
-						limit = {
-							father = {
-								is_alive = yes
-								house = root.house
-								has_character_flag = historically_conceived_dorfdad
-							}
-							has_game_rule = weighted_ai_behavior
-						}
-						add = 65
-					}
-					else_if = { # Some characters historically sire incarnates
-						limit = {
-							father = {
-								is_alive = yes
-								house = root.house
-								has_character_flag = historically_conceived_dorfdad
-							}
-							NOR = {
+				}
+				debug_log = "Testing for dorfdad reincarnation!"
+				random = {
+					chance = {
+						value = 10
+						if = { # Some characters historically sire incarnates
+							limit = {
+								mother = {
+									is_alive = yes
+									house = root.house
+									has_character_flag = historically_conceived_dorfdad
+								}
 								has_game_rule = default_ai_behavior
+							}
+							add = 90
+						}
+						else_if = { # Some characters historically sire incarnates
+							limit = {
+								mother = {
+									is_alive = yes
+									house = root.house
+									has_character_flag = historically_conceived_dorfdad
+								}
 								has_game_rule = weighted_ai_behavior
 							}
+							add = 65
 						}
-						add = 40
-					}
-					if = { # Player children get a higher chance, as a treat
-						limit = {
-							any_ancestor = {
-								is_alive = yes
-								house = root.house
-								is_ai = no
+						else_if = { # Some characters historically sire incarnates
+							limit = {
+								mother = {
+									is_alive = yes
+									house = root.house
+									has_character_flag = historically_conceived_dorfdad
+								}
+								NOR = {
+									has_game_rule = default_ai_behavior
+									has_game_rule = weighted_ai_behavior
+								}
 							}
+							add = 40
 						}
-						add = 5
+						if = { # Player children get a higher chance, as a treat
+							limit = {
+								any_ancestor = {
+									is_alive = yes
+									house = root.house
+									is_ai = no
+								}
+							}
+							add = 5
+						}
+					}
+					# Create the Story
+					create_story = story_dorfdad_reincarnation
+					debug_log = "Found a possible Dorfdad Reincarnation!"
+				}
+			}
+			else = { # They still fulfill some requirements, chance to make them emulate their Dwarf mother as a semi-red flag
+				random = {
+					chance = {
+						value = 5
+						if = { # Bad traits
+							limit = {
+								OR = {
+									has_trait = physique_bad
+									has_trait = beauty_bad
+									has_trait = intellect_bad
+								}
+							}
+							value = 0
+						}
+					}
+					trigger_event = {
+						id = dwarven.5002
+						years = { 5 10 }
 					}
 				}
-				# Create the Story
-				create_story = story_dorfdad_reincarnation
-				debug_log = "Found a possible Dorfdad Reincarnation!"
 			}
 		}
-		else = { # They still fulfill some requirements, chance to make them emulate their Dwarf father as a semi-red flag
-			random = {
-				chance = {
-					value = 5
-					if = { # Bad traits
+		else = {
+			if = { # See if they could be a reincarnation
+				limit = {
+					# Dad must be able to inherit
+					NOR = {
+						father = {
+							house = root.house
+							has_trait = disinherited
+						}
+						father.father = {
+							house = root.house
+							has_trait = disinherited
+						}
+						father.father.father = {
+							house = root.house
+							has_trait = disinherited
+						}
+					}
+					# 100 Year Cooldown after the death of the last guy
+					trigger_if = {
 						limit = {
-							OR = {
-								has_trait = physique_bad
-								has_trait = beauty_bad
-								has_trait = intellect_bad
+							dynasty = { exists = var:dorfdad_cooldown_year }
+						}
+						dynasty = { current_year >= var:dorfdad_cooldown_year }
+					}
+					# Must be direct male-line descendant and oldest child
+					dwarven.5001_direct_male_line = yes
+					father = {
+						is_alive = yes
+						house = root.house
+						OR = {
+							is_dynast = yes
+							AND = {
+								dwarven.5001_direct_male_line = yes
+								father = {
+									is_alive = yes
+									house = root.house
+									OR = {
+										is_dynast = yes
+										AND = {
+											dwarven.5001_direct_male_line = yes
+											father = {
+												is_alive = yes
+												house = root.house
+												OR = {
+													is_dynast = yes
+													AND = {
+														dwarven.5001_direct_male_line = yes
+														father = {
+															is_alive = yes
+															house = root.house
+															is_dynast = yes
+														}
+													}
+												}
+											}
+										}
+									}
+								}
 							}
 						}
-						value = 0
+					}
+					# # Parent, grandparent or great grandparent must be a king or higher
+					any_ancestor = {
+						house = root.house
+						is_landed = yes
+						highest_held_title_tier >= tier_kingdom
 					}
 				}
-				trigger_event = {
-					id = dwarven.5002
-					years = { 5 10 }
+				debug_log = "Testing for dorfdad reincarnation!"
+				random = {
+					chance = {
+						value = 10
+						if = { # Some characters historically sire incarnates
+							limit = {
+								father = {
+									is_alive = yes
+									house = root.house
+									has_character_flag = historically_conceived_dorfdad
+								}
+								has_game_rule = default_ai_behavior
+							}
+							add = 90
+						}
+						else_if = { # Some characters historically sire incarnates
+							limit = {
+								father = {
+									is_alive = yes
+									house = root.house
+									has_character_flag = historically_conceived_dorfdad
+								}
+								has_game_rule = weighted_ai_behavior
+							}
+							add = 65
+						}
+						else_if = { # Some characters historically sire incarnates
+							limit = {
+								father = {
+									is_alive = yes
+									house = root.house
+									has_character_flag = historically_conceived_dorfdad
+								}
+								NOR = {
+									has_game_rule = default_ai_behavior
+									has_game_rule = weighted_ai_behavior
+								}
+							}
+							add = 40
+						}
+						if = { # Player children get a higher chance, as a treat
+							limit = {
+								any_ancestor = {
+									is_alive = yes
+									house = root.house
+									is_ai = no
+								}
+							}
+							add = 5
+						}
+					}
+					# Create the Story
+					create_story = story_dorfdad_reincarnation
+					debug_log = "Found a possible Dorfdad Reincarnation!"
+				}
+			}
+			else = { # They still fulfill some requirements, chance to make them emulate their Dwarf father as a semi-red flag
+				random = {
+					chance = {
+						value = 5
+						if = { # Bad traits
+							limit = {
+								OR = {
+									has_trait = physique_bad
+									has_trait = beauty_bad
+									has_trait = intellect_bad
+								}
+							}
+							value = 0
+						}
+					}
+					trigger_event = {
+						id = dwarven.5002
+						years = { 5 10 }
+					}
 				}
 			}
 		}
@@ -888,7 +1069,15 @@ dwarven.5003 = { # Family informed of reflection of dwarven father
 	content_source = realms_dlc
 	type = character_event
 	title = dwarven.5003.t
-	desc = dwarven.5003.desc
+	desc = {
+		first_valid = {
+			triggered_Desc = {
+				trigger = { has_game_rule = inversed_gender_equality }
+				desc = dwarven.5003.desc_mother
+			}
+			desc = dwarven.5003.desc
+		}
+	}
 	theme = dwarven
 	override_background = {
 		reference = market_dwarven
@@ -980,7 +1169,15 @@ dwarven.5100 = { # Upon turning 18: Reincarnate realized who they are, is confir
 	content_source = realms_dlc
 	type = character_event
 	title = dwarven.5100.t
-	desc = dwarven.5100.desc
+	desc = {
+		first_valid = {
+			triggered_Desc = {
+				trigger = { has_game_rule = inversed_gender_equality }
+				desc = dwarven.5100.desc_mother
+			}
+			desc = dwarven.5100.desc
+		}
+	}
 	theme = dwarven
 	override_background = {
 		reference = market_dwarven
@@ -1096,7 +1293,13 @@ dwarven.5101 = { # News of reincarnation reach close family / clan
 	type = character_event
 	title = dwarven.5101.t
 	desc = {
-		desc = dwarven.5101.desc.intro
+		first_valid = {
+			triggered_Desc = {
+				trigger = { has_game_rule = inversed_gender_equality }
+				desc = dwarven.5101.desc.intro_mother
+			}
+			desc = dwarven.5101.desc.intro
+		}
 		first_valid = {
 			triggered_desc = {
 				trigger = {
@@ -1196,7 +1399,11 @@ dwarven.5101 = { # News of reincarnation reach close family / clan
 					is_dynast = yes
 				}
 			}
-			custom_tooltip = dwarven.5101.a.tt
+			if = {
+				limit = { has_game_rule = inversed_gender_equality }
+				custom_tooltip = dwarven.5101.a.tt_mother
+			}
+			else = { custom_tooltip = dwarven.5101.a.tt }
 			set_designated_heir_unsafe = scope:new_dorfdad
 		}
 	}
