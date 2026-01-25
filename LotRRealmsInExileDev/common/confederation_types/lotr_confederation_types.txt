@@ -4,10 +4,90 @@
 
 defensive_alliance = {
 	is_valid_confederation = { always = yes }
-	# on_member_character_joined = {
+	
+	# Fired when a character joins the defensive alliance confederation
+	#
+	# root - The confederation that's being joined.
+	# scope:character - Character joining the confederation.
+	#
+	on_member_character_joined = {
+		save_scope_as = confederation
+		# Mark character and their vassals as new confederates.
+		scope:character = {
+			save_scope_as = joiner
+			if = {
+				limit = { has_character_flag = new_confederate }
+				remove_character_flag = new_confederate
+			}
+			add_character_flag = {
+				flag = new_confederate
+				years = 3
+			}
+			every_vassal_or_below = {
+				if = {
+					limit = { has_character_flag = new_confederate }
+					remove_character_flag = new_confederate
+				}
+				if = {
+					limit = { highest_held_title_tier >= tier_county }
+					add_character_flag = {
+						flag = new_confederate
+						years = 3
+					}
+				}
+			}
+		}
+		# Notify all other members about them joining.
+		every_player = {
+			limit = { confederation = scope:confederation }
+			send_interface_message = {
+				type = msg_joined_confederation
+				title = msg_joined_defensive_alliance
+				desc = msg_joined_confederation_desc
+				left_icon = scope:character
+			}
+		}
+	}
 
-	# }
-	# on_member_character_left = {
-		
-	# }
+	# Fired when a character leaves the nomadic confederation
+	#
+	# root - The confederation that's being left.
+	# scope:character - Character leaving the confederation.
+	#
+	on_member_character_left = {
+		save_scope_as = confederation
+		scope:character = {
+			save_scope_as = left_confederation
+		}
+
+		# Send notification for misc leaving
+		if = {
+			limit = {
+				scope:character = {
+					NOT = { has_variable = left_confederation }
+				}
+			}
+			# Notify all members about them leaving.
+			every_player = {
+				limit = {
+					confederation = scope:confederation
+					this != scope:character
+				}
+				send_interface_message = {
+					type = msg_joined_confederation
+					title = msg_joined_defensive_alliance
+					desc = msg_joined_confederation_desc
+					left_icon = scope:character
+				}
+			}
+			scope:character = {
+			   send_interface_message = {
+					type = msg_broken_confederation
+					title = msg_broken_defensive_alliance_root
+					desc = msg_broken_defensive_alliance_desc_root
+					left_icon = confederation
+			   }
+			}
+		}
+	}
 }
