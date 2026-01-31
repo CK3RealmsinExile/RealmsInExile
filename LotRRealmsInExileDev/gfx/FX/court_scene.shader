@@ -882,7 +882,7 @@ PixelShader =
 
 			// MOD(godherja)
 			// Vanilla already does emission in court shader, for which EMISSIVE is defined.
-			#if !defined(GH_EMISSION_DISABLED) && !defined(EMISSIVE)
+			#if !defined(GH_EMISSION_DISABLED) && !defined(EMISSIVE) && !defined(VARIATIONS_ENABLED)
 				// This can be increased to achieve stronger bloom effect
 				/*static const*/ float EMISSIVENESS_MULTIPLIER = EmissiveStrength;
 
