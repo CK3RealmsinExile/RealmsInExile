@@ -1,4 +1,227 @@
-﻿#### Catalyst Effects ####
+﻿#### Situation Effects ####
+
+# devestate_county_effect = { # Fire on county scope, takes parameter $DEVELOPMENT$, giving amount of dev to loose
+# 	#### Secondary effects ####
+# 	# Chance of removing buildings
+# 	# If all buildings are gone, remove holding level
+
+# 	# Change of removing gold
+	
+# 	#### Main Reduction Chain ####
+# 	# Removes in order:
+# 	# Development
+# 	# Buildings from 
+
+	
+# 	if = { # First, reduce development if enough dev
+# 		limit = {
+# 			development_level >= $DEVELOPMENT$
+# 		}
+# 		change_development_level =  {
+# 			subtract = $DEVELOPMENT$
+# 		}
+# 	}
+# 	else = { # If there's not enough dev, start on buildings
+# 		set_variable = { # Save any missing reduction for buildings
+# 			name = missing_dev
+# 			value = 0
+# 			add = $DEVELOPMENT$
+# 			subtract = development_level
+# 		}
+# 		change_development_level = { # Reduce to 0 dev
+# 			subtract = development_level
+# 		}
+
+# 		# Once all dev is gone, remove buildings
+# 		if = {
+# 			limit = { # First target a place that has enough buildings to handle outright
+# 				any_county_province = {
+# 					has_holding = yes
+# 					combined_building_level >= county.var:missing_dev
+# 				}
+# 			}
+# 			ordered_county_province = {
+# 				order_by = combined_building_level.inverse # Take least built up place (that has enough levels) first
+# 				limit = {
+# 					has_holding = yes
+# 					combined_building_level >= county.var:missing_dev
+# 				}
+# 				while = {
+# 					count = county.var:missing_dev 
+# 					destroy_random_building_variable_effect = yes
+# 					destroy_random_building_effect = yes
+# 				}
+# 			}
+# 		}
+# 		else_if = { # If no province has enough buildings, start taking holding levels.
+# 			ordered_county_province = {
+# 				order_by = combined_building_level.inverse # Take least built up place first
+# 			}
+# 			any_county_province = {
+# 				has_holding = yes
+# 				barony = { is_capital_barony = no }
+# 				county.var:missing_dev <= {
+# 					value = 0
+# 					add = combined_building_level
+# 					add = lotr_holding_level
+# 					subtract = 1 # Bc level 1 holdings need to be ruined instead
+# 				}
+# 			}
+# 			random_county_province = {
+# 				limit = {
+# 					has_holding = yes
+# 					barony = { is_capital_barony = no }
+# 					county.var:missing_dev <= {
+# 						value = 0
+# 						add = combined_building_level
+# 						add = lotr_holding_level
+# 					}
+# 				}
+# 				set_variable = {
+# 					name = missing_buildings
+# 					value = 0
+# 					add = county.var:missing_dev
+# 					subtract = combined_building_level
+# 				}
+# 				while = {
+# 					count = combined_building_level
+# 					destroy_random_building_variable_effect = yes
+# 					destroy_random_building_effect = yes
+# 				}
+# 				while = {
+# 					count = var:missing_buildings
+# 					lotr_downgrade_holding = yes
+# 				}
+# 			}
+# 		}
+# 		else_if = {
+
+# 		}
+# 	}
+# 	# If all buildings are gone, remove holding
+# 	# If nothing is left, wasteland the county
+
+# }
+
+devestate_county_effect = { # Fires on county scope, takes paramter $SEVERITY$, which quantifies the destruction.
+	while = { #First do random raid damage
+		count = $SEVERITY$.div2
+		devestate_county_secondary_effect = yes # Pass through to selection effect
+	}
+	while = { # Then systematically ruin the county.
+		count = $SEVERITY$
+		devestate_county_repeated_effect = yes # Pass through to selection effect
+	}
+}
+
+devestate_county_repeated_effect = { # Fires on county scope, removes one level each time fired
+	if = { # First, reduce development
+		limit = {
+			development_level > 0
+		}
+		change_development_level = -1
+	}
+	else_if = { # If there's not enough dev, start on buildings
+		limit = {
+			any_county_province = {
+				has_holding = yes
+				combined_building_level > 0
+			}
+		}
+		ordered_county_province = {
+			order_by = combined_building_level.inverse # Take least built up place (that has enough levels) first
+			limit = {
+				has_holding = yes
+				combined_building_level > 0
+			}
+			destroy_random_building_variable_effect = yes
+			destroy_random_building_effect = yes
+		}
+	}
+	else_if = { # If no province has buildings, start taking holding levels in outer provinces.
+		limit = {
+			any_county_province = {
+				has_holding = yes
+				is_county_capital = no # Can't destroy the capital holding yet
+			}
+		}
+		ordered_county_province = {
+			order_by = lotr_holding_level.inverse # Take least built up place first
+			limit = {
+				has_holding = yes
+				is_county_capital = no
+			}
+			if = {
+				limit = {
+					lotr_holding_level > 1
+				}
+				lotr_downgrade_holding = yes
+			}
+			else = {
+				remove_holding = yes
+			}
+		}
+	}
+	else_if = { #Now start reducing the capital holding
+		limit = {
+			title_province = {
+				lotr_holding_level > 1
+			}
+		}
+		title_province = {
+			lotr_downgrade_holding = yes
+		}
+	}
+	else_if = { # If down to just one level of holding in capital, convert to wilderness
+		limit = {
+			title_province = {
+				lotr_holding_level = 1
+			}
+		}
+		make_settlement_county_wilderness = { COUNTY = this }
+	}
+}
+
+devestate_county_secondary_effect = {
+	random_list = {
+		40 = {} # Nothing happens
+
+		5 = { # Rarely take an extra dev
+			if = {
+				limit = {
+					development_level > 0
+				}
+				change_development_level = -1
+			}
+		}
+		10 = { # Steal some money
+			holder = {
+				remove_short_term_gold = miniscule_gold_value
+			}
+		}
+		45 = { # Destroy a building
+			if = {
+				limit = {
+					any_county_province = {
+						has_holding = yes
+						combined_building_level > 0
+					}
+				}
+				ordered_county_province = {
+					order_by = combined_building_level.inverse # Take least built up place first
+					limit = {
+						has_holding = yes
+						combined_building_level > 0
+					}
+					destroy_random_building_variable_effect = yes
+					destroy_random_building_effect = yes
+				}
+			}
+		}
+	}
+}
+
+#### Catalyst Effects ####
 
 angmar_wars_catalyst_convert_to_evil_effect = {
 	if = {
