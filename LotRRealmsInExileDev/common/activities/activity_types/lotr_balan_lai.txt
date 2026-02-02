@@ -48,7 +48,11 @@
 			limit = {
 				is_current_phase_active = yes
 			}
-			has_attending_activity_guests = yes
+			# We have more than one attending character
+			# Host always attends so we ignore them
+			any_attending_character = {
+				count > 1 # 1 includes the host who always attends
+			}
 		}
 	}
 
@@ -515,26 +519,26 @@
 		# }
 	}
 
-	guest_description = {
-		first_valid = {
-			triggered_desc = {
-				trigger = {
-					faith = { has_doctrine_parameter = sacred_mining }
-				}
-				desc = activity_mining_host_desc_piety
-			}
-			desc = activity_mining_host_desc_prestige
-		}
-		first_valid = {
-			triggered_desc = {
-				trigger = { has_trait = lifestyle_miner }
-				desc = activity_mining_host_desc_trait_xp
-			}
-			desc = activity_mining_host_desc_trait
-		}
+	guest_description = { #TODO
+		# first_valid = {
+		# 	triggered_desc = {
+		# 		trigger = {
+		# 			faith = { has_doctrine_parameter = sacred_mining }
+		# 		}
+		# 		desc = activity_mining_host_desc_piety
+		# 	}
+		# 	desc = activity_mining_host_desc_prestige
+		# }
+		# first_valid = {
+		# 	triggered_desc = {
+		# 		trigger = { has_trait = lifestyle_miner }
+		# 		desc = activity_mining_host_desc_trait_xp
+		# 	}
+		# 	desc = activity_mining_host_desc_trait
+		# }
 	}
 
-	conclusion_description = {
+	conclusion_description = { #TODO
 		first_valid = {
 			triggered_desc = {
 				trigger = {
@@ -1119,18 +1123,25 @@
 			is_predefined = yes
 			order = 1
 
-			on_enter_phase = {
-			}
 			on_phase_active = {
 				if = { # Set momentum for any intent needing momentum
 					limit = {
 						OR = {
 							has_activity_intent = balan_lai_expel_member_intent
+							has_activity_intent = balan_lai_request_defence_funding_intent
+							has_activity_intent = balan_lai_form_alliance_intent
 						}
 					}
-					set_variable = {
-						name = balan_lai_proposal_momentum
-						value = balan_lai_proposal_momentum_value
+					scope:activity = {
+						set_variable = {
+							name = balan_lai_proposal_momentum
+							value = balan_lai_proposal_momentum_value
+						}
+						random_confederation = {
+							limit = { has_variable = balan_lai_confederation }
+							save_scope_as = balan_lai_confederation
+						}
+						set_variable = scope:balan_lai_confederation #Saving this for easier access
 					}
 				}
 				if = { # Progress phase after 6 months
@@ -1138,11 +1149,9 @@
 					scope:activity = { progress_activity_phase_after = { months = 6 } }
 				}
 			}
-			on_monthly_pulse = {
-			}
+
 			on_weekly_pulse = {
-			}
-			on_end = {
+				trigger_event = { on_action = balan_lai_random_pulse_event }
 			}
 		}
 		voting_phase = {
@@ -1152,102 +1161,27 @@
 			on_enter_phase = {
 				if = {
 					limit = { this = scope:host }
-					trigger_event = balan_lai.0200 # Management Event for Council Meeting
+					trigger_event = balan_lai.0200 # Intro Event for Council Meeting
+				}
+				scope:activity = {
+					progress_activity_phase_after = { days = 1 }
 				}
 			}
 			on_phase_active = {
-				
-			}
-			on_monthly_pulse = {
-			}
-			on_weekly_pulse = {
 			}
 			on_end = {
 				if = { # Clear any remaining proposal momentums from characters
 					limit = {
-						has_variable = balan_lai_proposal_momentum
+						scope:activity = {
+							has_variable = balan_lai_proposal_momentum
+						}
 					}
-					remove_variable = balan_lai_proposal_momentum
+					scope:activity = {
+						remove_variable = balan_lai_proposal_momentum
+					}
 				}
 			}
 		}
-		# mining_phase = {
-		# 	is_predefined = yes
-
-		# 	on_phase_active = { # Fires for every attendee
-		# 		if = { # Option to appoint overseer of the mines if not appointed
-		# 			limit = {
-		# 				this = scope:host
-		# 				is_dwarf = no
-		# 				NOT = { employs_court_position = overseer_of_the_mines_court_position }
-		# 				involved_activity = {
-		# 					any_attending_character = {
-		# 						location = root.location
-		# 						scope:host = { can_appoint_char_to_court_position = { CHAR = prev COURT_POS = overseer_of_the_mines_court_position } }
-		# 						save_temporary_scope_as = potential_ootm
-		# 					}
-		# 				}
-		# 				# can_appoint_char_to_court_position = { CHAR = scope:potential_ootm COURT_POS = overseer_of_the_mines_court_position }
-		# 			}
-		# 			trigger_event = {
-		# 				id = mining.0100
-		# 			}
-		# 		}
-		# 		if = { # Option to appoint stone singer if not appointed
-		# 			limit = {
-		# 				this = scope:host
-		# 				is_dwarf = yes
-		# 				NOT = { employs_court_position = stone_singer_court_position }
-		# 				involved_activity = {
-		# 					any_attending_character = {
-		# 						location = root.location
-		# 						scope:host = { can_appoint_char_to_court_position = { CHAR = prev COURT_POS = stone_singer_court_position } }
-		# 						save_temporary_scope_as = potential_stone_singer
-		# 					}
-		# 				}
-		# 				# can_appoint_char_to_court_position = { CHAR = scope:potential_stone_singer COURT_POS = stone_singer_court_position }
-		# 			}
-		# 			trigger_event = {
-		# 				id = mining.0101
-		# 			}
-		# 		}
-		# 		if = { # Set up event pulses
-		# 			limit = { this = scope:host }
-		# 			scope:activity = { progress_activity_phase_after = { months = 8 } }
-
-		# 			trigger_event = { on_action = mining_start_events }
-		# 			scope:activity = {
-		# 				every_attending_character = {
-		# 					limit = { is_ai = no }
-		# 					trigger_event = { # Random
-		# 						on_action = mining_random_pulse
-		# 						months = 2
-		# 					}
-		# 					trigger_event = { # Random
-		# 						on_action = mining_random_pulse
-		# 						months = 4
-		# 					}
-		# 					trigger_event = { # Random
-		# 						on_action = mining_random_pulse
-		# 						months = 6
-		# 					}
-		# 				}
-		# 			}
-		# 			trigger_event = { # Outcome
-		# 				on_action = mining_outcome_end_events
-		# 				months = 7
-		# 			}
-		# 		}
-		# 	}
-
-		# 	on_weekly_pulse = { # Fires for every attendee
-		# 		# trigger_event = hunt.0081 # Invalidation
-		# 	}
-
-		# 	on_end = { # Fires for every attendee
-		# 		target_weight_modifier_effect = { VALUE = -5 } # Lose a bit of character weight from the physical activity
-		# 	}
-		# }
 	}
 
 	ai_check_interval = 60
@@ -1267,13 +1201,12 @@
 	guest_invite_rules = {
 		rules = {
 			3 = activity_invite_rule_balan_lai_prospective_members
-			4 = activity_invite_rule_courtiers
-			4 = activity_invite_rule_knights
+			5 = activity_invite_rule_courtiers
+			5 = activity_invite_rule_knights
 		}
 		defaults = {
 			1 = activity_invite_rule_balan_lai_leader
 			2 = activity_invite_rule_balan_lai_members
-			2 = activity_invite_rule_balan_lai_elves
 		}
 	}
 
@@ -1285,30 +1218,37 @@
 		entourage # Non-Member guests
 	}
 
-	max_guests = 20
+	max_guests = 50
 
 	can_be_activity_guest = {
 		NOT = { has_trait = incapable }
+		OR = {
+			has_trait = balan_lai_member
+			trigger_if = {
+				limit = { exists = employer }
+				employer = { has_trait = balan_lai_member }
+			}
+		}
 	}
 
 	host_intents = {
-		intents = { balan_lai_expel_member_intent reduce_stress_intent }
+		intents = { balan_lai_request_defence_funding_intent balan_lai_form_alliance_intent balan_lai_expel_member_intent reduce_stress_intent }
 		default = reduce_stress_intent
 		player_defaults = { reduce_stress_intent }
 	}
 
 	guest_intents = {
-		intents = { balan_lai_expel_member_intent reduce_stress_intent }
+		intents = { balan_lai_request_defence_funding_intent balan_lai_form_alliance_intent balan_lai_expel_member_intent reduce_stress_intent }
 		default = reduce_stress_intent
 		player_defaults = { reduce_stress_intent }
 	}
 
 	guest_join_chance = { # TODO - Need to refine
-		base = 1000
-		# base_activity_modifier = yes
+		base = 5
+		base_activity_modifier = yes
 
 		# # Scripted Modifiers
-		# activity_guest_shared_ai_accept_modifier = yes 
+		activity_guest_balan_lai_ai_accept_modifier = yes
 	}
 
 	###################
