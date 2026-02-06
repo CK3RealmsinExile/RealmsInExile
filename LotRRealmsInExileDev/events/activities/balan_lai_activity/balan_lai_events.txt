@@ -96,6 +96,28 @@ scripted_effect lotr_grab_intent_target_effect = {
 	intent_target = { save_scope_as = intent_character }
 }
 
+scripted_effect lotr_character_forced_to_vote_yes = {
+	$CHARACTER$ = { save_scope_as = forced_voter }
+	custom_tooltip = {
+		text = lotr_character_forced_to_vote_yes_tooltip
+		add_to_variable_list = {
+			name = forced_balan_lai_vote_yes
+			target = scope:forced_voter
+		}
+	}
+}
+
+scripted_effect lotr_forced_to_vote_no = {
+	$CHARACTER$ = { save_scope_as = forced_voter }
+	custom_tooltip = {
+		text = lotr_forced_to_vote_no_tooltip
+		add_to_variable_list = {
+			name = forced_balan_lai_vote_no
+			target = scope:forced_voter
+		}
+	}
+}
+
 ##								  	##
 ## 	Request Defense Funding Intent 	##
 ##								  	##
@@ -122,15 +144,162 @@ balan_lai.2001 = { #The Inflated Ledger
 		character = root
 		animation = personality_bold
 	}
+	right_portrait = {
+		character = scope:proposer
+		trigger = { exists = scope:proposer }
+		animation = holding_scrolls
+	}
 
 	cooldown = { days = 7 }
 
 	trigger = {
-		lotr_basic_request_funding_events_trigger = yes
+		scope:activity = {
+			any_attending_character = {
+				this != root
+				lotr_basic_request_funding_events_trigger = yes
+			}
+		}
+	}
+
+	immediate = {
+		scope:activity = {
+			random_attending_character = {
+				limit = {
+					this != root
+					lotr_basic_request_funding_events_trigger = yes 
+				}
+				save_scope_as = proposer
+			}
+		}
 	}
 
 	option = {
 		name = balan_lai.2001.a
+		# Duel - Stewardship against [proposer]
+	
+		# Success: 	You discover the fraud. Add Weak Hook on [proposer].
+		#			You can use this hook to force a favorable vote later or demand gold.
+	
+		# Failure: 	[proposer] is offended by your accusation.
+		#			Lose Opinion with [proposer]. Gain Stress.
+		
+		duel = {
+			skill = stewardship
+			target = scope:proposer
+			50 = { # Success
+				compare_modifier = {
+					value = scope:duel_value
+					multiplier = 0.5
+				}
+				
+				send_interface_toast = {
+					type = event_toast_effect_bad
+					title = balan_lai.2001.a.success
+					left_icon = root
+					right_icon = scope:proposer
+
+					if = {
+						limit = {
+							can_add_hook = {
+								type = threat_hook
+								target = scope:proposer
+							}
+						}
+						add_hook = {
+							type = threat_hook
+							target = scope:proposer
+						}
+					}
+					stress_impact = {
+						humble = minor_stress_impact_gain
+						callous = minor_stress_impact_loss
+					}
+
+					scope:activity ?= {
+						add_activity_log_entry = {
+							key = balan_lai_convinced_other_balan_lai_log
+							character = root
+							target = scope:proposer
+						}
+					}
+				}
+			}
+			50 = { # Failure
+				compare_modifier = {
+					value = scope:duel_value
+					multiplier = -0.5
+				}
+
+				send_interface_toast = {
+					type = event_toast_effect_bad
+					title = balan_lai.2001.a.failure
+					left_icon = root
+					right_icon = scope:proposer
+
+					scope:proposer = {
+						add_opinion = {
+							modifier = disappointed_opinion
+							target = root
+							opinion = -30
+						}
+					}
+					stress_impact = {
+						base = minor_stress_impact_gain
+						ambitious = minor_stress_impact_gain
+						callous = minor_stress_impact_loss
+					}
+
+					scope:activity ?= {
+						add_activity_log_entry = {
+							key = balan_lai_did_not_convinced_other_balan_lai_log
+							character = root
+							target = scope:proposer
+						}
+					}
+				}
+			}
+		}
+
+		ai_chance = { #TODO
+			base = 1
+		}
+	}
+
+	option = { #You demand a bribe. Gain Gold. You publicly promise to vote "Yes."
+		name = balan_lai.2001.b
+
+		scope:proposer = {
+			pay_short_term_gold = {
+				target = root.minor_gold_value
+				gold = 30
+			}
+		}
+		lotr_character_forced_to_vote_yes = { CHARACTER = scope:proposer }
+
+		ai_chance = { #TODO
+			base = 1
+		}
+	}
+
+	option = { #Lose Stress (Trusting nature). Gain Opinion with [proposer].
+		name = balan_lai.2001.c
+
+		stress_impact = {
+			base = minor_stress_impact_loss
+			compassionate = minor_stress_impact_loss
+		}
+
+		scope:proposer = {
+			add_opinion = {
+				target = root
+				modifier = trust_opinion
+				opinion = 25
+			}
+		}
+
+		ai_chance = { #TODO
+			base = 1
+		}
 	}
 }
 
@@ -150,11 +319,125 @@ balan_lai.2002 = { #Collateral for Coin
 	cooldown = { days = 7 }
 
 	trigger = {
-		lotr_basic_request_funding_events_trigger = yes
+		scope:activity = {
+			any_attending_character = {
+				lotr_basic_request_funding_events_trigger = yes
+				any_child = {
+					is_adult = no
+					save_temporary_scope_as = curr_child
+					any_relation = { 
+						has_relation_guardian = scope:curr_child
+					}
+				}
+			}
+		}
+	}
+
+	immediate = {
+		scope:activity = {
+			random_attending_character = {
+				limit = { lotr_basic_request_funding_events_trigger = yes }
+				save_scope_as = proposer
+			}
+		}
 	}
 
 	option = {
 		name = balan_lai.2002.a
+		# Duel - Tough Diplomacy Challenge
+		
+		# Success: 	[proposer] agrees. A child of [proposer] moves to your court (or a skeptic's court).
+		#			 Opinion of skeptics increases significantly.
+
+		# Failure: 	[proposer] is insulted. Lose Opinion.
+
+		duel = {
+			skill = diplomacy
+			value = high_skill_rating
+			50 = { # Success - TODO
+				compare_modifier = {
+					value = scope:duel_value
+					multiplier = 0.5
+				}
+			}
+			50 = { # Failure - TODO
+				compare_modifier = {
+					value = scope:duel_value
+					multiplier = -0.5
+				}
+			}
+		}
+
+		ai_chance = { #TODO
+			base = 1
+		}
+	}
+
+	option = {
+		name = balan_lai.2002.b
+		# Duel - Tough Martial Challenge
+		
+		# Success: 	Gain Prestige. The council accepts your word over the collateral
+
+		# Failure: 	You are mocked for your naivety. Lose Prestige.
+		
+		duel = {
+			skill = martial
+			value = high_skill_rating
+			50 = { # Success
+				compare_modifier = {
+					value = scope:duel_value
+					multiplier = 0.5
+				}
+				send_interface_toast = {
+					type = event_toast_effect_good
+					title = balan_lai.2002.b.success
+					left_icon = root
+					right_icon = scope:proposer
+					add_prestige = medium_prestige_gain
+					scope:activity ?= {
+						add_activity_log_entry = {
+							key = balan_lai_convinced_other_balan_lai_log
+							character = root
+							target = scope:proposer
+						}
+					}
+				}
+			}
+			50 = { # Failure
+				compare_modifier = {
+					value = scope:duel_value
+					multiplier = -0.5
+				}
+				send_interface_toast = {
+					type = event_toast_effect_bad
+					title = balan_lai.2002.b.failure
+					left_icon = root
+					right_icon = scope:proposer
+					add_prestige = medium_prestige_loss
+					scope:activity ?= {
+						add_activity_log_entry = {
+							key = balan_lai_did_not_convinced_other_balan_lai_log
+							character = root
+							target = scope:proposer
+						}
+					}
+				}
+			}
+		}
+
+		ai_chance = { #TODO
+			base = 1
+		}
+	}
+
+	option = {
+		name = balan_lai.2002.c
+		# Remain Neutral. No change in vote status.
+
+		ai_chance = { #TODO
+			base = 1
+		}
 	}
 }
 
@@ -168,17 +451,115 @@ balan_lai.2003 = { #The Mercenary Question
 	}
 	left_portrait = {
 		character = root
-		animation = personality_bold
+		animation = thinking
+	}
+	right_portrait = {
+		character = scope:skeptic_marshal
+		trigger = { exists = scope:skeptic_marshal }
+		animation = disapproval
 	}
 
 	cooldown = { days = 7 }
 
 	trigger = {
-		lotr_basic_request_funding_events_trigger = yes
+		scope:activity = {
+			any_attending_character = {
+				lotr_basic_request_funding_events_trigger = yes
+				save_temporary_scope_as = proposer
+			}
+			any_attending_character = {
+				this != scope:proposer
+				OR = {
+					martial > 15
+					has_trait_category = commander
+					has_trait = education_martial
+				}
+			}
+		}
+	}
+
+	immediate = {
+		scope:activity = {
+			random_attending_character = {
+				limit = {
+					OR = {
+						martial > 15
+						has_trait_category = commander
+						has_trait = education_martial
+					}
+				}
+				save_scope_as = skeptic_marshal
+			}
+			random_attending_character = {
+				limit = {
+					this != scope:skeptic_marshal
+					lotr_basic_request_funding_events_trigger = yes
+				}
+				save_scope_as = proposer
+			}
+		}
 	}
 
 	option = {
 		name = balan_lai.2003.a
+		# Duel - Martial Challenge
+
+		# Success: [skeptic_marshal] is convinced. Gain Opinion.
+
+		# Failure: You look foolish. [skeptic_marshal] digs in their heels (harder to pass vote).
+		
+		duel = {
+			skill = martial
+			value = high_skill_rating
+			50 = { # Success
+				compare_modifier = {
+					value = scope:duel_value
+					multiplier = 0.5
+				}
+				scope:skeptic_marshal = {
+					add_opinion = {
+						target = root
+						modifier = trust_opinion
+						opinion = 25
+					}
+					lotr_character_forced_to_vote_yes = { CHARACTER = scope:proposer }
+				}
+			}
+			50 = { # Failure
+				compare_modifier = {
+					value = scope:duel_value
+					multiplier = -0.5
+				}
+				scope:skeptic_marshal = {
+					add_opinion = {
+						target = scope:proposer
+						modifier = disappointed_opinion
+						opinion = -25
+					}
+				}
+				scope:proposer = {
+					add_opinion = {
+						target = root
+						modifier = disappointed_opinion
+						opinion = -15
+					}
+				}
+			}
+		}
+
+		ai_chance = { #TODO
+			base = 1
+		}
+	}
+
+	option = {
+		name = balan_lai.2003.b
+		# Gain small Dread.
+		add_dread = minor_dread_gain
+
+		ai_chance = { #TODO
+			base = 1
+		}
 	}
 }
 
@@ -218,15 +599,78 @@ balan_lai.2005 = { #Borderline Claims
 		character = root
 		animation = personality_bold
 	}
+	right_portrait = {
+		character = scope:voter
+		trigger = { exists = scope:voter }
+		animation = bribing
+	}
 
 	cooldown = { days = 7 }
 
 	trigger = {
-		lotr_basic_request_funding_events_trigger = yes
+		scope:activity = {
+			any_attending_character = {
+				lotr_basic_request_funding_events_trigger = yes
+			}
+		}
+	}
+
+	immediate = {
+		scope:activity = {
+			random_attending_character = {
+				limit = { lotr_basic_request_funding_events_trigger = yes }
+				save_scope_as = proposer
+			}
+			random_attending_character = {
+				limit = { this != scope:proposer }
+				save_scope_as = voter
+			}
+		}
 	}
 
 	option = {
 		name = balan_lai.2005.a
+		# Duel - Diplomacy challenge
+
+		# Success: The Title is transferred. Gain Weak Hook on both characters for brokering the deal.
+		duel = { # Success - TODO
+			skill = diplomacy
+			value = high_skill_rating
+			50 = { # Success
+				compare_modifier = {
+					value = scope:duel_value
+					multiplier = 0.5
+				}
+			}
+			50 = { # Failure - TODO
+				compare_modifier = {
+					value = scope:duel_value
+					multiplier = -0.5
+				}
+			}
+		}
+
+		ai_chance = { #TODO
+			base = 1
+		}
+	}
+
+	option = {
+		name = balan_lai.2005.b
+		# You promise to help [voter] in future wars. Gain Alliance with [voter].
+
+		ai_chance = { #TODO
+			base = 1
+		}
+	}
+
+	option = {
+		name = balan_lai.2005.c
+		# Gain Stress (if Ambitious).
+
+		ai_chance = { #TODO
+			base = 1
+		}
 	}
 }
 
@@ -268,6 +712,10 @@ balan_lai.2201 = { #The Reluctant Partner
 
 	option = {
 		name = balan_lai.2201.a
+
+		ai_chance = { #TODO
+			base = 1
+		}
 	}
 }
 
@@ -296,6 +744,10 @@ balan_lai.2202 = { #The Third Party
 
 	option = {
 		name = balan_lai.2202.a
+
+		ai_chance = { #TODO
+			base = 1
+		}
 	}
 }
 
@@ -324,6 +776,10 @@ balan_lai.2203 = { #Shadows in the Hall
 
 	option = {
 		name = balan_lai.2203.a
+
+		ai_chance = { #TODO
+			base = 1
+		}
 	}
 }
 
@@ -356,7 +812,11 @@ balan_lai.2401 = { #The Desperate Bribe
 	cooldown = { days = 7 }
 
 	trigger = {
-		lotr_basic_expel_member_events_trigger = yes
+		scope:activity = {
+			any_attending_character = { 
+				lotr_basic_expel_member_events_trigger = yes
+			}
+		}
 	}
 
 	immediate = {
@@ -365,6 +825,69 @@ balan_lai.2401 = { #The Desperate Bribe
 
 	option = {
 		name = balan_lai.2401.a
+		# Gain massive Gold. You are locked into voting "No" (Keep Member).
+	
+		scope:intent_character = {
+			pay_short_term_gold = {
+				target = root
+				gold = root.major_gold_value
+			}
+			lotr_character_forced_to_vote_yes = { CHARACTER = root }
+		}
+
+		ai_chance = { #TODO
+			base = 1
+		}
+	}
+
+	option = {
+		name = balan_lai.2401.b
+		# Gain Strong Hook on [intent_character]. You are locked into voting "No".
+		if = {
+			limit = {
+				can_add_hook = {
+					target = scope:intent_character
+					type = strong_favor_hook
+				}
+			}
+			add_hook = {
+				target = scope:intent_character
+				type = strong_favor_hook
+			}
+		}
+
+		scope:intent_character = {
+			lotr_character_forced_to_vote_yes = { CHARACTER = root }
+		}
+	
+		ai_chance = { #TODO
+			base = 1
+		}
+	}
+
+	option = {
+		name = balan_lai.2401.c
+		# Gain Prestige. You remain committed to voting "Yes" (Expel).
+		# [intent_character] becomes your Rival.
+		add_prestige = medium_prestige_gain
+		
+		scope:intent_character = {
+			lotr_character_forced_to_vote_yes = { CHARACTER = root }
+		}
+
+		if = {
+			limit = {
+				can_set_relation_rival_trigger = { CHARACTER = scope:intent_character }
+			}
+			set_relation_rival = {
+				target = scope:intent_character
+				reason = rival_grave_insult
+			}
+		}
+
+		ai_chance = { #TODO
+			base = 1
+		}
 	}
 }
 
@@ -384,15 +907,123 @@ balan_lai.2402 = { #The Domino Effect
 	cooldown = { days = 7 }
 
 	trigger = {
-		lotr_basic_expel_member_events_trigger = yes
+		scope:activity = {
+			any_attending_character = { 
+				lotr_basic_expel_member_events_trigger = yes
+			}
+		}
 	}
 
 	immediate = {
-		lotr_grab_intent_target_effect = yes
+		scope:activity = {
+			random_attending_character = { 
+				limit = { lotr_basic_expel_member_events_trigger = yes }
+				save_scope_as = proposer
+				lotr_grab_intent_target_effect = yes
+			}
+		}
+		scope:activity = {
+			random_attending_character = {
+				limit = {
+					NOR = {
+						this = scope:intent_character
+						this = scope:proposer
+					}
+				}
+				save_scope_as = pacifist
+			}
+		}
 	}
 
 	option = {
 		name = balan_lai.2402.a
+		# Duel - Learning challenge
+
+		# Success: [pacifist] calms down. Vote chance increases.
+		duel = {
+			skill = learning
+			value = high_skill_rating
+			50 = { # Success - TODO
+				compare_modifier = {
+					value = scope:duel_value
+					multiplier = 0.5
+				}
+				random = {
+					chance = 30
+					scope:proposer = {
+						lotr_character_forced_to_vote_yes = { CHARACTER = scope:pacifist }
+					}
+				}
+			}
+			50 = { # Failure - TODO
+				compare_modifier = {
+					value = scope:duel_value
+					multiplier = -0.5
+				}
+				random = {
+					chance = 30
+					scope:proposer = {
+						lotr_character_forced_to_vote_no = { CHARACTER = scope:pacifist }
+					}
+				}
+			}
+		}
+
+		ai_chance = { #TODO
+			base = 1
+		}
+	}
+
+	option = {
+		name = balan_lai.2402.b
+		# Duel - Stewardship challenge
+
+		# Success: Convince them with facts. Gain Stewardship XP.
+		duel = {
+			skill = stewardship
+			value = high_skill_rating
+			50 = { # Success - TODO
+				compare_modifier = {
+					value = scope:duel_value
+					multiplier = 0.5
+				}
+				add_stewardship_lifestyle_xp = medium_lifestyle_xp
+				random = {
+					chance = 30
+					scope:proposer = {
+						lotr_character_forced_to_vote_yes = { CHARACTER = scope:pacifist }
+					}
+				}
+			}
+			50 = { # Failure - TODO
+				compare_modifier = {
+					value = scope:duel_value
+					multiplier = -0.5
+				}
+				random = {
+					chance = 30
+					scope:proposer = {
+						lotr_character_forced_to_vote_no = { CHARACTER = scope:pacifist }
+					}
+				}
+			}
+		}
+
+		ai_chance = { #TODO
+			base = 1
+		}
+	}
+
+	option = {
+		name = balan_lai.2402.c
+		# You switch your vote to "No" (Keep Member).
+
+		scope:proposer = {
+			lotr_character_forced_to_vote_no = { CHARACTER = root }
+		}
+		ai_chance = { #TODO
+			base = 1
+		}
 	}
 }
 
@@ -412,15 +1043,40 @@ balan_lai.2403 = { #Carving the Carcass
 	cooldown = { days = 7 }
 
 	trigger = {
-		lotr_basic_expel_member_events_trigger = yes
+		scope:activity = {
+			any_attending_character = { 
+				lotr_basic_expel_member_events_trigger = yes
+				this != root
+			}
+		}
 	}
 
 	immediate = {
-		lotr_grab_intent_target_effect = yes
+		scope:activity = {
+			random_attending_character = { 
+				limit = { lotr_basic_expel_member_events_trigger = yes }
+				save_scope_as = proposer
+				lotr_grab_intent_target_effect = yes
+			}
+		}
 	}
 
 	option = {
 		name = balan_lai.2403.a
+		# Gain Claim on [intent_character]'s Title. Gain Stress (if Just/Honest).
+
+		ai_chance = { #TODO
+			base = 1
+		}
+	}
+
+	option = {
+		name = balan_lai.2403.b
+		# Gain Prestige. Lose Opinion with [proposer].
+
+		ai_chance = { #TODO
+			base = 1
+		}
 	}
 }
 
@@ -440,7 +1096,13 @@ balan_lai.2404 = { #Mutually Assured Destruction
 	cooldown = { days = 7 }
 
 	trigger = {
-		lotr_basic_expel_member_events_trigger = yes
+		scope:activity = {
+			any_attending_character = { 
+				lotr_basic_expel_member_events_trigger = yes
+				save_temporary_scope_as = proposer
+			}
+		}
+		any_secret = { is_known_by = scope:proposer }
 	}
 
 	immediate = {
@@ -449,6 +1111,21 @@ balan_lai.2404 = { #Mutually Assured Destruction
 
 	option = {
 		name = balan_lai.2404.a
+		# Switch vote to "No" (Keep Member). Gain Stress.
+
+		ai_chance = { #TODO
+			base = 1
+		}
+	}
+
+	option = {
+		name = balan_lai.2404.b
+		# Your Secret is revealed to the public. Gain Dread (for callousness).
+		# You vote "Yes" (Expel).
+
+		ai_chance = { #TODO
+			base = 1
+		}
 	}
 }
 
