@@ -850,65 +850,161 @@ task_orc_1_diplomacy_1 = { # Ravage the Land
 				text = county_holder_is_not_orcish
 				holder = { 
 					OR = {
+						is_orc = yes
 						is_maiar_fallen = yes
 						is_nazgul = yes
 						is_evil_istari = yes
 					}
 				}
 			}
-		}
-		trigger_if = {
-			limit = {
-				scope:councillor_liege = { is_ai = yes }
-			}
-			NOT = { scope:councillor_liege = { restricted_culture = yes } }
-			OR = {
+			custom_tooltip = {
+				text = county_culture_matches_a_liege_or_above
 				NOT = {
-					scope:county.culture = {
-						cultural_acceptance = { target = scope:councillor_liege.culture value >= 50 }
-					}
-				}
-				scope:councillor_liege.culture = { # All AI's are motivated to spread new Hybrid/Divergent cultures
-					OR = {
-						is_hybrid_culture = yes
-						is_divergent_culture = yes
-					}
-					any_parent_culture = {
-						this = scope:county.culture
-					}
-				}
-			}
-			OR = {
-				is_independent_ruler = yes
-				scope:councillor_liege.primary_title.tier > tier_county
-				scope:councillor_liege.culture = { # All AI's are motivated to spread new Hybrid/Divergent cultures
-					OR = {
-						is_hybrid_culture = yes
-						is_divergent_culture = yes
-					}
-					any_parent_culture = {
-						this = scope:county.culture
-					}
-				}
-			}
-			OR = {
-				scope:county = {
-					any_neighboring_county = {
-						culture = scope:councillor_liege.culture # The AI only wants to convert counties bordering their own culture
-					}
-				}
-				
-				AND = {
-					NOT = {
-						scope:county = {
-							any_neighboring_county = {
-								culture = scope:councillor_liege.culture # The AI only wants to convert counties bordering their own culture
-							}
+					scope:councillor_liege = {
+						any_liege_or_above = {
+							culture = scope:county.culture
 						}
 					}
 				}
 			}
 		}
+		scope:county = {
+			is_landless_type_title = no
+			culture != scope:councillor_liege.culture
+			trigger_if = {
+				limit = {
+					scope:councillor_liege = { has_variable = hold_court_8130_culture_block }
+				}
+				custom_tooltip = {
+					text = hold_court_8130_conversion_tt
+					culture != scope:councillor_liege.var:hold_court_8130_culture_block
+				}
+			}
+		}
+		trigger_if = {
+			limit = {
+				scope:councillor_liege = {
+					is_ai = yes
+					NAND = { # AI Directives override this
+						has_character_flag = vassal_directive_convert_culture
+						vassal_is_valid_and_follows_directive_trigger = { VASSAL = this LIEGE = liege }
+					}
+				}
+			}
+			scope:councillor_liege = {
+				OR = {
+					NOT = {
+						scope:county.culture = {
+							cultural_acceptance = { target = scope:councillor_liege.culture value >= 50 }
+						}
+					}
+					culture = { # All AI's are motivated to spread new Hybrid/Divergent cultures
+						OR = {
+							is_hybrid_culture = yes
+							is_divergent_culture = yes
+						}
+						any_parent_culture = {
+							this = scope:county.culture
+						}
+					}
+					culture = { # Small cultures want to grow a bit
+						any_culture_county = {
+							count < 10
+						}
+					}
+					scope:county.culture = { # 'dead' small cultures can go away
+						OR = {
+							is_hybrid_culture = yes
+							is_divergent_culture = yes
+						}
+						any_culture_county = {
+							count < 10
+						}
+						OR = {
+							NOT = { exists = culture_head }
+							any_culture_county = {
+								count < 5
+							}
+						}
+					}
+				}
+				OR = {
+					is_independent_ruler = yes
+					primary_title.tier > tier_county
+					culture = { # All AI's are motivated to spread new Hybrid/Divergent cultures
+						OR = {
+							is_hybrid_culture = yes
+							is_divergent_culture = yes
+						}
+						any_parent_culture = {
+							this = scope:county.culture
+						}
+					}
+					culture = { # Small cultures want to grow a bit
+						any_culture_county = {
+							count < 10
+						}
+					}
+					scope:county.culture = { # 'dead' small cultures can go away
+						OR = {
+							is_hybrid_culture = yes
+							is_divergent_culture = yes
+						}
+						any_culture_county = {
+							count < 10
+						}
+						OR = {
+							NOT = { exists = culture_head }
+							any_culture_county = {
+								count < 5
+							}
+						}
+					}
+					culture = { # Imperious cultures want to grow to a certain size
+						culture_head ?= {
+							is_independent_ruler = yes
+							highest_held_title_tier >= tier_kingdom
+							sub_realm_size >= 30
+						}
+						any_culture_county = {
+							count < 35
+						}
+					}
+				}
+			}
+			scope:county = {
+				any_neighboring_county = {
+					culture = scope:councillor_liege.culture # The AI only wants to convert counties bordering their own culture
+				}
+			}
+		}
+		trigger_else_if = { # But AI Directives should still try to look pretty
+			limit = {
+				scope:councillor_liege = {
+					is_ai = yes
+					has_character_flag = vassal_directive_convert_culture
+					vassal_is_valid_and_follows_directive_trigger = { VASSAL = this LIEGE = liege }
+				}
+			}
+			trigger_if = {
+				limit = {
+					scope:county = {
+						any_neighboring_county = {
+							culture = scope:councillor_liege.culture
+						}
+					}
+				}
+				scope:county = {
+					any_neighboring_county = {
+						culture = scope:councillor_liege.culture # The AI only wants to convert counties bordering their own culture
+					}
+				}
+			}
+			trigger_else = {
+				always = yes
+			}
+		}
+		trigger_else = { }
 		trigger_if = { #LotR - AI should not seek to convert the Nurnoth
 			limit = {
 				scope:councillor_liege = {
@@ -2542,10 +2638,6 @@ task_orc_2_diplomacy_1 = { # Ravage the Land
 	potential_county = {
 		scope:county = {
 			custom_tooltip = {
-				text = county_is_already_orcish
-				is_orc = no
-			}	
-			custom_tooltip = {
 				text = county_holder_is_not_orcish
 				holder = { 
 					OR = {
@@ -2567,58 +2659,143 @@ task_orc_2_diplomacy_1 = { # Ravage the Land
 				}
 			}
 		}
+		scope:county = {
+			is_landless_type_title = no
+			culture != scope:councillor_liege.culture
+			trigger_if = {
+				limit = {
+					scope:councillor_liege = { has_variable = hold_court_8130_culture_block }
+				}
+				custom_tooltip = {
+					text = hold_court_8130_conversion_tt
+					culture != scope:councillor_liege.var:hold_court_8130_culture_block
+				}
+			}
+		}
 		trigger_if = {
 			limit = {
-				scope:councillor_liege = { is_ai = yes }
-			}
-			NOT = { scope:councillor_liege = { restricted_culture = yes } }
-			OR = {
-				NOT = {
-					scope:county.culture = {
-						cultural_acceptance = { target = scope:councillor_liege.culture value >= 50 }
-					}
-				}
-				scope:councillor_liege.culture = { # All AI's are motivated to spread new Hybrid/Divergent cultures
-					OR = {
-						is_hybrid_culture = yes
-						is_divergent_culture = yes
-					}
-					any_parent_culture = {
-						this = scope:county.culture
+				scope:councillor_liege = {
+					is_ai = yes
+					NAND = { # AI Directives override this
+						has_character_flag = vassal_directive_convert_culture
+						vassal_is_valid_and_follows_directive_trigger = { VASSAL = this LIEGE = liege }
 					}
 				}
 			}
-			OR = {
-				is_independent_ruler = yes
-				scope:councillor_liege.primary_title.tier > tier_county
-				scope:councillor_liege.culture = { # All AI's are motivated to spread new Hybrid/Divergent cultures
-					OR = {
-						is_hybrid_culture = yes
-						is_divergent_culture = yes
+			scope:councillor_liege = {
+				OR = {
+					NOT = {
+						scope:county.culture = {
+							cultural_acceptance = { target = scope:councillor_liege.culture value >= 50 }
+						}
 					}
-					any_parent_culture = {
-						this = scope:county.culture
+					culture = { # All AI's are motivated to spread new Hybrid/Divergent cultures
+						OR = {
+							is_hybrid_culture = yes
+							is_divergent_culture = yes
+						}
+						any_parent_culture = {
+							this = scope:county.culture
+						}
+					}
+					culture = { # Small cultures want to grow a bit
+						any_culture_county = {
+							count < 10
+						}
+					}
+					scope:county.culture = { # 'dead' small cultures can go away
+						OR = {
+							is_hybrid_culture = yes
+							is_divergent_culture = yes
+						}
+						any_culture_county = {
+							count < 10
+						}
+						OR = {
+							NOT = { exists = culture_head }
+							any_culture_county = {
+								count < 5
+							}
+						}
+					}
+				}
+				OR = {
+					is_independent_ruler = yes
+					primary_title.tier > tier_county
+					culture = { # All AI's are motivated to spread new Hybrid/Divergent cultures
+						OR = {
+							is_hybrid_culture = yes
+							is_divergent_culture = yes
+						}
+						any_parent_culture = {
+							this = scope:county.culture
+						}
+					}
+					culture = { # Small cultures want to grow a bit
+						any_culture_county = {
+							count < 10
+						}
+					}
+					scope:county.culture = { # 'dead' small cultures can go away
+						OR = {
+							is_hybrid_culture = yes
+							is_divergent_culture = yes
+						}
+						any_culture_county = {
+							count < 10
+						}
+						OR = {
+							NOT = { exists = culture_head }
+							any_culture_county = {
+								count < 5
+							}
+						}
+					}
+					culture = { # Imperious cultures want to grow to a certain size
+						culture_head ?= {
+							is_independent_ruler = yes
+							highest_held_title_tier >= tier_kingdom
+							sub_realm_size >= 30
+						}
+						any_culture_county = {
+							count < 35
+						}
 					}
 				}
 			}
-			OR = {
+			scope:county = {
+				any_neighboring_county = {
+					culture = scope:councillor_liege.culture # The AI only wants to convert counties bordering their own culture
+				}
+			}
+		}
+		trigger_else_if = { # But AI Directives should still try to look pretty
+			limit = {
+				scope:councillor_liege = {
+					is_ai = yes
+					has_character_flag = vassal_directive_convert_culture
+					vassal_is_valid_and_follows_directive_trigger = { VASSAL = this LIEGE = liege }
+				}
+			}
+			trigger_if = {
+				limit = {
+					scope:county = {
+						any_neighboring_county = {
+							culture = scope:councillor_liege.culture
+						}
+					}
+				}
 				scope:county = {
 					any_neighboring_county = {
 						culture = scope:councillor_liege.culture # The AI only wants to convert counties bordering their own culture
 					}
 				}
-				
-				AND = {
-					NOT = {
-						scope:county = {
-							any_neighboring_county = {
-								culture = scope:councillor_liege.culture # The AI only wants to convert counties bordering their own culture
-							}
-						}
-					}
-				}
+			}
+			trigger_else = {
+				always = yes
 			}
 		}
+		trigger_else = { }
 		trigger_if = { #LotR - AI should not seek to convert the Nurnoth
 			limit = {
 				scope:councillor_liege = {
@@ -4253,10 +4430,6 @@ task_orc_3_diplomacy_1 = { # Ravage the Land
 	potential_county = {
 		scope:county = {
 			custom_tooltip = {
-				text = county_is_already_orcish
-				is_orc = no
-			}	
-			custom_tooltip = {
 				text = county_holder_is_not_orcish
 				holder = { 
 					OR = {
@@ -4278,58 +4451,143 @@ task_orc_3_diplomacy_1 = { # Ravage the Land
 				}
 			}
 		}
+		scope:county = {
+			is_landless_type_title = no
+			culture != scope:councillor_liege.culture
+			trigger_if = {
+				limit = {
+					scope:councillor_liege = { has_variable = hold_court_8130_culture_block }
+				}
+				custom_tooltip = {
+					text = hold_court_8130_conversion_tt
+					culture != scope:councillor_liege.var:hold_court_8130_culture_block
+				}
+			}
+		}
 		trigger_if = {
 			limit = {
-				scope:councillor_liege = { is_ai = yes }
-			}
-			NOT = { scope:councillor_liege = { restricted_culture = yes } }
-			OR = {
-				NOT = {
-					scope:county.culture = {
-						cultural_acceptance = { target = scope:councillor_liege.culture value >= 50 }
-					}
-				}
-				scope:councillor_liege.culture = { # All AI's are motivated to spread new Hybrid/Divergent cultures
-					OR = {
-						is_hybrid_culture = yes
-						is_divergent_culture = yes
-					}
-					any_parent_culture = {
-						this = scope:county.culture
+				scope:councillor_liege = {
+					is_ai = yes
+					NAND = { # AI Directives override this
+						has_character_flag = vassal_directive_convert_culture
+						vassal_is_valid_and_follows_directive_trigger = { VASSAL = this LIEGE = liege }
 					}
 				}
 			}
-			OR = {
-				is_independent_ruler = yes
-				scope:councillor_liege.primary_title.tier > tier_county
-				scope:councillor_liege.culture = { # All AI's are motivated to spread new Hybrid/Divergent cultures
-					OR = {
-						is_hybrid_culture = yes
-						is_divergent_culture = yes
+			scope:councillor_liege = {
+				OR = {
+					NOT = {
+						scope:county.culture = {
+							cultural_acceptance = { target = scope:councillor_liege.culture value >= 50 }
+						}
 					}
-					any_parent_culture = {
-						this = scope:county.culture
+					culture = { # All AI's are motivated to spread new Hybrid/Divergent cultures
+						OR = {
+							is_hybrid_culture = yes
+							is_divergent_culture = yes
+						}
+						any_parent_culture = {
+							this = scope:county.culture
+						}
+					}
+					culture = { # Small cultures want to grow a bit
+						any_culture_county = {
+							count < 10
+						}
+					}
+					scope:county.culture = { # 'dead' small cultures can go away
+						OR = {
+							is_hybrid_culture = yes
+							is_divergent_culture = yes
+						}
+						any_culture_county = {
+							count < 10
+						}
+						OR = {
+							NOT = { exists = culture_head }
+							any_culture_county = {
+								count < 5
+							}
+						}
+					}
+				}
+				OR = {
+					is_independent_ruler = yes
+					primary_title.tier > tier_county
+					culture = { # All AI's are motivated to spread new Hybrid/Divergent cultures
+						OR = {
+							is_hybrid_culture = yes
+							is_divergent_culture = yes
+						}
+						any_parent_culture = {
+							this = scope:county.culture
+						}
+					}
+					culture = { # Small cultures want to grow a bit
+						any_culture_county = {
+							count < 10
+						}
+					}
+					scope:county.culture = { # 'dead' small cultures can go away
+						OR = {
+							is_hybrid_culture = yes
+							is_divergent_culture = yes
+						}
+						any_culture_county = {
+							count < 10
+						}
+						OR = {
+							NOT = { exists = culture_head }
+							any_culture_county = {
+								count < 5
+							}
+						}
+					}
+					culture = { # Imperious cultures want to grow to a certain size
+						culture_head ?= {
+							is_independent_ruler = yes
+							highest_held_title_tier >= tier_kingdom
+							sub_realm_size >= 30
+						}
+						any_culture_county = {
+							count < 35
+						}
 					}
 				}
 			}
-			OR = {
+			scope:county = {
+				any_neighboring_county = {
+					culture = scope:councillor_liege.culture # The AI only wants to convert counties bordering their own culture
+				}
+			}
+		}
+		trigger_else_if = { # But AI Directives should still try to look pretty
+			limit = {
+				scope:councillor_liege = {
+					is_ai = yes
+					has_character_flag = vassal_directive_convert_culture
+					vassal_is_valid_and_follows_directive_trigger = { VASSAL = this LIEGE = liege }
+				}
+			}
+			trigger_if = {
+				limit = {
+					scope:county = {
+						any_neighboring_county = {
+							culture = scope:councillor_liege.culture
+						}
+					}
+				}
 				scope:county = {
 					any_neighboring_county = {
 						culture = scope:councillor_liege.culture # The AI only wants to convert counties bordering their own culture
 					}
 				}
-				
-				AND = {
-					NOT = {
-						scope:county = {
-							any_neighboring_county = {
-								culture = scope:councillor_liege.culture # The AI only wants to convert counties bordering their own culture
-							}
-						}
-					}
-				}
+			}
+			trigger_else = {
+				always = yes
 			}
 		}
+		trigger_else = { }
 		trigger_if = { #LotR - AI should not seek to convert the Nurnoth
 			limit = {
 				scope:councillor_liege = {
@@ -5964,10 +6222,6 @@ task_orc_4_diplomacy_1 = { # Ravage the Land
 	potential_county = {
 		scope:county = {
 			custom_tooltip = {
-				text = county_is_already_orcish
-				is_orc = no
-			}	
-			custom_tooltip = {
 				text = county_holder_is_not_orcish
 				holder = { 
 					OR = {
@@ -5989,58 +6243,170 @@ task_orc_4_diplomacy_1 = { # Ravage the Land
 				}
 			}
 		}
+		scope:county = {
+			is_landless_type_title = no
+			OR = {
+				culture != scope:councillor_liege.culture
+				faith != scope:councillor_liege.faith
+			}
+			trigger_if = {
+				limit = {
+					culture != scope:councillor_liege.culture
+					scope:councillor_liege = { has_variable = hold_court_8130_culture_block }
+				}
+				custom_tooltip = {
+					text = hold_court_8130_conversion_tt
+					culture != scope:councillor_liege.var:hold_court_8130_culture_block
+				}
+			}
+		}
 		trigger_if = {
 			limit = {
-				scope:councillor_liege = { is_ai = yes }
-			}
-			NOT = { scope:councillor_liege = { restricted_culture = yes } }
-			OR = {
-				NOT = {
-					scope:county.culture = {
-						cultural_acceptance = { target = scope:councillor_liege.culture value >= 50 }
-					}
-				}
-				scope:councillor_liege.culture = { # All AI's are motivated to spread new Hybrid/Divergent cultures
+				scope:councillor_liege = {
+					is_ai = yes
 					OR = {
-						is_hybrid_culture = yes
-						is_divergent_culture = yes
-					}
-					any_parent_culture = {
-						this = scope:county.culture
-					}
-				}
-			}
-			OR = {
-				is_independent_ruler = yes
-				scope:councillor_liege.primary_title.tier > tier_county
-				scope:councillor_liege.culture = { # All AI's are motivated to spread new Hybrid/Divergent cultures
-					OR = {
-						is_hybrid_culture = yes
-						is_divergent_culture = yes
-					}
-					any_parent_culture = {
-						this = scope:county.culture
-					}
-				}
-			}
-			OR = {
-				scope:county = {
-					any_neighboring_county = {
-						culture = scope:councillor_liege.culture # The AI only wants to convert counties bordering their own culture
-					}
-				}
-				
-				AND = {
-					NOT = {
-						scope:county = {
-							any_neighboring_county = {
-								culture = scope:councillor_liege.culture # The AI only wants to convert counties bordering their own culture
+						trigger_if = {
+							limit = { scope:county.culture != scope:councillor_liege.culture }
+							NAND = { # AI Directives override this
+								has_character_flag = vassal_directive_convert_culture
+								vassal_is_valid_and_follows_directive_trigger = { VASSAL = this LIEGE = liege }
+							}
+						}
+						trigger_if = {
+							limit = { scope:county.faith != scope:councillor_liege.faith }
+							NAND = {
+								has_character_flag = vassal_directive_convert_faith
+								vassal_is_valid_and_follows_directive_trigger = { VASSAL = this LIEGE = liege }
 							}
 						}
 					}
 				}
 			}
+			scope:councillor_liege = {
+				trigger_if = {
+					limit = { scope:county.culture != scope:councillor_liege.culture }
+					OR = {
+						NOT = {
+							scope:county.culture = {
+								cultural_acceptance = { target = scope:councillor_liege.culture value >= 50 }
+							}
+						}
+						culture = { # All AI's are motivated to spread new Hybrid/Divergent cultures
+							OR = {
+								is_hybrid_culture = yes
+								is_divergent_culture = yes
+							}
+							any_parent_culture = {
+								this = scope:county.culture
+							}
+						}
+						culture = { # Small cultures want to grow a bit
+							any_culture_county = {
+								count < 10
+							}
+						}
+						scope:county.culture = { # 'dead' small cultures can go away
+							OR = {
+								is_hybrid_culture = yes
+								is_divergent_culture = yes
+							}
+							any_culture_county = {
+								count < 10
+							}
+							OR = {
+								NOT = { exists = culture_head }
+								any_culture_county = {
+									count < 5
+								}
+							}
+						}
+					}
+				}
+				OR = {
+					is_independent_ruler = yes
+					primary_title.tier > tier_county
+					trigger_if = {
+						limit = { scope:county.culture != scope:councillor_liege.culture }
+						OR = {
+							culture = { # All AI's are motivated to spread new Hybrid/Divergent cultures
+								OR = {
+									is_hybrid_culture = yes
+									is_divergent_culture = yes
+								}
+								any_parent_culture = {
+									this = scope:county.culture
+								}
+							}
+							culture = { # Small cultures want to grow a bit
+								any_culture_county = {
+									count < 10
+								}
+							}
+							scope:county.culture = { # 'dead' small cultures can go away
+								OR = {
+									is_hybrid_culture = yes
+									is_divergent_culture = yes
+								}
+								any_culture_county = {
+									count < 10
+								}
+								OR = {
+									NOT = { exists = culture_head }
+									any_culture_county = {
+										count < 5
+									}
+								}
+							}
+							culture = { # Imperious cultures want to grow to a certain size
+								culture_head ?= {
+									is_independent_ruler = yes
+									highest_held_title_tier >= tier_kingdom
+									sub_realm_size >= 30
+								}
+								any_culture_county = {
+									count < 35
+								}
+							}
+						}
+					}
+				}
+			}
+			trigger_if = {
+				limit = { scope:county.culture != scope:councillor_liege.culture } 
+				scope:county = {
+					any_neighboring_county = {
+						culture = scope:councillor_liege.culture # The AI only wants to convert counties bordering their own culture
+					}
+				}
+			}
 		}
+		trigger_else_if = { # But AI Directives should still try to look pretty
+			limit = {
+				scope:councillor_liege = {
+					is_ai = yes
+					has_character_flag = vassal_directive_convert_culture
+					vassal_is_valid_and_follows_directive_trigger = { VASSAL = this LIEGE = liege }
+				}
+			}
+			trigger_if = {
+				limit = {
+					scope:county = {
+						any_neighboring_county = {
+							culture = scope:councillor_liege.culture
+						}
+					}
+				}
+				scope:county = {
+					any_neighboring_county = {
+						culture = scope:councillor_liege.culture # The AI only wants to convert counties bordering their own culture
+					}
+				}
+			}
+			trigger_else = {
+				always = yes
+			}
+		}
+		trigger_else = { }
 		trigger_if = { #LotR - AI should not seek to convert the Nurnoth
 			limit = {
 				scope:councillor_liege = {
