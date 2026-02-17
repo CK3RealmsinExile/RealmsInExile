@@ -105,7 +105,19 @@
 			value = 0
 			
 			if = {
-				limit = { scope:actor = { is_ai = no }}
+				limit = { scope:actor = { is_ai = no } }
+				add = feudalize_tribal_holding_interaction_cost
+			}
+			if = {
+				limit = { scope:actor = { is_orc = yes } }
+				multiply = 0.5
+			}
+		}
+		prestige = {
+			value = 0
+
+			if = {
+				limit = { scope:actor = { is_ai = no is_orc = yes } }
 				add = feudalize_tribal_holding_interaction_cost
 			}
 		}
@@ -350,7 +362,12 @@ feudalize_into_castle_holding_interaction = {
 
 	has_valid_target_showing_failures_only = {
 		trigger_if = {
-			limit = { NOT = { scope:target.title_province = scope:target.county.title_province } } # Is the selected barony NOT the capital barony
+			limit = {
+				trigger_if = {
+					limit = { scope:target.tier <= tier_county }
+					NOT = { scope:target.title_province = scope:target.county.title_province } # Is the selected barony NOT the capital barony
+				} trigger_else = { always = no }
+			}
 			NOT = { scope:target.county.title_province = { has_holding_type = settlement_holding } }
 		}
 		scope:target = {
@@ -405,7 +422,19 @@ feudalize_into_castle_holding_interaction = {
 			value = 0
 
 			if = {
-				limit = { scope:actor= { is_ai = no } }
+				limit = { scope:actor = { is_ai = no } }
+				add = feudalize_tribal_holding_interaction_cost
+			}
+			if = {
+				limit = { scope:actor = { is_orc = yes } }
+				multiply = 0.5
+			}
+		}
+		prestige = {
+			value = 0
+			
+			if = {
+				limit = { scope:actor = { is_ai = no is_orc = yes } }
 				add = feudalize_tribal_holding_interaction_cost
 			}
 		}
@@ -422,6 +451,155 @@ feudalize_into_castle_holding_interaction = {
 					limit = { exists = scope:target.title_province }
 					scope:target.title_province = {
 						set_holding_type = castle_holding
+					}
+					scope:target = { set_color_from_title = scope:target.de_jure_liege }
+				}
+			}
+			if = { 
+				limit = { 
+					has_variable = num_settled_wilderness 
+					var:num_settled_wilderness > 0
+				}
+				decrease_variable = {
+					NAME = num_settled_wilderness
+					AMOUNT = 1
+				}
+				remove_wastelands_tracker_variable = yes
+				trigger_event = wastelands.0007
+			}
+		}
+	}
+
+	ai_will_do = {
+		base = 150
+	}
+}
+
+feudalize_into_tribal_holding_interaction = {
+	category = interaction_category_uncategorized
+	hidden = yes
+	# special_interaction = feudalize_into_castle_holding
+
+	desc = feudalize_into_tribal_holding_interaction_desc
+
+	target_type = title
+	target_filter = actor_domain_titles
+	
+	auto_accept = yes
+
+	is_shown = {
+		scope:actor = {
+			this = scope:recipient
+			OR = {
+				government_has_flag = government_is_tribal
+				government_has_flag = government_is_orcish
+				government_has_flag = government_is_wanua
+			}
+
+		}
+	}
+	
+	can_be_picked_title = {
+		scope:target = {
+			holder = scope:actor
+			is_capital_barony = no # we'll use the county in that case
+			trigger_if = {
+				limit = { tier <= tier_county }
+				title_province = {
+					NOR = { terrain = halls }
+					OR = {
+						has_holding_type = elven_holding
+						has_holding_type = settlement_holding
+					}
+				}
+			}
+			trigger_else = {
+				custom_description = {
+					text = "feudalize_tribal_holding_interaction_title_not_county_or_below"
+					always = no
+				}
+			}
+		}
+	}
+
+	has_valid_target_showing_failures_only = {
+		trigger_if = {
+			limit = {
+				trigger_if = {
+					limit = { scope:target.tier <= tier_county }
+					NOT = { scope:target.title_province = scope:target.county.title_province } # Is the selected barony NOT the capital barony
+				} trigger_else = { always = no }
+			}
+			NOT = { scope:target.county.title_province = { has_holding_type = settlement_holding } }
+		}
+		scope:target = {
+			trigger_if = {
+				limit = { tier <= tier_county }
+				title_province = {
+					barony_controller = scope:actor
+					has_ongoing_construction = no
+				}
+			}
+		}
+		scope:target = {
+			trigger_if = {
+				limit = {
+					title_province = {
+						has_holding_type = settlement_holding
+					}
+				}
+				custom_tooltip = {
+					text = blockers_remain_in_settlement
+					title_province = { 
+						has_building_with_flag = { 
+							flag = obstacle 
+							count = 0 
+						} 
+					}
+				}
+				development_level >= 3
+				custom_tooltip = {
+					text = has_fully_upgraded_settlement_holding
+					title_province = { has_building = settlement_03 }
+				}
+			}
+		}
+	}
+
+	cost = {
+		gold = {
+			value = 0
+
+			if = {
+				limit = { scope:actor = { is_ai = no } }
+				add = feudalize_tribal_holding_interaction_cost
+			}
+			if = {
+				limit = { scope:actor = { is_orc = yes } }
+				multiply = 0.5
+			}
+		}
+		prestige = {
+			value = 0
+			
+			if = {
+				limit = { scope:actor = { is_ai = no is_orc = yes } }
+				add = feudalize_tribal_holding_interaction_cost
+			}
+		}
+	}
+
+	on_accept = {
+		scope:actor = {
+			send_interface_toast = {
+				title = feudalize_into_tribal_holding_interaction_notification
+
+				right_icon = scope:actor					
+
+				if = {
+					limit = { exists = scope:target.title_province }
+					scope:target.title_province = {
+						set_holding_type = tribal_holding
 					}
 					scope:target = { set_color_from_title = scope:target.de_jure_liege }
 				}
@@ -464,6 +642,7 @@ feudalize_into_city_holding_interaction = {
 			NOR = {
 				government_has_flag = government_is_tribal
 				government_has_flag = government_is_elven
+				government_has_flag = government_is_orcish
 			}
 		}
 	}
@@ -501,7 +680,12 @@ feudalize_into_city_holding_interaction = {
 
 	has_valid_target_showing_failures_only = {
 		trigger_if = {
-			limit = { NOT = { scope:target.title_province = scope:target.county.title_province } } # Is the selected barony NOT the capital barony
+			limit = {
+				trigger_if = {
+					limit = { scope:target.tier <= tier_county }
+					NOT = { scope:target.title_province = scope:target.county.title_province } # Is the selected barony NOT the capital barony
+				} trigger_else = { always = no }
+			}
 			NOT = { scope:target.county.title_province = { has_holding_type = settlement_holding } }
 		}
 
@@ -545,6 +729,18 @@ feudalize_into_city_holding_interaction = {
 
 			if = {
 				limit = { scope:actor = { is_ai = no } }
+				add = feudalize_tribal_holding_interaction_cost
+			}
+			if = {
+				limit = { scope:actor = { is_orc = yes } }
+				multiply = 0.5
+			}
+		}
+		prestige = {
+			value = 0
+			
+			if = {
+				limit = { scope:actor = { is_ai = no is_orc = yes } }
 				add = feudalize_tribal_holding_interaction_cost
 			}
 		}
@@ -640,7 +836,12 @@ feudalize_into_temple_holding_interaction = {
 
 	has_valid_target_showing_failures_only = {
 		trigger_if = {
-			limit = { NOT = { scope:target.title_province = scope:target.county.title_province } } # Is the selected barony NOT the capital barony
+			limit = {
+				trigger_if = {
+					limit = { scope:target.tier <= tier_county }
+					NOT = { scope:target.title_province = scope:target.county.title_province } # Is the selected barony NOT the capital barony
+				} trigger_else = { always = no }
+			}
 			NOT = { scope:target.county.title_province = { has_holding_type = settlement_holding } }
 		}
 
@@ -686,7 +887,19 @@ feudalize_into_temple_holding_interaction = {
 			value = 0
 
 			if = {
-				limit = { scope:actor = { is_ai = no }}
+				limit = { scope:actor = { is_ai = no } }
+				add = feudalize_tribal_holding_interaction_cost
+			}
+			if = {
+				limit = { scope:actor = { is_orc = yes } }
+				multiply = 0.5
+			}
+		}
+		prestige = {
+			value = 0
+			
+			if = {
+				limit = { scope:actor = { is_ai = no is_orc = yes } }
 				add = feudalize_tribal_holding_interaction_cost
 			}
 		}
