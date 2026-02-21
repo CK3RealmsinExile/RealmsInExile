@@ -85,13 +85,7 @@ ray_story.0002{#AI check for coup code
 	content_source = realms_dlc
 	type = character_event
 	immediate = {
-		title:k_haruzan.holder = { save_scope_as = haruzan_king }
-		if = {
-			limit = {
-				title:e_bozisha_miraz = { is_title_created = no }
-			}
-			add_character_flag = mardat_coup_transition
-		}		
+		title:k_haruzan.holder = { save_scope_as = haruzan_king }	
 	}
 	theme = intrigue
 	title =	ray_story.0103.t
@@ -4116,37 +4110,72 @@ ray_story.0157 = { # Powans join the war
 	}
 }
 
-ray_story.0158 = {#Mardat wins the civil war
+ray_story.0158 = { # Mardat wins the civil war
 	content_source = realms_dlc
 	type = character_event
 	theme = war
 	immediate = {
-		title:d_dar.holder = { save_scope_as = ray_king_lost }
+		# title:k_ray.holder = { save_scope_as = ray_king_lost } # Saved in CB and prev event
 		title:d_iunastiy.holder = { save_scope_as = revolutionary }	
-		hidden_effect = {
-			scope:ray_king_lost = {				
-				get_title = title:e_bozisha_miraz
-				create_title_and_vassal_change = {
-					type = usurped
-					save_scope_as = title_change
-					add_claim_on_loss = no
-				}			
-				every_held_title = {
-					change_title_holder_include_vassals = {
-						holder = root
-						change = scope:title_change
-					}
-				}
-				resolve_title_and_vassal_change = scope:title_change
-			}
-			if = {
+		
+		scope:ray_king_lost = {
+			every_vassal = {
 				limit = {
-					has_character_flag = mardat_coup_transition
+					this != root
 				}
-				destroy_title = title:e_bozisha_miraz
+				add_to_list = ray_vassals
+			}
+
+			# Swap titles
+			create_title_and_vassal_change = {
+				type = usurped
+				save_scope_as = title_change
+				add_claim_on_loss = yes
 			}			
-		}		
-		set_realm_capital = title:c_bozisha_dar
+			every_held_title = {
+				limit = {
+					tier > tier_barony # Don't transfer baronies this way, it causes errors
+				}
+				change_title_holder = {
+					holder = root
+					change = scope:title_change
+					take_baronies = yes
+				}
+			}
+			resolve_title_and_vassal_change = scope:title_change
+
+			# Handle Vassals
+			every_in_list = {
+				list = ray_vassals
+				#Vassalize them
+				create_title_and_vassal_change = {
+					type = swear_fealty
+					save_scope_as = vassal_change
+					add_claim_on_loss = no
+				}
+				change_liege = {
+					liege = root
+					change = scope:vassal_change
+				}
+				resolve_title_and_vassal_change = scope:vassal_change
+			}
+		}
+
+		if = {
+			limit = {
+				NOT = { has_character_flag = mardat_guard }
+				has_title = title:d_suza_riy
+			}
+			trigger_event = {
+				id = ray_story.0221
+				days = 4
+			}
+		}
+
+		title:k_ray.title_capital_county = {
+			save_scope_as = new_capital
+		}				
+		set_realm_capital = scope:new_capital
 	}
 	
 	theme = intrigue
@@ -4169,8 +4198,7 @@ ray_story.0158 = {#Mardat wins the civil war
 	option = { # Execute the Kralyi
 		name = ray_story.0158.a
 		custom_tooltip = ray_story.0158.a.effects
-		get_title = title:d_dar
-		get_title = title:c_sanma
+
 		scope:revolutionary = {
 			trigger_event = {
 				id = ray_story.0210
@@ -4211,8 +4239,6 @@ ray_story.0158 = {#Mardat wins the civil war
 	option = { # Purge the capital
 		name = ray_story.0158.b
 		custom_tooltip = ray_story.0158.b.effects
-		get_title = title:d_dar
-		get_title = title:c_sanma	
 		scope:revolutionary = {
 			trigger_event = {
 				id = ray_story.0210
@@ -4233,15 +4259,15 @@ ray_story.0158 = {#Mardat wins the civil war
 			}			
 		}
 		
-		title:c_bozisha_dar = {
+		scope:new_capital = {
 			set_county_faith = faith:faith_haruze
 		}
-		title:c_bozisha_dar = { 
+		scope:new_capital = { 
 			add_county_modifier = {
 				modifier = mardat_purge_county_modifier 
 				years = 50
-				}
 			}
+		}
 		add_legitimacy = -50
 		add_stress = -100
 		if = {
@@ -4264,8 +4290,7 @@ ray_story.0158 = {#Mardat wins the civil war
 	option = { # Mercy
 		name = ray_story.0158.c
 		custom_tooltip = ray_story.0158.c.effects
-		get_title = title:d_dar
-		get_title = title:c_sanma	
+		
 		scope:revolutionary = {
 			trigger_event = {
 				id = ray_story.0210
@@ -4295,16 +4320,34 @@ ray_story.0158 = {#Mardat wins the civil war
 			base = 0
 		}
 	}
+
+	after = {
+		# Give the rest of the capital if you don't have it and it's in your realm
+		if = {
+			limit = {
+				NOT = { has_title = title:d_dar }
+				title:d_dar.holder.top_liege = root
+			}
+			get_title = title:d_dar
+		}
+		if = {
+			limit = {
+				NOT = { has_title = title:c_sanma }
+				title:c_sanma.holder.top_liege = root
+			}
+			get_title = title:c_sanma
+		}
+	}
 }
 
-ray_story.0159 = {# Mardat wins the civil war Ray POV
+ray_story.0159 = { # Mardat wins the civil war Ray POV
 	content_source = realms_dlc
 	type = character_event
 	theme = war
 	immediate = {
 		title:d_suza_riy.holder = { save_scope_as = mardat }
 		root.player_heir = { save_scope_as = heir }
-		set_realm_capital = title:c_bozisha_dar
+		# set_realm_capital = title:c_bozisha_dar # Doesn't do anything, throws errors if it's not in realm
 	}
 	title =	ray_story.0159.t
 	desc = ray_story.0159.desc
@@ -4346,7 +4389,12 @@ ray_story.0159 = {# Mardat wins the civil war Ray POV
 				}
 			}
 		}
-		set_player_character = scope:heir		
+		if = {
+			limit = {
+				is_ai = no
+			}
+			set_player_character = scope:heir				
+		}
 		scope:mardat = {
 			trigger_event = {
 				id = ray_story.0158
@@ -4447,7 +4495,7 @@ ray_story.0163 = {#Mardat begins the coup
 	theme = intrigue
 	immediate = {
 		title:k_ray.holder = { save_scope_as = ray_king }
-		title:d_dar.holder = { save_scope_as = ray_king_lost}
+		title:k_ray.holder = { save_scope_as = ray_king_lost}
 		title:d_suza_riy.holder = { save_scope_as = mardat }
 	}
 	title =	ray_story.0163.t
@@ -4466,7 +4514,7 @@ ray_story.0163 = {#Mardat begins the coup
 		animation = paranoia
 	}
 
-	option = { 
+	option = {
 		name = ray_story.0163.a
 		random_list = {
 			1 = { #Success
@@ -4526,25 +4574,65 @@ ray_story.0163 = {#Mardat begins the coup
 					trigger_event = {
 						id = ray_story.0159
 					}
-				}				
+				}			
 				imprison = {
 					target = scope:ray_king
 					type = dungeon
 				}
 				scope:ray_king = {
+					every_vassal = {
+						limit = {
+							this != root
+						}
+						add_to_list = ray_vassals
+					}
+
+					# Swap titles
 					create_title_and_vassal_change = {
 						type = usurped
 						save_scope_as = title_change
-						add_claim_on_loss = no
+						add_claim_on_loss = yes
 					}			
 					every_held_title = {
-						change_title_holder_include_vassals = {
+						limit = {
+							tier > tier_barony # Don't transfer baronies this way, it causes errors
+						}
+						change_title_holder = {
 							holder = root
 							change = scope:title_change
+							take_baronies = yes
 						}
 					}
-					resolve_title_and_vassal_change = scope:title_change		
-				}		
+					resolve_title_and_vassal_change = scope:title_change
+
+					# Handle Vassals
+					every_in_list = {
+						list = ray_vassals
+						#Vassalize them
+						create_title_and_vassal_change = {
+							type = swear_fealty
+							save_scope_as = vassal_change
+							add_claim_on_loss = no
+						}
+						change_liege = {
+							liege = root
+							change = scope:vassal_change
+						}
+						resolve_title_and_vassal_change = scope:vassal_change
+					}					
+				}
+				hidden_effect = {
+					if = {
+						limit = {
+							NOT = {
+								title:c_sanma.holder = scope:ray_king_lost
+							}
+							scope:ray_king_lost = {
+								get_title = title:c_sanma
+							}
+						}
+					}
+				}				
 			}	
 		
 			99 = { #Failure
@@ -4723,7 +4811,7 @@ ray_story.0201 = {# Mardat has to pay up
 				id = ray_story.0208
 				days = 4
 			}
-		}					
+		}						
 		ai_chance = {
 			base = 100
 		}
@@ -6264,6 +6352,66 @@ ray_story.0220 = { # Make the Bellanarud Mardat's tributary
 			base = 100
 		}
 	}
+}
+
+ray_story.0221 = { # Mardat brother time
+	content_source = realms_dlc
+	type = character_event
+	title = ray_story.0221.t
+	desc =  ray_story.0221.desc
+	theme = realm
+	override_background = {
+		reference = corridor_day
+	}
+	trigger = {
+		has_title = title:d_suza_riy
+	}
+	immediate = {
+		character:serpentlord14 = {save_scope_as = brother}
+	}
+	left_portrait = {
+		character = root
+		animation = thinking
+	}
+	right_portrait = {
+		character = scope:brother
+		animation = personality_greedy
+	}	
+	option = {
+		name = ray_story.0221.a			
+		create_title_and_vassal_change = {
+			type = granted
+			save_scope_as = title_change
+			add_claim_on_loss = no
+		}					
+		every_held_county = {
+			limit = {
+				duchy = title:d_suza_riy
+			}
+			change_title_holder = {
+				holder = scope:brother
+				change = scope:title_change
+			}
+		}
+		resolve_title_and_vassal_change = scope:title_change			
+		scope:brother = {
+			get_title = title:d_suza_riy
+		}		
+		reverse_add_opinion = {
+			modifier = grateful_opinion
+			target = scope:brother
+			opinion = 200
+		}
+		ai_chance = {
+			base = 100
+		}
+	}
+	option = {
+		name = ray_story.0221.b
+		ai_chance = {
+			base = 0
+		}
+	}		
 }
 
 #####################
@@ -10923,10 +11071,10 @@ ray_story.0414 = {# Lords : tyranny
 		duel = {
 			skill = intrigue
 			target = scope:mardat
-			0 = { # success
+			30 = { # success
 			compare_modifier = {
 				target = scope:mardat
-				multiplier = 2
+				multiplier = 5
 				min = -29
 			}									
 				custom_tooltip = ray_story_lords.success				
@@ -10935,10 +11083,10 @@ ray_story.0414 = {# Lords : tyranny
 					id = ray_story.0408
 				}
 			}
-			100 = { # RIP
+			70 = { # RIP
 			compare_modifier = {
 				value = scope:duel_value
-				multiplier = -2
+				multiplier = -5
 				min = -29
 			}										
 				add_tyranny = 100
@@ -10970,7 +11118,8 @@ ray_story.0415 = {# GG
 	type = character_event
 	theme = intrigue
 	immediate = {
-		title:d_suza_riy.holder = { save_scope_as = mardat }		
+		title:d_suza_riy.holder = { save_scope_as = mardat }
+		root.player_heir = 	{ save_scope_as = heir }
 	}
 	title =	ray_story.0415.t
 	desc = ray_story.0415.desc
@@ -10988,6 +11137,31 @@ ray_story.0415 = {# GG
 
 	option = {
 		name = ray_story.0415.a
+		if = {
+			limit = {
+				scope:heir = {
+					NOT = {
+						is_ruler = yes
+					}
+				}
+			}
+			scope:heir = {
+				create_landless_adventurer_title_effect = {
+					REASON = flag:exile
+					FLAVOR_CHAR = scope:heir
+				}
+				trigger_event = {
+					id = ray_story.0401
+					days = 1
+				}
+			}
+		}
+		if = {
+			limit = {
+				is_ai = no
+			}
+			set_player_character = scope:heir				
+		}		
 		scope:mardat = {
 			add_character_flag = mardat_chaos_coup
 			trigger_event = {
@@ -11036,7 +11210,7 @@ ray_story.0416 = {# Lords : sneaky
 		duel = {
 			skill = intrigue
 			target = scope:mardat
-			30 = { # success
+			20 = { # success
 			compare_modifier = {
 				target = scope:mardat
 				multiplier = 2
@@ -11047,7 +11221,7 @@ ray_story.0416 = {# Lords : sneaky
 					id = ray_story.0408
 				}
 			}
-			70 = { # failure
+			80 = { # failure
 			compare_modifier = {
 				value = scope:duel_value
 				multiplier = -2
@@ -11211,13 +11385,7 @@ ray_story.0420 = {# Vatalinar Begins Civil War
 				target_title = title:c_bozisha_dar
 				target_title = title:c_aziya
 				target_title = title:c_hartas
-			}
-			if = {
-				limit = {
-					title:e_bozisha_miraz = { is_title_created = no }
-				}
-				add_character_flag = mardat_coup_transition
-			}				
+			}			
 		}
 		ai_chance = {
 			base = 100
