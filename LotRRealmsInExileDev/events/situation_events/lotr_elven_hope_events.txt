@@ -11,12 +11,21 @@ elven_hope.0001 = { # Fullscreen event when the situation starts
 	type = character_event
 	window = fullscreen_event
 	title = elven_hope.0001.t
-	desc = elven_hope.0001.desc
+	desc = {
+		first_valid = {
+			triggered_desc = {
+				trigger = { is_istari = yes }
+				desc = elven_hope.0001.istari.desc
+			}
+			desc = elven_hope.0001.desc
+		}
+	}
 	theme = realm
 	trigger = { # we need to prevent this from firing for all players when a new player joins in MP
 		is_ai = no
 		NOT = { has_variable = elven_hope_0001_var }
 		faith_is_evil = no
+		NOT = { has_character_flag = saruman_undecided }
  	}
 	override_background = { reference = elven_situation_fullscreen }
 	override_sound = { reference = "event:/DLC/FP2/SFX/UI/fp2_struggle_ui_intro_animate" }
@@ -32,11 +41,6 @@ elven_hope.0001 = { # Fullscreen event when the situation starts
 		}
 	}
 	immediate = {
-		set_variable = elven_hope_0001_var
-		save_scope_value_as = {
-			name = start
-			value = yes
-		}
 	}
 	option = {
 		name = elven_hope.0001.a
@@ -44,6 +48,11 @@ elven_hope.0001 = { # Fullscreen event when the situation starts
 		if = {
 			limit = { is_ai = no }
 			trigger_event = elven_hope.0031 # Reset all variables to 0 in case you load in from main menu
+		}
+		set_variable = elven_hope_0001_var
+		save_scope_value_as = {
+			name = start
+			value = yes
 		}
 	}
 }
@@ -70,6 +79,7 @@ elven_hope.0002 = { # Apply initial hope modifiers
 						situation_sub_region_has_county = root.capital_county
 					}
 				}
+				is_elf = yes # to avoid istari getting it
 			}
 			add_character_modifier = elven_hope_waning_modifier
 		}
@@ -235,6 +245,7 @@ elven_hope.0011 = { # Waning phase
 	trigger = { # Does not need to trigger when the phase remains the same
 		NOT = { has_character_flag = elven_hope_waning_flag}
 		faith_is_evil = no
+		NOT = { has_character_flag = saruman_undecided }
 	}
 	# widgets = { # TO DO: Make phase effects show up here
 		# widget = {
@@ -400,7 +411,10 @@ elven_hope.0020 = { # Check phase and reduce dev at random
 				}
 			}
 			every_realm_county = {
-				limit = { title_province = { has_holding_type = elven_holding } }
+				limit = { 
+					title_province = { has_holding_type = elven_holding }
+					NOT = { this = root.capital_county }
+				}
 				save_scope_as = county_to_lose_dev
 				random_list = {
 					5 = {
@@ -431,7 +445,7 @@ elven_hope.0020 = { # Check phase and reduce dev at random
 						scope:mithlondholder = {
 							if = { 
 								limit = { is_elf = yes } 
-								add_elven_hope_effect = { VALUE = minimal_elven_hope_loss HOPE_EFFECT = effect_elven_hope_elves_sailed_west }
+								add_elven_hope_effect = { VALUE = miniscule_elven_hope_loss HOPE_EFFECT = effect_elven_hope_elves_sailed_west }
 							}
 						}
 					}
@@ -450,7 +464,10 @@ elven_hope.0020 = { # Check phase and reduce dev at random
 				}
 			}
 			every_realm_county = {
-				limit = { title_province = { has_holding_type = elven_holding } }
+				limit = { 
+					title_province = { has_holding_type = elven_holding }
+					NOT = { this = root.capital_county }
+				}
 				save_scope_as = county_to_lose_dev
 				random_list = {
 					5 = {
@@ -484,7 +501,10 @@ elven_hope.0020 = { # Check phase and reduce dev at random
 				}
 			}
 			every_realm_county = {
-				limit = { title_province = { has_holding_type = elven_holding } }
+				limit = { 
+					title_province = { has_holding_type = elven_holding }
+					NOT = { this = root.capital_county }
+				}
 				save_scope_as = county_to_lose_dev
 				random_list = {
 					2 = {
@@ -518,7 +538,10 @@ elven_hope.0020 = { # Check phase and reduce dev at random
 				}
 			}
 			every_realm_county = {
-				limit = { title_province = { has_holding_type = elven_holding } }
+				limit = { 
+					title_province = { has_holding_type = elven_holding }
+					NOT = { this = root.capital_county }
+				}
 				save_scope_as = county_to_lose_dev
 				random_list = {
 					1 = {
@@ -574,7 +597,7 @@ elven_hope.0020 = { # Check phase and reduce dev at random
 					scope:mithlondholder = {
 						if = { 
 							limit = { is_elf = yes } 
-							add_elven_hope_effect = { VALUE = minimal_elven_hope_loss HOPE_EFFECT = effect_elven_hope_elves_sailed_west }
+							add_elven_hope_effect = { VALUE = miniscule_elven_hope_loss HOPE_EFFECT = effect_elven_hope_elves_sailed_west }
 						}
 					}
 				}
@@ -586,6 +609,7 @@ elven_hope.0020 = { # Check phase and reduce dev at random
 				development_level = 0
 				title_province = { has_holding_type = elven_holding }
 				NOT = { is_in_list = counties_with_secondary_holdings }
+				this.holder = { highest_held_title_tier = tier_duchy }
 			}
 			save_scope_as = abandoned_county
 			random = {
@@ -1284,114 +1308,122 @@ elven_hope.0030 = { # Show the amount of evil rulers
 		animation = worry 
 	}
 	
-	# trigger = { # There must be at least one evil ruler 
-		# elven_subregion_has_evil_rulers_trigger = yes
-	# }
-	
 	immediate = { # Time for some MATH 
 		situation:elven_hope_situation ?= {
 			every_situation_sub_region = {
 				limit = {
-					any_situation_sub_region_participant = {
-						this = root
+					any_situation_sub_region_participant_group = {
+						participant_group_type = elven_rulers_capital
+						participant_group_has_character = root
 					}
 				}
 				save_scope_as = my_elven_subregion
 			}
 		}
-		root = { # For every count, lose 1 hope
-			set_variable = {
-				name = evil_counts_in_my_subregion
-				value = scope:my_elven_subregion.var:evil_counts_in_subregion
-			}
-		}
-		root = {
-			set_variable = {
-				name = evil_dukes_in_my_subregion
-				value = scope:my_elven_subregion.var:evil_dukes_in_subregion
-			}
-		}
-		root = { # For every duke, lose 2 hope
-			change_variable = {
-				name = evil_dukes_in_my_subregion
-				multiply = 2
-			}
-		}
-		root = {
-			set_variable = {
-				name = evil_kings_in_my_subregion
-				value = scope:my_elven_subregion.var:evil_kings_in_subregion
-			}
-		}
-		root = { # For every king, lose 3 hope
-			change_variable = {
-				name = evil_kings_in_my_subregion
-				multiply = 3
-			}
-		}
-		root = {
-			set_variable = {
-				name = evil_emperors_in_my_subregion
-				value = scope:my_elven_subregion.var:evil_emperors_in_subregion
-			}
-		}
-		root = { # For every emperor, lose 4 hope
-			change_variable = {
-				name = evil_emperors_in_my_subregion
-				multiply = 4
-			}
-		}
-		root = {
-			set_variable = {
-				name = evil_hegemons_in_my_subregion
-				value = scope:my_elven_subregion.var:evil_hegemons_in_subregion
-			}
-		}
-		root = { # For every hegemon, lose 5 hope
-			change_variable = {
-				name = evil_hegemons_in_my_subregion
-				multiply = 5
-			}
-		}
+		# root = { # For every count, lose 1 hope
+			# set_variable = {
+				# name = evil_counts_in_my_subregion
+				# value = scope:my_elven_subregion.var:evil_counts_in_subregion
+			# }
+		# }
+		# root = {
+			# set_variable = {
+				# name = evil_dukes_in_my_subregion
+				# value = scope:my_elven_subregion.var:evil_dukes_in_subregion
+			# }
+		# }
+		# root = { # For every duke, lose 2 hope
+			# change_variable = {
+				# name = evil_dukes_in_my_subregion
+				# multiply = 2
+			# }
+		# }
+		# root = {
+			# set_variable = {
+				# name = evil_kings_in_my_subregion
+				# value = scope:my_elven_subregion.var:evil_kings_in_subregion
+			# }
+		# }
+		# root = { # For every king, lose 3 hope
+			# change_variable = {
+				# name = evil_kings_in_my_subregion
+				# multiply = 3
+			# }
+		# }
+		# root = {
+			# set_variable = {
+				# name = evil_emperors_in_my_subregion
+				# value = scope:my_elven_subregion.var:evil_emperors_in_subregion
+			# }
+		# }
+		# root = { # For every emperor, lose 4 hope
+			# change_variable = {
+				# name = evil_emperors_in_my_subregion
+				# multiply = 4
+			# }
+		# }
+		# root = {
+			# set_variable = {
+				# name = evil_hegemons_in_my_subregion
+				# value = scope:my_elven_subregion.var:evil_hegemons_in_subregion
+			# }
+		# }
+		# root = { # For every hegemon, lose 5 hope
+			# change_variable = {
+				# name = evil_hegemons_in_my_subregion
+				# multiply = 5
+			# }
+		# }
 		root = { # Set variable for total calculation
 			set_variable = {
-				name = evil_rulers_in_my_subregion
+				name = evil_counties_in_my_subregion
 				value = 0
 			}
 		}
-		root = { # Add counts 
+		root = { # Add no. of counties 
 			change_variable = {
-				name = evil_rulers_in_my_subregion
-				add = root.var:evil_counts_in_my_subregion
+				name = evil_counties_in_my_subregion
+				add = scope:my_elven_subregion.var:evil_counties_per_subregion
+				add = { # Halve the value if balancing requires it
+					value = scope:my_elven_subregion.var:evil_counties_per_subregion
+					divide = 2
+					round = yes 
+				}
 			}
 		}
-		root = { # Add dukes 
-			change_variable = {
-				name = evil_rulers_in_my_subregion
-				add = root.var:evil_dukes_in_my_subregion
-			}
-		}
-		root = { # Add kings 
-			change_variable = {
-				name = evil_rulers_in_my_subregion
-				add = root.var:evil_kings_in_my_subregion
-			}
-		}
-		root = { # Add emperors 
-			change_variable = {
-				name = evil_rulers_in_my_subregion
-				add = root.var:evil_emperors_in_my_subregion
-			}
-		}
-		root = { # Add hegemons 
-			change_variable = {
-				name = evil_rulers_in_my_subregion
-				add = root.var:evil_hegemons_in_my_subregion
-			}
-		}
+		# root = { # Add counts 
+			# change_variable = {
+				# name = evil_rulers_in_my_subregion
+				# add = root.var:evil_counts_in_my_subregion
+			# }
+		# }
+		# root = { # Add dukes 
+			# change_variable = {
+				# name = evil_rulers_in_my_subregion
+				# add = root.var:evil_dukes_in_my_subregion
+			# }
+		# }
+		# root = { # Add kings 
+			# change_variable = {
+				# name = evil_rulers_in_my_subregion
+				# add = root.var:evil_kings_in_my_subregion
+			# }
+		# }
+		# root = { # Add emperors 
+			# change_variable = {
+				# name = evil_rulers_in_my_subregion
+				# add = root.var:evil_emperors_in_my_subregion
+			# }
+		# }
+		# root = { # Add hegemons 
+			# change_variable = {
+				# name = evil_rulers_in_my_subregion
+				# add = root.var:evil_hegemons_in_my_subregion
+			# }
+		# }
 		root = { # Flip the final value to negative 
 			change_variable = {
-				name = evil_rulers_in_my_subregion
+				name = evil_counties_in_my_subregion
 				multiply = -1
 			}
 		}
@@ -1399,12 +1431,13 @@ elven_hope.0030 = { # Show the amount of evil rulers
 	
 	option = { # Drop hope according to the calculation
 		name = elven_hope.0030.a 
-		add_elven_hope_effect = { VALUE = root.var:evil_rulers_in_my_subregion HOPE_EFFECT = effect_elven_evil_rulers }
+		add_elven_hope_effect = { VALUE = root.var:evil_counties_in_my_subregion HOPE_EFFECT = effect_elven_evil_rulers }
 	}
 }
 
 elven_hope.0031 = { # Set all subregion values back to zero 
 	hidden = yes 
+	# orphan = yes # Might not be needed atm
 	# type = character_event
 	# title = elven_hope.0031.t
 	# desc = elven_hope.0031.desc
@@ -1572,32 +1605,32 @@ elven_hope.0031 = { # Set all subregion values back to zero
 					value = 0
 				}
 			}
-			#situation_sub_region:western_rhovanion = {
-			#	set_variable = {
-			#		name = evil_rulers_in_subregion
-			#		value = 0
-			#	}
-			#	set_variable = {
-			#		name = evil_counts_in_subregion
-			#		value = 0
-			#	}
-			#	set_variable = {
-			#		name = evil_dukes_in_subregion
-			#		value = 0
-			#	}
-			#	set_variable = {
-			#		name = evil_kings_in_subregion
-			#		value = 0
-			#	}
-			#	set_variable = {
-			#		name = evil_emperors_in_subregion
-			#		value = 0
-			#	}
-			#	set_variable = {
-			#		name = evil_hegemons_in_subregion
-			#		value = 0
-			#	}
-			#}
+			situation_sub_region:mumakan = {
+				set_variable = {
+					name = evil_rulers_in_subregion
+					value = 0
+				}
+				set_variable = {
+					name = evil_counts_in_subregion
+					value = 0
+				}
+				set_variable = {
+					name = evil_dukes_in_subregion
+					value = 0
+				}
+				set_variable = {
+					name = evil_kings_in_subregion
+					value = 0
+				}
+				set_variable = {
+					name = evil_emperors_in_subregion
+					value = 0
+				}
+				set_variable = {
+					name = evil_hegemons_in_subregion
+					value = 0
+				}
+			}
 			situation_sub_region:eriador = {
 				set_variable = {
 					name = evil_rulers_in_subregion
@@ -1795,13 +1828,13 @@ elven_hope.0031 = { # Set all subregion values back to zero
 	# }
 }
 
-elven_hope.0032 = { # Small trickle of passive hope gain for Lindon
-	hidden = yes 
-	cooldown = { years = 5 }
-	immediate = {
-		add_elven_hope_effect = { VALUE = major_elven_hope_gain HOPE_EFFECT = effect_elven_hope_positive_event_choice }
-	}
-}
+# elven_hope.0032 = { # Small trickle of passive hope gain for Lindon // not needed atm, reactivate if need be
+	# hidden = yes 
+	# cooldown = { years = 5 }
+	# immediate = {
+		# add_elven_hope_effect = { VALUE = minor_elven_hope_gain HOPE_EFFECT = effect_elven_hope_positive_event_choice }
+	# }
+# }
 
 ### Random Pulse Events ###
 
@@ -1944,7 +1977,14 @@ elven_hope.0102 = { # Child of Spring
 			is_female = yes 
 			is_married = yes 
 			is_elf = yes
-			NOT = { this = root.primary_spouse }
+			NOR = {
+				primary_spouse = root 
+				has_character_modifier = elf_child_limit_modifier # No, Galadriel, bad girl!
+				has_character_modifier = elf_childraising_modifier # One at a time
+				any_child = {
+					age < 50
+				}
+			}
 		}
 		NOT = { has_character_flag = had_yearly_elven_hope_event }
 	}
@@ -1962,8 +2002,13 @@ elven_hope.0102 = { # Child of Spring
 				is_female = yes 
 				is_married = yes 
 				is_elf = yes
-				NOT = {
+				NOR = {
 					primary_spouse = root 
+					has_character_modifier = elf_child_limit_modifier # No, Galadriel, bad girl!
+					has_character_modifier = elf_childraising_modifier # One at a time
+					any_child = {
+						age < 50
+					}
 				}
 			}
 			save_scope_as = new_mother 
@@ -1978,6 +2023,12 @@ elven_hope.0102 = { # Child of Spring
 			gender_female_chance = 50
 			age = 0 
 			save_scope_as = child_of_spring
+		}
+		scope:new_mother = {
+			add_character_modifier = {
+				modifier = elf_childraising_modifier
+				years = 50
+			}
 		}
 		add_elven_hope_effect = { VALUE = major_elven_hope_gain HOPE_EFFECT = effect_elven_hope_child_has_been_born }
 	}
@@ -2177,7 +2228,7 @@ elven_hope.0105 = { # A World Marred by Evil
 	option = { # We are an island in the sea of darkness
 		name = elven_hope.0105.a
 		add_prestige = major_prestige_gain
-		add_elven_hope_effect = { VALUE = minimal_elven_hope_gain HOPE_EFFECT = effect_elven_hope_negative_event_choice }
+		add_elven_hope_effect = { VALUE = minimal_elven_hope_gain HOPE_EFFECT = effect_elven_hope_positive_event_choice }
 	}
 	option = { # Even so, we have endured
 		name = elven_hope.0105.b
@@ -2462,7 +2513,7 @@ elven_hope.0109 = { # A Good Harvest
 			}
 			save_scope_as = happy_courtier
 		}
-		add_elven_hope_effect = { VALUE = medium_elven_hope_gain HOPE_EFFECT = effect_elven_hope_negative_event_choice }
+		add_elven_hope_effect = { VALUE = medium_elven_hope_gain HOPE_EFFECT = effect_elven_hope_positive_event_choice }
 	}
 	left_portrait = {
 		character = root
@@ -2659,7 +2710,7 @@ elven_hope.0111 = { # A Polluted Stream
 
 	option = { # Time will heal the stream
 		name = elven_hope.0111.a
-		add_elven_hope_effect = { VALUE = minimal_elven_hope_gain HOPE_EFFECT = effect_elven_hope_negative_event_choice }
+		add_elven_hope_effect = { VALUE = minimal_elven_hope_gain HOPE_EFFECT = effect_elven_hope_positive_event_choice }
 		stress_impact = {
 			patient = medium_stress_impact_loss
 			impatient = major_stress_impact_gain
@@ -2755,7 +2806,7 @@ elven_hope.0112 = { # A Bad Harvest
 	}	
 	option = { # If my subjects cannot feast, then neither shall I
 		name = elven_hope.0112.b  
-		add_elven_hope_effect = { VALUE = minimal_elven_hope_gain HOPE_EFFECT = effect_elven_hope_negative_event_choice }
+		add_elven_hope_effect = { VALUE = minimal_elven_hope_gain HOPE_EFFECT = effect_elven_hope_positive_event_choice }
 		add_piety = medium_piety_gain
 		add_prestige = medium_prestige_loss
 		stress_impact = {
@@ -2852,7 +2903,7 @@ elven_hope.0113 = { # Murmuration over holding
 			}
 			save_scope_as = happy_courtier
 		}
-		add_elven_hope_effect = { VALUE = minimal_elven_hope_gain HOPE_EFFECT = effect_elven_hope_negative_event_choice }
+		add_elven_hope_effect = { VALUE = minimal_elven_hope_gain HOPE_EFFECT = effect_elven_hope_positive_event_choice }
 	}
 
 	option = { # Just enjoy the sight
@@ -3189,7 +3240,7 @@ elven_hope.0118 = { # Elf's garden starts to wither
 
 	option = { #Oh no...
 		name = elven_hope.0118.a 
-		# add_elven_hope_effect = { VALUE = medium_elven_hope_loss HOPE_EFFECT = effect_elven_very_low_hope }
+		# add_elven_hope_effect = { VALUE = medium_elven_hope_loss HOPE_EFFECT = effect_elven_hope_negative_event_choice }
 		stress_impact = {
 			compassionate = major_stress_impact_gain
 			lazy = medium_stress_impact_loss
@@ -3332,7 +3383,7 @@ elven_hope.0120 = { # Character dreams of Valinor
 	desc = elven_hope.0120.desc
 	theme = elven 
 	override_background = {
-		reference = docks_elven
+		reference = grey_havens
 	}
 	left_portrait = {
 		character = root

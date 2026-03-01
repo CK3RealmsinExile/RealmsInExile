@@ -324,7 +324,7 @@ PixelShader =
 			#endif
 			
 			// MOD(godherja)
-			#ifndef GH_EMISSION_DISABLED
+			#if !defined(GH_EMISSION_DISABLED) && !defined(VARIATIONS_ENABLED)
 				// This can be increased to achieve stronger bloom effect
 				// for emissive spots in GUI portraits (impl. in restorescene.shader)
 				static const float EMISSIVENESS_MULTIPLIER = 1.8f;

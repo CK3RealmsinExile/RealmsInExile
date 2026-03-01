@@ -171,7 +171,14 @@ decision_castamir_claim = {
 		reference = "gfx/interface/illustrations/decisions/decision_aragorn_01.dds"
 	}
 	
-	ai_goal = yes
+	ai_check_interval_by_tier = {
+		barony = 0
+		county = 0
+		duchy = 0
+		kingdom = 0
+		empire = 12
+		hegemony = 12
+	}
 	ai_potential = {
 		always = yes
 	}
@@ -180,12 +187,12 @@ decision_castamir_claim = {
 		modifier = { # AI will not attempt unless Gondor is weaker
 			factor = 0
 			exists = title:e_gondor.holder
-			root.total_strength < title:e_gondor.holder.total_strength
+			root.total_military_power < title:e_gondor.holder.total_military_power
 		}
 		modifier = {
 			factor = 0
 			exists = title:e_gondor_steward.holder
-			root.total_strength < title:e_gondor_steward.holder.total_strength
+			root.total_military_power < title:e_gondor_steward.holder.total_military_power
 		}
 	}
 
@@ -343,24 +350,60 @@ decision_castamir_claim = {
 
 decision_turn_to_piracy = {	#Become a full-time Corsair (Player Var)
 	picture = {
-		reference = "gfx/interface/illustrations/decisions/decision_set_sail.dds"
+		reference = "gfx/interface/illustrations/decisions/decision_black_ships.dds"
 	}
 	sort_order = 70
-	desc = decision_turn_to_piracy.desc
+	desc = {
+ 		first_valid = {
+			triggered_desc = {
+ 				trigger = { 
+					OR = {
+						faith.religion = faith:faith_nlkum_kadir.religion
+						culture = { has_cultural_pillar = heritage_womaw }
+					}
+				}
+				desc = decision_turn_to_piracy_desc.vulmaw
+ 			}
+ 			triggered_desc = {
+ 				trigger = { 
+					capital_province = { 
+						OR = {
+							geographical_region = middleearth_uttersouth_shayn
+							geographical_region = middleearth_harad_bayoformal 
+						}
+					}
+				}
+				desc = decision_turn_to_piracy_desc.ormal
+ 			}
+ 			desc = decision_turn_to_piracy.desc
+		}
+ 	}
 	selection_tooltip = decision_turn_to_piracy.tt
 	confirm_text = decision_turn_to_piracy_confirm
 
-	decision_group_type = realms_in_exile_major
+	decision_group_type = realms_in_exile_minor
 	
 	is_shown = {
+		is_human = yes # No Orcish Corsairs
 		OR = {
 			faith.religion = religion:adunai_religion
 			faith.religion = religion:harad_religion
 			faith.religion = religion:far_harad_religion
+			faith.religion = religion:umbarean_religion
+
+			faith.religion = religion:ormalbay_religion
+			faith.religion = religion:sirayn_religion
+			faith.religion = faith:faith_nlkum_kadir.religion
+			culture = { 
+				has_cultural_pillar = heritage_sare
+			}
 		}
-		NOT = { faith = faith:faith_corsair }
+		NOR = { 
+			faith = faith:faith_corsair 
+			faith = faith:faith_ormal_pirate
+			faith = faith:faith_nlkum_kadir
+		}
 		NOT = { has_character_flag = became_corsair }
-		NOT = { is_elf = yes }
 		cannot_be_killed = no
 		primary_title = {
 			NOR = {
@@ -373,7 +416,11 @@ decision_turn_to_piracy = {	#Become a full-time Corsair (Player Var)
 			is_coastal = yes
 		}
 		capital_county.title_province ?= {
-			geographical_region = custom_greater_corsair_coast
+			OR = {
+				geographical_region = custom_greater_corsair_coast
+				geographical_region = middleearth_uttersouth_shayn_singapura
+				county = title:c_twilight_isles
+			}
 		}
 		is_ai = no
 	}
@@ -405,7 +452,96 @@ decision_turn_to_piracy = {	#Become a full-time Corsair (Player Var)
 		add_character_flag = became_corsair
 		add_character_flag = ai_will_not_convert
 		trigger_event = umbar.1600
-		set_character_faith_with_conversion = faith:faith_corsair
+		if = {
+			limit = {
+				OR = {
+					faith.religion = religion:adunai_religion
+					faith.religion = religion:harad_religion
+					faith.religion = religion:far_harad_religion
+					faith.religion = religion:umbarean_religion
+				}
+			}
+			set_character_faith_with_conversion = faith:faith_corsair
+		}
+		else_if = {
+			limit = {
+				faith.religion = faith:faith_nlkum_kadir.religion
+			}
+			set_character_faith_with_conversion = faith:faith_nlkum_kadir
+		}
+		else = { set_character_faith_with_conversion = faith:faith_ormal_pirate }
+
+		if = {
+			limit = { NOT = { has_trait = viking } }
+			add_trait = viking 
+		}
+		 # Get an initial pirate crew
+		if = { # Corsairs of Umbar
+			limit = { 
+				OR = {
+					has_faith = faith:faith_corsair 
+					faith.religion = religion:adunai_religion
+					faith.religion = religion:harad_religion
+					faith.religion = religion:far_harad_religion
+					faith.religion = religion:umbarean_religion
+				}
+			}
+			spawn_army = {
+				uses_supply = no
+				inheritable = no
+				name = corsair_conversion_event_troops
+				levies = 200
+				men_at_arms = {
+					type = corsair_warriors
+					stacks = 3
+				}
+				men_at_arms = {
+					type = mardrukan_pikemen
+					stacks = 2
+				}
+				location = capital_province
+				origin = capital_province
+			}
+		}
+		else_if = { 
+			limit = {
+				faith.religion = faith:faith_nlkum_kadir.religion
+			}
+			spawn_army = {
+				uses_supply = no
+				inheritable = no
+				name = corsair_conversion_event_troops
+				levies = 200
+				men_at_arms = {
+					type = waw_pirates
+					stacks = 3
+				}
+				men_at_arms = {
+					type = vulmaw_venturers
+					stacks = 2
+				}
+				location = capital_province
+				origin = capital_province
+			}
+		}
+		else = { # Aparyanbanda Pirates
+			spawn_army = {
+				uses_supply = no
+				inheritable = no
+				name = corsair_conversion_event_troops
+				levies = 200
+				men_at_arms = {
+					type = tizyarshti
+					stacks = 3
+				}
+				men_at_arms = {
+					type = ballistrai_khy
+					stacks = 2
+				}
+				location = capital_province
+				origin = capital_province
+			}
+		}
 	}
 
 	ai_potential = {
@@ -417,9 +553,9 @@ decision_turn_to_piracy = {	#Become a full-time Corsair (Player Var)
 	}
 	ai_check_interval_by_tier = {
 		barony = 0
-		county = 0
+		county = 20
 		duchy = 60
-		kingdom = 0
+		kingdom = 30
 		empire = 0
 		hegemony = 0
 	}
@@ -427,24 +563,36 @@ decision_turn_to_piracy = {	#Become a full-time Corsair (Player Var)
 
 decision_turn_to_piracy_AI = {	#Become a full-time Corsair (AI Var)
 	picture = {
-		reference = "gfx/interface/illustrations/decisions/decision_set_sail.dds"
+		reference = "gfx/interface/illustrations/decisions/decision_black_ships.dds"
 	}
 	sort_order = 70
 	desc = decision_turn_to_piracy.desc
 	selection_tooltip = decision_turn_to_piracy.tt
 	confirm_text = decision_turn_to_piracy_confirm
 
-	decision_group_type = realms_in_exile_major
+	decision_group_type = realms_in_exile_minor
 	
 	is_shown = {
+		is_human = yes
 		OR = {
 			faith.religion = religion:adunai_religion
 			faith.religion = religion:harad_religion
 			faith.religion = religion:far_harad_religion
+			faith.religion = religion:umbarean_religion
+
+			faith.religion = religion:ormalbay_religion
+			faith.religion = religion:sirayn_religion
+			faith.religion = faith:faith_nlkum_kadir.religion
+			culture = {
+				has_cultural_pillar = heritage_sare
+			}
 		}
-		NOT = { faith = faith:faith_corsair }
+		NOR = { 
+			faith = faith:faith_corsair 
+			faith = faith:faith_ormal_pirate
+			faith = faith:faith_nlkum_kadir
+		}
 		NOT = { has_character_flag = became_corsair }
-		NOT = { is_elf = yes }
 		cannot_be_killed = no
 		primary_title = {
 			NOR = {
@@ -457,7 +605,11 @@ decision_turn_to_piracy_AI = {	#Become a full-time Corsair (AI Var)
 			is_coastal = yes
 		}
 		capital_county.title_province ?= {
-			geographical_region = custom_greater_corsair_coast
+			OR = {
+				geographical_region = custom_greater_corsair_coast
+				geographical_region = middleearth_uttersouth_shayn_singapura
+				county = title:c_twilight_isles
+			}
 		}
 
 		is_ai = yes #AI variant of the decision
@@ -466,11 +618,12 @@ decision_turn_to_piracy_AI = {	#Become a full-time Corsair (AI Var)
 	is_valid = {
 		is_adult = yes
 		NOT = { has_trait = zealous }
-		NOT = {highest_held_title_tier = tier_empire}
+		NOT = { highest_held_title_tier = tier_empire }
 		NOT = { this = faith.religious_head }
 		OR = {
-			# King's Men will consider it anywhere within the wider corsair coast region (Harondor to Tulwang)
+			# New King's Men and co-religionists will consider it anywhere within the wider corsair coast region (Harondor to Tulwang)
 			faith = faith:faith_kings_men_castamir
+			faith.religion = religion:umbarean_religion
 			# Anyone else with adunaic, harad or far harad religion will only consider it directly within ramlond, umbar and mardruak
 			AND = {
 				NOT = { faith = faith:faith_kings_men_castamir }
@@ -495,7 +648,24 @@ decision_turn_to_piracy_AI = {	#Become a full-time Corsair (AI Var)
 		add_character_flag = became_corsair
 		add_character_flag = ai_will_not_convert
 		trigger_event = umbar.1600
-		set_character_faith_with_conversion = faith:faith_corsair
+		if = {
+			limit = {
+				OR = {
+					faith.religion = religion:adunai_religion
+					faith.religion = religion:harad_religion
+					faith.religion = religion:far_harad_religion
+					faith.religion = religion:umbarean_religion
+				}
+			}
+			set_character_faith_with_conversion = faith:faith_corsair
+		}
+		else_if = {
+			limit = {
+				faith.religion = faith:faith_nlkum_kadir.religion
+			}
+			set_character_faith_with_conversion = faith:faith_nlkum_kadir
+		}
+		else = { set_character_faith_with_conversion = faith:faith_ormal_pirate }
 		add_prestige = medium_prestige_value
 		debug_log = "Corsair: AI Ruler turned to Piracy"
 	}
@@ -706,9 +876,9 @@ decision_turn_to_piracy_AI = {	#Become a full-time Corsair (AI Var)
 	}
 	ai_check_interval_by_tier = {
 		barony = 0
-		county = 0
+		county = 30
 		duchy = 60
-		kingdom = 0
+		kingdom = 30
 		empire = 0
 		hegemony = 0
 	}
@@ -730,6 +900,7 @@ decision_adunaic_revival = {#Restore Adunaic cults as the Cassamiri
 			faith.religion = religion:adunai_religion
 			faith.religion = religion:harad_religion
 			faith.religion = religion:far_harad_religion
+			faith.religion = religion:umbarean_religion
 		}
 		NOT = { faith = faith:faith_kings_men_castamir }
 		dynasty = dynasty:dynasty_kamal
@@ -870,7 +1041,7 @@ decision_adunaic_revival = {#Restore Adunaic cults as the Cassamiri
 	}
 }
 
-decision_feudalize_umbar = { # Convert to local goverment as Umbar
+decision_feudalize_umbar = { # Convert to local government as Umbar
 	picture = {
 		reference = "gfx/interface/illustrations/decisions/decision_set_sail.dds"
 	}
@@ -967,13 +1138,20 @@ decision_feudalize_umbar = { # Convert to local goverment as Umbar
 	}
 }
 
-decision_claim_the_sacred_isles = {
+decision_claim_the_sacred_isles = { # Lay claim to the sacred isles
 	title = decision_claim_the_sacred_isles
 	picture = {
 		reference = "gfx/interface/illustrations/decisions/decision_umbar_01.dds"
 	}
 	
-	ai_goal = yes
+	ai_check_interval_by_tier = {
+		barony = 0
+		county = 12
+		duchy = 12
+		kingdom = 12
+		empire = 12
+		hegemony = 0
+	}
 	ai_potential = {
 		always = yes
 	}
@@ -1051,21 +1229,26 @@ decision_claim_the_sacred_isles = {
 	}
 }
 
-decision_settle_tol_uialgaer = {
+decision_settle_tol_uialgaer = { # Set up a colony on the Barren Isle
 	title = decision_settle_tol_uialgaer
 	picture = {
 		reference = "gfx/interface/illustrations/decisions/decision_umbar_01.dds"
 	}
 	
-	ai_goal = yes
+	ai_check_interval_by_tier = {
+		barony = 0
+		county = 50
+		duchy = 50
+		kingdom = 50
+		empire = 0
+		hegemony = 0
+	}
 	ai_potential = {
 		always = yes
 	}
 	ai_will_do = {
 		base = 75
 	}
-
-	#ai_check_interval = 50
 	
 	selection_tooltip = decision_settle_tol_uialgaer_tooltip
 	desc = decision_settle_tol_uialgaer_desc
@@ -1130,13 +1313,20 @@ decision_settle_tol_uialgaer = {
 	}
 }
 
-decision_unite_the_sacred_isles = {
+decision_unite_the_sacred_isles = { # Form an island kingdom
 	title = decision_unite_the_sacred_isles
 	picture = {
 		reference = "gfx/interface/illustrations/event_scenes/docks_adunai.dds"
 	}
 	
-	ai_goal = yes
+	ai_check_interval_by_tier = {
+		barony = 0
+		county = 50
+		duchy = 50
+		kingdom = 50
+		empire = 50
+		hegemony = 0
+	}
 	ai_potential = {
 		always = yes
 	}
@@ -1145,8 +1335,6 @@ decision_unite_the_sacred_isles = {
 	}
 	
 	sort_order = 50
-
-	#ai_check_interval = 50
 	
 	selection_tooltip = decision_unite_the_sacred_isles_tooltip
 	desc = decision_unite_the_sacred_isles_desc
@@ -1358,7 +1546,102 @@ decision_continue_adventure_arphazel = { ### Regain lost story contracts ~ Arpha
 	}
 
 	# AI value
-	ai_goal = yes
+	ai_check_interval_by_tier = {
+		barony = 0
+		county = 0
+		duchy = 12
+		kingdom = 0
+		empire = 0
+		hegemony = 0
+	}
 	ai_potential = { always = yes }
 	ai_will_do = { base = 100 }
+}
+
+decision_arminalethor = { # Build a new capital
+	title = decision_arminalethor
+	picture = {
+		reference = "gfx/interface/illustrations/decisions/decision_castle_03.dds"
+	}
+	
+	ai_check_interval_by_tier = {
+		barony = 0
+		county = 0
+		duchy = 0
+		kingdom = 50
+		empire = 50
+		hegemony = 0
+	}
+	ai_potential = {
+		always = yes
+	}
+	ai_will_do = {
+		base = 50
+	}
+	
+	sort_order = 50
+	
+	selection_tooltip = decision_arminalethor_tooltip
+	desc = decision_arminalethor_desc
+	confirm_text = decision_arminalethor_confirm
+	decision_group_type = realms_in_exile_major
+	
+	is_shown = {	
+		has_title = title:e_adunaim
+		OR = {
+			has_title = title:c_tharbad
+			has_title = title:c_ardinak
+		}
+		
+		NOR = {
+			has_title = title:c_tol_uialgaer
+			is_target_in_global_variable_list = {
+				name = unavailable_unique_decisions
+				target = flag:decision_arminalethor
+			}
+		}
+	}
+	
+	is_valid = {
+		realm_size >= 30
+	}
+	is_valid_showing_failures_only = {
+		is_imprisoned = no
+		is_available_adult = yes
+		is_at_war = no
+	}
+	cost = {
+		gold = 20000
+	}
+	effect = {
+		send_interface_toast = {
+			type = event_toast_effect_good
+			title = decision_arminalethor_tt
+			left_icon = root
+			add_prestige = major_prestige_gain
+			if = {
+				limit = {
+					has_title = title:c_tharbad
+				}
+				title:c_tharbad.title_province = {
+					#add_special_building_slot = wonder_arminalethor_tharbad
+					add_special_building = wonder_arminalethor_tharbad
+					add_province_modifier = adunaim_capital_modifier
+				}
+			}
+			else = {
+			title:c_ardinak.title_province = {
+					add_great_building = great_building_arminalethor
+					add_province_modifier = adunaim_capital_modifier
+				}
+				root.dynasty = { add_dynasty_prestige = 500 }
+			}
+
+			add_to_global_variable_list = {
+				name = unavailable_unique_decisions
+				target = flag:decision_arminalethor
+			}
+
+		}
+	}
 }

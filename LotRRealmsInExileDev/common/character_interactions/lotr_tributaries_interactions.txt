@@ -23,7 +23,7 @@ offer_protection_interaction = {
 			is_landless_adventurer = no
 			NOT = { government_has_flag = government_is_tribal }
 		}
-		scope:recipient = { #Protectee
+		scope:recipient = { #Protected
 			is_in_valinor = no
 			is_tributary = no
 			highest_held_title_tier >= tier_county
@@ -52,7 +52,7 @@ offer_protection_interaction = {
 			is_independent_ruler = yes
 			highest_held_title_tier > scope:recipient.highest_held_title_tier
 		}
-		scope:recipient = { #Protectee
+		scope:recipient = { #Protected
 			is_at_war = no
 			is_independent_ruler = yes
 			highest_held_title_tier > tier_barony
@@ -81,7 +81,7 @@ offer_protection_interaction = {
 	# }
 
 	ai_accept = {
-		base = -100
+		base = -60
 
 		# Title Tier - more likely to accept much higher tiers
 		modifier = {
@@ -138,6 +138,65 @@ offer_protection_interaction = {
 				}
 			}
 			desc = RANK_DIFFERENCE_REASON
+		}
+
+		modifier = { # the bolder they are, the less likely they will agree to this and vice versa
+			NOT = { ai_boldness = 0 }
+			add = {
+				value = ai_boldness
+				multiply = -1
+				divide = 2
+			}
+			desc = TRIBUTARY_BOLDNESS_REASON
+		}
+
+		# Military Strength - more likely to accept if stronger militarily
+		modifier = {
+	  	  	add = {
+				value = 1
+					subtract = {
+					value = scope:recipient.max_military_strength
+					divide = { value = scope:actor.max_military_strength min = 1 }
+					}
+				multiply = 10
+	  		}
+			desc = offer_vassalization_interaction_aibehavior_power_tt
+		}
+
+		modifier = { # They are a King
+			desc = tributary_interaction_aibehavior_recipient_tier_tt
+			trigger = {
+				scope:recipient = { highest_held_title_tier = tier_kingdom }
+			}
+			add = -100
+		}
+
+		modifier = { # They are an Emperor or greater
+			desc = tributary_interaction_aibehavior_recipient_tier_tt
+			trigger = {
+				scope:recipient = { highest_held_title_tier >= tier_empire }
+			}
+			add = -200
+		}
+
+		modifier = { # Recipient has higher Dominance than the actor
+			desc = demand_tributary_interaction_aibehavior_dominance_tt
+			trigger = {
+				scope:actor = { government_has_flag = government_is_nomadic }
+				scope:recipient = { government_has_flag = government_is_nomadic }
+				scope:recipient.dominance_value > scope:actor.dominance_value
+			}
+			add = -20
+		}
+
+		modifier = { # Actor has higher Dominance than the recipient
+			desc = demand_tributary_interaction_aibehavior_dominance_tt
+			trigger = {
+				scope:actor = { government_has_flag = government_is_nomadic }
+				scope:recipient = { government_has_flag = government_is_nomadic }
+				scope:actor.dominance_value > scope:recipient.dominance_value
+			}
+			add = 20
 		}
 
 		# Opinion - more likely to accept if Recipient likes the Actor
@@ -254,51 +313,149 @@ offer_protection_interaction = {
 			}
 		}
 
-		# Faith Hostility - less likely to accept more hostile faiths
-		modifier = { #Faith compatibility
-			scope:recipient.faith = {
-				faith_hostility_level = {
-					target = scope:actor.faith
-					value > faith_fully_accepted_level
+		#Legitimacy
+		modifier = {
+			desc = "LOW_LEGITIMACY_REASON"
+			add = -15
+			scope:actor = {
+				has_legitimacy_flag = slightly_reduced_tributarization_acceptance
+			}
+		}
+		modifier = {
+			desc = "LOW_LEGITIMACY_REASON"
+			add = -25
+			scope:actor = {
+				has_legitimacy_flag = reduced_tributarization_acceptance
+			}
+		}
+		modifier = {
+			desc = "LOW_LEGITIMACY_REASON"
+			add = -50
+			scope:actor = {
+				has_legitimacy_flag = very_reduced_tributarization_acceptance
+			}
+		}
+		modifier = {
+			desc = "LOW_LEGITIMACY_REASON"
+			add = -75
+			scope:actor = {
+				has_legitimacy_flag = massively_reduced_tributarization_acceptance
+			}
+		}
+
+		# HIGH LEGITIMACY
+		modifier = {
+			desc = "HIGH_LEGITIMACY_REASON"
+			add = 25
+			scope:actor = {
+				has_legitimacy_flag = increased_tributarization_acceptance
+			}
+		}
+		modifier = {
+			desc = "HIGH_LEGITIMACY_REASON"
+			add = 50
+			scope:actor = {
+				has_legitimacy_flag = very_increased_tributarization_acceptance
+			}
+		}
+		modifier = {
+			desc = "HIGH_LEGITIMACY_REASON"
+			add = 75
+			scope:actor = {
+				has_legitimacy_flag = extra_increased_tributarization_acceptance
+			}
+		}
+
+		modifier = { # Different faith, no pluralism.
+			desc = offer_vassalization_interaction_aibehavior_differentfaith_tt
+			trigger = {
+				scope:actor = {
+					NOT = { # faith condition below doesn't have to apply if both actor and recipient have nomadic_philosophy
+						has_trait = nomadic_philosophy
+						scope:recipient = { has_trait = nomadic_philosophy }
+					}
+					faith = {
+						NOR = { # Of two different faiths AND the potential vassal's faith is not pluralistic
+							this = scope:recipient.faith
+							has_doctrine = doctrine_pluralism_pluralistic
+						}
+					}
 				}
 			}
 			add = {
-				value = -20
+				value = -25
 				if = {
 					limit = {
-						scope:recipient.faith = {
+						scope:actor.faith = {
 							faith_hostility_level = {
-								target = scope:actor.faith
-								value >= faith_astray_level
-							}
-						}
-					}
-					subtract = 20
-				}
-				if = {
-					limit = {
-						scope:recipient.faith = {
-							faith_hostility_level = {
-								target = scope:actor.faith
+								target = scope:recipient.faith
 								value >= faith_hostile_level
 							}
 						}
 					}
-					subtract = 40
+					add = -10
 				}
 				if = {
 					limit = {
-						scope:recipient.faith = {
+						scope:actor.faith = {
 							faith_hostility_level = {
-								target = scope:actor.faith
+								target = scope:recipient.faith
 								value >= faith_evil_level
 							}
 						}
 					}
-					subtract = 60
+					add = -25
 				}
 			}
-			desc = MARRY_DIFFERENT_FAITH_REASON
+		}
+
+		modifier = { # Encircled
+			desc = offer_vassalization_interaction_aibehavior_encircled_tt
+			trigger = {
+				scope:recipient = {
+					NOT = {
+						any_neighboring_top_suzerain_realm_owner = {
+							exists = this
+							NOT = { this = scope:actor }
+						}
+					}
+					NOT = {
+						any_realm_county = { is_coastal_county = yes }
+					}
+				}
+			}
+			add = 30
+		}
+
+		modifier = { # Cultural Acceptance
+			scope:actor = {
+				NOT = { # cultural condition below doesn't have to apply if both actor and recipient have nomadic_philosophy
+					has_trait = nomadic_philosophy
+					scope:recipient = { has_trait = nomadic_philosophy }
+				}
+				NOT = { has_same_culture_as = scope:recipient }
+				culture = {
+					cultural_acceptance = { target = scope:recipient.culture value < 50 }
+				}
+			}
+			add = {
+				add = -10
+				if = {
+					limit = { scope:actor.culture = { has_cultural_pillar = ethos_bellicose } }
+					add = -10
+				}
+			}
+			desc = cultural_acceptance_interaction_reason
+		}
+
+		modifier = { # Same language
+			add = 5
+			desc = speaks_same_language_interaction_reason
+			trigger = {
+				scope:actor = {
+					knows_language_of_culture = scope:recipient.culture
+				}
+			}
 		}
 
 		# Dread - more likely to accept if scared of actor
@@ -323,19 +480,6 @@ offer_protection_interaction = {
 				}
 			}
 			desc = COWED_REASON
-		}
-
-		# Military Strength - more likely to accept if stronger militarily
-		modifier = {
-	  	  	add = {
-				value = 1
-					subtract = {
-					value = scope:recipient.max_military_strength
-					divide = { value = scope:actor.max_military_strength min = 1 }
-					}
-				multiply = 10
-	  		}
-			desc = offer_vassalization_interaction_aibehavior_power_tt
 		}
 
 		# Claims - less likely to accept if has claims on actor, more likely if actor has claims on recipient
@@ -432,15 +576,6 @@ offer_protection_interaction = {
 			add = true_ruler_value
 		}
 
-		# If de jure liege, likely to accept
-		modifier = { # Is the Rightful Liege of recipient
-			desc = offer_vassalization_interaction_aibehavior_rightfulliegetitleholder_tt
-			trigger = {
-				scope:actor = { is_rightful_liege_of = scope:recipient }
-			}
-			add = 25
-		}
-
 		# Distance Penalties - distant realms are less likely to accept
 		modifier = { #Distant Realm
 			desc = offer_vassalization_interaction_aibehavior_distantrealm_tt
@@ -465,6 +600,83 @@ offer_protection_interaction = {
 				scope:recipient.capital_province = { squared_distance = { target = scope:actor.capital_province value >= 200000 } }
 			}
 			add = -500
+		}
+
+		# LOTR MODIFIERS
+		modifier = { # Basic race and alignment triggers
+			add = -500
+			desc = LOTR_RACE_AND_ALIGNMENT_INCOMPATIBILITY
+			trigger = {
+				scope:actor = {
+					NOT = { lotr_tolerance_trigger = { CHARACTER = scope:recipient } }
+				}
+			}
+		}
+
+		modifier = { # Different race
+			add = -30
+			desc = DIFFERENT_RACE_REASON
+			trigger = {
+				scope:actor = { NOT = { same_race = { TARGET = scope:recipient } } }
+			}
+		}
+
+		modifier = { #Elves and Undying characters won't pay tribute to mortals
+			add = -500
+			desc = mortal_reason
+			trigger = {
+				scope:recipient = { 
+					OR = {
+						is_elf = yes
+						cannot_be_killed = yes
+					}
+				}
+				scope:actor = {	
+					is_elf = no
+					cannot_be_killed = no
+				}
+			}
+		}
+
+		modifier = { #Nazgûl will only pay tribute to other Nazgûl or Ainur
+			add = -500
+			desc = nazgul_or_ainu_reason
+			trigger = {
+				scope:recipient = { 
+					is_nazgul = yes
+				}
+				scope:actor = {
+					cannot_be_killed = no
+				}
+			}
+		}
+
+		modifier = { #Outsiders think Hobbits are harmless and funny
+			add = -100
+			desc = small_harmless_hobbit_reason
+			trigger = {
+				scope:recipient = {
+					is_hobbit = no
+					is_druedain = no
+				}
+				scope:actor = {
+					is_hobbit = yes
+				}
+			}
+		}
+
+		modifier = { #Outsiders think Druedain are harmless and funny
+			add = -100
+			desc = small_harmless_druedain_reason
+			trigger = {
+				scope:recipient = {
+					is_hobbit = no
+					is_druedain = no
+				}
+				scope:actor = {
+					is_druedain = yes
+				}
+			}
 		}
 	}
 
@@ -522,4 +734,278 @@ offer_protection_interaction = {
 	}
 
 	send_options_exclusive = yes
+}
+
+request_leave_interaction = {
+	category = interaction_category_vassal
+	common_interaction = yes
+	use_diplomatic_range = yes
+	icon = independence
+
+	desc = request_leave_interaction_desc
+
+	greeting = positive
+	notification_text = REQUEST_LEAVE_INTERACTION_PROPOSAL
+
+	answer_accept_key = REQUEST_LEAVE_ACCEPT
+	answer_reject_key = REQUEST_LEAVE_REJECT
+
+	is_shown = {
+		# DLC check.
+		has_ep3_dlc_trigger = yes
+		# Ranger with a liege
+		scope:actor = {
+			has_realm_law = camp_purpose_rangers
+			is_tributary_of = scope:recipient
+		}
+	}
+
+	is_valid_showing_failures_only = {
+		scope:recipient = { 
+			is_at_war = no
+			is_imprisoned = no
+		}
+		scope:actor = { 
+			is_at_war = no
+			is_imprisoned = no
+		}
+	}
+
+	ai_min_reply_days = 5
+	ai_max_reply_days = 10
+
+	auto_accept = {
+		custom_description = {
+			text = "spending_hook"
+			subject = scope:actor
+			object = scope:recipient
+			scope:hook = yes
+			scope:actor = { has_strong_hook = scope:recipient }
+		}
+	}
+
+	send_option = {
+		is_shown = {
+			scope:actor != scope:recipient
+		}
+		is_valid = {
+			scope:actor = {
+				has_usable_hook = scope:recipient
+			}
+		}
+		flag = hook
+		localization = GENERIC_SPEND_A_HOOK
+	}
+	should_use_extra_icon = {
+		scope:actor = { has_usable_hook = scope:recipient }
+	}
+	extra_icon = "gfx/interface/icons/character_interactions/hook_icon.dds"
+
+	send_options_exclusive = no
+
+	ai_accept = {
+		base = -50
+
+		# MAIN
+		modifier = { # Safe
+			desc = request_leave_interaction_aibehavior_no_threats_tt
+			trigger = {
+				scope:recipient = {
+					NOT = {
+						any_neighboring_and_across_water_top_liege_realm_owner = {
+							opposite_alignment = { TARGET = scope:recipient }
+						}
+					}
+				}
+			}
+			add = 100
+		}
+
+		# MINOR
+		modifier = { #Friend modifier.
+			desc = offer_vassalization_interaction_aibehavior_friend_tt
+			trigger = {
+				scope:recipient = {
+					has_relation_friend = scope:actor
+					NOT = { has_relation_best_friend = scope:actor }
+				}
+			}
+			add = 10
+		}
+		modifier = { #Best Friend modifier.
+			desc = offer_vassalization_interaction_aibehavior_best_friend_tt
+			trigger = {
+				scope:recipient = {
+					has_relation_best_friend = scope:actor
+				}
+			}
+			add = 20
+		}
+		modifier = { #Lover modifier.
+			desc = interaction_lover
+			trigger = {
+				scope:recipient = {
+					has_relation_lover = scope:actor
+					NOT = { has_relation_soulmate = scope:actor }
+				}
+			}
+			add = 10
+		}
+		modifier = { #Soulmate modifier.
+			desc = interaction_soulmate
+			trigger = {
+				scope:recipient = {
+					has_relation_soulmate = scope:actor
+				}
+			}
+			add = 20
+		}
+		modifier = { #Rivalry modifier.
+			desc = offer_vassalization_interaction_aibehavior_rival_tt
+			trigger = {
+				scope:recipient = {
+					has_relation_rival = scope:actor
+					NOT = { has_relation_nemesis = scope:actor }
+				}
+			}
+			add = -100
+		}
+		modifier = { #Nemesis modifier.
+			desc = offer_vassalization_interaction_aibehavior_nemesis_tt
+			trigger = {
+				scope:recipient = {
+					has_relation_nemesis = scope:actor
+				}
+			}
+			add = -1000
+		}
+		modifier = { #Same Dynasty modifier.
+			desc = offer_vassalization_interaction_aibehavior_dynasty_tt
+			trigger = {
+				scope:recipient = {
+					dynasty = scope:actor.dynasty
+				}
+			}
+			add = 5
+		}
+
+		modifier = { # Ambitious
+			desc = TAKE_THE_VOWS_AMBITIOUS
+			trigger = {
+				scope:recipient = {
+					has_trait = ambitious
+				}
+			}
+			add = -20
+		}
+
+		modifier = { # Paranoid
+			desc = INTERACTION_PARANOID
+			trigger = {
+				scope:recipient = {
+					has_trait = paranoid
+				}
+			}
+			add = -20
+		}
+
+		modifier = { # Arrogant
+			desc = INTERACTION_ARROGANT
+			trigger = {
+				scope:recipient = {
+					has_trait = arrogant
+				}
+			}
+			add = 20
+		}
+
+		modifier = { # Generous
+			desc = INTERACTION_GENEROUS
+			trigger = {
+				scope:recipient = {
+					has_trait = generous
+				}
+			}
+			add = 20
+		}
+
+		modifier = { # Fickle
+			desc = INTERACTION_FICKLE
+			trigger = {
+				scope:recipient = {
+					has_trait = fickle
+				}
+			}
+			add = 10
+		}
+
+		modifier = { # Stubborn
+			desc = INTERACTION_STUBBORN
+			trigger = {
+				scope:recipient = {
+					has_trait = stubborn
+				}
+			}
+			add = -10
+		}
+
+		modifier = { # Trusting
+			desc = TAKE_THE_VOWS_TRUSTING
+			trigger = {
+				scope:recipient = {
+					has_trait = trusting
+				}
+			}
+			add = 10
+		}
+
+		modifier = { # Content
+			desc = INTERACTION_CONTENT
+			trigger = {
+				scope:recipient = {
+					has_trait = content
+				}
+			}
+			add = 5
+		}
+
+		# OPINION INFLUENCE
+		opinion_modifier = { #Compare Opinion modifier.
+			who = scope:recipient
+			opinion_target = scope:actor
+			multiplier = 0.35
+		}
+
+		modifier = {
+			scope:hook = yes
+			add = 100
+			desc = SCHEME_WEAK_HOOK_USED
+		}
+
+	}
+
+	on_accept = {
+		scope:actor = {
+			send_interface_toast = {
+				type = event_toast_effect_good
+				title = request_leave_interaction_notification
+				left_icon = scope:actor
+				right_icon = scope:recipient
+				custom_tooltip = request_leave_interaction_notification_accepted
+				end_tributary = yes
+			}
+		}
+	}
+
+	on_decline = {
+		scope:actor = {
+			send_interface_toast = {
+				type = event_toast_effect_bad
+				title = request_leave_interaction_notification
+				left_icon = scope:actor
+				right_icon = scope:recipient
+				custom_tooltip = request_leave_interaction_notification_refused
+			}
+		}
+	}
 }
