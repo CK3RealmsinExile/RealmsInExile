@@ -1,108 +1,5 @@
 ﻿#### Situation Effects ####
 
-# devestate_county_effect = { # Fire on county scope, takes parameter $DEVELOPMENT$, giving amount of dev to loose
-# 	#### Secondary effects ####
-# 	# Chance of removing buildings
-# 	# If all buildings are gone, remove holding level
-
-# 	# Change of removing gold
-	
-# 	#### Main Reduction Chain ####
-# 	# Removes in order:
-# 	# Development
-# 	# Buildings from 
-
-	
-# 	if = { # First, reduce development if enough dev
-# 		limit = {
-# 			development_level >= $DEVELOPMENT$
-# 		}
-# 		change_development_level =  {
-# 			subtract = $DEVELOPMENT$
-# 		}
-# 	}
-# 	else = { # If there's not enough dev, start on buildings
-# 		set_variable = { # Save any missing reduction for buildings
-# 			name = missing_dev
-# 			value = 0
-# 			add = $DEVELOPMENT$
-# 			subtract = development_level
-# 		}
-# 		change_development_level = { # Reduce to 0 dev
-# 			subtract = development_level
-# 		}
-
-# 		# Once all dev is gone, remove buildings
-# 		if = {
-# 			limit = { # First target a place that has enough buildings to handle outright
-# 				any_county_province = {
-# 					has_holding = yes
-# 					combined_building_level >= county.var:missing_dev
-# 				}
-# 			}
-# 			ordered_county_province = {
-# 				order_by = combined_building_level.inverse # Take least built up place (that has enough levels) first
-# 				limit = {
-# 					has_holding = yes
-# 					combined_building_level >= county.var:missing_dev
-# 				}
-# 				while = {
-# 					count = county.var:missing_dev 
-# 					destroy_random_building_variable_effect = yes
-# 					destroy_random_building_effect = yes
-# 				}
-# 			}
-# 		}
-# 		else_if = { # If no province has enough buildings, start taking holding levels.
-# 			ordered_county_province = {
-# 				order_by = combined_building_level.inverse # Take least built up place first
-# 			}
-# 			any_county_province = {
-# 				has_holding = yes
-# 				barony = { is_capital_barony = no }
-# 				county.var:missing_dev <= {
-# 					value = 0
-# 					add = combined_building_level
-# 					add = lotr_holding_level
-# 					subtract = 1 # Bc level 1 holdings need to be ruined instead
-# 				}
-# 			}
-# 			random_county_province = {
-# 				limit = {
-# 					has_holding = yes
-# 					barony = { is_capital_barony = no }
-# 					county.var:missing_dev <= {
-# 						value = 0
-# 						add = combined_building_level
-# 						add = lotr_holding_level
-# 					}
-# 				}
-# 				set_variable = {
-# 					name = missing_buildings
-# 					value = 0
-# 					add = county.var:missing_dev
-# 					subtract = combined_building_level
-# 				}
-# 				while = {
-# 					count = combined_building_level
-# 					destroy_random_building_variable_effect = yes
-# 					destroy_random_building_effect = yes
-# 				}
-# 				while = {
-# 					count = var:missing_buildings
-# 					lotr_downgrade_holding = yes
-# 				}
-# 			}
-# 		}
-# 		else_if = {
-
-# 		}
-# 	}
-# 	# If all buildings are gone, remove holding
-# 	# If nothing is left, wasteland the county
-
-# }
-
 devestate_county_effect = { # Fires on county scope, takes paramter $SEVERITY$, which quantifies the destruction.
 	while = { #First do random raid damage
 		count = $SEVERITY$.div2
@@ -113,6 +10,8 @@ devestate_county_effect = { # Fires on county scope, takes paramter $SEVERITY$, 
 		devestate_county_repeated_effect = yes # Pass through to selection effect
 	}
 	save_scope_as = devestated_county
+	angmar_wars_catalyst_angmar_devestated_effect = yes 
+	angmar_wars_catalyst_arnor_devestated_effect = yes 
 	holder = { #Fire notification for players associated to devestation
 		send_interface_toast = {
 			type = event_toast_effect_bad
@@ -271,14 +170,13 @@ devestate_random_sitatuation_county = { # Run from situation scope, effects up t
 		devestate_county_effect = { SEVERITY = 1 }
 	}
 }
+
 #### Catalyst Effects ####
 
 angmar_wars_catalyst_convert_to_evil_effect = {
 	if = {
 		limit = {
-			any_character_situation = {
-				this = situation:angmar_wars_situation
-			}
+			is_in_angmar_wars = yes
 			faith_is_evil = yes
 		}
 
@@ -295,15 +193,79 @@ angmar_wars_catalyst_convert_to_evil_effect = {
 angmar_wars_catalyst_convert_to_good_effect = {
 	if = {
 		limit = {
-			any_character_situation = {
-				this = situation:angmar_wars_situation
-			}
+			is_in_angmar_wars = yes
 			faith_is_good = yes
 		}
 		situation:angmar_wars_situation = {
 			trigger_situation_catalyst = {
 				catalyst = catalyst_convert_to_good
 				character = root
+			}
+		}
+	}
+}
+
+angmar_wars_catalyst_angmar_devestated_effect = { # County scope
+	if = {
+		limit = {
+			county.holder = {
+				is_in_angmar_wars = yes
+				is_angmar_ruler = yes
+			}
+		}
+		situation:angmar_wars_situation = {
+			trigger_situation_catalyst = {
+				catalyst = catalyst_angmar_devestated
+				county = scope:devestated_county
+			}
+		}
+	}
+}
+
+angmar_wars_catalyst_arnor_devestated_effect = { # County scope
+	if = {
+		limit = {
+			county.holder = {
+				is_in_angmar_wars = yes
+				is_arnorian_ruler = yes
+			}
+		}
+		situation:angmar_wars_situation = {
+			trigger_situation_catalyst = {
+				catalyst = catalyst_arnor_devestated
+				county = scope:devestated_county
+			}
+		}
+	}
+}
+
+angmar_wars_catalyst_arnor_won_war_effect = {
+	if = {
+		limit = {
+			is_in_angmar_wars = yes
+			is_arnorian_ruler = yes
+		}
+		save_scope_as = war_winner
+		situation:angmar_wars_situation = {
+			trigger_situation_catalyst = {
+				catalyst = catalyst_arnor_won_war
+				character = scope:war_winner
+			}
+		}
+	}
+}
+
+angmar_wars_catalyst_angmar_won_war_effect = {
+	if = {
+		limit = {
+			is_in_angmar_wars = yes
+			is_angmar_ruler = yes
+		}
+		save_scope_as = war_winner
+		situation:angmar_wars_situation = {
+			trigger_situation_catalyst = {
+				catalyst = catalyst_angmar_won_war
+				character = scope:war_winner
 			}
 		}
 	}
