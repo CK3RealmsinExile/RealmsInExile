@@ -1731,10 +1731,13 @@ scripted_effect lotr_orc_work_out_wounds_or_death_effect = {
         }
     }
     scope:sc_loser = {
-        death = {
-            killer = scope:sc_victor
-            death_reason = death_duel
-        }
+		if = {
+			limit = { is_alive = yes }
+			death = {
+				killer = scope:sc_victor
+				death_reason = death_duel
+			}
+		}
     }
     if = {
         limit = {
@@ -2095,23 +2098,46 @@ scripted_effect lotr_orc_finalise_combat_results_effect = {
 			remove_variable = engaged_in_single_combat
 		}
 	}
-	## We use the initiator if they're alive...
 	if = {
 		limit = {
-			scope:sc_initiator = { is_alive = yes }
-		}
-		scope:sc_initiator = { 
-			trigger_event = { saved_event_id = scope:follow_up_event }
-		}
-	}
-	## Or otherwise the other person.
-	### Doesn't hugely matter, technically, since the output event should be from a neutral scope, but if they're dead then the event won't fire and the chain silently invalidates.
-	else_if = {
-		limit = {
-			scope:sc_defender ?= { is_alive = yes }
+			scope:sc_defender ?= {
+				is_alive = yes
+				has_variable_list = final_orc_challengers
+				variable_list_size = {
+					name = final_orc_challengers
+					value >= 2
+				}
+			}
 		}
 		scope:sc_defender ?= {
-			trigger_event = { saved_event_id = scope:follow_up_event }
+			scope:sc_victor = {
+				increase_variable = { NAME = killed_challengers	AMOUNT = 1 }
+				every_in_list = {
+					variable = final_orc_challengers
+					limit = { is_alive = no }
+					save_scope_as = dead_orc
+					scope:sc_victor = {
+						remove_list_variable = {
+							name = final_orc_challengers
+							target = scope:dead_orc
+						}
+					}
+				}
+				every_in_list = { #Orc reconsider whether they want to challenge you
+					variable = final_orc_challengers
+					save_scope_as = curr_orc_challenger
+					trigger_event = orc_government_events.0049
+				}
+				grab_scariest_orc_from_challenger_list_effect = yes
+				send_interface_toast = {
+					type = event_toast_effect_good
+					title = orc_succession_duel_toast.title
+					desc = orc_succession_duel_toast.desc
+					left_icon = scope:sc_victor
+					right_icon = scope:sc_loser
+				}
+				trigger_event = { on_action = lotr_orc_government_persaude_challenger_events }
+			}
 		}
 	}
 	else = {
@@ -10628,6 +10654,7 @@ lotr_orc_government_single_combat.0002 = {
 			# Finally, fire the invalidation cleanup event.
 			scope:sc_attacker ?= {
 				#trigger_event = { saved_event_id = scope:invalidation_event }
+				# scope:sc_defender = { add_piety = 10000 }
 				trigger_event = lotr_orc_government_single_combat.1006
 			}
 		}
@@ -10738,10 +10765,7 @@ lotr_orc_government_single_combat.0021 = {
 				# Excepting things if the match is fixed.
 				NOT = { scope:fixed = flag:sc_defender }
 			}
-			save_scope_value_as = {
-				name = sc_finished
-				value = yes
-			}
+			scope:sc_defender = { set_variable = sc_finished }
 			scope:sc_attacker ?= { save_scope_as = sc_victor }
 			scope:sc_defender ?= { save_scope_as = sc_loser }
 			save_scope_value_as = {
@@ -10756,10 +10780,7 @@ lotr_orc_government_single_combat.0021 = {
 				# Excepting things if the match is fixed.
 				NOT = { scope:fixed = flag:sc_attacker }
 			}
-			save_scope_value_as = {
-				name = sc_finished
-				value = yes
-			}
+			scope:sc_defender = { set_variable = sc_finished }
 			scope:sc_defender ?= { save_scope_as = sc_victor }
 			scope:sc_attacker ?= { save_scope_as = sc_loser }
 			save_scope_value_as = {
@@ -10772,7 +10793,7 @@ lotr_orc_government_single_combat.0021 = {
 		lotr_orc_calculate_injury_risks_effect = yes
 		if = {
 			limit = {
-				NOT = { exists = scope:sc_finished }
+				NOT = { scope:sc_defender = { has_variable = sc_finished } }
 				scope:sc_defender.var:current_round > 1
 			}
 			# Check scope:sc_attacker to see if they can injure themselves due to having more risk than success.
@@ -10788,10 +10809,7 @@ lotr_orc_government_single_combat.0021 = {
 						add = scope:sc_attacker.var:sc_attacker_injury_risk_check
 						subtract = scope:sc_attacker.var:sc_attacker_duel_success_score
 					}
-					save_scope_value_as = {
-						name = sc_finished
-						value = yes
-					}
+					scope:sc_defender = { set_variable = sc_finished }
 					scope:sc_defender ?= { save_scope_as = sc_victor }
 					scope:sc_attacker ?= { save_scope_as = sc_loser }
 					save_scope_value_as = {
@@ -10813,10 +10831,7 @@ lotr_orc_government_single_combat.0021 = {
 						add = scope:sc_defender.var:sc_defender_injury_risk_check
 						subtract = scope:sc_defender.var:sc_defender_duel_success_score
 					}
-					save_scope_value_as = {
-						name = sc_finished
-						value = yes
-					}
+					scope:sc_defender = { set_variable = sc_finished }
 					scope:sc_attacker ?= { save_scope_as = sc_victor }
 					scope:sc_defender ?= { save_scope_as = sc_loser }
 					save_scope_value_as = {
@@ -10828,7 +10843,7 @@ lotr_orc_government_single_combat.0021 = {
 		}
 		# If we now have a victor, work out the cleanup.
 		if = {
-			limit = { exists = scope:sc_finished }
+			limit = { scope:sc_defender = { has_variable = sc_finished } }
 			lotr_orc_finalise_combat_results_effect = yes
 		}
 		# If we don't, and this round is at or over the round_cap_limit, enter into sudden death.
@@ -10838,10 +10853,7 @@ lotr_orc_government_single_combat.0021 = {
 			## ... for scope:sc_attacker.
 			if = {
 				limit = { scope:fixed = flag:sc_attacker }
-				save_scope_value_as = {
-					name = sc_finished
-					value = yes
-				}
+				scope:sc_defender = { set_variable = sc_finished }
 				scope:sc_attacker = { save_scope_as = sc_victor }
 				scope:sc_defender = { save_scope_as = sc_loser }
 				save_scope_value_as = {
@@ -10852,10 +10864,7 @@ lotr_orc_government_single_combat.0021 = {
 			## ... for scope:sc_defender.
 			else_if = {
 				limit = { scope:fixed = flag:sc_defender }
-				save_scope_value_as = {
-					name = sc_finished
-					value = yes
-				}
+				scope:sc_defender = { set_variable = sc_finished }
 				scope:sc_defender = { save_scope_as = sc_victor }
 				scope:sc_attacker = { save_scope_as = sc_loser }
 				save_scope_value_as = {
@@ -10866,10 +10875,7 @@ lotr_orc_government_single_combat.0021 = {
 			# If scope:sc_attacker has the highest prowess, then they win.
 			else_if = {
 				limit = { scope:sc_attacker.prowess > scope:sc_defender.prowess }
-				save_scope_value_as = {
-					name = sc_finished
-					value = yes
-				}
+				scope:sc_defender = { set_variable = sc_finished }
 				scope:sc_attacker ?= { save_scope_as = sc_victor }
 				scope:sc_defender ?= { save_scope_as = sc_loser }
 				save_scope_value_as = {
@@ -10880,10 +10886,7 @@ lotr_orc_government_single_combat.0021 = {
 			# If scope:sc_defender has the highest prowess, then *they* win.
 			else_if = {
 				limit = { scope:sc_defender.prowess > scope:sc_attacker.prowess }
-				save_scope_value_as = {
-					name = sc_finished
-					value = yes
-				}
+				scope:sc_defender = { set_variable = sc_finished }
 				scope:sc_defender ?= { save_scope_as = sc_victor }
 				scope:sc_attacker ?= { save_scope_as = sc_loser }
 				save_scope_value_as = {
@@ -10896,10 +10899,7 @@ lotr_orc_government_single_combat.0021 = {
 				random_list = {
 					#Scope:sc_attacker wins.
 					50 = {
-						save_scope_value_as = {
-							name = sc_finished
-							value = yes
-						}
+						scope:sc_defender = { set_variable = sc_finished }
 						scope:sc_attacker ?= { save_scope_as = sc_victor }
 						scope:sc_defender ?= { save_scope_as = sc_loser }
 						save_scope_value_as = {
@@ -10909,10 +10909,7 @@ lotr_orc_government_single_combat.0021 = {
 					}
 					#Scope:sc_defender wins.
 					50 = {
-						save_scope_value_as = {
-							name = sc_finished
-							value = yes
-						}
+						scope:sc_defender = { set_variable = sc_finished }
 						scope:sc_defender ?= { save_scope_as = sc_victor }
 						scope:sc_attacker ?= { save_scope_as = sc_loser }
 						save_scope_value_as = {
@@ -12025,6 +12022,7 @@ lotr_orc_government_single_combat.0031 = {
 					scope:sc_victor = {
 						add_to_variable_list = { name = final_orc_challengers target = scope:curr_challenger }
 					}
+					clear_saved_scope = curr_challenger
 				}
 			}
 
@@ -13129,6 +13127,7 @@ lotr_orc_government_single_combat.0032 = {
 					scope:sc_victor = {
 						add_to_variable_list = { name = final_orc_challengers target = scope:curr_challenger }
 					}
+					clear_saved_scope = curr_challenger
 				}
 			}
 
@@ -14229,6 +14228,7 @@ lotr_orc_government_single_combat.0041 = {
 					scope:sc_victor = {
 						add_to_variable_list = { name = final_orc_challengers target = scope:curr_challenger }
 					}
+					clear_saved_scope = curr_challenger
 				}
 			}
 
@@ -14259,6 +14259,13 @@ lotr_orc_government_single_combat.0041 = {
 					trigger_event = orc_government_events.0049
 				}
 				grab_scariest_orc_from_challenger_list_effect = yes
+				send_interface_toast = {
+					type = event_toast_effect_good
+					title = orc_succession_duel_toast.title
+					desc = orc_succession_duel_toast.desc
+					left_icon = scope:sc_victor
+					right_icon = scope:sc_loser
+				}
 				trigger_event = { on_action = lotr_orc_government_persaude_challenger_events }
 			}
 		}
@@ -15331,6 +15338,7 @@ lotr_orc_government_single_combat.0042 = {
 					scope:sc_victor = {
 						add_to_variable_list = { name = final_orc_challengers target = scope:curr_challenger }
 					}
+					clear_saved_scope = curr_challenger
 				}
 			}
 			
@@ -15354,6 +15362,7 @@ lotr_orc_government_single_combat.0042 = {
 							target = scope:dead_orc
 						}
 					}
+					clear_saved_scope = dead_orc
 				}
 				every_in_list = { #Orc reconsider whether they want to challenge you
 					variable = final_orc_challengers
@@ -15361,6 +15370,13 @@ lotr_orc_government_single_combat.0042 = {
 					trigger_event = orc_government_events.0049
 				}
 				grab_scariest_orc_from_challenger_list_effect = yes
+				send_interface_toast = {
+					type = event_toast_effect_good
+					title = orc_succession_duel_toast.title
+					desc = orc_succession_duel_toast.desc
+					left_icon = scope:sc_victor
+					right_icon = scope:sc_loser
+				}
 				trigger_event = { on_action = lotr_orc_government_persaude_challenger_events }
 			}
 		}
@@ -15438,52 +15454,6 @@ lotr_orc_government_single_combat.0042 = {
 # by Ewan Cowhig Croft
 # 1001+
 ##################################################
-
-#	Spawn a duel, with a random knight as defender.
-lotr_orc_government_single_combat.1001 = {
-	hidden = yes
-	orphan = yes
-
-	immediate = {
-		random_knight = {
-			limit = { can_start_single_combat_trigger = yes }
-			save_scope_as = fighter_mc_fighter_chap
-		}
-		lotr_orc_government_succession_single_combat_effect = {
-			SC_INITIATOR = root
-			SC_ATTACKER = root
-			SC_DEFENDER = scope:fighter_mc_fighter_chap
-			FATALITY = default
-			FIXED = no
-			LOCALE = terrain_scope
-			OUTPUT_EVENT = lotr_orc_government_single_combat.1006
-			INVALIDATION_EVENT = lotr_orc_government_single_combat.1006	#In a real event, this would obviously be a different even to the output.
-		}
-	}
-}
-
-#	Spawn a duel, with a random knight as attacker.
-lotr_orc_government_single_combat.1002 = {
-	hidden = yes
-	orphan = yes
-
-	immediate = {
-		random_knight = {
-			limit = { can_start_single_combat_trigger = yes }
-			save_scope_as = fighter_mc_fighter_chap
-		}
-		lotr_orc_government_succession_single_combat_effect = {
-			SC_INITIATOR = root
-			SC_ATTACKER = scope:fighter_mc_fighter_chap
-			SC_DEFENDER = root
-			FATALITY = no
-			FIXED = no
-			LOCALE = terrain_scope
-			OUTPUT_EVENT = lotr_orc_government_single_combat.1006
-			INVALIDATION_EVENT = lotr_orc_government_single_combat.1006	#In a real event, this would obviously be a different even to the output.
-		}
-	}
-}
 
 #	Error suppression.
 lotr_orc_government_single_combat.1003 = {
@@ -15603,91 +15573,16 @@ lotr_orc_government_single_combat.1003 = {
 	}
 }
 
-#	Debug event to duel a character.
-lotr_orc_government_single_combat.1004 = {
-    content_source = realms_dlc
-	type = court_event
-	title = lotr_orc_government_single_combat.1004.t
-	desc = lotr_orc_government_single_combat.1004.desc
-    theme = orcs
-	orphan = yes
-    
-    court_scene = {
-		button_position_character = scope:actor
-		court_event_force_open = yes
-		show_timeout_info = no
-		should_pause_time = no
-		roles = {
-			# First, we take each scoped relevant scoped character.
-			scope:actor ?= {
-				role = lotr_orc_heir
-			}
-			scope:recipient ?= {
-				role = lotr_orc_heir_challenger
-			}
-			scope:spectator_1 ?= {
-				role = lotr_orc_heir_spectator_1
-			}
-			scope:spectator_2 ?= {
-				role = lotr_orc_heir_spectator_2
-			}
-			scope:spectator_3 ?= {
-				role = lotr_orc_heir_spectator_3
-			}
-			scope:spectator_4 ?= {
-				role = lotr_orc_heir_spectator_4
-			}
-			scope:spectator_5 ?= {
-				role = lotr_orc_heir_spectator_5
-			}
-		}
-	}
-	# You are the attacker, fatal
-	option = {
-		name = lotr_orc_government_single_combat.1004.c
-
-		lotr_orc_government_succession_single_combat_effect = {
-			SC_INITIATOR = scope:actor
-			SC_ATTACKER = scope:actor
-			SC_DEFENDER = scope:recipient
-			FATALITY = always
-			FIXED = no
-			LOCALE = terrain_scope
-			OUTPUT_EVENT = lotr_orc_government_single_combat.1006
-			INVALIDATION_EVENT = lotr_orc_government_single_combat.1006	#In a real event, this would obviously be a different even to the output.
-		}
-	}
-
-	# You are the defender, fatal
-	option = {
-		name = lotr_orc_government_single_combat.1004.d
-
-		lotr_orc_government_succession_single_combat_effect = {
-			SC_INITIATOR = scope:actor
-			SC_ATTACKER = scope:recipient
-			SC_DEFENDER = scope:actor
-			FATALITY = always
-			FIXED = no
-			LOCALE = terrain_scope
-			OUTPUT_EVENT = lotr_orc_government_single_combat.1006
-			INVALIDATION_EVENT = lotr_orc_government_single_combat.1006	#In a real event, this would obviously be a different even to the output.
-		}
-	}
-
-	# Actually, never mind
-	option = {
-		name = lotr_orc_government_single_combat.1004.g
-	}
-
-	after = {
-		single_combat_apply_default_shirtlessness_effect = {
-			ATTACKER = scope:actor
-			DEFENDER = scope:recipient
-		}
-	}
-}
-
 #	Hidden empty event for testing purposes.
 lotr_orc_government_single_combat.1006 = {
-	hidden = yes
+    content_source = realms_dlc
+	type = character_event
+    theme = orcs
+	title = LOREM_IPSUM_TITLE
+	desc = LOREM_IPSUM_DESCRIPTION
+	left_portrait = root
+
+	option = { 
+		name = LOREM_IPSUM_TITLE
+	}
 }
