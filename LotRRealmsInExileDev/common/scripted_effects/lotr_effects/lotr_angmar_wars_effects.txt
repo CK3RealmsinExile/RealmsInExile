@@ -21,6 +21,7 @@ devastate_county_effect = { # Fires on county scope, takes paramter $SEVERITY$, 
 			devastate_county_repeated_effect = yes # Pass through to selection effect
 		}
 		save_scope_as = devastated_county
+		$ACTOR$ =  { save_scope_as = actor }
 		angmar_wars_catalyst_angmar_devastated_effect = yes 
 		angmar_wars_catalyst_arnor_devastated_effect = yes 
 		holder = { #Fire notification for players associated to devastation
@@ -217,15 +218,30 @@ devastate_random_sitatuation_county = { # Run from situation scope, effects up t
 			}
 		}
 		order_by = devastation_potential
-		max = 2
+		max = 4
 		check_range_bounds = no
-		devastate_county_effect = { SEVERITY = 1 ACTOR = title:k_wastelands.holder }
+		devastate_county_effect = { SEVERITY = 2 ACTOR = title:k_wastelands.holder }
 	}
 }
 
 ##########################
 #### Catalyst Effects ####
 ##########################
+
+angmar_wars_alert_participants_to_catalyst = {
+	situation:angmar_wars_situation = {
+		every_situation_participant = {
+			limit = {
+				NOT = { has_character_flag = devastation_notifications_supressed }
+			}
+			send_interface_toast = {
+				type = event_toast_effect_bad
+				title = catalyst_activated_toast
+				custom_tooltip = catalyst_activated_toast_desc
+			}
+		}
+	}
+}
 
 angmar_wars_catalyst_convert_to_evil_effect = {
 	if = {
@@ -324,7 +340,7 @@ angmar_wars_catalyst_neutral_joins_angmar_effect = { # Most checks skipped bc fi
 angmar_wars_catalyst_angmar_devastated_effect = { # County scope
 	if = {
 		limit = {
-			county.holder = {
+			holder = {
 				is_in_angmar_wars = yes
 				is_angmar_aligned = yes
 			}
@@ -335,13 +351,14 @@ angmar_wars_catalyst_angmar_devastated_effect = { # County scope
 				county = scope:devastated_county
 			}
 		}
+		angmar_wars_alert_participants_to_catalyst = yes
 	}
 }
 
 angmar_wars_catalyst_arnor_devastated_effect = { # County scope
 	if = {
 		limit = {
-			county.holder = {
+			holder = {
 				is_in_angmar_wars = yes
 				is_arnor_aligned = yes
 			}
@@ -352,10 +369,11 @@ angmar_wars_catalyst_arnor_devastated_effect = { # County scope
 				county = scope:devastated_county
 			}
 		}
+		angmar_wars_alert_participants_to_catalyst = yes
 	}
 }
 
-angmar_wars_catalyst_county_wastelanded_arnor_effect = { # County scope
+angmar_wars_catalyst_county_wastelanded_arnor_effect = { # Holder scope
 	if = {
 		limit = {
 			holder = {
@@ -370,6 +388,7 @@ angmar_wars_catalyst_county_wastelanded_arnor_effect = { # County scope
 				county = scope:wastelanded_county
 			}
 		}
+		error_log = "catalyst_county_wastelanded_arnor"
 	}
 }
 
@@ -388,6 +407,7 @@ angmar_wars_catalyst_county_wastelanded_angmar_effect = { # County scope
 				county = scope:wastelanded_county
 			}
 		}
+		error_log = "catalyst_county_wastelanded_angmar"
 	}
 }
 
@@ -431,15 +451,15 @@ angmar_wars_catalyst_arnor_wins_battle_effect = {
 				is_arnorian_ruler = yes
 				save_temporary_scope_as = winning_ruler 
 			}
-			enemy_side.side_primary_participant = {
-				angmar_wars_is_opposite_side = { CHARACTER = scope:winning_ruler }
+			root.enemy_side.side_primary_participant = {
+				angmar_wars_is_opposite_side = { CHARACTER = root.side_primary_participant }
 			}
 		}
 		side_primary_participant = { save_temporary_scope_as = winning_ruler }
 		situation:angmar_wars_situation = {
 			trigger_situation_catalyst = {
 				catalyst = catalyst_arnor_wins_battle
-				character = scope:winning_ruler
+				character = root.side_primary_participant
 			}
 		}
 	}
@@ -563,7 +583,7 @@ angmar_wars_catalyst_wonder_completed_angmar_effect = {
 angmar_wars_catalyst_colony_completed_arnor_effect = { # Fires from province scope
 	if = {
 		limit = {
-			holder ?= { 
+			county.holder ?= { 
 				is_in_angmar_wars = yes
 				is_arnorian_ruler = yes 
 			}
@@ -581,7 +601,7 @@ angmar_wars_catalyst_colony_completed_arnor_effect = { # Fires from province sco
 angmar_wars_catalyst_colony_completed_angmar_effect = {
 	if = {
 		limit = {
-			holder ?= { 
+			county.holder ?= { 
 				is_in_angmar_wars = yes
 				is_angmar_ruler = yes 
 			}
@@ -867,34 +887,38 @@ angmar_wars_catalyst_apocalyptic_epidemic_angmar_effect = { # A apocalyptic epid
 angmar_wars_catalyst_hostile_scheme_arnor_effect = { # Arnorian ruler completes a hostile scheme against Angmar ruler
 	if = {
 		limit = {
-			is_in_angmar_wars = yes
-			is_arnor_aligned = yes
+			scope:owner = {
+				is_in_angmar_wars = yes
+				is_arnor_aligned = yes
+			}
 			scope:target = {
-				angmar_wars_is_opposite_side = { CHARACTER = root }
+				angmar_wars_is_opposite_side = { CHARACTER = scope:owner }
 			}
 		}
 		situation:angmar_wars_situation = {
 			trigger_situation_catalyst = {
 				catalyst = catalyst_hostile_scheme_arnor
-				character = root
+				character = scope:owner
 			}
 		}
 	}
 }
 
-angmar_wars_catalyst_hostile_scheme_angmar_effect = { # Arnorian ruler completes a hostile scheme against Angmar ruler
+angmar_wars_catalyst_hostile_scheme_angmar_effect = { # Angmar ruler completes a hostile scheme against Angmar ruler - fired from scheme scope
 	if = {
 		limit = {
-			is_in_angmar_wars = yes
-			is_angmar_aligned = yes
+			scope:owner = {
+				is_in_angmar_wars = yes
+				is_angmar_aligned = yes
+			}
 			scope:target = {
-				angmar_wars_is_opposite_side = { CHARACTER = root }
+				angmar_wars_is_opposite_side = { CHARACTER = scope:owner }
 			}
 		}
 		situation:angmar_wars_situation = {
 			trigger_situation_catalyst = {
 				catalyst = catalyst_hostile_scheme_angmar
-				character = root
+				character = scope:owner
 			}
 		}
 	}
