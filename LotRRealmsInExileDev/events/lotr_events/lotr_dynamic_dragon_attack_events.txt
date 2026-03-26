@@ -80,33 +80,33 @@ scripted_effect gather_title_info = {
 }
 
 scripted_effect dragon_destroyed_kingdom = {
-	every_in_list = {
-		list = dragon_amusement_park
-		save_scope_as = county_to_burn
-		holder = { add_to_list = dragon_survivors }
-		every_county_province = {
-			limit = { is_county_capital = no }
-			remove_holding = yes
-		}
-		make_settlement_county_wilderness = { COUNTY = scope:county_to_burn }
+	destroy_title = var:capital.kingdom
+	if = {
+		limit = { has_title = var:capital.duchy }
+		destroy_title = var:capital.duchy
 	}
-	every_in_list = {
-		list = dragon_amusement_park
-		if = {
-			limit = { NOT = { title_province = { has_building = dragon_desolation } } }
-			title_province = { add_building = dragon_desolation	}
+	var:capital.kingdom = {
+		every_de_jure_county = {
+			save_scope_as = county_to_burn
 			if = {
-				limit = { NOT = { scope:title_to_be_attacked.title_province = { has_building = dragon_den } } }
-				scope:title_to_be_attacked.title_province = { add_building = dragon_den }
+				limit = { holder = { is_wastelands = no } }
+				root = {
+					add_to_list = {
+						name = holders
+						value = prev.holder
+					}
+				}
+			}
+			make_settlement_county_wilderness = { COUNTY = scope:county_to_burn }
+			if = {
+				limit = { NOT = { title_province = { has_building = dragon_desolation } } }
+				title_province = { add_building = dragon_desolation	}
 			}
 		}
-	}
-	random_owned_story = {
-		limit = {
-			story_type = lotr_dynamic_dragon_attack_story
-			var:capital ?= story_owner.capital_county
+		if = {
+			limit = { NOT = { title_province = { has_building = dragon_den } } }
+			title_province = { add_building = dragon_den }
 		}
-		end_story = yes
 	}
 }
 
@@ -768,6 +768,15 @@ lotr_dynamic_dragon_attack.0110 = { # The Dragon is here
 			}
 			save_scope_as = title_to_be_attacked
 		}
+		scope:title_to_be_attacked = {
+			every_de_jure_county = {
+				limit = {
+					holder = { any_liege_or_above = { this = root } }
+					title_province = { terrain = halls }
+				}
+				add_to_list = dragon_amusement_park
+			}
+		}
 	}
 
 	option = {
@@ -803,7 +812,9 @@ lotr_dynamic_dragon_attack.0111 = {
 			}
 			100 = {
 				modifier = { add = defeating_the_dragon_value.neg }
-				show_as_tooltip = { dragon_destroyed_kingdom = yes }
+				show_as_tooltip = {
+					dragon_destroyed_kingdom = yes
+				}
 				custom_tooltip = lotr_dynamic_dragon_attack.0111.a_tt_defeat
 				add_character_flag = stood_and_fought
 				trigger_event = lotr_dynamic_dragon_attack.0113
@@ -837,6 +848,12 @@ lotr_dynamic_dragon_attack.0112 = {
 
 	immediate = {
 		dragon_defeated_came_at_us = yes
+		random_owned_story = {
+			limit = {
+				story_type = lotr_dynamic_dragon_attack_story
+			}
+			end_story = yes
+		}
 	}
 
 	option = {
@@ -855,20 +872,24 @@ lotr_dynamic_dragon_attack.0113 = {
 	}
 
 	immediate = {
-		dragon_destroyed_kingdom = yes
+		random_owned_story = {
+			limit = {
+				story_type = lotr_dynamic_dragon_attack_story
+			}
+			end_story = yes
+		}
 	}
 
 	option = {
 		name = lotr_dynamic_dragon_attack.0113.a
 
+		dragon_destroyed_kingdom = yes
 		#Makes LAAMPs if unlanded
 		if = {
 			limit = {
 				is_ai = no
 				has_ep3_dlc_trigger = yes
-				any_held_county = {
-					NOT = { kingdom = scope:title_to_be_attacked }
-				}
+				is_landed = no
 			}
 			hidden_effect = {
 				create_landless_adventurer_title_effect = {
@@ -879,15 +900,18 @@ lotr_dynamic_dragon_attack.0113 = {
 				scope:new_landless_adventurer_title ?= {
 					set_coa = holder.house
 				}
-				every_in_list = {
-					list = dragon_survivors
-					save_scope_as = dragon_survivor
-					hidden_effect = {
+			}
+			every_in_list = {
+				list = holders
+				save_scope_as = dragon_survivor
+				hidden_effect = {
+					if = {
+						limit = { NOT = { liege = root } }
 						add_to_court_and_entourage_effect = yes
 					}
-					show_as_tooltip = {
-						root = { add_courtier = scope:dragon_survivor }
-					}
+				}
+				show_as_tooltip = {
+					root = { add_courtier = scope:dragon_survivor }
 				}
 			}
 		}
