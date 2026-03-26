@@ -1,5 +1,11 @@
 ﻿namespace = lotr_dynamic_dragon_attack
 
+### Dragon Events ### Written by Hybrid
+#	lotr_dynamic_dragon_attack.0001 - 0003	Setup
+#	lotr_dynamic_dragon_attack.0100 - 0102	Preperation
+#	lotr_dynamic_dragon_attack.0110			Dragon's here
+#	lotr_dynamic_dragon_attack.0111 - 0113	Attack and outcome
+
 scripted_effect collect_title_for_attack = {
 	if = {
 		limit = { has_title = capital_county.kingdom }
@@ -77,31 +83,73 @@ scripted_effect dragon_destroyed_kingdom = {
 	every_in_list = {
 		list = dragon_amusement_park
 		save_scope_as = county_to_burn
+		holder = { add_to_list = dragon_survivors }
 		every_county_province = {
 			limit = { is_county_capital = no }
 			remove_holding = yes
 		}
 		make_settlement_county_wilderness = { COUNTY = scope:county_to_burn }
 	}
-	if = {
-		limit = { NOT = { title_province = { has_building = dragon_desolation } } }
-		title_province = { add_building = dragon_desolation	}
+	every_in_list = {
+		list = dragon_amusement_park
 		if = {
-			limit = { NOT = { scope:title_to_be_attacked.title_province = { has_building = dragon_den } } }
-			title_province = { add_building = dragon_den }
+			limit = { NOT = { title_province = { has_building = dragon_desolation } } }
+			title_province = { add_building = dragon_desolation	}
+			if = {
+				limit = { NOT = { scope:title_to_be_attacked.title_province = { has_building = dragon_den } } }
+				scope:title_to_be_attacked.title_province = { add_building = dragon_den }
+			}
 		}
+	}
+	random_owned_story = {
+		limit = { story_type = lotr_dynamic_dragon_attack_story }
+		end_story = yes
 	}
 }
 
-lotr_dynamic_dragon_attack.9999 = {
+scripted_effect dragon_defeated = {
+	if = {
+		limit = { NOT = { exists = scope:title_to_be_attacked } }
+		random_title = {
+			limit = {
+				is_target_in_global_variable_list = {
+					name = title_is_dragon_food
+					target = capital_county.kingdom
+				}
+			}
+			save_scope_as = title_to_be_attacked
+		}
+	}
+	create_artifact_dragon_skull_effect = { OWNER = this }
+	dynasty = { add_dynasty_prestige = 1000 }
+	add_prestige = 1500
+	every_held_title = {
+		limit = {
+			is_target_in_global_variable_list = {
+				name = title_is_dragon_food
+				target = scope:title_to_be_attacked
+			}
+		}
+		remove_list_variable = {
+			name = title_is_dragon_food
+			target = scope:title_to_be_attacked
+		}
+	}
+	random_owned_story = {
+		limit = { story_type = lotr_dynamic_dragon_attack_story }
+		end_story = yes
+	}
+}
+
+lotr_dynamic_dragon_attack.0001 = {
 	hidden = yes
 	trigger = {
 		NOT = { exists = global_var:last_great_dragon_passed }
-		NOT = { exists = global_var:colonization_cooldown }
+		NOT = { exists = global_var:dragon_cooldown }
 	}
 	immediate = {
 		set_global_variable = {
-			name = colonization_cooldown
+			name = dragon_cooldown
 			years = 5
 		}
 		random_ruler = {
@@ -110,12 +158,12 @@ lotr_dynamic_dragon_attack.9999 = {
 				capital_county.title_province = { terrain = halls }
 				highest_held_title_tier >= tier_kingdom
 			}
-			trigger_event = lotr_dynamic_dragon_attack.0001
+			trigger_event = lotr_dynamic_dragon_attack.0002
 		}
 	}
 }
 
-lotr_dynamic_dragon_attack.0001 = {
+lotr_dynamic_dragon_attack.0002 = {
 	hidden = yes
 	trigger = {
 		is_landed = yes
@@ -132,25 +180,29 @@ lotr_dynamic_dragon_attack.0001 = {
 					name = title_is_dragon_food
 					target = scope:title_to_be_attacked
 				}
-				trigger_event = lotr_dynamic_dragon_attack.0002
+				trigger_event = lotr_dynamic_dragon_attack.0003
 			}
 		}
 	}
 }
 
-lotr_dynamic_dragon_attack.0002 = {
+lotr_dynamic_dragon_attack.0003 = {
 	content_source = realms_dlc
 	type = character_event
-	title = lotr_dynamic_dragon_attack.0002.t
-	desc = lotr_dynamic_dragon_attack.0002.desc
+	title = lotr_dynamic_dragon_attack.0003.t
+	desc = lotr_dynamic_dragon_attack.0003.desc
 	theme = realm
 	override_background = {
 		reference = throne_room_dwarf
 	}
 
 	option = {
-		name = lotr_dynamic_dragon_attack.0002.a
+		name = lotr_dynamic_dragon_attack.0003.a
 		create_story = lotr_dynamic_dragon_attack_story
+		set_variable = {
+			name = capital
+			value = capital_county
+		}
 	}
 }
 
@@ -179,15 +231,7 @@ lotr_dynamic_dragon_attack.0100 = {
 			paranoid = major_stress_impact_gain
 		}
 		remove_short_term_gold = 2500
-		every_held_title = {
-			limit = {
-				is_target_in_global_variable_list = {
-					name = title_is_dragon_food
-					target = root.capital_county.kingdom
-				}
-			}
-			root.capital_county.kingdom = { set_variable = prepped_1 }
-		}
+		var.capital = { set_variable = prepped_1 }
 
 		ai_chance = {
 			base = 50
@@ -333,15 +377,8 @@ lotr_dynamic_dragon_attack.0101 = {
 					has_trait = shrewd
 				}
 				custom_tooltip = lotr_dynamic_dragon_attack.0101.a.duel_success
+				var.capital = { set_variable = prepped_2 }
 				every_held_title = {
-					limit = {
-						is_target_in_global_variable_list = {
-							name = title_is_dragon_food
-							target = root.capital_county.kingdom
-						}
-					}
-					root.capital_county.kingdom = { set_variable = prepped_2 }
-				}
 				send_interface_toast = {
 					title = lotr_dynamic_dragon_attack.0101.a.duel_success
 					remove_short_term_gold = 2000
@@ -388,15 +425,7 @@ lotr_dynamic_dragon_attack.0101 = {
 						}
 					}
 					1 = {
-						every_held_title = {
-							limit = {
-								is_target_in_global_variable_list = {
-									name = title_is_dragon_food
-									target = root.capital_county.kingdom
-								}
-							}
-							root.capital_county.kingdom = { set_variable = prepped_2 }
-						}
+						var.capital = { set_variable = prepped_2 }
 						send_interface_toast = {
 							title = lotr_dynamic_dragon_attack.0101.a.duel_fail_kinda
 							remove_short_term_gold = 5000
@@ -564,15 +593,7 @@ lotr_dynamic_dragon_attack.0102 = {
 					has_trait = dull
 				}
 				custom_tooltip = lotr_dynamic_dragon_attack.0101.a.duel_success
-				every_held_title = {
-					limit = {
-						is_target_in_global_variable_list = {
-							name = title_is_dragon_food
-							target = root.capital_county.kingdom
-						}
-					}
-					root.capital_county.kingdom = { set_variable = prepped_3 }
-				}
+				var.capital = { set_variable = prepped_3 }
 				send_interface_toast = {
 					title = lotr_dynamic_dragon_attack.0102.a.duel_success
 					remove_short_term_gold = 5000
@@ -616,15 +637,7 @@ lotr_dynamic_dragon_attack.0102 = {
 						}
 					}
 					1 = {
-						every_held_title = {
-							limit = {
-								is_target_in_global_variable_list = {
-									name = title_is_dragon_food
-									target = root.capital_county.kingdom
-								}
-							}
-							root.capital_county.kingdom = { set_variable = prepped_3 }
-						}
+						var.capital = { set_variable = prepped_3 }
 						send_interface_toast = {
 							title = lotr_dynamic_dragon_attack.0102.a.duel_fail_kinda
 							remove_short_term_gold = 8000
@@ -757,6 +770,131 @@ lotr_dynamic_dragon_attack.0110 = { # The Dragon is here
 
 	option = {
 		name = lotr_dynamic_dragon_attack.0110.a
-		#trigger_event = lotr_dynamic_dragon_attack.0111
+		trigger_event = lotr_dynamic_dragon_attack.0111
+	}
+}
+
+lotr_dynamic_dragon_attack.0111 = {
+	content_source = realms_dlc
+	type = character_event
+	title = lotr_dynamic_dragon_attack.0111.t
+	desc = lotr_dynamic_dragon_attack.0111.desc
+	theme = death
+	override_background = {
+		reference = smaug_arrive
+	}
+
+	option = { # Fight
+		name = lotr_dynamic_dragon_attack.0111.a
+		stress_gain_impact = {
+			brave = major_stress_impact_loss
+			ambitious = major_stress_impact_loss
+
+			craven = massive_stress_impact_gain
+		}
+		random_list = {
+			0 = {
+				modifier = { add = defeating_the_dragon_value }
+				show_as_tooltip = { dragon_defeated = yes }
+				custom_tooltip = lotr_dynamic_dragon_attack.0111.a_tt_victory
+				trigger_event = lotr_dynamic_dragon_attack.0112
+			}
+			100 = {
+				modifier = { add = defeating_the_dragon_value.neg }
+				show_as_tooltip = { dragon_destroyed_kingdom = yes }
+				custom_tooltip = lotr_dynamic_dragon_attack.0111.a_tt_defeat
+				add_character_flag = stood_and_fought
+				trigger_event = lotr_dynamic_dragon_attack.0113
+			}
+		}
+	}
+
+	option = { # Flee
+		name = lotr_dynamic_dragon_attack.0111.b
+		stress_gain_impact = {
+			brave = major_stress_impact_gain
+			ambitious = major_stress_impact_gain
+
+			craven = massive_stress_impact_lost
+		}
+		add_prestige = -1500
+		show_as_tooltip = { dragon_destroyed_kingdom = yes }
+		trigger_event = lotr_dynamic_dragon_attack.0113
+	}
+}
+
+lotr_dynamic_dragon_attack.0112 = {
+	content_source = realms_dlc
+	type = character_event
+	title = lotr_dynamic_dragon_attack.0112.t
+	desc = lotr_dynamic_dragon_attack.0112.desc
+	theme = realm
+	override_background = {
+		reference = throne_room_dwarf
+	}
+
+	immediate = {
+		dragon_defeated = yes
+	}
+
+	option = {
+		name = lotr_dynamic_dragon_attack.0112.a
+	}
+}
+
+lotr_dynamic_dragon_attack.0113 = {
+	content_source = realms_dlc
+	type = character_event
+	title = lotr_dynamic_dragon_attack.0113.t
+	desc = lotr_dynamic_dragon_attack.0113.desc
+	theme = realm
+	override_background = {
+		reference = throne_room_dwarf
+	}
+
+	immediate = {
+		dragon_destroyed_kingdom = yes
+	}
+
+	option = {
+		name = lotr_dynamic_dragon_attack.0113.a
+
+		#Makes LAAMPs if unlanded
+		if = {
+			limit = {
+				is_ai = no
+				has_ep3_dlc_trigger = yes
+				any_held_county = {
+					NOT = { kingdom = scope:title_to_be_attacked }
+				}
+			}
+			hidden_effect = {
+				create_landless_adventurer_title_effect = {
+					REASON = flag:wanderer
+					FLAVOR_CHAR = root
+				}
+
+				scope:new_landless_adventurer_title ?= {
+					set_coa = holder.house
+				}
+				every_in_list = {
+					list = dragon_survivors
+					save_scope_as = dragon_survivor
+					hidden_effect = {
+						add_to_court_and_entourage_effect = yes
+					}
+					show_as_tooltip = {
+						root = { add_courtier = scope:dragon_survivor }
+					}
+				}
+			}
+		}
+		if = {
+			limit = { has_character_flag = stood_and_fought }
+			random = {
+				chance = 5
+				death = { death_reason = death_burned }
+			}
+		}
 	}
 }
