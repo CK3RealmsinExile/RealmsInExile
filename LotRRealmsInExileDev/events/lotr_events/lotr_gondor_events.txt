@@ -1147,12 +1147,10 @@ gondor.0502 = { # Aragorn is allowed into Minas Tirith and is coronated
 		set_global_variable = gondor_has_a_king
 
 		scope:gondor_steward = { # Aragorn inherits the royal artifacts from the steward and the Steward gets his Black Chair Replica
-			# create_artifact_black_chair_replica_effect = { OWNER = this }
 			every_character_artifact = {
 				limit = {
 					OR = {
 						has_variable = palantir_minasanor
-						#has_variable = black_chair_stewards
 						has_variable = throne_of_gondor
 					}
 				}
@@ -1175,29 +1173,26 @@ gondor.0502 = { # Aragorn is allowed into Minas Tirith and is coronated
 				}
 				set_variable = steward_heirloom
 			}
-		}
-
-
-		scope:gondor_steward = { # Steward transfers all of his personal MAA to Aragorn
+			#Saving the tributaries
+			every_tributary = {
+				if = {
+					limit = { has_subject_contract_group = tributary_protectorate }
+					add_to_list = protectorates
+				}
+				else_if = {
+					limit = { subject_contract_has_flag = has_ranger_camp_contract }
+					add_to_list = rangers
+				}
+				else = {
+					add_to_list = tributaries
+				}
+			}
+			# Steward transfers all of his personal MAA to Aragorn
 			lotr_transfer_all_maa_regiments = {
 				NEW_OWNER = root
 			}
 		}
 
-		hidden_effect = { # Tributary Management
-			scope:gondor_steward = {
-				if = { # Handling of death of suzerain
-					limit = {
-						this = {
-							exists = var:suzerain
-						}
-					}
-					every_tributary = {
-						end_tributary = yes
-					}
-				}
-			}
-		}
 		set_culture = culture:gondorian
 		create_title_and_vassal_change = {
 			type = returned
@@ -1235,6 +1230,29 @@ gondor.0502 = { # Aragorn is allowed into Minas Tirith and is coronated
 						}
 					}
 				}
+			}
+		}
+
+		# Transferring tributaries to the King
+		every_in_list = {
+			list = protectorates
+			start_tributary = {
+				contract_group = tributary_protectorate
+				suzerain = root
+			}
+		}
+		every_in_list = {
+			list = rangers
+			offer_fealty_ranger_interaction_effect = {
+                TRIBUTARY = this
+                SUZERAIN = root
+            }
+		}
+		every_in_list = {
+			list = tributaries
+			start_tributary_interaction_effect = {
+				TRIBUTARY = this
+				SUZERAIN = root
 			}
 		}
 
@@ -9130,6 +9148,44 @@ gondor.2800 = { # Invite elves to Edhellond
 			age = { 100 6950 }
 			random_traits = yes
 		}
+
+		# De jure and vassal shifts to make sure the Elves don't get caught in a revocation cycle
+		title:c_pind_rusc = { set_de_jure_liege_title = title:d_anfalas }
+		title:c_cobas = { set_de_jure_liege_title = title:d_anfalas }
+		hidden_effect = {
+			create_title_and_vassal_change = {
+				type = granted
+				save_scope_as = change
+				add_claim_on_loss = no
+			}
+			title:d_edhellond.holder = {
+				change_liege = {
+					liege = root
+					change = scope:change
+				}
+			}
+			resolve_title_and_vassal_change = scope:change
+			
+			# Get rid of any remaining human claims 
+			title:d_edhellond = {
+				every_claimant = {
+					limit = { is_human = yes }
+					remove_claim = title:d_edhellond 
+				}
+			}
+			title:c_edhellond = {
+				every_claimant = {
+					limit = { is_human = yes }
+					remove_claim = title:c_edhellond 
+				}
+			}
+			title:c_edhellond_2 = {
+				every_claimant = {
+					limit = { is_human = yes }
+					remove_claim = title:c_edhellond_2 
+				}
+			}
+		}
 	}
 }
 
@@ -9454,15 +9510,9 @@ gondor.2900 = { # Maintenance event to start the combination of Bellakar x Gondo
 				}
 			}
 		}
-		trigger_if = {
+		trigger_if = { # The RK exists and is married into the Tumakveh
 			limit = {
-				AND = {
-					exists = title:h_reunited_kingdom.holder
-					is_target_in_global_variable_list = {
-						name = unavailable_unique_decisions
-						target = flag:decision_solidify_reunited_kingdom
-					}
-				}
+				exists = title:h_reunited_kingdom.holder
 			}
 			title:h_reunited_kingdom.holder ?= {
 				OR = {
@@ -9479,39 +9529,30 @@ gondor.2900 = { # Maintenance event to start the combination of Bellakar x Gondo
 				}
 			}
 		}
-		trigger_else = {
-			title:e_gondor.holder ?= {
-				OR = {
-					primary_heir = {
-						any_parent = {
-							even_if_dead = yes
-							dynasty ?=  dynasty:dynasty_tumakveh
-						}
-					}
-					any_ancestor = {
-						even_if_dead = yes
-						dynasty ?= dynasty:dynasty_tumakveh
-					}
-				}
-			}
-		}
+#		trigger_else = { # Outdated code - event now requires RK hegemony
+#			title:e_gondor.holder ?= {
+#				OR = {
+#					primary_heir = {
+#						any_parent = {
+##							even_if_dead = yes
+#							dynasty ?=  dynasty:dynasty_tumakveh
+#						}
+#					}
+#					any_ancestor = {
+#						even_if_dead = yes
+#						dynasty ?= dynasty:dynasty_tumakveh
+#					}
+#				}
+#			}
+#		}
 	}
 
 	immediate = {
 		if = {
 			limit = {
-				AND = {
-					exists = title:h_reunited_kingdom.holder
-					is_target_in_global_variable_list = {
-						name = unavailable_unique_decisions
-						target = flag:decision_solidify_reunited_kingdom
-					}
-				}
+				exists = title:h_reunited_kingdom.holder			
 			}
 			title:h_reunited_kingdom = { save_scope_as = gondor_title }
-		}
-		else = {
-			title:e_gondor = { save_scope_as = gondor_title }
 		}
 		if = {
 			limit = {
@@ -10307,7 +10348,10 @@ gondor.3800 = { #Return of the King - Long Winter edition
 		}
 
 		get_title = title:e_arnor
-		set_realm_capital = title:c_minas_tirith
+		if = {
+			limit = { this = title:c_minas_tirith.holder.top_liege }
+			set_realm_capital = title:c_minas_tirith
+		}
 
 		hidden_effect = {
 			scope:gondor_steward = {
