@@ -1147,12 +1147,10 @@ gondor.0502 = { # Aragorn is allowed into Minas Tirith and is coronated
 		set_global_variable = gondor_has_a_king
 
 		scope:gondor_steward = { # Aragorn inherits the royal artifacts from the steward and the Steward gets his Black Chair Replica
-			# create_artifact_black_chair_replica_effect = { OWNER = this }
 			every_character_artifact = {
 				limit = {
 					OR = {
 						has_variable = palantir_minasanor
-						#has_variable = black_chair_stewards
 						has_variable = throne_of_gondor
 					}
 				}
@@ -1175,29 +1173,26 @@ gondor.0502 = { # Aragorn is allowed into Minas Tirith and is coronated
 				}
 				set_variable = steward_heirloom
 			}
-		}
-
-
-		scope:gondor_steward = { # Steward transfers all of his personal MAA to Aragorn
+			#Saving the tributaries
+			every_tributary = {
+				if = {
+					limit = { has_subject_contract_group = tributary_protectorate }
+					add_to_list = protectorates
+				}
+				else_if = {
+					limit = { subject_contract_has_flag = has_ranger_camp_contract }
+					add_to_list = rangers
+				}
+				else = {
+					add_to_list = tributaries
+				}
+			}
+			# Steward transfers all of his personal MAA to Aragorn
 			lotr_transfer_all_maa_regiments = {
 				NEW_OWNER = root
 			}
 		}
 
-		hidden_effect = { # Tributary Management
-			scope:gondor_steward = {
-				if = { # Handling of death of suzerain
-					limit = {
-						this = {
-							exists = var:suzerain
-						}
-					}
-					every_tributary = {
-						end_tributary = yes
-					}
-				}
-			}
-		}
 		set_culture = culture:gondorian
 		create_title_and_vassal_change = {
 			type = returned
@@ -1235,6 +1230,29 @@ gondor.0502 = { # Aragorn is allowed into Minas Tirith and is coronated
 						}
 					}
 				}
+			}
+		}
+
+		# Transferring tributaries to the King
+		every_in_list = {
+			list = protectorates
+			start_tributary = {
+				contract_group = tributary_protectorate
+				suzerain = root
+			}
+		}
+		every_in_list = {
+			list = rangers
+			offer_fealty_ranger_interaction_effect = {
+                TRIBUTARY = this
+                SUZERAIN = root
+            }
+		}
+		every_in_list = {
+			list = tributaries
+			start_tributary_interaction_effect = {
+				TRIBUTARY = this
+				SUZERAIN = root
 			}
 		}
 
@@ -6835,15 +6853,14 @@ gondor.2300 = { # Reclamation of Minas Ithil, corruption festers
 		animation = fear
 	}
 
-	cooldown = { years = 10 }
+	cooldown = { days = 5 }
 
 	trigger = {
-		NOT = { religion = { is_in_family = rf_forcesofevil } }
+		faith_is_evil = no
 		has_title = title:c_minas_ithil
 		title:c_minas_ithil = {
 			has_county_modifier = morgul_corruption_modifier
 		}
-		NOT = {	has_character_flag = had_event_minas_ithil_reclamation }
 	}
 
 	immediate = { play_music_cue = lotr_cue_gondor }
@@ -6857,7 +6874,7 @@ gondor.2300 = { # Reclamation of Minas Ithil, corruption festers
 				years = 50
 			}
 			hidden_effect = {
-				title:c_osgiliath.holder = {
+				title:c_minas_ithil.holder.top_overlord = {
 					trigger_event = {
 						id = gondor.2301 # Minas Ithil Purified
 						years = 50
@@ -6865,7 +6882,6 @@ gondor.2300 = { # Reclamation of Minas Ithil, corruption festers
 				}
 			}
 		}
-		add_character_flag = had_event_minas_ithil_reclamation
 	}
 }
 
@@ -6885,15 +6901,19 @@ gondor.2301 = { # Minas Ithil purified
 	immediate = { play_music_cue = lotr_cue_gondor }
 
 	trigger = {
-		NOT = { religion = { is_in_family = rf_forcesofevil } }
-		has_title = title:c_minas_ithil
+		faith_is_evil = no
+		any_vassal_or_below = {
+			this = title:c_minas_ithil.holder
+		}
+		title:c_minas_ithil = {
+			NOR = { 
+				has_county_modifier = morgul_corruption_modifier
+				has_county_modifier = fading_morgul_corruption_modifier
+			}
+		}
 	}
 	option = { # The Witch-King's shadow ends
 		name = gondor.2301.a
-		# title:c_minas_ithil = { # Ithilien culture doesn't exists anymore
-		# 	set_county_culture = culture:culture_ithilien
-		# 	set_county_faith = root
-		# }
 		add_piety = 1000
 		hidden_effect = {
 			add_to_global_variable_list = {
@@ -8585,7 +8605,6 @@ gondor.2800 = { # Invite elves to Edhellond
 					location = root.capital_province
 					culture = culture:galadhrim
 					faith = faith:faith_eldar
-					gender = male
 					age = { 100 6950 }
 					#random_traits = yes
 					trait = education_learning_4
@@ -8603,9 +8622,9 @@ gondor.2800 = { # Invite elves to Edhellond
 
 					gender_female_chance = 50
 					save_scope_as = elf_lothlorien
-				}
-				scope:elf_lothlorien = { # Theres an error showing up in error log for the replace_unelven_traits effect, maybe talk to Brice/Jamie, not sure why there is an error
-					replace_unelven_traits = yes
+					after_creation = {
+						scope:elf_lothlorien = { replace_unelven_traits = yes }
+					}
 				}
 			}
 			if = { # Greenwood
@@ -8619,7 +8638,6 @@ gondor.2800 = { # Invite elves to Edhellond
 					location = root.capital_province
 					culture = culture:lasgalendrim
 					faith = faith:faith_eldar
-					gender = male
 					age = { 100 6950 }
 					#random_traits = yes
 					trait = education_diplomacy_4
@@ -8637,9 +8655,9 @@ gondor.2800 = { # Invite elves to Edhellond
 
 					gender_female_chance = 50
 					save_scope_as = elf_lasgalen
-				}
-				scope:elf_lasgalen = {
-					replace_unelven_traits = yes
+					after_creation = {
+						scope:elf_lasgalen = { replace_unelven_traits = yes }
+					}
 				}
 			}
 			if = { # Falathrim
@@ -8653,7 +8671,6 @@ gondor.2800 = { # Invite elves to Edhellond
 					location = root.capital_province
 					culture = culture:falathrim
 					faith = faith:faith_eldar
-					gender = male
 					age = { 100 6950 }
 					#random_traits = yes
 					trait = education_stewardship_4
@@ -8670,9 +8687,9 @@ gondor.2800 = { # Invite elves to Edhellond
 
 					gender_female_chance = 50
 					save_scope_as = elf_falathrim
-				}
-				scope:elf_falathrim = {
-					replace_unelven_traits = yes
+					after_creation = {
+						scope:elf_falathrim = { replace_unelven_traits = yes }
+					}
 				}
 			}
 			if = { # Noldor
@@ -8686,7 +8703,6 @@ gondor.2800 = { # Invite elves to Edhellond
 					location = root.capital_province
 					culture = culture:noldor
 					faith = faith:faith_eldar
-					gender = male
 					age = { 100 6950 }
 					#random_traits = yes
 					trait = education_martial_4
@@ -8703,9 +8719,9 @@ gondor.2800 = { # Invite elves to Edhellond
 
 					gender_female_chance = 50
 					save_scope_as = elf_noldor
-				}
-				scope:elf_noldor = {
-					replace_unelven_traits = yes
+					after_creation = {
+						scope:elf_noldor = { replace_unelven_traits = yes }
+					}
 				}
 			}
 			if = { # Penni
@@ -8719,7 +8735,6 @@ gondor.2800 = { # Invite elves to Edhellond
 					location = root.capital_province
 					culture = culture:penni
 					faith = faith:faith_penni
-					gender = male
 					age = { 100 6950 }
 					#random_traits = yes
 					trait = education_intrigue_4
@@ -8737,9 +8752,9 @@ gondor.2800 = { # Invite elves to Edhellond
 
 					gender_female_chance = 50
 					save_scope_as = elf_penni
-				}
-				scope:elf_penni = {
-					replace_unelven_traits = yes
+					after_creation = {
+						scope:elf_penni = { replace_unelven_traits = yes }
+					}
 				}
 			}
 		}
@@ -8895,7 +8910,7 @@ gondor.2800 = { # Invite elves to Edhellond
 		name = gondor.2800.c
 		custom_tooltip = gondor.2800.c_tt
 		trigger = {
-			title:k_nelornieth.holder = {
+			title:e_lindon.holder = {
 				has_relation_friend = root
 			}
 		}
@@ -8992,11 +9007,6 @@ gondor.2800 = { # Invite elves to Edhellond
 			set_county_faith = scope:elf_noldor.faith
 		}
 
-		title:c_edhellond = {
-			set_county_culture = scope:elf_noldor.culture
-			set_county_faith = scope:elf_noldor.faith
-		}
-
 		scope:elf_noldor = {
 			add_opinion = {
 				target = root
@@ -9063,10 +9073,6 @@ gondor.2800 = { # Invite elves to Edhellond
 			set_county_faith = scope:elf_penni.faith
 		}
 
-		title:c_edhellond = {
-			set_county_culture = scope:elf_penni.culture
-			set_county_faith = scope:elf_penni.faith
-		}
 
 		scope:elf_penni = {
 			add_opinion = {
@@ -9104,35 +9110,81 @@ gondor.2800 = { # Invite elves to Edhellond
 		# Some elven characters to make sure the elf has some nice courtiers
 		create_character = {
 			employer = title:c_edhellond.holder
-			culture = culture:lasgalendrim
-			faith = faith:faith_eldar
-			gender = female
+			faith = title:c_edhellond.holder.faith
+			culture = title:c_edhellond.holder.culture
+			gender_female_chance = 50
 			age = { 100 6950 }
 			random_traits = yes
 		}
 		create_character = {
 			employer = title:c_edhellond.holder
-			culture = culture:galadhrim
-			faith = faith:faith_eldar
-			gender = female
+			faith = title:c_edhellond.holder.faith
+			culture = title:c_edhellond.holder.culture
+			gender_female_chance = 50
 			age = { 100 6950 }
 			random_traits = yes
 		}
 		create_character = {
 			employer = title:c_edhellond.holder
-			culture = culture:noldor
-			faith = faith:faith_eldar
-			gender = male
+			faith = title:c_edhellond.holder.faith
+			culture = title:c_edhellond.holder.culture
+			gender_female_chance = 50
 			age = { 100 6950 }
 			random_traits = yes
 		}
 		create_character = {
 			employer = title:c_edhellond.holder
-			culture = culture:penni
-			faith = faith:faith_penni
-			gender = male
+			faith = title:c_edhellond.holder.faith
+			culture = title:c_edhellond.holder.culture
+			gender_female_chance = 50
 			age = { 100 6950 }
 			random_traits = yes
+		}
+		create_character = {
+			employer = title:c_edhellond.holder
+			faith = title:c_edhellond.holder.faith
+			culture = title:c_edhellond.holder.culture
+			gender_female_chance = 50
+			age = { 100 6950 }
+			random_traits = yes
+		}
+
+		# De jure and vassal shifts to make sure the Elves don't get caught in a revocation cycle
+		title:c_pind_rusc = { set_de_jure_liege_title = title:d_anfalas }
+		title:c_cobas = { set_de_jure_liege_title = title:d_anfalas }
+		hidden_effect = {
+			create_title_and_vassal_change = {
+				type = granted
+				save_scope_as = change
+				add_claim_on_loss = no
+			}
+			title:d_edhellond.holder = {
+				change_liege = {
+					liege = root
+					change = scope:change
+				}
+			}
+			resolve_title_and_vassal_change = scope:change
+			
+			# Get rid of any remaining human claims 
+			title:d_edhellond = {
+				every_claimant = {
+					limit = { is_human = yes }
+					remove_claim = title:d_edhellond 
+				}
+			}
+			title:c_edhellond = {
+				every_claimant = {
+					limit = { is_human = yes }
+					remove_claim = title:c_edhellond 
+				}
+			}
+			title:c_edhellond_2 = {
+				every_claimant = {
+					limit = { is_human = yes }
+					remove_claim = title:c_edhellond_2 
+				}
+			}
 		}
 	}
 }
@@ -9201,7 +9253,7 @@ gondor.2801 = { # Gondor elevates Edhellond into a kingdom, maybe add a choice t
 		resolve_title_and_vassal_change = scope:change
 
 		title:k_edhellond = {
-			set_de_jure_liege_title = root.top_liege.primary_title
+			set_de_jure_liege_title = title:k_anfalas.empire # Perhaps title:d_edhellond.empire, but that's prob trying to hard and more likely to cause issues due to ordering.
 		}
 		title:d_edhellond = {
 			set_de_jure_liege_title = title:k_edhellond
@@ -9417,133 +9469,7 @@ gondor.2804 = {
 	}
 }
 
-gondor.2900 = { # Maintenance event to start the combination of Bellakar x Gondor
-	orphan = no # referenced in yearly_on_actions
-	hidden = yes
-
-	trigger = {
-		NOT = {
-			OR = {
-				has_title = title:e_gondor
-				has_title = title:h_reunited_kingdom
-			}
-			has_title = title:e_bellakar
-		}
-		NOT = {
-			is_target_in_global_variable_list = { # Event chain has not yet started (Need this so it only fires once)
-				name = unavailable_unique_decisions
-				target = flag:gondor_x_bellakar_event_chain
-			}
-		}
-		is_target_in_global_variable_list = { # Mordor has been destroyed
-			name = unavailable_unique_decisions
-			target = flag:mordor_is_destroyed_by_gondor
-		}
-		trigger_if = {
-			limit = {
-				exists = title:h_pharazain.holder
-			}
-			title:h_pharazain.holder = {
-				OR = {
-					is_allied_to = title:e_gondor.holder
-					is_allied_to = title:h_reunited_kingdom.holder
-				}
-			}
-		}
-		trigger_else = {
-			title:e_bellakar.holder = {
-				OR = {
-					is_allied_to = title:e_gondor.holder
-					is_allied_to = title:h_reunited_kingdom.holder
-				}
-			}
-		}
-		trigger_if = {
-			limit = {
-				AND = {
-					exists = title:h_reunited_kingdom.holder
-					is_target_in_global_variable_list = {
-						name = unavailable_unique_decisions
-						target = flag:decision_solidify_reunited_kingdom
-					}
-				}
-			}
-			title:h_reunited_kingdom.holder ?= {
-				OR = {
-					primary_heir = {
-						any_parent = {
-							even_if_dead = yes
-							dynasty ?= dynasty:dynasty_tumakveh
-						}
-					}
-					any_ancestor = {
-						even_if_dead = yes
-						dynasty ?= dynasty:dynasty_tumakveh
-					}
-				}
-			}
-		}
-		trigger_else = {
-			title:e_gondor.holder ?= {
-				OR = {
-					primary_heir = {
-						any_parent = {
-							even_if_dead = yes
-							dynasty ?=  dynasty:dynasty_tumakveh
-						}
-					}
-					any_ancestor = {
-						even_if_dead = yes
-						dynasty ?= dynasty:dynasty_tumakveh
-					}
-				}
-			}
-		}
-	}
-
-	immediate = {
-		if = {
-			limit = {
-				AND = {
-					exists = title:h_reunited_kingdom.holder
-					is_target_in_global_variable_list = {
-						name = unavailable_unique_decisions
-						target = flag:decision_solidify_reunited_kingdom
-					}
-				}
-			}
-			title:h_reunited_kingdom = { save_scope_as = gondor_title }
-		}
-		else = {
-			title:e_gondor = { save_scope_as = gondor_title }
-		}
-		if = {
-			limit = {
-				exists = title:h_pharazain.holder
-			}
-			title:h_pharazain = { save_scope_as = bellakar_title }
-		}
-		else = {
-			title:e_bellakar = { save_scope_as = bellakar_title }
-		}
-		scope:bellakar_title.holder = { trigger_event = bellakar.0200 }
-
-		add_to_global_variable_list = { # To stop this event chain from happening again
-			name = unavailable_unique_decisions
-			target = flag:gondor_x_bellakar_event_chain
-		}
-
-		if = {
-			limit = {
-				exists = title:k_felaya.holder
-				title:k_felaya.holder.top_liege.primary_title = {
-					tier <= tier_kingdom
-				}
-			}
-			title:k_felaya.holder = { trigger_event = bellakar.0208 }
-		}
-	}
-}
+#gondor.2900 was a maintenance event - it has been cut in favour of a decision
 
 gondor.2901 = { # Initial event in Uniting Faithful realms chain
 	content_source = realms_dlc
@@ -9555,24 +9481,32 @@ gondor.2901 = { # Initial event in Uniting Faithful realms chain
 	override_background = { reference = minas_tirith }
 
 	right_portrait = {
-		character = scope:gondor_title.holder
+		character = root
 		animation = personality_honorable
 	}
 
 	left_portrait = {
-		character = scope:bellakar_title.holder
+		character = scope:high_king_of_bellakar
 		animation = personality_content
 	}
 
-	immediate = { title:k_felaya.holder ?= { save_scope_as = king_of_felaya } }
+	immediate = { 
+		title:k_felaya.holder ?= { save_scope_as = king_of_felaya } 
+		title:e_bellakar.holder ?= {save_scope_as = high_king_of_bellakar}
+		add_character_flag = gondor_2901_no_repeats
+	}
+
+	trigger = {
+		NOT = {has_character_flag = gondor_2901_no_repeats}
+	}
 
 	option = { # Gives Bellakar choice on whether it wants to unite
 		name = gondor.2901.a
 
-		scope:bellakar_title.holder = {
+		scope:high_king_of_bellakar = {
 			trigger_event = {
 				id = bellakar.0202
-				days = { 15 30 }
+				days = 1
 			}
 		}
 
@@ -9587,36 +9521,6 @@ gondor.2901 = { # Initial event in Uniting Faithful realms chain
 			modifier = { # Game Rule
 				has_game_rule = weighted_ai_behavior
 				add = 70
-			}
-
-			modifier = { # Game Rule
-				has_game_rule = random_ai_behavior
-				add = 50
-			}
-		}
-	}
-
-	option = { # Nothing happens, Gondor rescinds its claim on bellakar
-		name = gondor.2901.b
-
-		scope:bellakar_title.holder = {
-			trigger_event = {
-				id = bellakar.0203
-				days = { 15 30 }
-			}
-		}
-
-		ai_chance = {
-			base = 0 # LotR: This should be tied to WotR mode.
-
-			modifier = { # Game Rule
-				has_game_rule = default_ai_behavior
-				add = 0
-			}
-
-			modifier = { # Game Rule
-				has_game_rule = weighted_ai_behavior
-				add = 30
 			}
 
 			modifier = { # Game Rule
@@ -9665,7 +9569,12 @@ gondor.2902 = { # Gondor gets option to ask Felaya to join them as-well IF FELAY
 
 	immediate = {
 		title:k_felaya.holder ?= { save_scope_as = king_of_felaya }
+		add_character_flag = gondor_2902_no_repeats
 	}
+
+	trigger = {
+		NOT = {has_character_flag = gondor_2902_no_repeats}
+	}	
 
 	option = { # Ask them to join you
 		name = gondor.2902.a
@@ -10311,7 +10220,10 @@ gondor.3800 = { #Return of the King - Long Winter edition
 		}
 
 		get_title = title:e_arnor
-		set_realm_capital = title:c_minas_tirith
+		if = {
+			limit = { this = title:c_minas_tirith.holder.top_liege }
+			set_realm_capital = title:c_minas_tirith
+		}
 
 		hidden_effect = {
 			scope:gondor_steward = {
