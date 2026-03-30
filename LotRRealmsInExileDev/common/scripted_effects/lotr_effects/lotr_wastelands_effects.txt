@@ -62,8 +62,8 @@ make_settlement_county_wilderness = {
 			resolve_title_and_vassal_change = scope:change
 			set_county_faith = faith:faith_wastelands_pagan
 			set_county_culture = culture:wastelands
-			generate_coa = yes
 
+			lotr_reset_or_generate_coa = yes
 		}
 		every_county_province = {
 			limit = {
@@ -154,6 +154,16 @@ empty_foreign_visitors_to_wastelands_effect = {
 				fallback_move_to_pool_effect = yes
 			}
 		}
+	}
+}
+
+lotr_reset_or_generate_coa = {
+	if = {
+		limit = { has_user_set_coa = yes }
+		reset_coa = yes
+	}
+	else = {
+		generate_coa = yes
 	}
 }
 
@@ -251,7 +261,7 @@ ai_colonisation_effect = {
 	resolve_title_and_vassal_change = scope:change
 
 	scope:wastelands_holder_title = {
-		generate_coa = yes
+		lotr_reset_or_generate_coa = yes
 		#set_color_from_title = scope:wastelands_holder_title.de_jure_liege
 		scope:wastelands_holder_title = { # Swap holding type to settlement holding as soon as county is colonised
 			every_county_province = {
@@ -270,18 +280,25 @@ ai_colonisation_effect = {
 				remove_holding = yes
 			}
 			every_county_province = {
-				barony = { generate_coa = yes }
+				barony = { lotr_reset_or_generate_coa = yes }
 			}
 		}
 	}
 
-	scope:wastelands_holder_title.holder = {
+	scope:new_holder = {
 		if = {
-			limit = { NOT = { any_owned_story = { story_type = story_conqueror } } NOT = { has_character_flag = dwarf_in_moria } this = character:k_wastelands_holder }
+			limit = { 
+				NOT = { any_owned_story = { story_type = story_conqueror } } 
+				NOT = { has_character_flag = dwarf_in_moria } 
+				this = character:k_wastelands_holder 
+			}
 			hidden_effect = { remove_short_term_gold = colonise_cost_val }
 		}
 		else_if = {
-			limit = { NOT = { any_owned_story = { story_type = story_conqueror } } NOT = { has_character_flag = dwarf_in_moria } }
+			limit = { 
+				NOT = { any_owned_story = { story_type = story_conqueror } } 
+				NOT = { has_character_flag = dwarf_in_moria } 
+			}
 			remove_short_term_gold = colonise_cost_val
 		}
 		if = {
@@ -440,14 +457,105 @@ correct_wastelands_tracker = {
 	}
 }
 
-cleanup_cleared_blockers_effect = {
-	county.title_province = {
-		save_scope_as = obstacle_province
-	}
+delayed_blockers_cleanup_effect = { # In DAYS days, check if there are still any cleared blockers to be removed
+	save_scope_as = obstacle_province
 	county.holder = {
 		trigger_event = {
-			id = wastelands.9000
-			days = 2
+			id = wastelands.0100
+			days = $DAYS$
+		}
+	}
+}
+
+remove_cleaned_blockers_effect = { # Immediately remove any cleared blockers in this province scope
+	save_scope_as = obstacle_province
+	if = {
+		limit = { has_building_with_flag = obstacle_cleared } #Juke note: Checking for flag so it throws errors if blockers with that flag are missing here
+		switch = { # Add any new wasteland blockers here
+			trigger = has_building
+			spider_nest_cleared = { remove_building = spider_nest_cleared }
+			scorpion_bed_cleared = { remove_building = scorpion_bed_cleared }
+			wolf_den_cleared = { remove_building = wolf_den_cleared }
+			bear_den_cleared = { remove_building = bear_den_cleared }
+			troll_cave_cleared = { remove_building = troll_cave_cleared }
+			ghosts_cleared = { remove_building = ghosts_cleared }
+			ghosts_eregion_cleared = { remove_building = ghosts_eregion_cleared }
+			barrow_wights_cleared = { remove_building = barrow_wights_cleared }
+			ghosts_ost_in_edhil_cleared  = { remove_building = ghosts_ost_in_edhil_cleared  }
+			dragon_attack_cleared = { remove_building = dragon_attack_cleared }
+			flooded_lands_cleared = { remove_building = flooded_lands_cleared }
+			bandits_cleared = { remove_building = bandits_cleared }
+			wild_orcs_cleared = { remove_building = wild_orcs_cleared }
+			dense_growth_cleared = { remove_building = dense_growth_cleared }
+			dead_marshes_cleared = { remove_building = dead_marshes_cleared }
+			frozen_ground_cleared = { remove_building = frozen_ground_cleared }
+			pirate_remnants_cleared = { remove_building = pirate_remnants_cleared }
+			shadow_of_mordor_cleared = { remove_building = shadow_of_mordor_cleared }
+			smaug_desolation_cleared = { remove_building = smaug_desolation_cleared }
+			smaug_cleared = { remove_building = smaug_cleared }
+			collapsed_ceiling_cleared = { remove_building = collapsed_ceiling_cleared }
+			flooded_tunnels_cleared = { remove_building = flooded_tunnels_cleared }
+			flooded_tunnels_nogrod_cleared = { remove_building = flooded_tunnels_nogrod_cleared }
+			stale_air_cleared = { remove_building = stale_air_cleared }
+			strange_creatures_cleared = { remove_building = strange_creatures_cleared }
+		}
+
+		if = { # Colony Blocker Cleared in Moria Catalyst
+			limit = {
+				county.holder = {
+					any_character_struggle = {
+						involvement = involved
+						phase_has_catalyst = catalyst_cleared_blocker_in_moria
+					}
+					NOT = { has_character_flag = immune_from_balrog_building_anger }
+				}
+				geographical_region = middleearth_mountains_misty_balrog_struggle_region
+			}
+			county.holder = { save_scope_as = colony_holder }
+			scope:colony_holder = {
+				every_character_struggle = {
+					involvement = involved
+					activate_struggle_catalyst = {
+						catalyst = catalyst_cleared_blocker_in_moria
+						character = scope:colony_holder
+					}
+				}
+			}
+		}
+	}
+}
+
+upgrade_colony_holding_struggle_catalyst_effect = { # Balrog Struggle
+	#save the county holder as the character in case the construction wasn't started through GUI or by the AI 
+	if = {
+		limit = {
+			NOT = { exists = scope:character }
+		}
+		root.county.holder = {
+			save_scope_as = character
+		}
+	}
+	if = { # Juke note: Here instead of lotr_on_building_completed because we cannot scope to a specific building type
+		# This catalyst should fire when upgrading settlements to holding lvl 2 or 3
+		# There is a separate catalyst for starting a new colony, and none for finishing a colony
+		limit = {
+			scope:character = {
+				any_character_struggle = {
+					involvement = involved
+					phase_has_catalyst = catalyst_upgraded_colony_in_moria
+				}
+				NOT = { has_character_flag = immune_from_balrog_building_anger }
+			}
+			geographical_region = middleearth_mountains_misty_balrog_struggle_region
+		}
+		scope:character = {
+			every_character_struggle = {
+				involvement = involved
+				activate_struggle_catalyst = {
+					catalyst = catalyst_upgraded_colony_in_moria
+					character = scope:character
+				}
+			}
 		}
 	}
 }
@@ -455,23 +563,25 @@ cleanup_cleared_blockers_effect = {
 lotr_upgrade_settlement_to_full_holding_effect = {
 	$COUNTY$ = { save_scope_as = target_county }
 
-	scope:target_county = {
+	scope:target_county = {		
 		if = {
 			limit = { holder = { is_elf = yes } }
 			title_province = { set_holding_type = elven_holding }
-		} else_if = {
+		}
+		else_if = {
 			limit = { title_province = { terrain = halls } }
 			title_province = { set_holding_type = dwarven_holding }
-		} else_if = {
+		}
+		else_if = {
 			limit = { holder = { is_hobbit = yes } }
 			title_province = { set_holding_type = city_holding }
-		} else = {
-			if = {
-				limit = { holder = { has_government = tribal_government } }
-				title_province = { set_holding_type = tribal_holding }
-			} else = {
-				title_province = { set_holding_type = castle_holding }
-			}
+		}
+		else_if = {
+			limit = { holder = { has_government = tribal_government } }
+			title_province = { set_holding_type = tribal_holding }
+		}
+		else = {
+			title_province = { set_holding_type = castle_holding }
 		}
 	}
 }
@@ -533,7 +643,7 @@ pirate_adventurer_start_war_effect = {
 	}
 	resolve_title_and_vassal_change = scope:change
 	scope:new_title = {
-		generate_coa = yes
+		lotr_reset_or_generate_coa = yes
 		set_variable = {
 			name = temporary_title
 			value = yes
@@ -806,7 +916,7 @@ set_every_county_wilderness = {
 			set_county_faith = faith:faith_wastelands_pagan
 			set_county_culture = culture:wastelands
 			change_development_level = -100
-			generate_coa = yes
+			lotr_reset_or_generate_coa = yes
 
 			if = {
 				limit = {
@@ -912,7 +1022,7 @@ canon_area_empires = {
 						geographical_region = middleearth_forodwaith
 						geographical_region = middleearth_harad_near
 						geographical_region = middleearth_mordor
-						geographical_region = middleearth_rhun_dorwinion
+						geographical_region = middleearth_west_rhovanion_dorwinion
 						geographical_region = middleearth_rhun_seaofrhun
 						geographical_region = middleearth_rhun_khand
 						geographical_region = middleearth_rhun_nurunkizdin

@@ -18,19 +18,20 @@ establish_defensive_alliance_interaction = {
 
 	is_shown = {
 		scope:actor = { 
+			is_ruler = yes
 			is_wastelands = no
 			is_sauron = no
 			is_nazgul = no
 			has_perk = defensive_negotiations_perk
 			has_defensive_alliance = no
-			is_ruler = yes
 			is_in_valinor = no
+			top_overlord != scope:recipient
 		}
 		scope:recipient = {
+			is_ruler = yes
 			is_sauron = no
 			is_nazgul = no
 			scope:recipient != scope:actor
-			is_ruler = yes
 			is_in_valinor = no
 		}
 		trigger_if = {
@@ -45,36 +46,37 @@ establish_defensive_alliance_interaction = {
 	}
 
 	is_valid_showing_failures_only = {
-		NOT = { scope:actor = { is_allied_to = scope:recipient } }
-		custom_tooltip = {
-			text = recipient_already_has_defensive_ally
-			scope:recipient = { has_defensive_alliance = no }
+		scope:actor = {
+			NOT = { is_allied_to = scope:recipient }
+			is_confederation_member = no
+			is_landed = yes
+			is_imprisoned = no
+			NOT = { is_at_war_with = scope:recipient }
+			highest_held_title_tier < tier_hegemony
+			custom_tooltip = {
+				text = establish_defensive_alliance_interaction_tier_difference_tt
+				tier_difference = {
+					target = scope:recipient
+					value <= 1
+				}
+			}
 		}
 		scope:recipient = {
 			is_landed = yes
 			is_imprisoned = no
-		}
-		scope:actor = {
 			is_confederation_member = no
-		}
-		scope:recipient = {
-			is_confederation_member = no
-		}
-		scope:recipient = {
 			NOT = { is_vassal_or_below_of = scope:actor }
+			NOT = { is_tributary_of_suzerain_or_above = scope:actor }
+			custom_tooltip = {
+				text = recipient_already_has_defensive_ally
+				has_defensive_alliance = no
+			}
 		}
 		trigger_if = {
 			limit = { exists = scope:recipient.suzerain }
 			custom_tooltip = {
 				text = lotr_defensive_ally_my_tributary
 				NOT = { scope:recipient.suzerain = scope:actor }
-			}
-		}
-		scope:actor = {
-			is_landed = yes
-			is_imprisoned = no
-			NOT = {
-				is_at_war_with = scope:recipient
 			}
 		}
 	}
@@ -344,14 +346,6 @@ establish_defensive_alliance_interaction = {
 		modifier = {
 			add = 20
 			scope:recipient = {
-				has_trait = loyal
-			}
-			desc = INTERACTION_LOYAL
-		}
-
-		modifier = {
-			add = 20
-			scope:recipient = {
 				has_trait = trusting
 			}
 			desc = INTERACTION_TRUSTING
@@ -548,14 +542,6 @@ establish_defensive_alliance_interaction = {
 			desc = MARRY_DIFFERENT_FAITH_REASON
 		}
 
-		modifier = { # A Recipient is more likely to agree to an alliance requested by his liege.
-			add = 20
-			scope:recipient = {
-				target_is_liege_or_above = scope:actor
-			}
-			desc = LIEGE_REASON
-		}
-
 		modifier = {
 			add = {
 				value = 1
@@ -565,72 +551,9 @@ establish_defensive_alliance_interaction = {
 				}
 				multiply = 20
 				min = -1000
-				max = 100
+				max = 1000
 			}
 			desc = AI_MILITARY_BALANCE_REASON
-		}
-		# Recipient is a Claimant to Actor's titles.
-		modifier = {
-			scope:recipient = {
-				NOT = { government_has_flag = government_is_clan }
-				any_claim = {
-					holder = scope:actor
-				}
-				NOR = {
-					is_heir_of = scope:actor
-					ai_greed <= -25
-				}
-			}
-			add = {
-				value = -50
-				if = {
-					limit = {
-						scope:recipient.ai_greed >= 25
-					}
-					add = ai_greed
-				}
-				if = {
-					limit = {
-						NOT = {
-							scope:recipient.house = scope:actor.house
-						}
-					}
-					multiply = 2
-				}
-			}
-			desc = IS_CLAIMANT_TO_ACTORS_TITLES
-		}
-		#Actor has claims on recipient's titles.
-		modifier = {
-			scope:actor = {
-				any_claim = {
-					holder = scope:recipient
-				}
-			}
-			add = 25
-			desc = IS_CLAIMANT_TO_RECIPIENT_TITLES
-		}
-		modifier = {
-			scope:recipient = {
-				NOT = {
-					any_claim = {
-						holder = scope:actor
-					}
-				}
-			}
-			scope:recipient.house = scope:actor.house
-			add = 15
-			desc = IS_SAME_HOUSE_REASON
-		}
-		modifier = {
-			scope:recipient = {
-				has_opinion_modifier = {
-					target = scope:actor
-					modifier = declared_war
-				}
-			}
-			add = -100
-			desc = DECLARED_WAR_REASON
 		}
 
 		# Don't form new alliances with people already at war.
@@ -746,6 +669,15 @@ establish_defensive_alliance_interaction = {
 			scope:actor = { NOT = { is_elf = yes } }
 			add = -500
 		}
+		
+		#LotR - AI won't ally characters it does't tolerate
+		modifier = {
+			scope:actor = { 
+				NOT = { lotr_tolerance_trigger = { CHARACTER = scope:recipient } }
+				is_ai = yes
+			}
+			add = -5000
+		}
 	}
 
 	ai_potential = {
@@ -760,7 +692,14 @@ establish_defensive_alliance_interaction = {
 		ai_recipients = neighboring_rulers
 		max = 5
 	}
-	ai_frequency = 72
+	ai_frequency_by_tier = {
+		barony = 0
+		county = 72
+		duchy = 72
+		kingdom = 72
+		empire = 72
+		hegemony = 0
+	}
 
 	ai_min_reply_days = 1
 	ai_max_reply_days = 1
@@ -770,17 +709,10 @@ establish_defensive_alliance_interaction = {
 
 		modifier = {
 			add = 100
-			any_ally = {
-				count < 2
-			}
 			scope:recipient = { # Don't propose alliances to tiny insignificant rulers just because
 				OR = {
 					current_military_strength >= scope:actor.eighty_percent_of_current_military_strength
 					primary_title.tier >= scope:actor.primary_title.tier
-					AND = {
-						primary_title.tier >= tier_duchy
-						scope:actor.primary_title.tier < tier_empire
-					}
 				}
 			}
 		}
@@ -817,6 +749,11 @@ establish_defensive_alliance_interaction = {
 			}
 			scope:recipient = { NOT = { is_elf = yes } }
 			add = -500
+		}
+
+		modifier = {
+			add = -2000
+			scope:recipient = { opposite_alignment = { TARGET = scope:actor } }
 		}
 	}
 }
