@@ -10,7 +10,15 @@
 
 decision_claim_high_kingship = {
 	title = decision_claim_high_kingship
-	desc = decision_claim_high_kingship_desc
+	desc = {
+ 		first_valid = {
+ 			triggered_desc = {
+ 				trigger = { root = character:lineoffeanor2 }
+				desc = decision_claim_high_kingship_maglor_desc
+ 			}
+ 			desc = decision_claim_high_kingship_desc
+		}
+ 	}
 	confirm_text = decision_claim_high_kingship_confirm
 	selection_tooltip = decision_claim_high_kingship_tooltip
 	picture = {
@@ -29,7 +37,19 @@ decision_claim_high_kingship = {
 	decision_group_type = realms_in_exile_major
 
 	is_shown = {
-		root = { house = house:house_elrond } # Elrond is the strongest claimant left to the High-Kingship (Get outta here Galadriel!)}
+		OR = {
+			root = { house = house:house_orodreth } # Custom descendants of Orodreth (Gil-galad) should be able to claim the title
+			root = { house = house:house_fingolfin } # Custom descendants of Fingolfin can claim it
+			root = { house = house:house_elrond } # Elrond is the strongest claimant left to the High-Kingship (Get outta here Galadriel!)
+			AND = {
+				NOT = { root = character:lineoffeanor2 } # Maglor has to defeat Sauron first
+				root = { house = house:house_feanor } # Custom descendants of Feanor can claim it
+			}
+			AND = { # Vector approved Maglor path
+				has_variable = maglor_defensive
+				has_character_flag = maglor_new_noldolante
+			}
+		}
 		game_start_date > 4033.7.12 # After the death of Gil-galad
 		NOT = { exists = title:e_noldor.holder }
 		NOT = {
@@ -45,8 +65,16 @@ decision_claim_high_kingship = {
 		prestige_level >= 5
 		piety_level >= 5
 		has_high_hope_or_higher = yes
+		trigger_if = { # Harder to take if you're not Elrond or his kids 
+			limit = { NOT = { root = { house = house:house_elrond } } }
+			legitimacy_level >= 5 
+		}
 		trigger_if = {
-			limit = { exists = title:e_lindon.holder }
+			limit = { 
+				exists = title:e_lindon.holder
+				title:e_lindon.holder = { is_elf = yes }
+				NOT = { title:e_lindon.holder = root }
+			}
 			has_relation_friend = title:e_lindon.holder
 		}
 	}
@@ -59,6 +87,12 @@ decision_claim_high_kingship = {
 
 	# EFFECT
 	effect = {
+		# If you're landless, you get Mithlond
+		if = {
+			limit = { has_government = landless_adventurer_government }
+			get_title = title:c_mithrhulond
+		}
+	
 		#Create the title and make it primary
 		create_title_and_vassal_change = {
 			type = created
@@ -97,7 +131,18 @@ decision_claim_high_kingship = {
 					resolve_title_and_vassal_change = scope:change
 				}
 
-				title:e_lindon = { holder = { destroy_title = prev } }
+				create_title_and_vassal_change = {
+					type = granted
+					save_scope_as = title_change
+					add_claim_on_loss = no
+				}
+				title:e_lindon = {
+					change_title_holder = {
+						holder = root
+						change = scope:title_change
+					}
+				}
+				resolve_title_and_vassal_change = scope:title_change
 
 				scope:ruler_of_lindon = {
 					create_title_and_vassal_change = {
@@ -112,7 +157,7 @@ decision_claim_high_kingship = {
 					resolve_title_and_vassal_change = scope:change
 				}
 			}
-			else = { # If Lindon does NOT exists
+			else = { # If Lindon does NOT exist
 				title:e_lindon = {
 					every_de_jure_county_holder = {
 						limit = {
@@ -127,6 +172,7 @@ decision_claim_high_kingship = {
 								}
 							}
 							is_independent_ruler = yes
+							is_elf = yes
 						}
 						add_to_list = vassals_in_lindon
 					}
@@ -267,7 +313,7 @@ decision_noldor_eriador = {
 			}
 		}
 
-		# No independent rulers
+		# No non-tributized independent rulers
 		custom_tooltip = {
 			text = no_independent_rulers_in_eriador
 			any_county_in_region = {
@@ -311,7 +357,6 @@ decision_noldor_eriador = {
 					limit = { has_county_modifier = elven_homeland_county_modifier }
 					holder.top_liege = root
 				}
-
 				count = all
 			}
 		}
@@ -446,7 +491,7 @@ decision_noldor_anduin = {
 			}
 		}
 
-		# No independent rulers
+		# No non-tributized independent rulers
 		custom_tooltip = {
 			text = no_independent_rulers_in_eriador
 			any_county_in_region = {
@@ -502,7 +547,6 @@ decision_noldor_anduin = {
 					limit = { has_county_modifier = elven_homeland_county_modifier }
 					holder.top_liege = root
 				}
-
 				count = all
 			}
 		}
@@ -1128,7 +1172,7 @@ decision_destroy_dol_guldur = {
 	decision_group_type = realms_in_exile_major
 
 	is_shown = {
-		title:d_amon_lanc.holder = {
+		title:d_amon_lanc.holder ?= {
 			is_nazgul = yes
 			has_title = title:c_amon_lanc
 		}
@@ -2231,11 +2275,20 @@ decision_high_pass_outpost = {
 		reference = gfx/interface/illustrations/decisions/decision_arwen_01.dds
 	}
 
-	# AI
 	ai_potential = {
-		always = no
+		always = yes
 	}
-	ai_check_interval = 0
+	ai_will_do = {
+		base = 100
+	}
+	ai_check_interval_by_tier = {
+		barony = 0
+		county = 20
+		duchy = 10
+		kingdom = 10
+		empire = 5
+		hegemony = 5
+	}
 
 	sort_order = 700
 
@@ -2243,7 +2296,14 @@ decision_high_pass_outpost = {
 	decision_group_type = realms_in_exile_minor
 
 	is_shown = {
-		has_title = title:k_imladris
+		OR = { # Must border the western high pass
+			title:c_western_high_pass = {
+				is_neighbor_to_realm = root
+			}
+			title:c_western_high_pass = {
+				is_neighbor_to_realm = root.top_liege
+			}
+		}
 		is_elf = yes
 		NOT = {
 			is_target_in_global_variable_list = {
@@ -2258,7 +2318,7 @@ decision_high_pass_outpost = {
 
 	# IS VALID
 	is_valid = {
-		has_title = title:k_imladris
+		#has_title = title:k_imladris
 		title:c_western_high_pass = {
 			title_province = {
 				NOR = {
@@ -2345,7 +2405,15 @@ decision_secure_high_pass = {
 	decision_group_type = realms_in_exile_major
 
 	is_shown = {
-		has_title = title:k_imladris
+		OR = { # Must border the high pass
+			completely_controls = title:c_western_high_pass
+			title:d_high_pass = {
+				is_neighbor_to_realm = root
+			}
+			title:d_high_pass = {
+				is_neighbor_to_realm = root.top_liege
+			}
+		}
 		is_elf = yes
 		NOT = {
 			is_target_in_global_variable_list = {
@@ -2360,7 +2428,7 @@ decision_secure_high_pass = {
 
 	# IS VALID
 	is_valid = {
-		has_title = title:k_imladris
+		#has_title = title:k_imladris
 		has_title = title:c_western_high_pass
 		title:c_western_high_pass.title_province = {
 			has_holding_type = elven_holding
@@ -2706,9 +2774,9 @@ decision_restore_suza_sumar_elven = {
 		title:k_sumarieth = {
 			set_de_jure_liege_title = title:e_bozisha_miraz
 		}
-		title:k_sumarieth = {
-			set_capital_county = title:c_pred
-		}
+		# title:k_sumarieth = { # Not needed, set in history already
+			# set_capital_county = title:c_pred
+		# }
 		#Create the title and make it primary
 		create_title_and_vassal_change = {
 			type = created
@@ -3260,8 +3328,8 @@ decision_umbar_burns = { # Starts war against Umbar
 		}
 		faith_is_good = yes
 		OR = {
-			title:k_umbar.holder ?= { faith_is_evil = yes }
-			title:e_umbar.holder ?= { faith_is_evil = yes }
+			title:k_umbar.holder ?= { faith_is_good = no }
+			title:e_umbar.holder ?= { faith_is_good = no }
 		}
 		NOT = {
 			is_target_in_global_variable_list = {
@@ -3556,7 +3624,8 @@ decision_rally_army_righteous = {
 	}
 
 	# IS_VALID
-	is_valid = { always = yes }
+	is_valid = { has_title = title:c_himring }
+	
 	is_valid_showing_failures_only = {
 		is_imprisoned = no
 		is_available_adult = yes
@@ -4435,10 +4504,22 @@ decision_sail_to_valinor = {
 		hegemony = 60
 	}
 	ai_potential = {
-		always = no
+		trigger_if = {
+			limit = {
+				this = character:lineofcirdan
+			}
+			always = no # Until the last ship sails, which is prob outside the scope of our game, and a really annoying thing to check for. 
+		}
+		trigger_else = {
+			always = yes
+		}
 	}
-	ai_will_do = { #Finesse this - JS
-		base = 100 # If they meet the requirements, let them sail. - Trig
+	ai_will_do = {
+		base = 25 # 25% chance every 5 years if they meet the requirements 
+		modifier = {
+			stress_level = 3
+			add = 25
+		}
 	}
 
 	selection_tooltip = decision_sail_to_valinor_tooltip
@@ -4458,7 +4539,6 @@ decision_sail_to_valinor = {
 	}
 
 	is_valid = {
-		is_at_war = no
 		NOT = {
 			has_character_modifier = elf_childraising_modifier
 		}
@@ -4469,7 +4549,10 @@ decision_sail_to_valinor = {
 			stress_level >= 2
 			AND = {
 				stress_level >= 1
-				has_trait = depressed_1
+				OR = {
+					has_trait = depressed_1
+					has_trait = depressed_genetic
+				}
 			}
 			sauron_is_alive = no
 		}
@@ -4478,6 +4561,7 @@ decision_sail_to_valinor = {
 	is_valid_showing_failures_only = {
 		is_imprisoned = no
 		is_available_adult = yes
+		is_at_war = no
 	}
 
 	effect = {
@@ -4532,7 +4616,7 @@ decision_wander_the_forests = { # Trigger a random forest flavor event ~by Aerie
 
 	decision_group_type = realms_in_exile_minor
 
-	cooldown = { months = 18 }
+	cooldown = { years = 3 }
 
 	is_shown = {
 		is_elf = yes
@@ -4746,7 +4830,7 @@ decision_elven_border_patrol = { # Border Patrol / Hunt Roaming Foes
 
 	decision_group_type = realms_in_exile_minor
 
-	cooldown = { years = 2 }
+	cooldown = { years = 3 }
 
 	is_shown = {
 		is_elf = yes
@@ -4979,6 +5063,7 @@ decision_reveal_necromancer = {
 	is_valid = {
 		highest_held_title_tier >= tier_kingdom
 		has_medium_hope_or_higher = yes
+		faith_is_good = yes
 		custom_tooltip = {
 			text = decision_reveal_necromancer_tt_2
 			title:c_amon_lanc.holder = {
@@ -5133,6 +5218,12 @@ decision_delve_ardinak = {
 		has_medium_hope_or_higher = yes
 	}
 
+	is_valid_showing_failures_only = {
+		is_imprisoned = no
+		is_available_adult = yes
+		is_at_war = no
+	}
+
 	cost = {
 		piety = {
 			value = 1500
@@ -5142,8 +5233,12 @@ decision_delve_ardinak = {
 	effect = {
 		custom_tooltip = {
 			text = decision_delve_ardinak.tt
-			trigger_event = {
-				id = elven.0806
+			start_travel_plan = {
+				destination = title:c_ardinak.title_province
+				on_arrival_event = elven.0806
+				return_trip = yes
+				players_use_planner = no
+				#on_arrival_destinations = all
 			}
 		}
 	}
@@ -5191,48 +5286,107 @@ decision_reunite_kinnlai = {
 			}
 		}
 	}
+
 	is_valid = {
 		highest_held_title_tier >= tier_kingdom
+		legitimacy_level >= 5
+		prestige_level >= 3
 		piety_level >= 4
+		has_medium_hope_or_higher = yes
 		OR = {
 			faith = faith:faith_kinnlai_martial
 			faith = faith:faith_kinnlai_tree
 		}
-		has_medium_hope_or_higher = yes
-		prestige_level >= high_prestige_level
-		NOT = { any_realm_province = { has_holding_type = settlement_holding } }
 		OR = {
-			# completely_controls = title:d_gard_kinn
-			completely_controls = title:k_talilan
-			completely_controls = title:k_usakan
+			custom_tooltip = {
+				text = hold_all_elven_homelands_in_usakan
+				any_county_in_region = {
+					region = middleearth_uttersouth_usakan
+					trigger_if = {
+						limit = { has_county_modifier = elven_homeland_county_modifier }
+						holder.top_liege = root
+					}
+					count = all
+				}
+			}
+			custom_tooltip = {
+				text = hold_all_elven_homelands_in_mumakan
+				any_county_in_region = {
+					region = middleearth_uttersouth_mumakan
+					trigger_if = {
+						limit = { has_county_modifier = elven_homeland_county_modifier }
+						holder.top_liege = root
+					}
+					count = all
+				}
+			}
 		}
+
 		trigger_if = {
 			limit = {
-				has_title = title:k_usakan
+				OR = {
+					has_title = title:k_usakan
+					has_title = title:d_gard_kinn
+				}
+				
 				NOT = { has_title = title:k_talilan }
 			}
 			has_relation_friend = title:k_talilan.holder
-		}
-		trigger_if = {
-			limit = {
-				has_title = title:k_talilan
-				NOT = { has_title = title:d_gard_kinn }
-			}
-			has_relation_friend = title:d_gard_kinn.holder
-		}
-		trigger_if = {
-			limit = {
-				has_title = title:k_usakan
-				NOT = { has_title = title:k_talilan }
-			}
 			is_allied_to = title:k_talilan.holder
+			trigger_if = { 
+				limit = {
+					character:lineoftainalann5 = { is_alive = yes }
+				}
+				character:lineoftainalann5 = {
+					any_vassal = {
+						count = all
+						opinion = {
+							target = root
+							value >= very_high_positive_opinion
+						}
+					}
+				}
+			}
+			trigger_if = { 
+				limit = {
+					character:lineoftainalann5 = { is_alive = no }
+				}
+				character:lineoftainalann10 = {
+					any_vassal = {
+						count = all
+						opinion = {
+							target = root
+							value >= very_high_positive_opinion
+						}
+					}
+				}
+			}
 		}
+
 		trigger_if = {
 			limit = {
 				has_title = title:k_talilan
 				NOT = { has_title = title:d_gard_kinn }
+				NOT = { root = character:lineoftainalann3 }
 			}
-			is_allied_to = title:d_gard_kinn.holder
+			has_relation_friend = character:lineoftainalann3
+			is_allied_to = character:lineoftainalann3
+			character:lineoftainalann3 = {
+				any_vassal = {
+					count = all
+					opinion = {
+						target = root
+						value >= very_high_positive_opinion
+					}
+				}
+			}
+		}
+		any_vassal = {
+			count = all
+			opinion = {
+				target = root
+				value >= very_high_positive_opinion
+			}
 		}
 	}
 
@@ -5260,7 +5414,10 @@ decision_reunite_kinnlai = {
 			}
 		}
 		else_if = {
-			limit = { title:d_gard_kinn.holder = { is_independent_ruler = yes } }
+			limit = { 
+				title:d_gard_kinn.holder = { is_independent_ruler = yes } 
+				NOT = { exists = title:k_usakan.holder }
+			}
 			title:d_gard_kinn.holder = {
 				save_scope_as = kinnlai_ruler
 				create_title_and_vassal_change = {
@@ -5275,10 +5432,17 @@ decision_reunite_kinnlai = {
 				resolve_title_and_vassal_change = scope:change
 			}
 		}
+		else_if = { # Fallback if the other ruler is already your vassal
+			limit = { any_vassal_or_below = { any_character_artifact = { has_variable = fragment_of_separation } } }
+			every_vassal_or_below = {
+				limit = { any_character_artifact = { has_variable = fragment_of_separation } }
+				save_scope_as = kinnlai_ruler
+			}
+		}
 		else = {
 			title:k_usakan.holder = { save_scope_as = kinnlai_ruler }
 			get_title = title:k_usakan
-			scope:kinnlai_ruler = {
+			title:d_gard_kinn.holder = {
 				create_title_and_vassal_change = {
 					type = swear_fealty
 					save_scope_as = change
@@ -5329,9 +5493,11 @@ decision_reunite_kinnlai = {
 			}
 		}
 		resolve_title_and_vassal_change = scope:title_change
-		if = {
-			limit = { NOT = { has_title = title:h_utter_south } }
-			set_primary_title_to = title:e_kinnlai
+		hidden_effect = {
+			if = {
+				limit = { NOT = { has_title = title:h_utter_south } }
+				set_primary_title_to = title:e_kinnlai
+			}
 		}
 
 		title:k_talilan = { set_de_jure_liege_title = title:e_usakan }
@@ -5393,29 +5559,85 @@ decision_utter_south_elven = {
 
 	# IS VALID
 	is_valid = {
-		legitimacy_level >= 5
-		prestige_level >= 5
-		piety_level >= 5
+        has_title = title:e_kinnlai
 
-		custom_tooltip = { # Hope 5 or higher
-			text = hope_5_or_higher_tt
-			has_highest_hope = yes
+		# No non-tributized independent rulers
+		custom_tooltip = {
+			text = no_independent_rulers_in_usakan
+			any_county_in_region = {
+				region = middleearth_uttersouth_usakan
+				OR = {
+					holder.top_overlord ?= root
+					holder.top_liege ?= title:k_wastelands.holder
+				}
+				count = all
+			}
 		}
 
-        has_title = title:e_mumakan
-        has_title = title:e_shayn
-        has_title = title:e_usakan
-
-        OR = {
-			culture ?= culture:kinnlai
-			culture ?= { any_parent_culture_or_above = { this = culture:kinnlai } }
+		custom_tooltip = {
+			text = no_independent_rulers_in_mumakan
+			any_county_in_region = {
+				region = middleearth_uttersouth_mumakan
+				OR = {
+					holder.top_overlord ?= root
+					holder.top_liege ?= title:k_wastelands.holder
+				}
+				count = all
+			}
 		}
+
+		custom_tooltip = {
+			text = no_independent_rulers_in_shayn
+			any_county_in_region = {
+				region = middleearth_uttersouth_shayn
+				OR = {
+					holder.top_overlord ?= root
+					holder.top_liege ?= title:k_wastelands.holder
+				}
+				count = all
+			}
+		}
+
+		# Hold all Elven homelands
+		custom_tooltip = {
+			text = hold_all_elven_homelands_in_usakan
+			any_county_in_region = {
+				region = middleearth_uttersouth_usakan
+				trigger_if = {
+					limit = { has_county_modifier = elven_homeland_county_modifier }
+					holder.top_liege = root
+				}
+				count = all
+			}
+		}
+
+		custom_tooltip = {
+			text = hold_all_elven_homelands_in_mumakan
+			any_county_in_region = {
+				region = middleearth_uttersouth_mumakan
+				trigger_if = {
+					limit = { has_county_modifier = elven_homeland_county_modifier }
+					holder.top_liege = root
+				}
+				count = all
+			}
+		}
+
+		# Ardinak/Dilsulinol Cleansed
 		custom_tooltip = {
 			text = unify_utter_south_ardinak_cleansed
 			is_target_in_global_variable_list = {
 				name = unavailable_unique_decisions
 				target = flag:decision_delve_ardinak
 			}
+		}
+
+		legitimacy_level >= 5
+		prestige_level >= 5
+		piety_level >= 5
+		custom_tooltip = { # Hope 5 or higher
+			text = hope_5_or_higher_tt
+			has_highest_hope = yes
 		}
 	}
 
