@@ -12,8 +12,38 @@
 			player_heir = {
 				is_nubile = yes
 				is_married = no
+				NOT = {	any_scheme = { scheme_type = courting } }
 			}
 		}
+	}
+	send_option = { #This needs to be in to generate a "scope:hook", otherwise "marriage_ai_accept_modifier" throws a shit-ton of errors
+		is_shown = { always = no }
+		is_valid = { always = no }
+		flag = hook
+		localization = MARRIAGE_HOOK
+	}
+
+	
+	send_option = { #This needs to be in to generate a "scope:influence_send_option", otherwise "marriage_ai_accept_modifier" throws a shit-ton of errors
+		is_shown = { always = no }
+		is_valid = { always = no }
+		flag = influence_send_option
+		localization = TRADE_INFLUENCE_FOR_BETTER_AI_ACCEPTANCE
+	}
+	
+	send_option = { #This needs to be in to generate a "scope:herd_send_option", otherwise "marriage_ai_accept_modifier" throws a shit-ton of errors
+		is_shown = { always = no }
+		is_valid = { always = no }
+		flag = herd_send_option
+		localization = TRADE_HERD_FOR_BETTER_AI_ACCEPTANCE
+	}
+
+	send_option = { #This needs to be in to generate a "scope:grand_wedding_promise", otherwise "marriage_ai_accept_modifier" throws a shit-ton of errors
+		flag = grand_wedding_promise
+		localization = GRAND_WEDDING_PROMISE
+
+		is_shown = { always = no }
+		is_valid = { always = no }
 	}
 	
 	redirect = {
@@ -74,6 +104,43 @@
 		scope:actor = {
 			uses_marriage_consent = yes
 		}
+		scope:actor = {
+			NOT = { has_culture = culture:wastelands } #LotR
+			is_in_valinor = no #LotR
+			OR = {
+				is_ruler = yes #Can arrange marriages for others
+				#You're just a courtier? Only use the interaction on characters you can marry
+				can_marry_character_trigger = { CHARACTER = scope:recipient }
+			}
+		}
+		scope:recipient = { #LotR
+			NOT = { has_culture = culture:wastelands }
+			is_in_valinor = no
+		}
+		# Block further marriage proposals for people who have a pending grand wedding
+		NOR = {
+			scope:secondary_actor ?= { has_been_promised_grand_wedding = yes }
+			scope:secondary_recipient ?= { has_been_promised_grand_wedding = yes }
+		}
+		#If you're interacting with someone who isn't their own matchmaker, only show the interaction if they can get married. (If someone isn't their own matchmaker, they will be set as secondary_recipient by code and their matchmaker becomes recipient)
+		trigger_if = {
+			limit = {
+				exists = scope:secondary_recipient
+				scope:secondary_recipient.matchmaker != scope:secondary_recipient
+			}
+			scope:secondary_recipient = {
+				marriage_interaction_can_be_picked_trigger = yes #Can marry anyone
+			}
+		}
+		#allow landless adventurer courtiers to marry only within their camp
+		trigger_if = {
+			limit = {
+				scope:actor = {
+					government_has_flag = government_is_landless_adventurer
+				}
+			}
+			scope:recipient = scope:actor
+		}
 	}
 	
 	is_valid_showing_failures_only = {
@@ -85,16 +152,18 @@
 	}
 	
 	on_accept = {
-		start_wokc_scheme = {SCHEME = courting}
+		start_wokc_scheme = yes
 	}
 	
 	populate_actor_list = {
 		scope:actor = {
 			# add_to_list = characters #Player should use the Romance scheme instead
 			every_courtier = {
+				limit = { NOT = { any_scheme = { scheme_type = courting } } }
 				add_to_list = characters
 			}
 			every_courtier_away = {
+				limit = { NOT = { any_scheme = { scheme_type = courting } } }
 				add_to_list = characters
 			}
 			every_child = {
@@ -103,6 +172,7 @@
 					limit = {
 						is_alive = yes
 						NOT = { is_in_list = characters }
+						NOT = { any_scheme = { scheme_type = courting } }
 					}
 					add_to_list = characters
 				}
@@ -112,6 +182,7 @@
 						limit = {
 							is_alive = yes
 							NOT = { is_in_list = characters }
+							NOT = { any_scheme = { scheme_type = courting } }
 						}
 						add_to_list = characters
 					}
@@ -120,6 +191,7 @@
 							limit = {
 								is_alive = yes
 								NOT = { is_in_list = characters }
+								NOT = { any_scheme = { scheme_type = courting } }
 							}
 							add_to_list = characters
 						}
@@ -151,14 +223,13 @@
 	# whether a character can be picked for the interaction, interface only (e.g. picking the first character in the marriage interaction)
 	# in character scope, actor and recipient event targets can be used, but not the secondary characters (because none exist yet)
 	can_be_picked = {
-		OR = {
-			marriage_interaction_can_be_picked_trigger = yes
-			AND = {
-				exists = scope:secondary_actor
-				exists = scope:secondary_recipient
-				scope:secondary_actor.betrothed = scope:secondary_recipient
-			}
-		}
+		marriage_interaction_can_be_picked_trigger = yes
+		#You can only look for a soulmate if you don't currently have one
+		num_of_relation_soulmate = 0
+		#Make sure you aren't already courting someone
+		NOT = {	any_scheme = { scheme_type = courting } }
+		#And you're old enough
+		is_nubile = yes
 	}
 	
 	#Is evaluated only after secondary_recipient and secondary_actor are both chosen
@@ -223,6 +294,7 @@ find_courtship_match = {
 		scope:secondary_actor = {
 			is_nubile = yes
 			is_married = no
+			NOT = { any_scheme = { scheme_type = courting } }
 		}
 	}
 	
@@ -252,37 +324,14 @@ find_courtship_match = {
 		if = {
 			limit = {
 				scope:actor = {
-					is_landless_adventurer = yes
+					has_government = landless_adventurer_government
 				}
 			}
 			scope:secondary_actor = {
 				if = {
 					limit = {
-						NOT = { scope:actor = this }
-					}
-					add_to_list = characters
-				}
-				every_courtier = {
-					limit = {
-						trigger_if = {
-							limit = {
-								is_concubine = yes
-							}
-							is_concubine_of = scope:actor
-							can_marry_character_trigger = { CHARACTER = scope:actor }
-						}
-					}
-					add_to_list = characters
-				}
-				every_courtier_away = {
-					limit = {
-						trigger_if = {
-							limit = {
-								is_concubine = yes
-							}
-							is_concubine_of = scope:actor
-							can_marry_character_trigger = { CHARACTER = scope:actor }
-						}
+						scope:actor != this
+						NOT = { any_scheme = { scheme_type = courting } }
 					}
 					add_to_list = characters
 				}
@@ -292,13 +341,7 @@ find_courtship_match = {
 						limit = {
 							is_alive = yes
 							NOT = { is_in_list = characters }
-							trigger_if = {
-								limit = {
-									is_concubine = yes
-								}
-								is_concubine_of = scope:actor
-								can_marry_character_trigger = { CHARACTER = scope:actor }
-							}
+							NOT = { any_scheme = { scheme_type = courting } }
 						}
 						add_to_list = characters
 					}
@@ -308,13 +351,7 @@ find_courtship_match = {
 							limit = {
 								is_alive = yes
 								NOT = { is_in_list = characters }
-								trigger_if = {
-									limit = {
-										is_concubine = yes
-									}
-									is_concubine_of = scope:actor
-									can_marry_character_trigger = { CHARACTER = scope:actor }
-								}
+								NOT = { any_scheme = { scheme_type = courting } }
 							}
 							add_to_list = characters
 						}
@@ -323,13 +360,7 @@ find_courtship_match = {
 								limit = {
 									is_alive = yes
 									NOT = { is_in_list = characters }
-									trigger_if = {
-										limit = {
-											is_concubine = yes
-										}
-										is_concubine_of = scope:actor
-										can_marry_character_trigger = { CHARACTER = scope:actor }
-									}
+									NOT = { any_scheme = { scheme_type = courting } }
 								}
 								add_to_list = characters
 							}
@@ -337,47 +368,29 @@ find_courtship_match = {
 					}
 				}
 			}
-		} else = {
+		} 
+		#otherwise, populate with anyone eligible
+		else = {
 			scope:secondary_actor = {
-				if = {
-					limit = {
-						allowed_to_marry_same_sex_trigger = yes
-					}
-					every_opposite_sex_spouse_candidate = {
-						limit = {
-							NAND = {
-								is_landless_ruler = yes
-								faith.religious_head = this
-								NOT = { scope:secondary_actor.faith = faith }
-							}
-						}
-						add_to_list = characters
-					}
-					every_same_sex_spouse_candidate = {
-						limit = {
-							NAND = {
-								is_landless_ruler = yes
-								faith.religious_head = this
-								NOT = { scope:secondary_actor.faith = faith }
-							}
-						}
-						add_to_list = characters
-					}
+				every_opposite_sex_spouse_candidate = { 
+					limit = { NOT = { any_scheme = { scheme_type = courting } } }
+					add_to_list = characters 
 				}
-				else = {
-					every_opposite_sex_spouse_candidate = {
-						limit = {
-							NAND = {
-								is_landless_ruler = yes
-								faith.religious_head = this
-								NOT = { scope:secondary_actor.faith = faith }
-							}
-						}
-						add_to_list = characters
-					}
-				}
-				populate_wok_marriage_candidates = yes
 			}
+			# Cleanup list if insular culture
+			if = {
+				limit = {
+					scope:secondary_actor.culture = { has_cultural_parameter = reduced_marriage_acceptance_distant_realms }
+				}
+				every_in_list = {
+					list = characters
+					limit = {
+						NOT = { top_liege.culture = scope:secondary_actor.top_liege.culture }
+					}
+					remove_from_list = characters
+				}
+			}
+			populate_wok_marriage_candidates = yes # WoK Consent System
 		}
 	}
 
@@ -387,6 +400,18 @@ find_courtship_match = {
 	is_shown = {
 		scope:actor = {
 			uses_marriage_consent = yes
+			is_in_valinor = no
+		}
+		# Enable only for yourself if you're a landless adventurer
+		trigger_if = {
+			limit = {
+				scope:actor = {
+					has_government = landless_adventurer_government
+				}
+			}
+			scope:secondary_actor = {
+				scope:actor = this
+			}
 		}
 		scope:secondary_actor = {
 			#Is this someone I can marry off?
@@ -402,6 +427,10 @@ find_courtship_match = {
 			can_marry_trigger = yes
 			#You can only look for a soulmate if you don't currently have one
 			num_of_relation_soulmate = 0
+			#Make sure you aren't already courting someone
+			NOT = {	any_scheme = { scheme_type = courting } }
+			# And you're old enough
+			is_nubile = yes
 		}
 	}
 
@@ -409,8 +438,19 @@ find_courtship_match = {
 		#Diplomatic availability & prison
 		scope:secondary_actor = {
 			is_imprisoned = no
+			bp2_valid_for_standard_interactions_trigger = yes
 		}
+		marriage_interaction_non_loyal_diarchs_refuse_secondary_marriage_trigger = { TARGET = secondary_actor }
+		trigger_if = {
+			limit = {
+				scope:secondary_actor != scope:secondary_recipient
+			}
+			marriage_interaction_non_loyal_diarchs_refuse_secondary_marriage_trigger = { TARGET = secondary_recipient }
+		}
+		marriage_interaction_non_loyal_diarchs_refuse_secondary_marriage_trigger = { TARGET = actor }
+		marriage_interaction_non_loyal_diarchs_refuse_secondary_marriage_trigger = { TARGET = recipient }
 	}
+	
 
 	has_valid_target_showing_failures_only = {
 		marriage_interaction_valid_target_base_trigger = yes  #Checks marriage status, betrothed, gender, consanguinity, faith hostility etc.
@@ -428,27 +468,14 @@ find_courtship_match = {
 			limit = { NOT = { scope:recipient = scope:secondary_recipient } }
 			scope:secondary_recipient = {
 				is_imprisoned = no
+				bp2_valid_for_standard_interactions_trigger = yes
 			}
 		}
 		#secondary_actor is checked above because they are always available
-
-		#Blocks AI from marrying player guests
-		scope:secondary_recipient = {
-			trigger_if = {
-				limit = {
-					is_pool_guest = yes
-					host = {
-						is_ai = no
-						NOT = { this = scope:actor }
-					}
-				}
-				NOT = { is_pool_guest_of = host }
-			}
-		}
 	}
 
 	on_accept = {
-		start_wokc_scheme = {SCHEME = courting}
+		start_wokc_scheme = yes
 	}
 
 	on_decline = {
