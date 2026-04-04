@@ -203,6 +203,10 @@ wastelands.0006 = {
 		is_in_valinor = no
 		is_wastelands = no
 		NOT = { this = character:linesteward38 }
+		trigger_if = {
+			limit = { is_elf = yes }
+			has_medium_hope_or_higher = yes
+		}
 
 		###
 		### Character Income Trigger
@@ -296,7 +300,7 @@ wastelands.0006 = {
 
 			### ELF ###
 			else_if = { ## COUNTIES AVAILABLE FOR ELF AI ##
-				limit = { is_elf = yes} 
+				limit = { is_elf = yes has_medium_hope_or_higher = yes } 
 				debug_log = "Wastelands.0006: Elves List Made"
 				every_sub_realm_county = {
 					every_title_to_title_neighboring_and_across_water_county = {
@@ -336,7 +340,6 @@ wastelands.0006 = {
 								county_has_province_with_terrain = {
 									terrain = mountains
 									terrain = desert_mountains
-									terrain = caverns
 									terrain = halls
 								}
 								AND = {
@@ -345,7 +348,6 @@ wastelands.0006 = {
 										any_neighboring_province = {
 											OR = {
 												terrain = desert_mountains
-												terrain = caverns
 												terrain = halls
 												terrain = mountains
 											}
@@ -392,7 +394,6 @@ wastelands.0006 = {
 							county_has_province_with_terrain = {
 								terrain = mountains
 								terrain = desert_mountains
-								terrain = caverns
 								terrain = halls
 								terrain = hills
 							}
@@ -402,7 +403,7 @@ wastelands.0006 = {
 				}
 			}
 		}
-		if = {
+		else_if = {
 			limit = { has_game_rule = weighted_colonisation_speed }
 
 			### HUMAN ###
@@ -430,7 +431,7 @@ wastelands.0006 = {
 
 			### ELF ###
 			else_if = { ## COUNTIES AVAILABLE FOR ELF AI ##
-				limit = { is_elf = yes }
+				limit = { is_elf = yes has_medium_hope_or_higher = yes }
 				### COUNTY COLONISATION PRIORITY ###
 				every_sub_realm_county = {
 					every_title_to_title_neighboring_and_across_water_county = {
@@ -473,7 +474,6 @@ wastelands.0006 = {
 								terrain = steppe
 								terrain = forest
 								terrain = desert_mountains
-								terrain = caverns
 								terrain = halls
 								terrain = hills
 								terrain = mountains
@@ -538,14 +538,29 @@ wastelands.0006 = {
 				}
 			} 
 			else = {
-				every_sub_realm_county = {
-					every_title_to_title_neighboring_and_across_water_county = {
-						limit = {
-							is_wastelands = yes
-							is_underground_county = no
-							NOT = { has_county_modifier = block_settlement_ability }
+				if = {
+					limit = { is_elf = yes has_medium_hope_or_higher = yes }
+					every_sub_realm_county = {
+						every_title_to_title_neighboring_and_across_water_county = {
+							limit = {
+								is_wastelands = yes
+								is_underground_county = no
+								NOT = { has_county_modifier = block_settlement_ability }
+							}
+							add_to_list = adjacent_wastelands
 						}
-						add_to_list = adjacent_wastelands
+					}
+				}
+				else = {
+					every_sub_realm_county = {
+						every_title_to_title_neighboring_and_across_water_county = {
+							limit = {
+								is_wastelands = yes
+								is_underground_county = no
+								NOT = { has_county_modifier = block_settlement_ability }
+							}
+							add_to_list = adjacent_wastelands
+						}
 					}
 				}
 			}
@@ -1605,32 +1620,45 @@ wastelands.0022 = {
 
 	immediate = {
 		random_held_county = {
-			limit = { title_province = { has_holding_type = settlement_holding has_building = settlement_03 } }
+			limit = { title_province = { has_holding_type = settlement_holding } }
 			save_scope_as = upgrade_county
 		}
 
-		if = {
-			limit = { NOT = { exists = scope:upgrade_county } }
-			random = {
-				chance = 66
-				random_held_county = {
-					limit = { title_province = { has_holding_type = settlement_holding has_building = settlement_02 } }
-					save_scope_as = upgrade_county
+		scope:upgrade_county = {
+			if = {
+				limit = { title_province = { has_holding_type = settlement_holding has_building = settlement_03 } }
+				lotr_upgrade_settlement_to_full_holding_effect = { COUNTY = scope:upgrade_county }
+			}
+			else_if = {
+				limit = { title_province = { has_holding_type = settlement_holding has_building = settlement_02 } }
+				random = {
+					chance = 66
+					lotr_upgrade_settlement_to_full_holding_effect = { COUNTY = scope:upgrade_county }
+				}
+			}
+			else_if = {
+				limit = { title_province = { has_holding_type = settlement_holding has_building = settlement_01 } }
+				random = {
+					chance = 33
+					lotr_upgrade_settlement_to_full_holding_effect = { COUNTY = scope:upgrade_county }
 				}
 			}
 		}
-		if = {
-			limit = { NOT = { exists = scope:upgrade_county } }
-			random = {
-				chance = 33
-				random_held_county = {
-					limit = { title_province = { has_holding_type = settlement_holding has_building = settlement_01 } }
-					save_scope_as = upgrade_county
-				}
-			}
-		}
-		lotr_upgrade_settlement_to_full_holding_effect = { COUNTY = scope:upgrade_county }
 		correct_wastelands_tracker = yes
+	}
+}
+
+### Cleared Blocker Removal Maintenance Event
+# Fired twice with 1 and 2 day delays to make sure nothing slips through
+wastelands.0100 = {
+	hidden = yes
+
+	trigger = {
+		scope:obstacle_province = { has_building_with_flag = obstacle_cleared }
+	}
+
+	immediate = {
+		scope:obstacle_province = { remove_cleaned_blockers_effect = yes }
 	}
 }
 
@@ -1666,6 +1694,7 @@ wastelands.1001 = { # Clearing out the Wolves
 	}
 
 	immediate = {
+		scope:obstacle_province = { remove_cleaned_blockers_effect = yes }
 		if = {
 			limit = { 
 				any_knight = { 
@@ -1711,7 +1740,7 @@ wastelands.1001 = { # Clearing out the Wolves
 					left_icon = root
 					add_prestige = 100
 					title = wastelands.1001.success.toast.t
-					scope:obstacle_province = { remove_building = wolf_den_cleared }
+					#scope:obstacle_province = { remove_building = wolf_den_cleared }
 				}
 			}
 			30 = {
@@ -1726,7 +1755,7 @@ wastelands.1001 = { # Clearing out the Wolves
 					title = wastelands.1001.failure.toast.t
 					add_prestige = -150
 					increase_wounds_effect = { REASON = hunting_accident }
-					hidden_effect = { scope:obstacle_province = { remove_building = wolf_den_cleared } }
+					#hidden_effect = { scope:obstacle_province = { remove_building = wolf_den_cleared } }
 					scope:obstacle_province = { add_building = wolf_den }
 				}
 			}
@@ -1762,7 +1791,7 @@ wastelands.1001 = { # Clearing out the Wolves
 							right_icon = scope:knight
 							scope:knight = { add_prestige = 100 }
 							title = wastelands.1001.success.toast.t
-							scope:obstacle_province = { remove_building = wolf_den_cleared }
+							#scope:obstacle_province = { remove_building = wolf_den_cleared }
 						}
 					}
 				}
@@ -1780,7 +1809,7 @@ wastelands.1001 = { # Clearing out the Wolves
 							title = wastelands.1001.failure.toast.t
 							scope:knight = { add_prestige = -150 }
 							increase_wounds_effect = { REASON = hunting_accident }
-							hidden_effect = { scope:obstacle_province = { remove_building = wolf_den_cleared } }
+							#hidden_effect = { scope:obstacle_province = { remove_building = wolf_den_cleared } }
 							scope:obstacle_province = { add_building = wolf_den }
 						}
 					}
@@ -1819,7 +1848,7 @@ wastelands.1001 = { # Clearing out the Wolves
 							right_icon = scope:hooked_character
 							scope:hooked_character = { add_prestige = 100 }
 							title = wastelands.1001.success.toast.t
-							scope:obstacle_province = { remove_building = wolf_den_cleared }
+							#scope:obstacle_province = { remove_building = wolf_den_cleared }
 						}
 					}
 				}
@@ -1837,7 +1866,7 @@ wastelands.1001 = { # Clearing out the Wolves
 							title = wastelands.1001.failure.toast.t
 							scope:hooked_character = { add_prestige = -150 }
 							increase_wounds_effect = { REASON = hunting_accident }
-							hidden_effect = { scope:obstacle_province = { remove_building = wolf_den_cleared } }
+							#hidden_effect = { scope:obstacle_province = { remove_building = wolf_den_cleared } }
 							scope:obstacle_province = { add_building = wolf_den }
 						}
 					}
@@ -1858,14 +1887,14 @@ wastelands.1001 = { # Clearing out the Wolves
 				send_interface_toast = {
 					left_icon = root
 					title = wastelands.1001.success.toast.t
-					scope:obstacle_province = { remove_building = wolf_den_cleared }
+					#scope:obstacle_province = { remove_building = wolf_den_cleared }
 				}
 			}
 			15 = {
 				send_interface_toast = {
 					left_icon = root
 					title = wastelands.1001.failure.toast.t
-					hidden_effect = { scope:obstacle_province = { remove_building = wolf_den_cleared } }
+					#hidden_effect = { scope:obstacle_province = { remove_building = wolf_den_cleared } }
 					scope:obstacle_province = { add_building = wolf_den }
 				}
 			}
@@ -1877,7 +1906,7 @@ wastelands.1001 = { # Clearing out the Wolves
 	
 	option = { # Leave the wolves alone
 		name = wastelands.1001.e
-		hidden_effect = { scope:obstacle_province = { remove_building = wolf_den_cleared } }
+		#hidden_effect = { scope:obstacle_province = { remove_building = wolf_den_cleared } }
 		scope:obstacle_province = { add_building = wolf_den }
 	}
 }
@@ -1900,6 +1929,7 @@ wastelands.1002 = { # Surrounded
 	}
 
 	immediate = {
+		scope:obstacle_province = { remove_cleaned_blockers_effect = yes }
 		if = {
 			limit = { 
 				any_knight = { 
@@ -1931,10 +1961,9 @@ wastelands.1002 = { # Surrounded
 				root = {
 					send_interface_toast = {
 						left_icon = root
-						right_icon = scope:knight
-						scope:knight = { add_prestige = 175 }
+						add_prestige = 175
 						title = wastelands.1001.success.toast.t
-						scope:obstacle_province = { remove_building = wolf_den_cleared }
+						#scope:obstacle_province = { remove_building = wolf_den_cleared }
 					}
 				}
 			}
@@ -1948,12 +1977,10 @@ wastelands.1002 = { # Surrounded
 				root = {
 					send_interface_toast = {
 						left_icon = root
-						right_icon = scope:knight
 						title = wastelands.1001.failure.toast.t
-						scope:knight = { add_prestige = -150 }
-						scope:knight = { increase_wounds_effect = { REASON = hunting_accident } }
+						add_prestige = -150
 						increase_wounds_effect = { REASON = hunting_accident }
-						hidden_effect = { scope:obstacle_province = { remove_building = wolf_den_cleared } }
+						#hidden_effect = { scope:obstacle_province = { remove_building = wolf_den_cleared } }
 						scope:obstacle_province = { add_building = wolf_den }
 					}
 				}
@@ -1963,6 +1990,7 @@ wastelands.1002 = { # Surrounded
 	
 	option = { # Your knight is does a prowess duel
 		name = wastelands.1002.b
+		trigger = { exists = scope:knight }
 		
 		scope:knight = {
 			duel = {
@@ -1981,7 +2009,7 @@ wastelands.1002 = { # Surrounded
 							right_icon = scope:knight
 							scope:knight = { add_prestige = 100 }
 							title = wastelands.1001.success.toast.t
-							scope:obstacle_province = { remove_building = wolf_den_cleared }
+							#scope:obstacle_province = { remove_building = wolf_den_cleared }
 						}
 					}
 				}
@@ -2000,7 +2028,7 @@ wastelands.1002 = { # Surrounded
 							scope:knight = { add_prestige = -150 }
 							scope:knight = { increase_wounds_effect = { REASON = hunting_accident } }
 							increase_wounds_effect = { REASON = hunting_accident }
-							hidden_effect = { scope:obstacle_province = { remove_building = wolf_den_cleared } }
+							#hidden_effect = { scope:obstacle_province = { remove_building = wolf_den_cleared } }
 							scope:obstacle_province = { add_building = wolf_den }
 						}
 					}
@@ -2012,7 +2040,7 @@ wastelands.1002 = { # Surrounded
 	option = { # Flee, costing prestige + wolf den
 		name = wastelands.1002.c
 		add_prestige = -75
-		hidden_effect = { scope:obstacle_province = { remove_building = wolf_den_cleared } }
+		#hidden_effect = { scope:obstacle_province = { remove_building = wolf_den_cleared } }
 		scope:obstacle_province = { add_building = wolf_den }
 	}
 }
@@ -2030,6 +2058,7 @@ wastelands.1003 = { # Wolf-mother
 	}
 
 	immediate = {
+		scope:obstacle_province = { remove_cleaned_blockers_effect = yes }
 		if = {
 			limit = { 
 				any_knight = { 
@@ -2061,10 +2090,9 @@ wastelands.1003 = { # Wolf-mother
 				root = {
 					send_interface_toast = {
 						left_icon = root
-						right_icon = scope:knight
-						scope:knight = { add_prestige = 175 }
+						add_prestige = 175
 						title = wastelands.1001.success.toast.t
-						scope:obstacle_province = { remove_building = wolf_den_cleared }
+						#scope:obstacle_province = { remove_building = wolf_den_cleared }
 					}
 				}
 			}
@@ -2078,10 +2106,9 @@ wastelands.1003 = { # Wolf-mother
 				root = {
 					send_interface_toast = {
 						left_icon = root
-						right_icon = scope:knight
 						title = wastelands.1001.failure.toast.t
 						increase_wounds_effect = { REASON = hunting_accident }
-						hidden_effect = { scope:obstacle_province = { remove_building = wolf_den_cleared } }
+						#hidden_effect = { scope:obstacle_province = { remove_building = wolf_den_cleared } }
 						scope:obstacle_province = { add_building = wolf_den }
 					}
 				}
@@ -2091,6 +2118,7 @@ wastelands.1003 = { # Wolf-mother
 	
 	option = { # Your knight is does a prowess duel
 		name = wastelands.1003.b
+		trigger = { exists = scope:knight }
 		
 		duel = {
 			skill = martial 
@@ -2106,7 +2134,7 @@ wastelands.1003 = { # Wolf-mother
 					send_interface_toast = {
 						left_icon = root
 						title = wastelands.1001.success.toast.t
-						scope:obstacle_province = { remove_building = wolf_den_cleared }
+						#scope:obstacle_province = { remove_building = wolf_den_cleared }
 					}
 				}
 			}
@@ -2122,7 +2150,7 @@ wastelands.1003 = { # Wolf-mother
 						left_icon = root
 						title = wastelands.1001.failure.toast.t
 						increase_wounds_effect = { REASON = hunting_accident }
-						hidden_effect = { scope:obstacle_province = { remove_building = wolf_den_cleared } }
+						#hidden_effect = { scope:obstacle_province = { remove_building = wolf_den_cleared } }
 						scope:obstacle_province = { add_building = wolf_den }
 					}
 				}
@@ -2133,7 +2161,7 @@ wastelands.1003 = { # Wolf-mother
 	option = { # Flee, costing prestige + wolf den
 		name = wastelands.1003.c
 		add_prestige = -150
-		hidden_effect = { scope:obstacle_province = { remove_building = wolf_den_cleared } }
+		#hidden_effect = { scope:obstacle_province = { remove_building = wolf_den_cleared } }
 		scope:obstacle_province = { add_building = wolf_den }
 	}
 }
@@ -2148,6 +2176,10 @@ wastelands.1004 = { # Wolf-Dogs
 	left_portrait = {
 		character = root
 		animation = personality_bold
+	}
+
+	immediate = {
+		scope:obstacle_province = { remove_cleaned_blockers_effect = yes }
 	}
 
 	option = { # Stewardship option
@@ -2166,7 +2198,7 @@ wastelands.1004 = { # Wolf-Dogs
 				send_interface_toast = {
 					left_icon = root
 					title = wastelands.1004.a.success.toast.t
-					scope:obstacle_province = { remove_building = wolf_den_cleared }
+					#scope:obstacle_province = { remove_building = wolf_den_cleared }
 				}
 			}
 			30 = { # failure
@@ -2180,7 +2212,7 @@ wastelands.1004 = { # Wolf-Dogs
 					send_interface_toast = {
 						left_icon = root
 						title = wastelands.1004.a.failure.toast.t
-						hidden_effect = { scope:obstacle_province = { remove_building = wolf_den_cleared } }
+						#hidden_effect = { scope:obstacle_province = { remove_building = wolf_den_cleared } }
 						scope:obstacle_province = { add_building = wolf_den }
 						scope:obstacle_province = { 
 							add_province_modifier = { 
@@ -2211,7 +2243,7 @@ wastelands.1004 = { # Wolf-Dogs
 					send_interface_toast = {
 						left_icon = root
 						title = wastelands.1004.b.success.toast.t
-						scope:obstacle_province = { remove_building = wolf_den_cleared }
+						#scope:obstacle_province = { remove_building = wolf_den_cleared }
 						start_dog_story_cycle_effect = yes 
 					}
 				}
@@ -2228,7 +2260,7 @@ wastelands.1004 = { # Wolf-Dogs
 						left_icon = root
 						title = wastelands.1004.b.failure.toast.t
 						increase_wounds_effect = { REASON = hunting_accident }
-						hidden_effect = { scope:obstacle_province = { remove_building = wolf_den_cleared } }
+						#hidden_effect = { scope:obstacle_province = { remove_building = wolf_den_cleared } }
 						scope:obstacle_province = { add_building = wolf_den }
 						add_prestige = -100
 					}
@@ -2240,14 +2272,10 @@ wastelands.1004 = { # Wolf-Dogs
 	option = { # Gain wolf sighting
 		name = wastelands.1004.c
 		add_prestige = -150
-		hidden_effect = { scope:obstacle_province = { remove_building = wolf_den_cleared } }
+		#hidden_effect = { scope:obstacle_province = { remove_building = wolf_den_cleared } }
 		scope:obstacle_province = { 
 			add_building = wolf_den 
 			county = {
-				set_variable = {
-					name = animal_type
-					value = scope:old_sighting_county.var:animal_type
-				}
 				hunt_create_sighting_effect = {
 					TYPE = dangerous
 					ANIMAL = flag:wolf
@@ -2271,6 +2299,10 @@ wastelands.1005 = { # The Vanished
 		animation = personality_bold
 	}
 
+	immediate = {
+		scope:obstacle_province = { remove_cleaned_blockers_effect = yes }
+	}
+
 	option = { # Organize the villagers
 		name = wastelands.1005.a
 		skill = martial
@@ -2287,7 +2319,7 @@ wastelands.1005 = { # The Vanished
 				send_interface_toast = {
 					left_icon = root
 					title = wastelands.1005.success.toast.t
-					scope:obstacle_province = { remove_building = wolf_den_cleared }
+					#scope:obstacle_province = { remove_building = wolf_den_cleared }
 				}
 			}
 			30 = {
@@ -2300,7 +2332,7 @@ wastelands.1005 = { # The Vanished
 				send_interface_toast = {
 					left_icon = root
 					title = wastelands.1005.failure.toast.t
-					hidden_effect = { scope:obstacle_province = { remove_building = wolf_den_cleared } }
+					#hidden_effect = { scope:obstacle_province = { remove_building = wolf_den_cleared } }
 					scope:obstacle_province = { add_building = wolf_den }
 					make_settlement_county_wilderness = {
 						COUNTY = scope:obstacle_province.county
@@ -2326,7 +2358,7 @@ wastelands.1005 = { # The Vanished
 				send_interface_toast = {
 					left_icon = root
 					title = wastelands.1005.success.toast.t
-					scope:obstacle_province = { remove_building = wolf_den_cleared }
+					#scope:obstacle_province = { remove_building = wolf_den_cleared }
 				}
 			}
 			30 = {
@@ -2339,7 +2371,7 @@ wastelands.1005 = { # The Vanished
 				send_interface_toast = {
 					left_icon = root
 					title = wastelands.1005.failure.toast.t
-					hidden_effect = { scope:obstacle_province = { remove_building = wolf_den_cleared } }
+					#hidden_effect = { scope:obstacle_province = { remove_building = wolf_den_cleared } }
 					scope:obstacle_province = { add_building = wolf_den }
 					make_settlement_county_wilderness = {
 						COUNTY = scope:obstacle_province.county
@@ -2352,7 +2384,7 @@ wastelands.1005 = { # The Vanished
 	option = { # These are the risks...
 		name = wastelands.1005.c
 		add_prestige = medium_prestige_loss
-		hidden_effect = { scope:obstacle_province = { remove_building = wolf_den_cleared } }
+		#hidden_effect = { scope:obstacle_province = { remove_building = wolf_den_cleared } }
 		scope:obstacle_province = { add_building = wolf_den }
 	}
 }
@@ -2381,6 +2413,10 @@ wastelands.1006 = { # Hunted
 		}
 	}
 
+	immediate = {
+		scope:obstacle_province = { remove_cleaned_blockers_effect = yes }
+	}
+
 	option = { # A fine rug
 		name = wastelands.1006.a
 		skill = prowess
@@ -2397,7 +2433,7 @@ wastelands.1006 = { # Hunted
 				send_interface_toast = {
 					left_icon = root
 					title = wastelands.1006.success.toast.t
-					scope:obstacle_province = { remove_building = wolf_den_cleared }
+					#scope:obstacle_province = { remove_building = wolf_den_cleared }
 					add_prestige = minor_prestige_gain
 				}
 			}
@@ -2411,7 +2447,7 @@ wastelands.1006 = { # Hunted
 				send_interface_toast = {
 					left_icon = root
 					title = wastelands.1006.failure.toast.t
-					hidden_effect = { scope:obstacle_province = { remove_building = wolf_den_cleared } }
+					#hidden_effect = { scope:obstacle_province = { remove_building = wolf_den_cleared } }
 					scope:obstacle_province = { add_building = wolf_den }
 					increase_wounds_effect = { REASON = warg }
 				}
@@ -2435,7 +2471,7 @@ wastelands.1006 = { # Hunted
 				send_interface_toast = {
 					left_icon = root
 					title = wastelands.1006.success.toast.t
-					scope:obstacle_province = { remove_building = wolf_den_cleared }
+					#scope:obstacle_province = { remove_building = wolf_den_cleared }
 					add_prestige = minor_prestige_gain
 				}
 			}
@@ -2449,7 +2485,7 @@ wastelands.1006 = { # Hunted
 				send_interface_toast = {
 					left_icon = root
 					title = wastelands.1006.failure.toast.t
-					hidden_effect = { scope:obstacle_province = { remove_building = wolf_den_cleared } }
+					#hidden_effect = { scope:obstacle_province = { remove_building = wolf_den_cleared } }
 					scope:obstacle_province = { add_building = wolf_den }
 					increase_wounds_effect = { REASON = warg }
 				}
@@ -2460,112 +2496,101 @@ wastelands.1006 = { # Hunted
 	option = { # Bravely run away
 		name = wastelands.1006.c
 		add_prestige = medium_prestige_loss
-		hidden_effect = { scope:obstacle_province = { remove_building = wolf_den_cleared } }
+		#hidden_effect = { scope:obstacle_province = { remove_building = wolf_den_cleared } }
 		scope:obstacle_province = { add_building = wolf_den }
 	}
 }
 
 wastelands.1007 = { # Howls from the Hills
-    type = character_event
-    title = wastelands.1007.t
-    desc = wastelands.1007.desc
-    theme = dread
+	type = character_event
+	title = wastelands.1007.t
+	desc = wastelands.1007.desc
+	theme = dread
 
-    left_portrait = {
-        character = root
-        animation = personality_rational
-    }
+	left_portrait = {
+		character = root
+		animation = personality_rational
+	}
 
-    right_portrait = {
-        character = scope:steward
-        animation = steward
-    }
+	right_portrait = {
+		character = scope:steward
+		animation = steward
+	}
 
-    lower_center_portrait = {
-        character = scope:messenger
-    }
+	lower_center_portrait = {
+		character = scope:messenger
+	}
 
-    immediate = {
-        create_character = {
-            template = local_artisan_template
-            culture = root.culture
-            faith = root.faith
+	trigger = {
+		scope:obstacle_province = { terrain = hills }
+	}
+
+	immediate = {
+		scope:obstacle_province = { remove_cleaned_blockers_effect = yes }
+		create_character = {
+			template = local_artisan_template
+			culture = root.culture
+			faith = root.faith
 			location = scope:obstacle_province
-            gender_female_chance = 50
-            save_scope_as = messenger
-        }
+			gender_female_chance = 50
+			save_scope_as = messenger
+		}
 
-        if = {
-            limit = {
-                any_stewardship_councillor = {
-                    count > 0
-                }
-            }
-            random_stewardship_councillor = {
-                save_scope_as = steward
-            }
-        }
-        else = {
-            ordered_courtier = {
-                order_by = stewardship
-                save_scope_as = steward
-            }
-        }
-    }
+		if = {
+			limit = {
+				any_stewardship_councillor = {
+					count > 0
+				}
+			}
+			random_stewardship_councillor = {
+				save_scope_as = steward
+			}
+		}
+		else = {
+			ordered_courtier = {
+				order_by = stewardship
+				save_scope_as = steward
+			}
+		}
+	}
 
-    trigger = {
-        scope:obstacle_province = {
-            terrain = hills
-        }
-    }
+	option = {
+		name = wastelands.1007.a
+		remove_short_term_gold = 50
+		reverse_add_opinion = {
+			modifier = disappointed_opinion
+			opinion = -20
+			target = scope:steward
+		}
+		#scope:obstacle_province = { remove_building = wolf_den_cleared }
+	}
 
-    option = {
-        name = wastelands.1007.a
-        remove_short_term_gold = 50
-        reverse_add_opinion = {
-            modifier = disappointed_opinion
-            opinion = -20
-            target = scope:steward
-        }
-        scope:obstacle_province = {
-            remove_building = wolf_den_cleared
-        }
-    }
+	option = {
+		name = wastelands.1007.b
+		random_list = { 
+			70 = {
+				send_interface_toast = {
+					left_icon = root
+					title = wastelands.1007.success.toast.t
+					#scope:obstacle_province = { remove_building = wolf_den_cleared }
+				}
+			}
+			30 = {
+				send_interface_toast = {
+					left_icon = root
+					title = wastelands.1007.failure.toast.t
+					#hidden_effect = { scope:obstacle_province = { remove_building = wolf_den_cleared } }
+					scope:obstacle_province = { add_building = wolf_den }
+				}
+			}
+		}
+	}
 
-    option = {
-        name = wastelands.1007.b
-        random_list = { 
-            70 = {
-                send_interface_toast = {
-                    left_icon = root
-                    title = wastelands.1007.success.toast.t
-                    scope:obstacle_province = { 
-                        remove_building = wolf_den_cleared 
-                    }
-                }
-            }
-            30 = {
-                send_interface_toast = {
-                    left_icon = root
-                    title = wastelands.1007.failure.toast.t
-                    hidden_effect = { 
-                        scope:obstacle_province = { 
-                            remove_building = wolf_den_cleared 
-                        } 
-                    }
-                    scope:obstacle_province = { 
-                        add_building = wolf_den 
-                    }
-                }
-            }
-        }
-    }
-
-    after = {
-        scope:messenger = {
-            silent_disappearance_effect = yes
-        }
-    }
+	after = {
+		scope:messenger = {
+			silent_disappearance_effect = yes
+		}
+	}
 }
 
 wastelands.1008 = { # Hunting Clubs
@@ -2580,11 +2605,15 @@ wastelands.1008 = { # Hunting Clubs
 		animation = personality_content
 	}
 
+	immediate = {
+		scope:obstacle_province = { remove_cleaned_blockers_effect = yes }
+	}
+
 	option = { # A passing fad
 		name = wastelands.1008.a
 		add_prestige = minor_prestige_gain
 		add_short_term_gold = minor_gold_value
-		hidden_effect = { scope:obstacle_province = { remove_building = wolf_den_cleared } }
+		#hidden_effect = { scope:obstacle_province = { remove_building = wolf_den_cleared } }
 	}
 
 	option = { # Foster the hunting clubs
@@ -2603,9 +2632,7 @@ wastelands.1008 = { # Hunting Clubs
 				send_interface_toast = {
 					left_icon = root
 					title = wastelands.1008.success.toast.t
-					hidden_effect = {
-						scope:obstacle_province = { remove_building = wolf_den_cleared}
-					}
+					#hidden_effect = { scope:obstacle_province = { remove_building = wolf_den_cleared} }
 					scope:obstacle_province = { 
 						add_province_modifier = {
 							modifier = fostered_hunt_clubs
@@ -2624,9 +2651,7 @@ wastelands.1008 = { # Hunting Clubs
 				send_interface_toast = {
 					left_icon = root
 					title = wastelands.1008.failure.toast.t
-					hidden_effect = { 
-						scope:obstacle_province = { remove_building = wolf_den_cleared }
-					}
+					#hidden_effect = { scope:obstacle_province = { remove_building = wolf_den_cleared } }
 					scope:obstacle_province = {
 						add_province_modifier = {
 							modifier = uncontrolled_hunting
@@ -2640,9 +2665,7 @@ wastelands.1008 = { # Hunting Clubs
 
 	option = { # Tips and tricks
 		name = wastelands.1008.c
-		hidden_effect = { 
-			scope:obstacle_province = { remove_building = wolf_den_cleared } 
-		}
+		#hidden_effect = { scope:obstacle_province = { remove_building = wolf_den_cleared } }
 		add_character_modifier = {
 			modifier = fostered_wolf_hunting
 			years = 5
@@ -2662,23 +2685,6 @@ wastelands.1009 = { # Howls in the night
 		animation = personality_coward
 	}
 	
-	immediate = {
-		if = {
-			limit = { 
-				any_knight = { 
-					is_ai = yes
-					count > 0
-				}
-			}
-			ordered_knight = {
-				limit = { is_ai = yes }
-				order_by = prowess
-				save_scope_as = knight
-			}
-		}
-	}
-
-	
 	right_portrait = {
 		character = scope:knight
 		animation = disgust
@@ -2691,6 +2697,23 @@ wastelands.1009 = { # Howls in the night
 				kingdom = title:k_forochel
 				kingdom = title:k_high_pass
 				kingdom = title:k_gundabad
+			}
+		}
+	}
+	
+	immediate = {
+		scope:obstacle_province = { remove_cleaned_blockers_effect = yes }
+		if = {
+			limit = { 
+				any_knight = { 
+					is_ai = yes
+					count > 0
+				}
+			}
+			ordered_knight = {
+				limit = { is_ai = yes }
+				order_by = prowess
+				save_scope_as = knight
 			}
 		}
 	}
@@ -2713,9 +2736,7 @@ wastelands.1009 = { # Howls in the night
 					title = wastelands.1009.success.toast.t
 					add_prestige = medium_prestige_gain
 					add_martial_lifestyle_xp = medium_lifestyle_xp
-					hidden_effect = {
-						scope:obstacle_province = { remove_building = wolf_den_cleared }
-					}
+					#hidden_effect = { scope:obstacle_province = { remove_building = wolf_den_cleared } }
 				}
 			}
 			30 = {
@@ -2728,9 +2749,7 @@ wastelands.1009 = { # Howls in the night
 				send_interface_toast = {
 					left_icon = root
 					title = wastelands.1009.failure.toast.t
-					hidden_effect = { 
-						scope:obstacle_province = { remove_building = wolf_den_cleared }
-					}
+					#hidden_effect = { scope:obstacle_province = { remove_building = wolf_den_cleared } }
 					increase_wounds_effect = { REASON = warg }
 					add_trait = maimed
 				}
@@ -2754,9 +2773,7 @@ wastelands.1009 = { # Howls in the night
 				send_interface_toast = {
 					left_icon = root
 					title = wastelands.1009.success.toast.t
-					hidden_effect = {
-						scope:obstacle_province = {  remove_building = wolf_den_cleared }
-					}
+					#hidden_effect = { scope:obstacle_province = { remove_building = wolf_den_cleared } }
 					add_prestige = medium_prestige_gain
 					add_learning_lifestyle_xp = medium_lifestyle_xp					
 				}
@@ -2771,9 +2788,7 @@ wastelands.1009 = { # Howls in the night
 				send_interface_toast = {
 					left_icon = root
 					title = wastelands.1009.failure.toast.t
-					hidden_effect = { 
-						scope:obstacle_province = { remove_building = wolf_den_cleared }
-					}
+					#hidden_effect = { scope:obstacle_province = { remove_building = wolf_den_cleared } }
 					increase_wounds_effect = { REASON = warg }
 					add_trait = maimed
 				}
@@ -2806,9 +2821,7 @@ wastelands.1009 = { # Howls in the night
 							left_icon = root
 							right_icon = scope:knight
 							title = wastelands.1009.success.toast.t
-							hidden_effect = {
-								scope:obstacle_province = {  remove_building = wolf_den_cleared }
-							}
+							#hidden_effect = { scope:obstacle_province = { remove_building = wolf_den_cleared } }
 							scope:knight = {
 								if = {
 									limit = {
@@ -2854,9 +2867,7 @@ wastelands.1009 = { # Howls in the night
 							left_icon = root
 							right_icon = scope:knight
 							title = wastelands.1009.failure.toast.t
-							hidden_effect = { 
-								scope:obstacle_province = { remove_building = wolf_den_cleared }
-							}
+							#hidden_effect = { scope:obstacle_province = { remove_building = wolf_den_cleared } }
 							scope:knight = {
 								increase_wounds_effect = { REASON = warg }
 							}
@@ -2883,6 +2894,10 @@ wastelands.1201 = { # Yoh-gi
 		character = root
 		animation = personality_bold
 	}
+
+	immediate = {
+		scope:obstacle_province = { remove_cleaned_blockers_effect = yes }
+	}
 	
 	option = { # Dispatch the ranger expedition
 		name = wastelands.1201.a
@@ -2903,7 +2918,7 @@ wastelands.1201 = { # Yoh-gi
 				send_interface_toast = {
 					left_icon = root
 					title = wastelands.1201.success.toast.t
-					scope:obstacle_province = { remove_building = bear_den_cleared }
+					#scope:obstacle_province = { remove_building = bear_den_cleared }
 				}
 			}
 			30 = {
@@ -2916,7 +2931,7 @@ wastelands.1201 = { # Yoh-gi
 				send_interface_toast = {
 					left_icon = root
 					title = wastelands.1201.failure.toast.t
-					hidden_effect = { scope:obstacle_province = { remove_building = bear_den_cleared } }
+					#hidden_effect = { scope:obstacle_province = { remove_building = bear_den_cleared } }
 					scope:obstacle_province = { add_building = bear_den }
 				}
 			}
@@ -2943,7 +2958,7 @@ wastelands.1201 = { # Yoh-gi
 					left_icon = root
 					add_prestige = 100
 					title = wastelands.1201.success.toast.t
-					scope:obstacle_province = { remove_building = bear_den_cleared }
+					#scope:obstacle_province = { remove_building = bear_den_cleared }
 				}
 			}
 			30 = {
@@ -2958,7 +2973,7 @@ wastelands.1201 = { # Yoh-gi
 					title = wastelands.1201.failure.toast.t
 					add_prestige = -50
 					increase_wounds_effect = { REASON = hunting_accident }
-					hidden_effect = { scope:obstacle_province = { remove_building = bear_den_cleared } }
+					#hidden_effect = { scope:obstacle_province = { remove_building = bear_den_cleared } }
 					scope:obstacle_province = { add_building = bear_den }
 				}
 			}
@@ -2977,14 +2992,14 @@ wastelands.1201 = { # Yoh-gi
 				send_interface_toast = {
 					left_icon = root
 					title = wastelands.1201.success.toast.t
-					scope:obstacle_province = { remove_building = bear_den_cleared }
+					#scope:obstacle_province = { remove_building = bear_den_cleared }
 				}
 			}
 			30 = {
 				send_interface_toast = {
 					left_icon = root
 					title = wastelands.1201.failure.toast.t
-					hidden_effect = { scope:obstacle_province = { remove_building = bear_den_cleared } }
+					#hidden_effect = { scope:obstacle_province = { remove_building = bear_den_cleared } }
 					scope:obstacle_province = { add_building = bear_den }
 				}
 			}
@@ -2996,7 +3011,7 @@ wastelands.1201 = { # Yoh-gi
 
 	option = { # Leave the bears alone
 		name = wastelands.1201.d
-		hidden_effect = { scope:obstacle_province = { remove_building = bear_den_cleared } }
+		#hidden_effect = { scope:obstacle_province = { remove_building = bear_den_cleared } }
 		scope:obstacle_province = { add_building = bear_den }
 	}
 }
@@ -3026,10 +3041,14 @@ wastelands.1202 = { # Beargild
 		character = root
 		animation = sadness
 	}
+
+	immediate = {
+		scope:obstacle_province = { remove_cleaned_blockers_effect = yes }
+	}
 	
 	option = { # I must put it out of its misery
 		name = wastelands.1202.a
-		scope:obstacle_province = { remove_building = bear_den_cleared }
+		#scope:obstacle_province = { remove_building = bear_den_cleared }
 		if = {
 			limit = {
 				OR = {
@@ -3051,7 +3070,7 @@ wastelands.1202 = { # Beargild
 			
 	option = { # Try to raise the cub
 		name = wastelands.1202.b
-		scope:obstacle_province = { remove_building = bear_den_cleared }
+		#scope:obstacle_province = { remove_building = bear_den_cleared }
 		remove_short_term_gold = 75
 		random_list = { 
 			10 = {
@@ -3078,7 +3097,7 @@ wastelands.1202 = { # Beargild
 
 	option = { # Leave the cub to fend for itself
 		name = wastelands.1202.c
-		hidden_effect = { scope:obstacle_province = { remove_building = bear_den_cleared } }
+		#hidden_effect = { scope:obstacle_province = { remove_building = bear_den_cleared } }
 		scope:obstacle_province = { add_building = bear_den }
 		if = {
 			limit = {
@@ -3111,6 +3130,10 @@ wastelands.1203 = { # The Raid
 		character = root
 		animation = anger
 	}
+
+	immediate = {
+		scope:obstacle_province = { remove_cleaned_blockers_effect = yes }
+	}
 	
 	option = { # Kill the bear yourself
 		name = wastelands.1203.a
@@ -3128,7 +3151,7 @@ wastelands.1203 = { # The Raid
 					left_icon = root
 					add_prestige = 150
 					title = wastelands.1203.success.toast.t
-					scope:obstacle_province = { remove_building = bear_den_cleared }
+					#scope:obstacle_province = { remove_building = bear_den_cleared }
 				}
 			}
 			40 = { # Failure
@@ -3143,7 +3166,7 @@ wastelands.1203 = { # The Raid
 					title = wastelands.1203.failure.toast.t
 					add_prestige = -75
 					increase_wounds_effect = { REASON = hunting_accident }
-					hidden_effect = { scope:obstacle_province = { remove_building = bear_den_cleared } }
+					#hidden_effect = { scope:obstacle_province = { remove_building = bear_den_cleared } }
 					scope:obstacle_province = { add_building = bear_den }
 				}
 			}
@@ -3170,7 +3193,7 @@ wastelands.1203 = { # The Raid
 					left_icon = root
 					add_prestige = 75
 					title = wastelands.1203.success.toast.t
-					scope:obstacle_province = { remove_building = bear_den_cleared }
+					#scope:obstacle_province = { remove_building = bear_den_cleared }
 				}
 			}
 			30 = { # Failure
@@ -3184,7 +3207,7 @@ wastelands.1203 = { # The Raid
 					left_icon = root
 					title = wastelands.1203.failure.toast.t
 					add_prestige = -75
-					hidden_effect = { scope:obstacle_province = { remove_building = bear_den_cleared } }
+					#hidden_effect = { scope:obstacle_province = { remove_building = bear_den_cleared } }
 					scope:obstacle_province = { add_building = bear_den }
 				}
 			}
@@ -3193,7 +3216,7 @@ wastelands.1203 = { # The Raid
 
 	option = { # Flee, causing bear to remain
 		name = wastelands.1203.c
-		hidden_effect = { scope:obstacle_province = { remove_building = bear_den_cleared } }
+		#hidden_effect = { scope:obstacle_province = { remove_building = bear_den_cleared } }
 		scope:obstacle_province = { add_building = bear_den }
 	}
 }
@@ -3214,8 +3237,10 @@ wastelands.1204 = { # Mushroom Bear
 		character = scope:steward
 		animation = worry
 	}
+
 	immediate = {
-		cp:councillor_steward = {
+		scope:obstacle_province = { remove_cleaned_blockers_effect = yes }
+		cp:councillor_steward ?= {
 			save_scope_as = steward
 		}
 	}
@@ -3237,7 +3262,7 @@ wastelands.1204 = { # Mushroom Bear
 					left_icon = root
 					add_prestige = 75
 					title = wastelands.1204.success.toast.t
-					scope:obstacle_province = { remove_building = bear_den_cleared }
+					#scope:obstacle_province = { remove_building = bear_den_cleared }
 				}
 			}
 			40 = { # Failure
@@ -3251,7 +3276,7 @@ wastelands.1204 = { # Mushroom Bear
 					left_icon = root
 					title = wastelands.1204.failure.toast.t
 					add_prestige = -125
-					hidden_effect = { scope:obstacle_province = { remove_building = bear_den_cleared } }
+					#hidden_effect = { scope:obstacle_province = { remove_building = bear_den_cleared } }
 					scope:obstacle_province = {
 						add_building = bear_den
 					}
@@ -3282,7 +3307,7 @@ wastelands.1204 = { # Mushroom Bear
 					left_icon = root
 					add_prestige = 175
 					title = wastelands.1204.success.toast.t
-					scope:obstacle_province = { remove_building = bear_den_cleared }
+					#scope:obstacle_province = { remove_building = bear_den_cleared }
 				}
 			}
 			40 = { # Failure
@@ -3296,10 +3321,8 @@ wastelands.1204 = { # Mushroom Bear
 					left_icon = root
 					title = wastelands.1204.failure.toast.t
 					add_prestige = -150
-					hidden_effect = { scope:obstacle_province = { remove_building = bear_den_cleared } }
-					scope:obstacle_province = {
-						add_building = bear_den
-					}
+					#hidden_effect = { scope:obstacle_province = { remove_building = bear_den_cleared } }
+					scope:obstacle_province = { add_building = bear_den }
 					scope:obstacle_province.county = {
 						add_county_modifier = {
 							modifier = bear_on_shrooms_loose
@@ -3313,7 +3336,7 @@ wastelands.1204 = { # Mushroom Bear
 
 	option = { # Chance of getting ill or health boost
 		name = wastelands.1204.c
-		hidden_effect = { scope:obstacle_province = { remove_building = bear_den_cleared } }
+		#hidden_effect = { scope:obstacle_province = { remove_building = bear_den_cleared } }
 		random_list = {
 			45 = {
 				send_interface_toast = {
@@ -3367,6 +3390,10 @@ wastelands.1205 = { # More than meets the eye
 		faith_is_good = yes
 	}
 
+	immediate = {
+		scope:obstacle_province = { remove_cleaned_blockers_effect = yes }
+	}
+
 	option = { # Prowess check
 		name = wastelands.1205.a
 		
@@ -3384,7 +3411,7 @@ wastelands.1205 = { # More than meets the eye
 					left_icon = root
 					add_prestige = 100
 					title = wastelands.1205.a.success.toast.t
-					scope:obstacle_province = { remove_building = bear_den_cleared }
+					#scope:obstacle_province = { remove_building = bear_den_cleared }
 				}
 			}
 			40 = { # Failure
@@ -3397,7 +3424,7 @@ wastelands.1205 = { # More than meets the eye
 				send_interface_toast = {
 					left_icon = root
 					title = wastelands.1205.a.failure.toast.t
-					hidden_effect = { scope:obstacle_province = { remove_building = bear_den_cleared } }
+					#hidden_effect = { scope:obstacle_province = { remove_building = bear_den_cleared } }
 					scope:obstacle_province = { add_building = bear_den }
 					increase_wounds_effect = { REASON = hunting_accident }
 				}
@@ -3425,7 +3452,7 @@ wastelands.1205 = { # More than meets the eye
 				send_interface_toast = {
 					left_icon = root
 					title = wastelands.1205.b.success.toast.t
-					scope:obstacle_province = { remove_building = bear_den_cleared }
+					#scope:obstacle_province = { remove_building = bear_den_cleared }
 					add_prestige = 50
 					add_piety = 50
 				}
@@ -3441,7 +3468,7 @@ wastelands.1205 = { # More than meets the eye
 					send_interface_toast = {
 						left_icon = root
 						title = wastelands.1205.b.failure.toast.t
-						hidden_effect = { scope:obstacle_province = { remove_building = bear_den_cleared } }
+						#hidden_effect = { scope:obstacle_province = { remove_building = bear_den_cleared } }
 						scope:obstacle_province = { add_building = bear_den }
 						add_prestige = -100
 					}
@@ -3457,7 +3484,7 @@ wastelands.1205 = { # More than meets the eye
 			left_icon = root
 			add_prestige = -75
 			title = wastelands.1205.toast.t
-			hidden_effect = { scope:obstacle_province = { remove_building = bear_den_cleared } }
+			#hidden_effect = { scope:obstacle_province = { remove_building = bear_den_cleared } }
 			scope:obstacle_province = { add_building = bear_den }
 		}
 	}
@@ -3481,7 +3508,8 @@ wastelands.1206 = { # The Man-Eater
 	}
 	
 	immediate = {
-		cp:councillor_marshal = {
+		scope:obstacle_province = { remove_cleaned_blockers_effect = yes }
+		cp:councillor_marshal ?= {
 			save_scope_as = marshal
 		}
 	}
@@ -3498,13 +3526,13 @@ wastelands.1206 = { # The Man-Eater
 		send_interface_toast = {
 			left_icon = root
 			title = wastelands.1206.success.toast.t
-			scope:obstacle_province = { remove_building = bear_den_cleared }
+			#scope:obstacle_province = { remove_building = bear_den_cleared }
 		}
 	}
 			
 	option = { # Marshal deals with the bear
 		name = wastelands.1206.b
-
+		trigger = { exists = cp:councillor_marshal }
 		stress_impact = {
 			compassionate = medium_stress_gain
 			callous = minor_stress_loss
@@ -3527,7 +3555,7 @@ wastelands.1206 = { # The Man-Eater
 						left_icon = root
 						right_icon = scope:marshal
 						title = wastelands.1206.success.toast.t
-						scope:obstacle_province = { remove_building = bear_den_cleared }
+						#scope:obstacle_province = { remove_building = bear_den_cleared }
 					}
 				}
 				40 = { # Failure
@@ -3542,7 +3570,7 @@ wastelands.1206 = { # The Man-Eater
 							left_icon = root
 							right_icon = scope:marshal
 							title = wastelands.1206.failure.toast.t
-							hidden_effect = { scope:obstacle_province = { remove_building = bear_den_cleared } }
+							#hidden_effect = { scope:obstacle_province = { remove_building = bear_den_cleared } }
 							scope:obstacle_province = {
 								add_building = bear_den
 							}
@@ -3565,7 +3593,7 @@ wastelands.1206 = { # The Man-Eater
 
 		add_legitimacy = minor_legitimacy_loss
 
-		hidden_effect = { scope:obstacle_province = { remove_building = bear_den_cleared } }
+		#hidden_effect = { scope:obstacle_province = { remove_building = bear_den_cleared } }
 		scope:obstacle_province = { add_building = bear_den }
 	}
 }
@@ -3594,6 +3622,10 @@ wastelands.1207 = { # Hated enemies
 		faith_is_evil = yes
 	}
 
+	immediate = {
+		scope:obstacle_province = { remove_cleaned_blockers_effect = yes }
+	}
+
 	option = { # Prowess check
 		name = wastelands.1207.a
 		skill = prowess
@@ -3611,7 +3643,7 @@ wastelands.1207 = { # Hated enemies
 					left_icon = root
 					add_prestige = 100
 					title = wastelands.1207.success.toast.t
-					scope:obstacle_province = { remove_building = bear_den_cleared }
+					#scope:obstacle_province = { remove_building = bear_den_cleared }
 				}
 			}
 			40 = { # Failure
@@ -3624,7 +3656,7 @@ wastelands.1207 = { # Hated enemies
 				send_interface_toast = {
 					left_icon = root
 					title = wastelands.1207.failure.toast.t
-					hidden_effect = { scope:obstacle_province = { remove_building = bear_den_cleared } }
+					#hidden_effect = { scope:obstacle_province = { remove_building = bear_den_cleared } }
 					scope:obstacle_province = { add_building = bear_den }
 					increase_wounds_effect = { REASON = hunting_accident }
 				}
@@ -3649,7 +3681,7 @@ wastelands.1207 = { # Hated enemies
 					left_icon = root
 					add_prestige = 100
 					title = wastelands.1207.success.toast.t
-					scope:obstacle_province = { remove_building = bear_den_cleared }
+					#scope:obstacle_province = { remove_building = bear_den_cleared }
 				}
 			}
 			40 = { # Failure
@@ -3662,7 +3694,7 @@ wastelands.1207 = { # Hated enemies
 				send_interface_toast = {
 					left_icon = root
 					title = wastelands.1207.failure.toast.t
-					hidden_effect = { scope:obstacle_province = { remove_building = bear_den_cleared } }
+					#hidden_effect = { scope:obstacle_province = { remove_building = bear_den_cleared } }
 					scope:obstacle_province = { add_building = bear_den }
 					increase_wounds_effect = { REASON = hunting_accident }
 				}
@@ -3677,121 +3709,116 @@ wastelands.1207 = { # Hated enemies
 			left_icon = root
 			add_prestige = -75
 			title = wastelands.1207.failure.toast.t
-			hidden_effect = { scope:obstacle_province = { remove_building = bear_den_cleared } }
+			#hidden_effect = { scope:obstacle_province = { remove_building = bear_den_cleared } }
 			scope:obstacle_province = { add_building = bear_den }
 		}
 	}
 }
 
 wastelands.1208 = { # Bear-Baiting
-    type = character_event
-    title = wastelands.1208.t
-    desc = wastelands.1208.desc
-    theme = hunting
+	type = character_event
+	title = wastelands.1208.t
+	desc = wastelands.1208.desc
+	theme = hunting
 
-    left_portrait = root
+	left_portrait = root
 
-    right_portrait = {
-        character = scope:governor
-    }
+	right_portrait = {
+		character = scope:governor
+	}
 
-    override_background = wilderness_scope
+	override_background = wilderness_scope
 
-    immediate = {
-        create_character = {
-            template = administrator_character
-            culture = scope:obstacle_province.culture
-            faith = scope:obstacle_province.faith
-            location = scope:obstacle_province
-            gender_female_chance = 50
-            save_scope_as = governor
-        }
-    }
+	trigger = {
+		NOT = {
+			faith = { has_doctrine = tenet_sanctity_of_nature }
+		}
+	}
 
-    trigger = {
-        NOT = {
-            faith = {
-                has_doctrine = tenet_sanctity_of_nature
-            }
-        }
-    }
+	immediate = {
+		scope:obstacle_province = { remove_cleaned_blockers_effect = yes }
+		create_character = {
+			template = administrator_character
+			culture = scope:obstacle_province.culture
+			faith = scope:obstacle_province.faith
+			location = scope:obstacle_province
+			gender_female_chance = 50
+			save_scope_as = governor
+		}
+	}
 
-    option = {
-        name = wastelands.1208.a
-        scope:obstacle_province = { 
-            remove_building = bear_den_cleared 
-            add_county_modifier = {
-                modifier = permitted_bear_fighting
-                years = 5
-            }
-        }
-        stress_impact = {
-            callous = medium_stress_loss
-            sadistic = medium_stress_loss
-        }
-        if = {
-            limit = {
-                faith_is_evil = yes # not sure if we want doubling effects 
-            }
-            add_stress = -30
-        }
-    }
+	option = {
+		name = wastelands.1208.a
+		#scope:obstacle_province = { remove_building = bear_den_cleared }
+		scope:obstacle_province.county = {
+			add_county_modifier = {
+				modifier = permitted_bear_fighting
+				years = 5
+			}
+		}
+		stress_impact = {
+			callous = medium_stress_loss
+			sadistic = medium_stress_loss
+		}
+		if = {
+			limit = {
+				faith_is_evil = yes # not sure if we want doubling effects 
+			}
+			add_stress = -30
+		}
+	}
 
-    option = {
-        name = wastelands.1208.b
-        scope:obstacle_province = {
-            remove_building = bear_den_cleared
-        }
-        scope:obstacle_province.county = {
-            add_county_modifier = {
-                modifier = banned_bear_fighting
-                years = 5
-            }
-        }
+	option = {
+		name = wastelands.1208.b
+		#scope:obstacle_province = { remove_building = bear_den_cleared }
+		scope:obstacle_province.county = {
+			add_county_modifier = {
+				modifier = banned_bear_fighting
+				years = 5
+			}
+		}
 		stress_impact = {
 			compassionate = medium_stress_loss
 		}
-    }
+	}
 
-    option = {
-        name = wastelands.1208.c
-        skill = stewardship
-        duel = {
-            skill = stewardship
-            value = 10
-            30 = {
-                compare_modifier = {
-                    value = scope:duel_value
-                }
-                desc = wastelands.1208.c.duel_success
-                send_interface_toast = {
-                    left_icon = root
-                    add_short_term_gold = 100
-                    title = wastelands.1208.success.toast.t
-                }
-            }
-            20 = {
-                compare_modifier = {
-                    value = scope:duel_value
-                }
-                desc = wastelands.1208.c.duel_failure
-                send_interface_toast = {
-                    left_icon = root
-                    remove_short_term_gold = 100
-                    title = wastelands.1208.failure.toast.t
-                }
-            }
-        }
-        scope:obstacle_province = { 
-            remove_building = bear_den_cleared 
-        }
-    }
+	option = {
+		name = wastelands.1208.c
+		skill = stewardship
+		duel = {
+			skill = stewardship
+			value = 10
+			30 = {
+				compare_modifier = {
+					value = scope:duel_value
+				}
+				desc = wastelands.1208.c.duel_success
+				send_interface_toast = {
+					left_icon = root
+					add_short_term_gold = 100
+					title = wastelands.1208.success.toast.t
+				}
+			}
+			20 = {
+				compare_modifier = {
+					value = scope:duel_value
+				}
+				desc = wastelands.1208.c.duel_failure
+				send_interface_toast = {
+					left_icon = root
+					remove_short_term_gold = 100
+					title = wastelands.1208.failure.toast.t
+				}
+			}
+		}
+		#scope:obstacle_province = { remove_building = bear_den_cleared }
+	}
 
-    after = {
-        scope:governor = {
-            silent_disappearance_effect = yes
-        }
-    }
+	after = {
+		scope:governor = {
+			silent_disappearance_effect = yes
+		}
+	}
 }
 
 wastelands.1209 = { # Sloth and savagery
@@ -3804,6 +3831,11 @@ wastelands.1209 = { # Sloth and savagery
 	left_portrait = {
 		character = root
 		animation = personality_bold
+	}
+
+	right_portrait = {
+		character = scope:knight
+		animation = disgust
 	}
 
 	trigger = {
@@ -3819,13 +3851,9 @@ wastelands.1209 = { # Sloth and savagery
 			}
 		}
 	}
-
-	right_portrait = {
-		character = scope:knight
-		animation = disgust
-	}
 	
 	immediate = {
+		scope:obstacle_province = { remove_cleaned_blockers_effect = yes }
 		if = {
 			limit = { 
 				any_knight = { 
@@ -3866,7 +3894,7 @@ wastelands.1209 = { # Sloth and savagery
 							left_icon = root
 							right_icon = scope:knight					
 							title = wastelands.1209.success.toast.t
-							scope:obstacle_province = { remove_building = bear_den_cleared }
+							#scope:obstacle_province = { remove_building = bear_den_cleared }
 							scope:knight = {
 								if = {
 									limit = {
@@ -3891,7 +3919,7 @@ wastelands.1209 = { # Sloth and savagery
 							left_icon = root
 							right_icon = scope:knight	
 							title = wastelands.1209.failure.toast.t
-							hidden_effect = { scope:obstacle_province = { remove_building = bear_den_cleared } }
+							#hidden_effect = { scope:obstacle_province = { remove_building = bear_den_cleared } }
 							scope:obstacle_province = { add_building = bear_den }
 							scope:knight = {
 								increase_wounds_effect = { REASON = hunting_accident }
@@ -3919,7 +3947,7 @@ wastelands.1209 = { # Sloth and savagery
 				send_interface_toast = {
 					left_icon = root						
 					title = wastelands.1209.success.toast.t
-					scope:obstacle_province = { remove_building = bear_den_cleared }
+					#scope:obstacle_province = { remove_building = bear_den_cleared }
 					scope:knight = {
 						add_prestige = minor_prestige_gain
 					}
@@ -3935,7 +3963,7 @@ wastelands.1209 = { # Sloth and savagery
 				send_interface_toast = {
 					left_icon = root
 					title = wastelands.1209.failure.toast.t
-					hidden_effect = { scope:obstacle_province = { remove_building = bear_den_cleared } }
+					#hidden_effect = { scope:obstacle_province = { remove_building = bear_den_cleared } }
 					scope:obstacle_province = { add_building = bear_den }
 					increase_wounds_effect = { REASON = hunting_accident }
 				}
@@ -3950,15 +3978,15 @@ wastelands.1209 = { # Sloth and savagery
 			left_icon = root
 			add_prestige = minor_prestige_loss
 			title = wastelands.1209.failure.toast.t
-			hidden_effect = { scope:obstacle_province = { remove_building = bear_den_cleared } }
+			#hidden_effect = { scope:obstacle_province = { remove_building = bear_den_cleared } }
 			scope:obstacle_province = { add_building = bear_den }
 		}
 	}
 }
 
-#####################
-#  Spider Nest Den  #
-#####################
+#################
+#  Spider Nest  #
+#################
 
 wastelands.1401 = { # The Great Web
 	content_source = realms_dlc
@@ -3978,6 +4006,7 @@ wastelands.1401 = { # The Great Web
 	}
 	
 	immediate = {
+		scope:obstacle_province = { remove_cleaned_blockers_effect = yes }
 		if = {
 			limit = { 
 				any_knight = { 
@@ -4010,7 +4039,7 @@ wastelands.1401 = { # The Great Web
 					left_icon = root
 					add_prestige = 150
 					title = wastelands.1401.success.toast.t
-					scope:obstacle_province = { remove_building = spider_nest_cleared }
+					#scope:obstacle_province = { remove_building = spider_nest_cleared }
 				}
 			}
 			40 = {
@@ -4025,7 +4054,7 @@ wastelands.1401 = { # The Great Web
 					title = wastelands.1401.failure.toast.t
 					add_prestige = -75
 					increase_wounds_effect = { REASON = hunting_accident }
-					hidden_effect = { scope:obstacle_province = { remove_building = spider_nest_cleared } }
+					#hidden_effect = { scope:obstacle_province = { remove_building = spider_nest_cleared } }
 					scope:obstacle_province = { add_building = spider_nest }
 				}
 			}
@@ -4053,7 +4082,7 @@ wastelands.1401 = { # The Great Web
 					left_icon = root
 					add_prestige = 50
 					title = wastelands.1401.success.toast.t
-					scope:obstacle_province = { remove_building = spider_nest_cleared }
+					#scope:obstacle_province = { remove_building = spider_nest_cleared }
 				}
 			}
 			30 = {
@@ -4067,7 +4096,7 @@ wastelands.1401 = { # The Great Web
 					left_icon = root
 					title = wastelands.1401.failure.toast.t
 					add_prestige = -100
-					hidden_effect = { scope:obstacle_province = { remove_building = spider_nest_cleared } }
+					#hidden_effect = { scope:obstacle_province = { remove_building = spider_nest_cleared } }
 					scope:obstacle_province = { add_building = spider_nest }
 				}
 			}
@@ -4077,7 +4106,7 @@ wastelands.1401 = { # The Great Web
 	option = { # Bring me fire... we'll burn them out!
 		name = wastelands.1401.c
 		custom_tooltip = wastelands.1401.c.tt
-		scope:obstacle_province = { remove_building = spider_nest_cleared }
+		#scope:obstacle_province = { remove_building = spider_nest_cleared }
 		random = {
 			chance = 20
 			make_settlement_county_wilderness = {
@@ -4088,7 +4117,7 @@ wastelands.1401 = { # The Great Web
 
 	option = { # Did I mention I'm arachnophobic?
 		name = wastelands.1401.d
-		hidden_effect = { scope:obstacle_province = { remove_building = spider_nest_cleared } }
+		#hidden_effect = { scope:obstacle_province = { remove_building = spider_nest_cleared } }
 		scope:obstacle_province = { add_building = spider_nest }
 	}
 }
@@ -4111,6 +4140,7 @@ wastelands.1402 = { # Attercop
 	}
 	
 	immediate = {
+		scope:obstacle_province = { remove_cleaned_blockers_effect = yes }
 		create_character = {
 			template = peasant_character
 			dynasty = none
@@ -4136,14 +4166,14 @@ wastelands.1402 = { # Attercop
 				send_interface_toast = {
 					left_icon = root
 					title = wastelands.1401.success.toast.t
-					scope:obstacle_province = { remove_building = spider_nest_cleared }
+					#scope:obstacle_province = { remove_building = spider_nest_cleared }
 				}
 			}
 			15 = {
 				send_interface_toast = {
 					left_icon = root
 					title = wastelands.1401.failure.toast.t
-					hidden_effect = { scope:obstacle_province = { remove_building = spider_nest_cleared } }
+					#hidden_effect = { scope:obstacle_province = { remove_building = spider_nest_cleared } }
 					scope:obstacle_province = { add_building = spider_nest }
 				}
 			}
@@ -4158,14 +4188,14 @@ wastelands.1402 = { # Attercop
 				send_interface_toast = {
 					left_icon = root
 					title = wastelands.1401.success.toast.t
-					scope:obstacle_province = { remove_building = spider_nest_cleared }
+					#scope:obstacle_province = { remove_building = spider_nest_cleared }
 				}
 			}
 			30 = {
 				send_interface_toast = {
 					left_icon = root
 					title = wastelands.1401.failure.toast.t
-					hidden_effect = { scope:obstacle_province = { remove_building = spider_nest_cleared } }
+					#hidden_effect = { scope:obstacle_province = { remove_building = spider_nest_cleared } }
 					scope:obstacle_province = { add_building = spider_nest }
 				}
 			}
@@ -4177,7 +4207,7 @@ wastelands.1402 = { # Attercop
 
 	option = { # Bring me fire... we'll burn them out!
 		name = wastelands.1402.c
-		hidden_effect = { scope:obstacle_province = { remove_building = spider_nest_cleared } }
+		#hidden_effect = { scope:obstacle_province = { remove_building = spider_nest_cleared } }
 		scope:obstacle_province = { add_building = spider_nest }
 		stress_impact = {
 			compassionate = minor_stress_gain
@@ -4210,6 +4240,7 @@ wastelands.1403 = { # Saved from the Lair
 	}
 	
 	immediate = {
+		scope:obstacle_province = { remove_cleaned_blockers_effect = yes }
 		create_character = {
 			template = peasant_character
 			dynasty = generate
@@ -4233,14 +4264,14 @@ wastelands.1403 = { # Saved from the Lair
 				type = favor_hook
 			}
 		}
-		scope:obstacle_province = { remove_building = spider_nest_cleared }
+		#scope:obstacle_province = { remove_building = spider_nest_cleared }
 	}
 			
 	option = { # Here's some gold, be on your way
 		name = wastelands.1403.b
 		remove_short_term_gold = minor_gold_value
 		add_piety = minor_piety_gain
-		scope:obstacle_province = { remove_building = spider_nest_cleared }
+		#scope:obstacle_province = { remove_building = spider_nest_cleared }
 		stress_impact = {
 			greedy = minor_stress_gain
 			compassionate = medium_stress_loss
@@ -4250,7 +4281,7 @@ wastelands.1403 = { # Saved from the Lair
 
 	option = { # Yeah you can be one of the workers
 		name = wastelands.1403.c
-		scope:obstacle_province = { remove_building = spider_nest_cleared }
+		#scope:obstacle_province = { remove_building = spider_nest_cleared }
 		scope:obstacle_province.county = { 
 			change_development_progress = 25
 		}
@@ -4282,8 +4313,18 @@ wastelands.1403 = { # Saved from the Lair
 						title = wastelands.1403.d.tt.success
 					}
 				}
-				scope:obstacle_province = { remove_building = spider_nest_cleared }
-				if = {
+				#scope:obstacle_province = { remove_building = spider_nest_cleared }
+				if = { # Check if the county is underground
+					limit = {
+						scope:obstacle_province = {
+							terrain = halls
+						}
+					}
+					scope:obstacle_province = {
+						set_holding_type = dwarven_holding
+					}
+				}
+				else_if = {
 					limit = {
 						has_government = elven_government
 					}
@@ -4404,7 +4445,7 @@ wastelands.1403 = { # Saved from the Lair
 						title = wastelands.1403.d.tt.failure
 					}
 				}
-				hidden_effect = { scope:obstacle_province = { remove_building = spider_nest_cleared } }
+				#hidden_effect = { scope:obstacle_province = { remove_building = spider_nest_cleared } }
 				scope:obstacle_province = { add_building = spider_nest }	
 				
 			}
@@ -4434,6 +4475,7 @@ wastelands.1501 = { # Rooting out the Giant Scorpions
 	}
 	
 	immediate = {
+		scope:obstacle_province = { remove_cleaned_blockers_effect = yes }
 		if = {
 			limit = { 
 				any_knight = { 
@@ -4466,7 +4508,7 @@ wastelands.1501 = { # Rooting out the Giant Scorpions
 					left_icon = root
 					add_prestige = 150
 					title = wastelands.1501.success.toast.t
-					scope:obstacle_province = { remove_building = scorpion_bed_cleared }
+					#scope:obstacle_province = { remove_building = scorpion_bed_cleared }
 				}
 			}
 			40 = {
@@ -4481,7 +4523,7 @@ wastelands.1501 = { # Rooting out the Giant Scorpions
 					title = wastelands.1501.failure.toast.t
 					add_prestige = -75
 					increase_wounds_effect = { REASON = hunting_accident }
-					hidden_effect = { scope:obstacle_province = { remove_building = scorpion_bed_cleared } }
+					#hidden_effect = { scope:obstacle_province = { remove_building = scorpion_bed_cleared } }
 					scope:obstacle_province = { add_building = scorpion_bed }
 				}
 			}
@@ -4509,7 +4551,7 @@ wastelands.1501 = { # Rooting out the Giant Scorpions
 					left_icon = root
 					add_prestige = 50
 					title = wastelands.1501.success.toast.t
-					scope:obstacle_province = { remove_building = scorpion_bed_cleared }
+					#scope:obstacle_province = { remove_building = scorpion_bed_cleared }
 				}
 			}
 			30 = {
@@ -4523,7 +4565,7 @@ wastelands.1501 = { # Rooting out the Giant Scorpions
 					left_icon = root
 					title = wastelands.1501.failure.toast.t
 					add_prestige = -100
-					hidden_effect = { scope:obstacle_province = { remove_building = scorpion_bed_cleared } }
+					#hidden_effect = { scope:obstacle_province = { remove_building = scorpion_bed_cleared } }
 					scope:obstacle_province = { add_building = scorpion_bed }
 				}
 			}
@@ -4547,7 +4589,7 @@ wastelands.1501 = { # Rooting out the Giant Scorpions
 					left_icon = root
 					add_prestige = 50
 					title = wastelands.1501.success.toast.t
-					scope:obstacle_province = { remove_building = scorpion_bed_cleared }
+					#scope:obstacle_province = { remove_building = scorpion_bed_cleared }
 				}
 			}
 			30 = {
@@ -4561,7 +4603,7 @@ wastelands.1501 = { # Rooting out the Giant Scorpions
 					left_icon = root
 					title = wastelands.1501.failure.toast.t
 					add_prestige = -100
-					hidden_effect = { scope:obstacle_province = { remove_building = scorpion_bed_cleared } }
+					#hidden_effect = { scope:obstacle_province = { remove_building = scorpion_bed_cleared } }
 					scope:obstacle_province = { add_building = scorpion_bed }
 				}
 			}
@@ -4570,7 +4612,7 @@ wastelands.1501 = { # Rooting out the Giant Scorpions
 
 	option = { # I can't even look at them, how am I to fight them?
 		name = wastelands.1501.d
-		hidden_effect = { scope:obstacle_province = { remove_building = scorpion_bed_cleared } }
+		#hidden_effect = { scope:obstacle_province = { remove_building = scorpion_bed_cleared } }
 		scope:obstacle_province = { add_building = scorpion_bed }
 	}
 }
@@ -4593,6 +4635,7 @@ wastelands.1502 = { # Stingers
 	}
 	
 	immediate = {
+		scope:obstacle_province = { remove_cleaned_blockers_effect = yes }
 		create_character = {
 			template = peasant_character
 			dynasty = none
@@ -4618,14 +4661,14 @@ wastelands.1502 = { # Stingers
 				send_interface_toast = {
 					left_icon = root
 					title = wastelands.1501.success.toast.t
-					scope:obstacle_province = { remove_building = scorpion_bed_cleared }
+					#scope:obstacle_province = { remove_building = scorpion_bed_cleared }
 				}
 			}
 			15 = {
 				send_interface_toast = {
 					left_icon = root
 					title = wastelands.1501.failure.toast.t
-					hidden_effect = { scope:obstacle_province = { remove_building = scorpion_bed_cleared } }
+					#hidden_effect = { scope:obstacle_province = { remove_building = scorpion_bed_cleared } }
 					scope:obstacle_province = { add_building = scorpion_bed }
 				}
 			}
@@ -4640,14 +4683,14 @@ wastelands.1502 = { # Stingers
 				send_interface_toast = {
 					left_icon = root
 					title = wastelands.1501.success.toast.t
-					scope:obstacle_province = { remove_building = scorpion_bed_cleared }
+					#scope:obstacle_province = { remove_building = scorpion_bed_cleared }
 				}
 			}
 			30 = {
 				send_interface_toast = {
 					left_icon = root
 					title = wastelands.1501.failure.toast.t
-					hidden_effect = { scope:obstacle_province = { remove_building = scorpion_bed_cleared } }
+					#hidden_effect = { scope:obstacle_province = { remove_building = scorpion_bed_cleared } }
 					scope:obstacle_province = { add_building = scorpion_bed }
 				}
 			}
@@ -4682,6 +4725,7 @@ wastelands.1503 = { # Can They Be... Tamed?
 	}
 	
 	immediate = {
+		scope:obstacle_province = { remove_cleaned_blockers_effect = yes }
 		create_character = {
 			template = peasant_character
 			dynasty = generate
@@ -4736,18 +4780,18 @@ wastelands.1503 = { # Can They Be... Tamed?
 				}
 			}
 		}
-		scope:obstacle_province = { remove_building = scorpion_bed_cleared }
+		#scope:obstacle_province = { remove_building = scorpion_bed_cleared }
 	}
 
 	option = { #Let us avoid trying to tame the massive killer-beasts
 		name = wastelands.1503.b
-		scope:obstacle_province = { remove_building = scorpion_bed_cleared }
+		#scope:obstacle_province = { remove_building = scorpion_bed_cleared }
 	}
 }
 
-#################
-#  Bandits Den  #
-#################
+#############
+#  Bandits  #
+#############
 
 wastelands.1601 = { # The Outcasts
 	content_source = realms_dlc
@@ -4805,6 +4849,7 @@ wastelands.1601 = { # The Outcasts
 	}
 	
 	immediate = {
+		scope:obstacle_province = { remove_cleaned_blockers_effect = yes }
 		if = {
 			limit = {
 				any_martial_councillor = {
@@ -4857,7 +4902,7 @@ wastelands.1601 = { # The Outcasts
 					left_icon = root
 					add_prestige = 50
 					title = wastelands.1601.success.toast.t
-					scope:obstacle_province = { remove_building = bandits_cleared }
+					#scope:obstacle_province = { remove_building = bandits_cleared }
 				}
 			}
 			30 = {
@@ -4871,7 +4916,7 @@ wastelands.1601 = { # The Outcasts
 					left_icon = root
 					title = wastelands.1601.failure.toast.t
 					add_prestige = -150
-					hidden_effect = { scope:obstacle_province = { remove_building = bandits_cleared } }
+					#hidden_effect = { scope:obstacle_province = { remove_building = bandits_cleared } }
 					scope:obstacle_province = { add_building = bandits }
 				}
 			}
@@ -4913,7 +4958,7 @@ wastelands.1601 = { # The Outcasts
 					left_icon = root
 					add_prestige = 50
 					title = wastelands.1601.success.toast.t
-					scope:obstacle_province = { remove_building = bandits_cleared }
+					#scope:obstacle_province = { remove_building = bandits_cleared }
 				}
 			}
 			30 = {
@@ -4927,7 +4972,7 @@ wastelands.1601 = { # The Outcasts
 					left_icon = root
 					title = wastelands.1601.failure.toast.t
 					add_prestige = -150
-					hidden_effect = { scope:obstacle_province = { remove_building = bandits_cleared } }
+					#hidden_effect = { scope:obstacle_province = { remove_building = bandits_cleared } }
 					scope:obstacle_province = { add_building = bandits }
 				}
 			}
@@ -4977,7 +5022,7 @@ wastelands.1601 = { # The Outcasts
 						opinion = 30
 						target = scope:marshal
 					}
-					scope:obstacle_province = { remove_building = bandits_cleared }
+					#scope:obstacle_province = { remove_building = bandits_cleared }
 				}
 			}
 			40 = {
@@ -5007,7 +5052,7 @@ wastelands.1601 = { # The Outcasts
 						}
 					}
 					add_prestige = -150
-					hidden_effect = { scope:obstacle_province = { remove_building = bandits_cleared } }
+					#hidden_effect = { scope:obstacle_province = { remove_building = bandits_cleared } }
 					scope:obstacle_province = { add_building = bandits }
 				}
 			}
@@ -5024,7 +5069,7 @@ wastelands.1601 = { # The Outcasts
 
 	option = { # Leave the bandits alone
 		name = wastelands.1601.d
-		hidden_effect = { scope:obstacle_province = { remove_building = bandits_cleared } }
+		#hidden_effect = { scope:obstacle_province = { remove_building = bandits_cleared } }
 		scope:obstacle_province = { add_building = bandits }
 		reverse_add_opinion = {
 			modifier = disappointed_opinion
@@ -5078,6 +5123,7 @@ wastelands.1602 = { # The Corral
 	}
 	
 	immediate = {
+		scope:obstacle_province = { remove_cleaned_blockers_effect = yes }
 		if = {
 			limit = {
 				any_martial_councillor = {
@@ -5113,7 +5159,7 @@ wastelands.1602 = { # The Corral
 					left_icon = root
 					add_prestige = 50
 					title = wastelands.1601.success.toast.t
-					scope:obstacle_province = { remove_building = bandits_cleared }
+					#scope:obstacle_province = { remove_building = bandits_cleared }
 				}
 			}
 			30 = {
@@ -5127,7 +5173,7 @@ wastelands.1602 = { # The Corral
 					left_icon = root
 					title = wastelands.1601.failure.toast.t
 					add_prestige = -100
-					hidden_effect = { scope:obstacle_province = { remove_building = bandits_cleared } }
+					#hidden_effect = { scope:obstacle_province = { remove_building = bandits_cleared } }
 					scope:obstacle_province = { add_building = bandits }
 				}
 			}
@@ -5163,7 +5209,7 @@ wastelands.1602 = { # The Corral
 				send_interface_toast = {
 					left_icon = root
 					title = wastelands.1601.success.toast.t
-					scope:obstacle_province = { remove_building = bandits_cleared }
+					#scope:obstacle_province = { remove_building = bandits_cleared }
 				}
 			}
 			30 = {
@@ -5177,7 +5223,7 @@ wastelands.1602 = { # The Corral
 					left_icon = root
 					title = wastelands.1601.failure.toast.t
 					add_prestige = -150
-					hidden_effect = { scope:obstacle_province = { remove_building = bandits_cleared } }
+					#hidden_effect = { scope:obstacle_province = { remove_building = bandits_cleared } }
 					scope:obstacle_province = { add_building = bandits }
 				}
 			}
@@ -5192,7 +5238,7 @@ wastelands.1602 = { # The Corral
 		name = wastelands.1602.c
 		remove_short_term_gold = 125
 		add_prestige = -25
-		scope:obstacle_province = { remove_building = bandits_cleared }
+		#scope:obstacle_province = { remove_building = bandits_cleared }
 		stress_impact = {
 			greedy = minor_stress_gain
 			generous = minor_stress_loss
@@ -5207,10 +5253,21 @@ wastelands.1603 = { # The Brotherhood
 	title = wastelands.1603.t
 	desc = wastelands.1603.desc
 	theme = martial
-	override_background = { reference = market_tribal }
+	override_background = { 
+		trigger = { scope:obstacle_province = { terrain = halls } }
+		reference = armory_dwarven 
+	}
+	override_background = { 
+		trigger = { NOT = { scope:obstacle_province = { terrain = halls } } }
+		reference = market_tribal 
+	}
 	left_portrait = {
 		character = root
 		animation = personality_cynical
+	}
+
+	immediate = {
+		scope:obstacle_province = { remove_cleaned_blockers_effect = yes }
 	}
 
 	option = { # Crush them!
@@ -5231,7 +5288,7 @@ wastelands.1603 = { # The Brotherhood
 					add_prestige = medium_prestige_gain
 					add_gold = medium_gold_value
 					title = wastelands.1603.success.toast.t
-					scope:obstacle_province = { remove_building = bandits_cleared }
+					#scope:obstacle_province = { remove_building = bandits_cleared }
 				}
 			}
 			30 = {
@@ -5248,7 +5305,7 @@ wastelands.1603 = { # The Brotherhood
 					scope:obstacle_province.county = { 
 						change_development_progress = -50
 					}
-					hidden_effect = { scope:obstacle_province = { remove_building = bandits_cleared } }
+					#hidden_effect = { scope:obstacle_province = { remove_building = bandits_cleared } }
 					scope:obstacle_province = { add_building = bandits }
 				}
 			}
@@ -5274,7 +5331,7 @@ wastelands.1603 = { # The Brotherhood
 					scope:obstacle_province.county = { 
 						change_development_level = 1
 					}
-					scope:obstacle_province = { remove_building = bandits_cleared }
+					#scope:obstacle_province = { remove_building = bandits_cleared }
 					add_prestige = minor_prestige_gain
 				}
 			}
@@ -5289,7 +5346,7 @@ wastelands.1603 = { # The Brotherhood
 					left_icon = root
 					title = wastelands.1603.failure.toast.t
 					add_prestige = major_prestige_loss
-					hidden_effect = { scope:obstacle_province = { remove_building = bandits_cleared } }
+					#hidden_effect = { scope:obstacle_province = { remove_building = bandits_cleared } }
 					scope:obstacle_province = { add_building = bandits }
 				}
 			}
@@ -5300,7 +5357,7 @@ wastelands.1603 = { # The Brotherhood
 		name = wastelands.1603.c
 		add_prestige = minor_prestige_loss
 		scope:obstacle_province = { 
-			remove_building = bandits_cleared 
+			#remove_building = bandits_cleared 
 			add_province_modifier = {
 				modifier = ruled_by_bandits_modifier
 				years = 5
@@ -5326,6 +5383,11 @@ wastelands.1604 = { # Tribes of the North
 		reference = wilderness_mountains
 	}
 
+	left_portrait = {
+		character = root
+		animation = personality_cynical
+	}
+
 	trigger = {
 		scope:obstacle_province = { 
 			OR = {		
@@ -5340,9 +5402,8 @@ wastelands.1604 = { # Tribes of the North
 		}
 	}
 
-	left_portrait = {
-		character = root
-		animation = personality_cynical
+	immediate = {
+		scope:obstacle_province = { remove_cleaned_blockers_effect = yes }
 	}
 
 	option = { # Crush them!
@@ -5362,7 +5423,7 @@ wastelands.1604 = { # Tribes of the North
 					left_icon = root
 					add_prestige = medium_prestige_gain
 					title = wastelands.1604.success.toast.t
-					scope:obstacle_province = { remove_building = bandits_cleared }
+					#scope:obstacle_province = { remove_building = bandits_cleared }
 				}
 			}
 			30 = {
@@ -5376,7 +5437,7 @@ wastelands.1604 = { # Tribes of the North
 					left_icon = root
 					title = wastelands.1604.failure.toast.t
 					add_prestige = medium_prestige_loss
-					hidden_effect = { scope:obstacle_province = { remove_building = bandits_cleared } }
+					#hidden_effect = { scope:obstacle_province = { remove_building = bandits_cleared } }
 					scope:obstacle_province = { add_building = bandits }
 					make_settlement_county_wilderness = {
 						COUNTY = scope:obstacle_province.county
@@ -5412,7 +5473,7 @@ wastelands.1604 = { # Tribes of the North
 					scope:obstacle_province.county = { 
 						change_development_progress = 50
 					}
-					scope:obstacle_province = { remove_building = bandits_cleared }
+					#scope:obstacle_province = { remove_building = bandits_cleared }
 					add_prestige = minor_prestige_gain
 				}
 			}
@@ -5427,7 +5488,7 @@ wastelands.1604 = { # Tribes of the North
 					left_icon = root
 					title = wastelands.1604.failure.toast.t
 					add_prestige = major_prestige_loss
-					hidden_effect = { scope:obstacle_province = { remove_building = bandits_cleared } }
+					#hidden_effect = { scope:obstacle_province = { remove_building = bandits_cleared } }
 					scope:obstacle_province = { 
 						add_building = bandits 
 						add_province_modifier = {
@@ -5443,7 +5504,7 @@ wastelands.1604 = { # Tribes of the North
 	option = { # As if these rag-wearing savages are any threat.
 		name = wastelands.1604.c
 		add_prestige = medium_prestige_loss
-		hidden_effect = { scope:obstacle_province = { remove_building = bandits_cleared } }
+		#hidden_effect = { scope:obstacle_province = { remove_building = bandits_cleared } }
 		scope:obstacle_province = { add_building = bandits }
 	}
 }
@@ -5466,6 +5527,7 @@ wastelands.1605 = { # The Traitor
 	}
 	
 	immediate = {
+		scope:obstacle_province = { remove_cleaned_blockers_effect = yes }
 		create_character = {
 			template = peasant_character
 			dynasty = none
@@ -5497,7 +5559,7 @@ wastelands.1605 = { # The Traitor
 					left_icon = root
 					right_icon = scope:traitor
 					title = wastelands.1605.success.toast.t
-					scope:obstacle_province = { remove_building = bandits_cleared }
+					#scope:obstacle_province = { remove_building = bandits_cleared }
 					remove_short_term_gold = 60
 				}
 			}
@@ -5511,7 +5573,7 @@ wastelands.1605 = { # The Traitor
 				send_interface_toast = {
 					left_icon = root
 					title = wastelands.1605.failure.toast.t
-					hidden_effect = { scope:obstacle_province = { remove_building = bandits_cleared } }
+					#hidden_effect = { scope:obstacle_province = { remove_building = bandits_cleared } }
 					scope:obstacle_province = { 
 						add_building = bandits 
 					}
@@ -5538,7 +5600,7 @@ wastelands.1605 = { # The Traitor
 					left_icon = root
 					right_icon = scope:traitor
 					title = wastelands.1605.success.toast.t
-					scope:obstacle_province = { remove_building = bandits_cleared }
+					#scope:obstacle_province = { remove_building = bandits_cleared }
 				}
 			}
 			30 = {
@@ -5551,7 +5613,7 @@ wastelands.1605 = { # The Traitor
 				send_interface_toast = {
 					left_icon = root
 					title = wastelands.1605.failure.toast.t
-					hidden_effect = { scope:obstacle_province = { remove_building = bandits_cleared } }
+					#hidden_effect = { scope:obstacle_province = { remove_building = bandits_cleared } }
 					scope:obstacle_province = { 
 						add_building = bandits 
 					}
@@ -5567,14 +5629,14 @@ wastelands.1605 = { # The Traitor
 				send_interface_toast = {
 					left_icon = root
 					title = wastelands.1605.success.toast.t
-					scope:obstacle_province = { remove_building = bandits_cleared }
+					#scope:obstacle_province = { remove_building = bandits_cleared }
 				}
 			}
 			1 = {
 				send_interface_toast = {
 					left_icon = root
 					title = wastelands.1605.failure.toast.t
-					hidden_effect = { scope:obstacle_province = { remove_building = bandits_cleared } }
+					#hidden_effect = { scope:obstacle_province = { remove_building = bandits_cleared } }
 					scope:obstacle_province = { add_building = bandits }
 				}
 			}
@@ -5592,7 +5654,7 @@ wastelands.1606 = { # The Cunning Brigand
 	type = character_event
 	title = wastelands.1606.t
 	desc = wastelands.1606.desc
-	theme = intrigue
+	theme = intrigue_skulduggery_focus
 
 	left_portrait = {
 		character = root
@@ -5604,6 +5666,7 @@ wastelands.1606 = { # The Cunning Brigand
 	}
 	
 	immediate = {
+		scope:obstacle_province = { remove_cleaned_blockers_effect = yes }
 		if = {
 			limit = {
 				scope:obstacle_province = { 
@@ -5702,7 +5765,7 @@ wastelands.1606 = { # The Cunning Brigand
 
 	option = { # This is not a good idea, have him captured
 		name = wastelands.1606.a
-		scope:obstacle_province = { remove_building = bandits_cleared }
+		#scope:obstacle_province = { remove_building = bandits_cleared }
 		scope:obstacle_province.county = { 
 			change_development_progress = -75
 		}
@@ -5714,7 +5777,7 @@ wastelands.1606 = { # The Cunning Brigand
 	
 	option = { # Join me at my court instead
 		name = wastelands.1606.b 
-		scope:obstacle_province = { remove_building = bandits_cleared }
+		#scope:obstacle_province = { remove_building = bandits_cleared }
 		add_courtier = scope:brigand
 		add_prestige = minor_prestige_loss
 	}
@@ -5740,21 +5803,17 @@ wastelands.1606 = { # The Cunning Brigand
 						title = wastelands.1606.c.tt.success
 					}
 				}
-				scope:obstacle_province = { remove_building = bandits_cleared }
+				#scope:obstacle_province = { remove_building = bandits_cleared }
 				if = {
 					limit = {
 						scope:obstacle_province = {
-							OR = {
-								#terrain = mountains
-								terrain = halls
-								#terrain = desert_mountains
-							}
+							terrain = halls
 						}
 					}
 					scope:obstacle_province = {
 						set_holding_type = dwarven_holding
-					}	
-				}	
+					}
+				}
 				else_if = {
 					limit = {
 						has_government = tribal_government
@@ -5827,7 +5886,7 @@ wastelands.1606 = { # The Cunning Brigand
 				}
 				
 				hidden_effect = {
-					scope:obstacle_province = { remove_building = bandits_cleared }
+					#scope:obstacle_province = { remove_building = bandits_cleared }
 					if = {
 						limit = {
 							scope:obstacle_province = {
@@ -5895,7 +5954,7 @@ wastelands.1606 = { # The Cunning Brigand
 		name = wastelands.1606.d 
 		custom_tooltip = wastelands.1606.d.tt
 		hidden_effect = {
-			scope:obstacle_province = { remove_building = bandits_cleared }
+			#scope:obstacle_province = { remove_building = bandits_cleared }
 			if = {
 				limit = {
 					scope:obstacle_province = {
@@ -5908,7 +5967,7 @@ wastelands.1606 = { # The Cunning Brigand
 				}
 				scope:obstacle_province = {
 					set_holding_type = dwarven_holding
-			    }
+				}
 				scope:obstacle_province.county = {
 					set_county_faith = scope:brigand.faith
 					set_county_culture = scope:brigand.culture
@@ -6006,6 +6065,7 @@ wastelands.1701 = { # Lost in the Forest
 	}
 	
 	immediate = {
+		scope:obstacle_province = { remove_cleaned_blockers_effect = yes }
 		random_courtier_or_guest = {
 			limit = {
 				is_lotr_adult = yes
@@ -6043,7 +6103,7 @@ wastelands.1701 = { # Lost in the Forest
 				type = favor_hook
 			}
 		}
-		scope:obstacle_province = { remove_building = dense_growth_cleared }
+		#scope:obstacle_province = { remove_building = dense_growth_cleared }
 	}
 			
 	option = { # I'll look for them myself
@@ -6063,7 +6123,7 @@ wastelands.1701 = { # Lost in the Forest
 					left_icon = root
 					add_prestige = medium_prestige_gain
 					title = wastelands.1701.duel_success
-					scope:obstacle_province = { remove_building = dense_growth_cleared }
+					#scope:obstacle_province = { remove_building = dense_growth_cleared }
 					add_courtier = scope:lost_person
 					root = {
 						add_hook = {
@@ -6084,7 +6144,7 @@ wastelands.1701 = { # Lost in the Forest
 					left_icon = root
 					title = wastelands.1701.duel_failure							
 					add_prestige = medium_prestige_loss
-					scope:obstacle_province = { remove_building = dense_growth_cleared }
+					#scope:obstacle_province = { remove_building = dense_growth_cleared }
 				}
 				scope:lost_person = {
 					random_list = {
@@ -6127,7 +6187,7 @@ wastelands.1701 = { # Lost in the Forest
 
 	option = { # Ignore the missing person and focus on the colony
 		name = wastelands.1701.c
-		scope:obstacle_province = { remove_building = dense_growth_cleared }
+		#scope:obstacle_province = { remove_building = dense_growth_cleared }
 		add_dread = minor_dread_gain
 		scope:obstacle_province.county = { 
 			change_development_progress = 25
@@ -6189,7 +6249,7 @@ wastelands.1701 = { # Lost in the Forest
 				type = favor_hook
 			}
 		}
-		scope:obstacle_province = { remove_building = dense_growth_cleared }
+		#scope:obstacle_province = { remove_building = dense_growth_cleared }
 	}
 }
 
@@ -6208,6 +6268,10 @@ wastelands.1702 = { # Yield of the Forest
 		animation = interested
 	}
 
+	immediate = {
+		scope:obstacle_province = { remove_cleaned_blockers_effect = yes }
+	}
+
 	option = { # Sell it to make a profit
 		name = wastelands.1702.a
 		duel = {
@@ -6223,7 +6287,7 @@ wastelands.1702 = { # Yield of the Forest
 				send_interface_toast = {
 					left_icon = root
 					title = wastelands.1702.duel_success
-					scope:obstacle_province = { remove_building = dense_growth_cleared }
+					#scope:obstacle_province = { remove_building = dense_growth_cleared }
 					add_gold = major_gold_value
 				}
 			}
@@ -6237,7 +6301,7 @@ wastelands.1702 = { # Yield of the Forest
 				send_interface_toast = {
 					left_icon = root
 					title = wastelands.1701.duel_failure							
-					scope:obstacle_province = { remove_building = dense_growth_cleared }
+					#scope:obstacle_province = { remove_building = dense_growth_cleared }
 					add_gold = minor_gold_value
 				}
 			}
@@ -6246,7 +6310,7 @@ wastelands.1702 = { # Yield of the Forest
 			
 	option = { # Use the materials to build up the colony
 		name = wastelands.1702.b
-		scope:obstacle_province = { remove_building = dense_growth_cleared }
+		#scope:obstacle_province = { remove_building = dense_growth_cleared }
 		scope:obstacle_province.county = { 
 			change_development_progress = 50
 		}
@@ -6254,7 +6318,7 @@ wastelands.1702 = { # Yield of the Forest
 
 	option = { # Make a big pyre for a celebration
 		name = wastelands.1702.c
-		scope:obstacle_province = { remove_building = dense_growth_cleared }
+		#scope:obstacle_province = { remove_building = dense_growth_cleared }
 		add_prestige = minor_prestige_gain
 		stress_impact = {
 			base = medium_stress_loss
@@ -6275,7 +6339,7 @@ wastelands.1702 = { # Yield of the Forest
 		}
 		add_prestige = medium_prestige_gain
 		add_piety = medium_piety_gain
-		scope:obstacle_province = { remove_building = dense_growth_cleared }
+		#scope:obstacle_province = { remove_building = dense_growth_cleared }
 	}
 }
 
@@ -6295,7 +6359,7 @@ wastelands.1703 = { # The Ancient Ruin
 	}
 	
 	immediate = {
-		scope:obstacle_province = { remove_building = dense_growth_cleared }
+		scope:obstacle_province = { remove_cleaned_blockers_effect = yes }
 	}
 
 	option = { # Try to convert it into a building
@@ -6379,7 +6443,7 @@ wastelands.1704 = { # Nature's Retribution
 	}
 	
 	immediate = {
-		hidden_effect = { scope:obstacle_province = { remove_building = dense_growth_cleared } }
+		scope:obstacle_province = { remove_cleaned_blockers_effect = yes }
 	}
 
 	option = { # I'll cut down these trees myself
@@ -6451,9 +6515,9 @@ wastelands.1704 = { # Nature's Retribution
 	}
 }
 
-################
-#  Drakes Den  #
-################
+############
+#  Drakes  #
+############
 
 wastelands.1801 = { # Life Finds a Way
 	content_source = realms_dlc
@@ -6477,6 +6541,7 @@ wastelands.1801 = { # Life Finds a Way
 	}
 	
 	immediate = {
+		scope:obstacle_province = { remove_cleaned_blockers_effect = yes }
 		create_character = {
 			template = peasant_character
 			dynasty = none
@@ -6510,7 +6575,7 @@ wastelands.1801 = { # Life Finds a Way
 					left_icon = root
 					add_prestige = 200
 					title = wastelands.1801.success.toast.t
-					scope:obstacle_province = { remove_building = dragon_attack_cleared }
+					#scope:obstacle_province = { remove_building = dragon_attack_cleared }
 				}
 			}
 			30 = {
@@ -6525,7 +6590,7 @@ wastelands.1801 = { # Life Finds a Way
 					title = wastelands.1801.failure.toast.t
 					add_prestige = -100
 					increase_wounds_effect = { REASON = hunting_accident }
-					hidden_effect = { scope:obstacle_province = { remove_building = dragon_attack_cleared } }
+					#hidden_effect = { scope:obstacle_province = { remove_building = dragon_attack_cleared } }
 					scope:obstacle_province = { add_building = dragon_attack }
 				}
 			}
@@ -6538,7 +6603,7 @@ wastelands.1801 = { # Life Finds a Way
 			
 	option = { # Run away!
 		name = wastelands.1801.b
-		hidden_effect = { scope:obstacle_province = { remove_building = dragon_attack_cleared } }
+		#hidden_effect = { scope:obstacle_province = { remove_building = dragon_attack_cleared } }
 		scope:obstacle_province = { add_building = dragon_attack }
 		random = {
 			chance = 30
@@ -6577,6 +6642,7 @@ wastelands.1802 = { # Drakes’ Nest
 	}
 	
 	immediate = {
+		scope:obstacle_province = { remove_cleaned_blockers_effect = yes }
 		random_knight = {
 			limit = { is_ai = yes }
 			save_scope_as = knight
@@ -6605,7 +6671,7 @@ wastelands.1802 = { # Drakes’ Nest
 								years = 1
 							}
 							title = wastelands.1801.success.toast.t
-							scope:obstacle_province = { remove_building = dragon_attack_cleared }
+							#scope:obstacle_province = { remove_building = dragon_attack_cleared }
 						}
 					}
 				}
@@ -6621,7 +6687,7 @@ wastelands.1802 = { # Drakes’ Nest
 							left_icon = root
 							title = wastelands.1801.failure.toast.t
 							scope:knight = { death = { death_reason = death_burned } }
-							hidden_effect = { scope:obstacle_province = { remove_building = dragon_attack_cleared } }
+							#hidden_effect = { scope:obstacle_province = { remove_building = dragon_attack_cleared } }
 							scope:obstacle_province = { add_building = dragon_attack }
 						}
 					}
@@ -6657,7 +6723,7 @@ wastelands.1802 = { # Drakes’ Nest
 							left_icon = root
 							scope:knight = { add_prestige = 500 }
 							title = wastelands.1801.success.toast.t
-							scope:obstacle_province = { remove_building = dragon_attack_cleared }
+							#scope:obstacle_province = { remove_building = dragon_attack_cleared }
 						}
 					}
 				}
@@ -6673,7 +6739,7 @@ wastelands.1802 = { # Drakes’ Nest
 							left_icon = root
 							title = wastelands.1801.failure.toast.t
 							scope:knight = { death = { death_reason = death_burned } }
-							hidden_effect = { scope:obstacle_province = { remove_building = dragon_attack_cleared } }
+							#hidden_effect = { scope:obstacle_province = { remove_building = dragon_attack_cleared } }
 							scope:obstacle_province = { add_building = dragon_attack }
 						}
 					}
@@ -6703,7 +6769,7 @@ wastelands.1802 = { # Drakes’ Nest
 					left_icon = root
 					add_prestige = 200
 					title = wastelands.1801.success.toast.t
-					scope:obstacle_province = { remove_building = dragon_attack_cleared }
+					#scope:obstacle_province = { remove_building = dragon_attack_cleared }
 				}
 			}
 			30 = {
@@ -6718,7 +6784,7 @@ wastelands.1802 = { # Drakes’ Nest
 					title = wastelands.1801.failure.toast.t
 					add_prestige = -100
 					increase_wounds_effect = { REASON = hunting_accident }
-					hidden_effect = { scope:obstacle_province = { remove_building = dragon_attack_cleared } }
+					#hidden_effect = { scope:obstacle_province = { remove_building = dragon_attack_cleared } }
 					scope:obstacle_province = { add_building = dragon_attack }
 				}
 			}
@@ -6731,7 +6797,7 @@ wastelands.1802 = { # Drakes’ Nest
 
 	option = { # Not so fast...
 		name = wastelands.1802.d
-		hidden_effect = { scope:obstacle_province = { remove_building = dragon_attack_cleared } }
+		#hidden_effect = { scope:obstacle_province = { remove_building = dragon_attack_cleared } }
 		scope:obstacle_province = { add_building = dragon_attack }
 	}
 
@@ -6753,6 +6819,10 @@ wastelands.1803 = { # The Worm
 		reference = wilderness_mountains
 	}
 
+	immediate = {
+		scope:obstacle_province = { remove_cleaned_blockers_effect = yes }
+	}
+
 	option = { # Muster the warriors
 		name = wastelands.1803.a
 		duel = {
@@ -6769,7 +6839,7 @@ wastelands.1803 = { # The Worm
 					left_icon = root
 					add_prestige = medium_prestige_gain
 					title = wastelands.1803.duel_success
-					scope:obstacle_province = { remove_building = dragon_attack_cleared }
+					#scope:obstacle_province = { remove_building = dragon_attack_cleared }
 				}
 			}
 			30 = {
@@ -6784,7 +6854,7 @@ wastelands.1803 = { # The Worm
 					title = wastelands.1803.duel_failure							
 					add_prestige = medium_prestige_loss
 					increase_wounds_effect = { REASON = hunting_accident }
-					hidden_effect = { scope:obstacle_province = { remove_building = dragon_attack_cleared } }
+					#hidden_effect = { scope:obstacle_province = { remove_building = dragon_attack_cleared } }
 					scope:obstacle_province = { add_building = dragon_attack }
 					make_settlement_county_wilderness = {
 						COUNTY = scope:obstacle_province.county
@@ -6810,7 +6880,7 @@ wastelands.1803 = { # The Worm
 					left_icon = root
 					add_prestige = major_prestige_gain
 					title = wastelands.1803.duel_success
-					scope:obstacle_province = { remove_building = dragon_attack_cleared }
+					#scope:obstacle_province = { remove_building = dragon_attack_cleared }
 				}
 			}
 			30 = {
@@ -6825,7 +6895,7 @@ wastelands.1803 = { # The Worm
 					title = wastelands.1803.duel_failure							
 					add_prestige = major_prestige_loss
 					increase_wounds_effect = { REASON = hunting_accident }
-					hidden_effect = { scope:obstacle_province = { remove_building = dragon_attack_cleared } }
+					#hidden_effect = { scope:obstacle_province = { remove_building = dragon_attack_cleared } }
 					scope:obstacle_province = { add_building = dragon_attack }
 					make_settlement_county_wilderness = {
 						COUNTY = scope:obstacle_province.county
@@ -6837,7 +6907,7 @@ wastelands.1803 = { # The Worm
 
 	option = { # This seems dangerous anyways
 		name = wastelands.1803.c
-		hidden_effect = { scope:obstacle_province = { remove_building = dragon_attack_cleared } }
+		#hidden_effect = { scope:obstacle_province = { remove_building = dragon_attack_cleared } }
 		scope:obstacle_province = { add_building = dragon_attack }
 	}
 }
@@ -6864,6 +6934,7 @@ wastelands.1804 = { # The Drake-slayer
 	}
 
 	immediate = {
+		scope:obstacle_province = { remove_cleaned_blockers_effect = yes }
 		create_character = {
 			template = new_warrior_character
 			dynasty = none
@@ -6891,7 +6962,7 @@ wastelands.1804 = { # The Drake-slayer
 		add_prestige = medium_prestige_gain
 		remove_short_term_gold = major_gold_value
 		scope:obstacle_province = { 
-			remove_building = dragon_attack_cleared 
+			#remove_building = dragon_attack_cleared 
 			add_province_modifier = {
 				modifier = temporary_fort_province_modifier
 				years = 5
@@ -6929,14 +7000,10 @@ wastelands.1804 = { # The Drake-slayer
 					
 					remove_short_term_gold = medium_gold_value
 					title = wastelands.1804.duel_success
-					scope:obstacle_province = { remove_building = dragon_attack_cleared }			
+					#scope:obstacle_province = { remove_building = dragon_attack_cleared }			
 					if = {
 						limit = {
-							scope:hero = {
-								NOT = {
-									is_courtier_of = root
-								}
-							}
+							scope:hero = { NOT = { is_courtier_of = root } }
 						}
 						add_courtier = scope:hero
 					}
@@ -6947,7 +7014,7 @@ wastelands.1804 = { # The Drake-slayer
 					left_icon = root
 					title = wastelands.1804.duel_failure							
 					add_prestige = major_prestige_loss
-					hidden_effect = { scope:obstacle_province = { remove_building = dragon_attack_cleared } }
+					#hidden_effect = { scope:obstacle_province = { remove_building = dragon_attack_cleared } }
 				}
 			}
 		}
@@ -6955,7 +7022,7 @@ wastelands.1804 = { # The Drake-slayer
 
 	option = { # Who cares?
 		name = wastelands.1804.c
-		hidden_effect = { scope:obstacle_province = { remove_building = dragon_attack_cleared } }
+		#hidden_effect = { scope:obstacle_province = { remove_building = dragon_attack_cleared } }
 		scope:obstacle_province = {
 			add_province_modifier = {
 				modifier = local_hero_gone
@@ -6969,9 +7036,9 @@ wastelands.1804 = { # The Drake-slayer
 	}
 }
 
-#################
-# Wild Orcs Den #
-#################
+#############
+# Wild Orcs #
+#############
 
 wastelands.1901 = { # The Orcish leader
 	content_source = realms_dlc
@@ -6990,8 +7057,8 @@ wastelands.1901 = { # The Orcish leader
 		animation = threatening
 	}
 	
-
 	immediate = {
+		scope:obstacle_province = { remove_cleaned_blockers_effect = yes }
 		create_character = {
 			template = new_warrior_character
 			dynasty = generate
@@ -7026,12 +7093,8 @@ wastelands.1901 = { # The Orcish leader
 		name = wastelands.1901.a
 		add_prestige = minor_prestige_loss
 		remove_short_term_gold = medium_gold_value
-		scope:obstacle_province = { 
-			remove_building = wild_orcs_cleared 
-		}
-		scope:orc_leader = {
-			silent_disappearance_effect = yes
-		}
+		#scope:obstacle_province = { remove_building = wild_orcs_cleared }
+		scope:orc_leader = { silent_disappearance_effect = yes }
 	}
 			
 	option = { # Recruit them
@@ -7068,7 +7131,7 @@ wastelands.1901 = { # The Orcish leader
 					add_prestige = major_prestige_gain
 					remove_short_term_gold = medium_gold_value
 					title = wastelands.1901.b.success
-					scope:obstacle_province = { remove_building = wild_orcs_cleared }			
+					#scope:obstacle_province = { remove_building = wild_orcs_cleared }			
 					if = {
 						limit = {
 							scope:orc_leader = {
@@ -7086,7 +7149,7 @@ wastelands.1901 = { # The Orcish leader
 					left_icon = root
 					title = wastelands.1901.b.failure							
 					add_prestige = major_prestige_loss
-					scope:obstacle_province = { remove_building = wild_orcs_cleared }
+					#scope:obstacle_province = { remove_building = wild_orcs_cleared }
 					scope:obstacle_province.county = { 
 						change_development_progress = -50
 					}
@@ -7114,7 +7177,7 @@ wastelands.1901 = { # The Orcish leader
  					right_icon = scope:orc_leader
 					custom_tooltip = wastelands.1901.c.success.tt
  				}
- 				scope:obstacle_province = { remove_building = wild_orcs_cleared }
+ 				#scope:obstacle_province = { remove_building = wild_orcs_cleared }
 				scope:orc_leader = {
 					death = {
 						death_reason = death_duel
@@ -7138,7 +7201,7 @@ wastelands.1901 = { # The Orcish leader
 					custom_tooltip = wastelands.1901.c.failure.tt
  				}
 				scope:obstacle_province = { 
-					remove_building = wild_orcs_cleared 
+					#remove_building = wild_orcs_cleared 
 					if = {
 						limit = {
 							scope:obstacle_province = {
@@ -7153,14 +7216,13 @@ wastelands.1901 = { # The Orcish leader
 					}	
 					else = {
 						scope:obstacle_province = {
-							set_holding_type = tribal_holding
+							set_holding_type = castle_holding
 						}
 					}
 				}
 				scope:obstacle_province.county = {
 					set_county_faith = scope:orc_leader.faith
 					set_county_culture = scope:orc_leader.culture
-					#change_government = tribal_government
 					change_development_level = 3
 					generate_coa = yes
 				}
@@ -7185,7 +7247,7 @@ wastelands.1901 = { # The Orcish leader
 				
 				hidden_effect = {
 					scope:orc_leader = {
-						change_government = tribal_government
+						change_government = orcish_government
 					}
 				}
 				if = {
@@ -7210,9 +7272,7 @@ wastelands.1901 = { # The Orcish leader
 			modifier = colonial_campaign_military
 			years = 1
 		}
-		scope:obstacle_province = { 
-			remove_building = wild_orcs_cleared 
-		}
+		#scope:obstacle_province = { remove_building = wild_orcs_cleared }
 		scope:obstacle_province.county = { 
 			change_development_progress = 25
 		}
@@ -7254,14 +7314,12 @@ wastelands.1902 = { # Loot left behind
 		name = wastelands.1902.a
 		add_prestige = minor_prestige_loss
 		add_gold = medium_gold_value
-		scope:obstacle_province = { 
-			remove_building = wild_orcs_cleared 
-		}
+		#scope:obstacle_province = { remove_building = wild_orcs_cleared }
 	}
 			
 	option = { # Reinvest it into the colony
 		name = wastelands.1902.b
-		scope:obstacle_province = { remove_building = wild_orcs_cleared }
+		#scope:obstacle_province = { remove_building = wild_orcs_cleared }
 		scope:obstacle_province.county = { 
 			change_development_progress = 75
 		}
@@ -7270,9 +7328,7 @@ wastelands.1902 = { # Loot left behind
 	option = { # Donate it to charity
 		name = wastelands.1902.c
 		add_piety = medium_piety_gain
-		scope:obstacle_province = { 
-			remove_building = wild_orcs_cleared 
-		}
+		#scope:obstacle_province = { remove_building = wild_orcs_cleared }
 	}
 }
 
@@ -7293,6 +7349,7 @@ wastelands.1903 = { # More Orcs arrive
 	}
 	
 	immediate = {
+		scope:obstacle_province = { remove_cleaned_blockers_effect = yes }
 		random_knight = { save_scope_as = chosen_knight }
 	}
 	option = { # Send more troops
@@ -7302,9 +7359,7 @@ wastelands.1903 = { # More Orcs arrive
 			modifier = colonial_campaign_military
 			years = 1
 		}
-		scope:obstacle_province = { 
-			remove_building = wild_orcs_cleared 
-		}
+		#scope:obstacle_province = { remove_building = wild_orcs_cleared }
 		scope:obstacle_province.county = { 
 			change_development_progress = 25
 		}
@@ -7312,7 +7367,7 @@ wastelands.1903 = { # More Orcs arrive
 			
 	option = { # Send a knight to drive them off
 		name = wastelands.1903.b
-		scope:obstacle_province = { remove_building = wild_orcs_cleared }
+		#scope:obstacle_province = { remove_building = wild_orcs_cleared }
 		random_list = {
 			75 = {
 				desc = wastelands.1903.b.success
@@ -7341,7 +7396,7 @@ wastelands.1903 = { # More Orcs arrive
 	option = { # Abandon ship
 		name = wastelands.1903.c
 		scope:obstacle_province = { 
-			remove_building = wild_orcs_cleared 
+			#remove_building = wild_orcs_cleared 
 			add_building = wild_orcs
 		}
 	}
@@ -7353,7 +7408,7 @@ wastelands.1904 = { # The Crafty Goblin
 	title = wastelands.1904.t
 	desc = wastelands.1904.desc
 	theme = orcs
-	override_background = { reference = market_tribal }
+	override_background = { reference = orc_camp }
 	left_portrait = {
 		character = root
 		animation = anger
@@ -7365,6 +7420,7 @@ wastelands.1904 = { # The Crafty Goblin
 	}
 	
 	immediate = {
+		scope:obstacle_province = { remove_cleaned_blockers_effect = yes }
 		create_character = {
 			template = new_warrior_character
 			dynasty = generate
@@ -7411,7 +7467,7 @@ wastelands.1904 = { # The Crafty Goblin
 				send_interface_toast = {
 					left_icon = root
 					title = wastelands.1904.a.success
-					scope:obstacle_province = { remove_building = wild_orcs_cleared }
+					#scope:obstacle_province = { remove_building = wild_orcs_cleared }
 				}
 			}
 			50 = {
@@ -7425,7 +7481,7 @@ wastelands.1904 = { # The Crafty Goblin
 					left_icon = root
 					title = wastelands.1904.a.failure
 					add_prestige = minor_prestige_loss
-					hidden_effect = { scope:obstacle_province = { remove_building = wild_orcs_cleared } }
+					#hidden_effect = { scope:obstacle_province = { remove_building = wild_orcs_cleared } }
 					scope:obstacle_province = { add_building = wild_orcs }
 				}
 			}
@@ -7468,7 +7524,7 @@ wastelands.1904 = { # The Crafty Goblin
 					add_prestige = major_prestige_gain
 					remove_short_term_gold = medium_gold_value
 					title = wastelands.1904.b.success
-					hidden_effect = { scope:obstacle_province = { remove_building = wild_orcs_cleared }	}		
+					#hidden_effect = { scope:obstacle_province = { remove_building = wild_orcs_cleared }	}		
 					if = {
 						limit = {
 							scope:goblin_leader = {
@@ -7486,7 +7542,7 @@ wastelands.1904 = { # The Crafty Goblin
 					left_icon = root
 					title = wastelands.1904.b.failure							
 					add_prestige = major_prestige_loss
-					scope:obstacle_province = { remove_building = wild_orcs_cleared }
+					#scope:obstacle_province = { remove_building = wild_orcs_cleared }
 					scope:obstacle_province.county = { 
 						change_development_progress = -50
 					}
@@ -7525,15 +7581,11 @@ wastelands.1904 = { # The Crafty Goblin
 					custom_tooltip = wastelands.1904.c.success.tt
  				}
 				scope:obstacle_province = { 
-					remove_building = wild_orcs_cleared 
+					#remove_building = wild_orcs_cleared 
 					if = {
 						limit = {
 							scope:obstacle_province = {
-								OR = {
-									#terrain = mountains
-									terrain = halls
-									#terrain = desert_mountains
-								}
+								terrain = halls
 							}
 						}
 						scope:obstacle_province = {
@@ -7569,7 +7621,7 @@ wastelands.1904 = { # The Crafty Goblin
 				
 				hidden_effect = {
 					scope:goblin_leader = {
-						change_government = tribal_government
+						change_government = orcish_government
 					}
 				}
 				add_prestige = minor_prestige_gain
@@ -7589,15 +7641,11 @@ wastelands.1904 = { # The Crafty Goblin
 					custom_tooltip = wastelands.1904.c.failure.tt
  				}
 				scope:obstacle_province = { 
-					remove_building = wild_orcs_cleared 
+					#remove_building = wild_orcs_cleared 
 					if = {
 						limit = {
 							scope:obstacle_province = {
-								OR = {
-									#terrain = mountains
-									terrain = halls
-									#terrain = desert_mountains
-								}
+								terrain = halls
 							}
 						}
 						scope:obstacle_province = {
@@ -7637,7 +7685,7 @@ wastelands.1904 = { # The Crafty Goblin
 				
 				hidden_effect = {
 					scope:goblin_leader = {
-						change_government = tribal_government
+						change_government = orcish_government
 					}
 				}
 			}	
@@ -7661,11 +7709,7 @@ wastelands.1904 = { # The Crafty Goblin
 			modifier = colonial_campaign_military
 			years = 1
 		}
-		hidden_effect = {
-				scope:obstacle_province = { 
-				remove_building = wild_orcs_cleared 
-			}
-		}
+		#hidden_effect = { scope:obstacle_province = { remove_building = wild_orcs_cleared } }
 		scope:obstacle_province.county = { 
 			change_development_progress = 25
 		}
@@ -7686,11 +7730,7 @@ wastelands.1904 = { # The Crafty Goblin
 				has_trait = schemer
 			}
 		}
-		hidden_effect = {
-			scope:obstacle_province = { 
-				remove_building = wild_orcs_cleared 
-			}
-		}
+		hidden_effect = { scope:obstacle_province = { remove_building = wild_orcs_cleared } }
 		scope:obstacle_province.county = { 
 			change_development_progress = 50
 		}
@@ -7715,21 +7755,21 @@ wastelands.1905 = { # Orcish Weapons
 		character = root
 		animation = personality_rational
 	}
+
+	immediate = {
+		scope:obstacle_province = { remove_cleaned_blockers_effect = yes }
+	}
 	
 	option = { # Melt them down for the raw iron
 		name = wastelands.1905.a
 		add_gold = medium_gold_value
-		scope:obstacle_province = { 
-			remove_building = wild_orcs_cleared 
-		}
+		#scope:obstacle_province = { remove_building = wild_orcs_cleared }
 	}
 			
 	option = { # Arm the local garrison
 		name = wastelands.1905.b
-		scope:obstacle_province = { remove_building = wild_orcs_cleared }
-		scope:obstacle_province.county = { 
-			change_development_level = 3
-		}
+		#scope:obstacle_province = { remove_building = wild_orcs_cleared }
+		scope:obstacle_province.county = { change_development_progress_with_overflow = 75 }
 	}
 	
 	option = { # Make a monument out of them 
@@ -7737,9 +7777,7 @@ wastelands.1905 = { # Orcish Weapons
 		trigger = {
 			faith_is_good = yes
 		}
-		scope:obstacle_province = { 
-			remove_building = wild_orcs_cleared 
-		}
+		#scope:obstacle_province = { remove_building = wild_orcs_cleared }
 		add_piety = major_piety_gain
 	}
 	
@@ -7748,16 +7786,14 @@ wastelands.1905 = { # Orcish Weapons
 		trigger = {
 			faith_is_evil = yes
 		}
-		scope:obstacle_province = { 
-			remove_building = wild_orcs_cleared 
-		}
+		#scope:obstacle_province = { remove_building = wild_orcs_cleared }
 		add_dread = medium_dread_gain
 	}
 }
 
-#######################
-#  Flooded Lands Den  #
-#######################
+###################
+#  Flooded Lands  #
+###################
 
 wastelands.2001 = { # Ditch and Drain
 	content_source = realms_dlc
@@ -7773,6 +7809,10 @@ wastelands.2001 = { # Ditch and Drain
 
 	override_background = {
 		reference = wilderness_wetlands
+	}
+
+	immediate = {
+		scope:obstacle_province = { remove_cleaned_blockers_effect = yes }
 	}
 
 	option = { # I shall oversee a relief effort and invest in fresh labour
@@ -7793,7 +7833,7 @@ wastelands.2001 = { # Ditch and Drain
 					remove_short_term_gold = 100
 					add_prestige = 50
 					title = wastelands.2001.success.toast.t
-					scope:obstacle_province = { remove_building = flooded_lands_cleared }
+					#scope:obstacle_province = { remove_building = flooded_lands_cleared }
 				}
 			}
 			30 = {
@@ -7808,7 +7848,7 @@ wastelands.2001 = { # Ditch and Drain
 					title = wastelands.2001.failure.toast.t
 					remove_short_term_gold = 200
 					add_prestige = -50
-					scope:obstacle_province = { remove_building = flooded_lands_cleared }
+					#scope:obstacle_province = { remove_building = flooded_lands_cleared }
 				}
 			}
 		}
@@ -7825,12 +7865,12 @@ wastelands.2001 = { # Ditch and Drain
 			years = 5
 		}
 		remove_short_term_gold = 125
-		scope:obstacle_province = { remove_building = flooded_lands_cleared }
+		#scope:obstacle_province = { remove_building = flooded_lands_cleared }
 	}
 
 	option = { # Maybe this colony was doomed from the start...
 		name = wastelands.2001.c
-		hidden_effect = { scope:obstacle_province = { remove_building = flooded_lands_cleared } }
+		#hidden_effect = { scope:obstacle_province = { remove_building = flooded_lands_cleared } }
 		scope:obstacle_province = { add_building = flooded_lands }
 		random = {
 			chance = 20
@@ -7874,6 +7914,7 @@ wastelands.2002 = { # Marsh Fever
 	}
 
 	immediate = {
+		scope:obstacle_province = { remove_cleaned_blockers_effect = yes }
 		add_character_flag = {
 			flag = had_event_wasteland_blocker_0052
 			years = 20
@@ -7949,7 +7990,7 @@ wastelands.2002 = { # Marsh Fever
 		scope:colonist = {
 			silent_disappearance_effect = yes
 		}
-		hidden_effect = { scope:obstacle_province = { remove_building = flooded_lands_cleared } }
+		#hidden_effect = { scope:obstacle_province = { remove_building = flooded_lands_cleared } }
 		scope:obstacle_province = { add_building = flooded_lands }
 	}
 }
@@ -7976,6 +8017,7 @@ wastelands.2003 = { # Treasure in the Glade
 	}
 
 	immediate = {
+		scope:obstacle_province = { remove_cleaned_blockers_effect = yes }
 		create_character = {
 			template = new_warrior_character
 			dynasty = none
@@ -7990,7 +8032,7 @@ wastelands.2003 = { # Treasure in the Glade
 	option = { # Collect the treasure and hand it out to the settlers
 		name = wastelands.2003.a
 		scope:obstacle_province.county = { change_development_progress_with_overflow = 50 }
-		hidden_effect = { scope:obstacle_province = { remove_building = flooded_lands_cleared } }
+		#hidden_effect = { scope:obstacle_province = { remove_building = flooded_lands_cleared } }
 		stress_impact = {
 			compassionate = minor_stress_loss
 			generous = medium_stress_loss
@@ -8002,7 +8044,7 @@ wastelands.2003 = { # Treasure in the Glade
 		name = wastelands.2003.b
 		add_short_term_gold = 50
 		scope:obstacle_province.county = { change_county_control = -50 }
-		hidden_effect = { scope:obstacle_province = { remove_building = flooded_lands_cleared } }
+		#hidden_effect = { scope:obstacle_province = { remove_building = flooded_lands_cleared } }
 		stress_impact = {
 			greedy = minor_stress_loss
 			generous = minor_stress_gain
@@ -8048,7 +8090,7 @@ wastelands.2004 = { # Flash Flood
 				geographical_region = siresha_river_region
 				geographical_region = nuar_river_region
 				geographical_region = acaadoky_river_region
-		    }
+			}
 		}
 	}
 		  
@@ -8061,11 +8103,14 @@ wastelands.2004 = { # Flash Flood
 		reference = docks_tribal
 	}
 	
+	immediate = {
+		scope:obstacle_province = { remove_cleaned_blockers_effect = yes }
+	}
 
 	option = { # Get the settlers to prepare
 		name = wastelands.2004.a
 		scope:obstacle_province.county = { change_development_progress_with_overflow = 50 }
-		hidden_effect = { scope:obstacle_province = { remove_building = flooded_lands_cleared } }
+		#hidden_effect = { scope:obstacle_province = { remove_building = flooded_lands_cleared } }
 		stress_impact = {
 			diligent = medium_stress_loss
 			compassionate = minor_stress_loss
@@ -8079,18 +8124,14 @@ wastelands.2004 = { # Flash Flood
 	option = { # Build canals for the water to flow through 
 		name = wastelands.2004.c 
 		custom_tooltip = wastelands.2004.c.tt 
-		hidden_effect = { scope:obstacle_province = { remove_building = flooded_lands_cleared } }
+		#hidden_effect = { scope:obstacle_province = { remove_building = flooded_lands_cleared } }
 		scope:obstacle_province = { add_building = flooded_lands }
 	}
 
 	option = { # Might be best to evacuate
 		name = wastelands.2004.b
 		add_short_term_gold = 50
-		hidden_effect = {
-			scope:obstacle_province = { 
-				remove_building = flooded_lands_cleared
-			}			
-		}
+		#hidden_effect = { scope:obstacle_province = { remove_building = flooded_lands_cleared } }
 		scope:obstacle_province = { 
 			scope:obstacle_province = { add_building = flooded_lands }
 		}			
@@ -8100,7 +8141,6 @@ wastelands.2004 = { # Flash Flood
 		}
 	}
 }
-
 
 #############################
 # Ghosts Settlement Blocker #
@@ -8121,6 +8161,7 @@ wastelands.2101 = { # SpoOooOOoky sightings
 		animation = fear
 	}
 	immediate = {
+		scope:obstacle_province = { remove_cleaned_blockers_effect = yes }
 		create_character = {
 			template = peasant_character
 			dynasty = none
@@ -8141,7 +8182,7 @@ wastelands.2101 = { # SpoOooOOoky sightings
 			65 = {
 				desc = wastelands.2101.a.success
 				hidden_effect = {
-					scope:obstacle_province = { remove_building = ghosts_cleared }
+					#scope:obstacle_province = { remove_building = ghosts_cleared }
 					send_interface_toast = {
 						title = wastelands.2101.a.success
 					}
@@ -8150,7 +8191,7 @@ wastelands.2101 = { # SpoOooOOoky sightings
 			35 = {
 				desc = wastelands.2101.a.failure
 				hidden_effect = {
-					scope:obstacle_province = { remove_building = ghosts_cleared }
+					#scope:obstacle_province = { remove_building = ghosts_cleared }
 				}
 				send_interface_toast = {
 					title = wastelands.2101.a.failure
@@ -8179,7 +8220,7 @@ wastelands.2101 = { # SpoOooOOoky sightings
 				send_interface_toast = {
 					left_icon = root
 					title = wastelands.2101.b.success
-					scope:obstacle_province = { remove_building = ghosts_cleared }
+					#scope:obstacle_province = { remove_building = ghosts_cleared }
 					add_prestige = medium_prestige_gain
 				}
 			}
@@ -8190,19 +8231,23 @@ wastelands.2101 = { # SpoOooOOoky sightings
 					min = -25
 				}
 				desc = wastelands.2101.b.failure
-				hidden_effect = { scope:obstacle_province = { remove_building = ghosts_cleared } }
+				#hidden_effect = { scope:obstacle_province = { remove_building = ghosts_cleared } }
 				send_interface_toast = {
 					left_icon = root
 					title = wastelands.2101.b.failure
 					scope:obstacle_province = { add_building = ghosts }
-				}
-				random_list = {
-					90 = {
-						add_prestige = minor_prestige_loss
-					}
-					10 = {
-						trigger = { is_elf = no }
-						add_trait = lunatic_1
+					add_prestige = minor_prestige_loss
+					if = {
+						limit = {
+							is_elf = no
+						}
+						random = {
+							chance = 10
+							add_trait = lunatic_1
+							stress_impact = {
+								base = medium_stress_impact_gain
+							}
+						}
 					}
 				}
 			}
@@ -8225,15 +8270,18 @@ wastelands.2101 = { # SpoOooOOoky sightings
 			base = major_stress_loss
 		}
 		add_prestige = medium_prestige_loss
-		hidden_effect = { scope:obstacle_province = { remove_building = ghosts_cleared } }
-		scope:obstacle_province.county = {
-			change_development_progress = 90
+		#scope:obstacle_province = { remove_building = ghosts_cleared }
+		scope:obstacle_province = {
+			add_province_modifier = {
+				modifier = uncaring_ruler
+				years = 15
+			}
 		}
 	}
 	option = { #I'll send someone who knows how to deal with ghosts
 		name = wastelands.2101.d
 		remove_short_term_gold = minor_gold_value
-		hidden_effect = { scope:obstacle_province = { remove_building = ghosts_cleared } }
+		#scope:obstacle_province = { remove_building = ghosts_cleared }
 		scope:obstacle_province.county = {
 			change_development_progress = 50
 		}
@@ -8260,6 +8308,7 @@ wastelands.2102 = { # Turns out it was a "prank"
 		animation = personality_dishonorable
 	}
 	immediate = {
+		scope:obstacle_province = { remove_cleaned_blockers_effect = yes }
 		create_character = {
 			template = peasant_character
 			dynasty = none
@@ -8275,12 +8324,16 @@ wastelands.2102 = { # Turns out it was a "prank"
 	}
 	option = { #Guess what? It's the banhammer for you, fool. (Banish them)
 		name = wastelands.2102.a 
-		hidden_effect = { scope:obstacle_province = { remove_building = ghosts_cleared } }
+		#hidden_effect = { scope:obstacle_province = { remove_building = ghosts_cleared } }
 		add_prestige = minor_prestige_gain
 	}
 	option = { #Hilarious. Your pranks shall entertain my court.
 		name = wastelands.2102.b
-		hidden_effect = { scope:obstacle_province = { remove_building = ghosts_cleared } }
+		trigger = {
+			is_valid_to_hire_court_position_type = court_jester_court_position
+			NOT = { employs_court_position = court_jester_court_position }
+		}
+		#hidden_effect = { scope:obstacle_province = { remove_building = ghosts_cleared } }
 		court_position_grant_effect = {
 			EMPLOYER = root
 			POS = court_jester
@@ -8295,7 +8348,7 @@ wastelands.2102 = { # Turns out it was a "prank"
 	}
 	option = { #No fun allowed, off with your head
 		name = wastelands.2102.c
-		hidden_effect = { scope:obstacle_province = { remove_building = ghosts_cleared } }
+		#hidden_effect = { scope:obstacle_province = { remove_building = ghosts_cleared } }
 		execute_prisoner_effect = {
 			VICTIM = scope:prankster
 			EXECUTIONER = root
@@ -8307,7 +8360,7 @@ wastelands.2102 = { # Turns out it was a "prank"
 	option = { #I'll allow it. Just this once.
 		name = wastelands.2102.d
 		remove_short_term_gold = minor_gold_value
-		hidden_effect = { scope:obstacle_province = { remove_building = ghosts_cleared } }
+		#hidden_effect = { scope:obstacle_province = { remove_building = ghosts_cleared } }
 		scope:obstacle_province.county = {
 			change_development_progress = 50
 		}
@@ -8339,7 +8392,9 @@ wastelands.2103 = { # Discover a desecrated burial site nearby
 		character = root
 		animation = worry
 	}
-	immediate = { }
+	immediate = {
+		scope:obstacle_province = { remove_cleaned_blockers_effect = yes }
+	}
 	
 	option = { #Let the dead rip in peace
 		name = wastelands.2103.a 
@@ -8349,12 +8404,12 @@ wastelands.2103 = { # Discover a desecrated burial site nearby
 				faith_is_neutral = yes 
 			}
 		}
-		hidden_effect = { scope:obstacle_province = { remove_building = ghosts_cleared } }
+		#hidden_effect = { scope:obstacle_province = { remove_building = ghosts_cleared } }
 		add_prestige = minor_piety_gain
 	}
 	option = { #Clear out the graveyard
 		name = wastelands.2103.b
-		hidden_effect = { scope:obstacle_province = { remove_building = ghosts_cleared } }
+		#hidden_effect = { scope:obstacle_province = { remove_building = ghosts_cleared } }
 		add_piety = medium_piety_loss
 		stress_impact = {
 			base = minor_stress_gain
@@ -8368,13 +8423,13 @@ wastelands.2103 = { # Discover a desecrated burial site nearby
 	}
 	option = { #Desecrate it further!
 		name = wastelands.2103.c
-		hidden_effect = { scope:obstacle_province = { remove_building = ghosts_cleared } }
+		#hidden_effect = { scope:obstacle_province = { remove_building = ghosts_cleared } }
 		add_dread = medium_dread_gain
 	}
 	option = { #Hire someone to guide the spirits away
 		name = wastelands.2102.d
 		remove_short_term_gold = minor_gold_value
-		hidden_effect = { scope:obstacle_province = { remove_building = ghosts_cleared } }
+		#hidden_effect = { scope:obstacle_province = { remove_building = ghosts_cleared } }
 		add_prestige = minor_prestige_loss
 	}
 }
@@ -8404,6 +8459,7 @@ wastelands.2104 = { #Clearing Barrow Wights
 	}
 
 	immediate = {
+		scope:obstacle_province = { remove_cleaned_blockers_effect = yes }
 		if = {
 			limit = { 
 				any_knight = { 
@@ -8448,11 +8504,7 @@ wastelands.2104 = { #Clearing Barrow Wights
 				send_interface_toast = {
 					left_icon = root
 					title = wastelands.2104.success.toast.t
-					hidden_effect = {
-						scope:obstacle_province = { 
-							remove_building = barrow_wights_cleared
-						}			
-					}
+					#hidden_effect = { scope:obstacle_province = { remove_building = barrow_wights_cleared } }
 					add_prestige = major_prestige_gain
 					add_piety = major_piety_gain
 				}
@@ -8467,11 +8519,7 @@ wastelands.2104 = { #Clearing Barrow Wights
 				send_interface_toast = {
 					left_icon = root
 					title = wastelands.2104.failure.toast.t
-					hidden_effect = {
-						scope:obstacle_province = { 
-							remove_building = barrow_wights_cleared
-						}			
-					}
+					#hidden_effect = { scope:obstacle_province = { remove_building = barrow_wights_cleared } }
 					scope:obstacle_province = { 
 						scope:obstacle_province = { add_building = barrow_wights }
 					}	
@@ -8484,11 +8532,7 @@ wastelands.2104 = { #Clearing Barrow Wights
 
 	option = { # Leave!
 		name = wastelands.2104.b
-		hidden_effect = {
-			scope:obstacle_province = { 
-				remove_building = barrow_wights_cleared
-			}			
-		}
+		#hidden_effect = { scope:obstacle_province = { remove_building = barrow_wights_cleared } }
 		scope:obstacle_province = { 
 			scope:obstacle_province = { add_building = barrow_wights }
 		}			
@@ -8499,9 +8543,9 @@ wastelands.2104 = { #Clearing Barrow Wights
 	}
 }
 	
-############################
-#  Collapsed Ceilings Den  #
-############################
+########################
+#  Collapsed Ceilings  #
+########################
 
 wastelands.2201 = { # Further Cave-Ins
 	content_source = realms_dlc
@@ -8517,6 +8561,10 @@ wastelands.2201 = { # Further Cave-Ins
 
 	override_background = {
 		reference = wilderness_underground
+	}
+
+	immediate = {
+		scope:obstacle_province = { remove_cleaned_blockers_effect = yes }
 	}
 
 	option = { # Just keep digging!
@@ -8535,7 +8583,7 @@ wastelands.2201 = { # Further Cave-Ins
 				send_interface_toast = {
 					left_icon = root
 					title = wastelands.2201.success.toast.t
-					scope:obstacle_province = { remove_building = collapsed_ceiling_cleared }
+					#scope:obstacle_province = { remove_building = collapsed_ceiling_cleared }
 					add_prestige = 80
 				}
 			}
@@ -8546,7 +8594,7 @@ wastelands.2201 = { # Further Cave-Ins
 					min = -25
 				}
 				desc = wastelands.2201.a.duel_failure
-				hidden_effect = { scope:obstacle_province = { remove_building = collapsed_ceiling_cleared } }
+				#hidden_effect = { scope:obstacle_province = { remove_building = collapsed_ceiling_cleared } }
 				send_interface_toast = {
 					left_icon = root
 					title = wastelands.2201.failure.toast.t
@@ -8573,7 +8621,7 @@ wastelands.2201 = { # Further Cave-Ins
 		}
 		name = wastelands.2201.b # Hire professional engineers
 		remove_short_term_gold = 150
-		scope:obstacle_province = { remove_building = collapsed_ceiling_cleared }
+		#scope:obstacle_province = { remove_building = collapsed_ceiling_cleared }
 		stress_impact = {
 			greedy = minor_stress_gain
 		}
@@ -8585,7 +8633,7 @@ wastelands.2201 = { # Further Cave-Ins
 		trigger = {
 			is_ai = no
 		}
-		hidden_effect = { scope:obstacle_province = { remove_building = collapsed_ceiling_cleared } }
+		#hidden_effect = { scope:obstacle_province = { remove_building = collapsed_ceiling_cleared } }
 		scope:obstacle_province = { add_building = collapsed_ceiling }
 		make_settlement_county_wilderness = {
 			COUNTY = scope:obstacle_province.county
@@ -8617,13 +8665,14 @@ wastelands.2202 = { # Unexpected Treasure
 	}
 
 	immediate = {
-		cp:councillor_steward = {
+		scope:obstacle_province = { remove_cleaned_blockers_effect = yes }
+		cp:councillor_steward ?= {
 			save_scope_as = steward
 		}
 	}
 	option = { # Excellent! Guards, seize all of it.
 		name = wastelands.2202.a
-		hidden_effect = { scope:obstacle_province = { remove_building = collapsed_ceiling_cleared } }
+		#hidden_effect = { scope:obstacle_province = { remove_building = collapsed_ceiling_cleared } }
 		add_tyranny = 10
 		add_short_term_gold = 150
 		scope:obstacle_province.county = {
@@ -8640,7 +8689,7 @@ wastelands.2202 = { # Unexpected Treasure
 
 	option = { # I will take my share, the rest will be split fairly.
 		name = wastelands.2202.b
-		hidden_effect = { scope:obstacle_province = { remove_building = collapsed_ceiling_cleared } }
+		#hidden_effect = { scope:obstacle_province = { remove_building = collapsed_ceiling_cleared } }
 		add_short_term_gold = 60
 		stress_impact = {
 			greedy = medium_stress_gain
@@ -8672,6 +8721,9 @@ wastelands.2203 = { # Fossil Findings
 		reference = wilderness_underground
 	}
 
+	immediate = {
+		scope:obstacle_province = { remove_cleaned_blockers_effect = yes }
+	}
 
 	option = { # Just keep digging!
 		name = wastelands.2203.a
@@ -8689,7 +8741,7 @@ wastelands.2203 = { # Fossil Findings
 				send_interface_toast = {
 					left_icon = root
 					title = wastelands.2203.success.toast.t
-					scope:obstacle_province = { remove_building = collapsed_ceiling_cleared }
+					#scope:obstacle_province = { remove_building = collapsed_ceiling_cleared }
 					add_gold = major_gold_value
 					add_prestige = medium_prestige_gain
 					if = {
@@ -8707,7 +8759,7 @@ wastelands.2203 = { # Fossil Findings
 					min = -25
 				}
 				desc = wastelands.2203.duel_failure
-				hidden_effect = { scope:obstacle_province = { remove_building = collapsed_ceiling_cleared } }
+				#hidden_effect = { scope:obstacle_province = { remove_building = collapsed_ceiling_cleared } }
 				send_interface_toast = {
 					left_icon = root
 					remove_short_term_gold = medium_gold_value
@@ -8737,9 +8789,7 @@ wastelands.2203 = { # Fossil Findings
 		random_list = {
 			60 = {
 				desc = wastelands.2203.duel_success
-				hidden_effect = {
-					scope:obstacle_province = { remove_building = collapsed_ceiling_cleared }
-				}
+				#hidden_effect = { scope:obstacle_province = { remove_building = collapsed_ceiling_cleared } }
 				send_interface_toast = {
 					left_icon = root
 					title = wastelands.2203.success.toast.t
@@ -8756,9 +8806,7 @@ wastelands.2203 = { # Fossil Findings
 			}
 			40 = {
 				desc = wastelands.2203.duel_failure
-				hidden_effect = {
-					scope:obstacle_province = { remove_building = collapsed_ceiling_cleared }
-				}
+				#hidden_effect = { scope:obstacle_province = { remove_building = collapsed_ceiling_cleared } }
 				send_interface_toast = {
 					left_icon = root
 					title = wastelands.2203.success.toast.t
@@ -8780,7 +8828,7 @@ wastelands.2203 = { # Fossil Findings
 
 	option = { # Abandon the project...
 		name = wastelands.2203.c
-		hidden_effect = { scope:obstacle_province = { remove_building = collapsed_ceiling_cleared } }
+		#hidden_effect = { scope:obstacle_province = { remove_building = collapsed_ceiling_cleared } }
 		if = {
 			limit = {
 				root.faith = faith:dragon_cult
@@ -8790,9 +8838,9 @@ wastelands.2203 = { # Fossil Findings
 	}
 }
 
-#######################
-#  Frozen Ground Den  #
-#######################
+###################
+#  Frozen Ground  #
+###################
 
 wastelands.2301 = { # The Hot Springs
 	content_source = realms_dlc
@@ -8817,17 +8865,45 @@ wastelands.2301 = { # The Hot Springs
 		animation = pondering
 	}
 	
-    right_portrait = {
-        trigger = { exists = scope:hot_springs_partner }
-        character = scope:hot_springs_partner
-        animation = flirtation_left
-        #camera = camera_event_very_left
-    }
+	right_portrait = {
+		trigger = { exists = scope:hot_springs_partner }
+		character = scope:hot_springs_partner
+		animation = flirtation_left
+		#camera = camera_event_very_left
+	}
 	
 	immediate = {
+		scope:obstacle_province = { remove_cleaned_blockers_effect = yes }
 		if = {
-			limit = { is_married = yes }
-			primary_spouse = { save_scope_as = hot_springs_partner }
+			limit = {
+				is_available_adult = yes
+			}
+			every_spouse = {
+				limit = {
+					is_available = yes
+					location = ROOT.location
+				}
+				add_to_list = potential_partners_list
+			}
+			every_concubine = {
+				limit = {
+					is_available = yes
+					location = ROOT.location
+				}
+				add_to_list = potential_partners_list
+			}
+			every_relation = {
+				type = lover
+				limit = {
+					is_available = yes
+					location = ROOT.location
+				}
+				add_to_list = potential_partners_list
+			}
+			random_in_list = {
+				list = potential_partners_list
+				save_scope_as = hot_springs_partner
+			}
 		}
 	}
 	
@@ -8836,14 +8912,12 @@ wastelands.2301 = { # The Hot Springs
 		scope:obstacle_province.county = { 
 			change_development_progress_with_overflow = 150
 		}
-		scope:obstacle_province = {
-			remove_building = frozen_ground_cleared 
-		}
+		#scope:obstacle_province = { remove_building = frozen_ground_cleared }
 	}
 			
 	option = { # Make people pay to get in
 		name = wastelands.2301.b
-		scope:obstacle_province = { remove_building = frozen_ground_cleared }
+		#scope:obstacle_province = { remove_building = frozen_ground_cleared }
 		add_gold = medium_gold_value
 	}
 	
@@ -8851,10 +8925,9 @@ wastelands.2301 = { # The Hot Springs
 		name = wastelands.2301.c
 		trigger = {
 			exists = scope:hot_springs_partner
+			cannot_be_killed = no
 		}
-		scope:obstacle_province = { 
-			remove_building = frozen_ground_cleared 
-		}
+		#scope:obstacle_province = { remove_building = frozen_ground_cleared }
 		scope:hot_springs_partner = {
 			if = {
 				limit = { 
@@ -8894,27 +8967,26 @@ wastelands.2302 = { # The Frozen Tomb
 		camera = camera_event_center_away
 	}
 	
-    right_portrait = {
-        character = scope:shocked_colonist
-        animation = shock
-        camera = camera_event_right_away_3_4
-    }
+	right_portrait = {
+		character = scope:shocked_colonist
+		animation = shock
+		camera = camera_event_right_away_3_4
+	}
 	
 	immediate = {
+		scope:obstacle_province = { remove_cleaned_blockers_effect = yes }
 		random_courtier = { save_scope_as = shocked_colonist }
 	}
 	
 	option = { # Bury the dead
 		name = wastelands.2302.a
-		scope:obstacle_province = { 
-			remove_building = frozen_ground_cleared 
-		}
+		#scope:obstacle_province = { remove_building = frozen_ground_cleared }
 		add_piety = medium_piety_gain
 	}
 			
 	option = { # Strip them of valuables
 		name = wastelands.2302.b
-		scope:obstacle_province = { remove_building = frozen_ground_cleared }
+		#scope:obstacle_province = { remove_building = frozen_ground_cleared }
 		add_gold = medium_gold_value
 		add_prestige = minor_prestige_loss
 	}
@@ -8924,9 +8996,7 @@ wastelands.2302 = { # The Frozen Tomb
 		trigger = {
 			faith_is_evil = yes 
 		}
-		scope:obstacle_province = { 
-			remove_building = frozen_ground_cleared 
-		}
+		#scope:obstacle_province = { remove_building = frozen_ground_cleared }
 		scope:obstacle_province.county = {
 			change_development_progress_with_overflow = 100
 		}
@@ -8948,27 +9018,26 @@ wastelands.2303 = { # The North Grove
 		camera = camera_event_left_away_3_4
 	}
 	
-    right_portrait = {
-        character = scope:freezing_colonist
-        animation = sick
-        camera = camera_event_right
-    }
+	right_portrait = {
+		character = scope:freezing_colonist
+		animation = sick
+		camera = camera_event_right
+	}
 	
 	immediate = {
+		scope:obstacle_province = { remove_cleaned_blockers_effect = yes }
 		random_courtier = { save_scope_as = freezing_colonist }
 	}
 	
 	option = { # Burn it down.
 		name = wastelands.2303.a
-		scope:obstacle_province = { 
-			remove_building = frozen_ground_cleared 
-		}
+		#scope:obstacle_province = { remove_building = frozen_ground_cleared }
 		add_prestige = medium_prestige_loss
 	}
 			
 	option = { # Pay for more firewood
 		name = wastelands.2303.b
-		scope:obstacle_province = { remove_building = frozen_ground_cleared }
+		#scope:obstacle_province = { remove_building = frozen_ground_cleared }
 		remove_short_term_gold = minor_gold_value
 	}
 	
@@ -8981,9 +9050,7 @@ wastelands.2303 = { # The North Grove
 				culture ?= { has_cultural_pillar = heritage_baradhrim }
 			}
 		}
-		scope:obstacle_province = { 
-			remove_building = frozen_ground_cleared 
-		}
+		#scope:obstacle_province = { remove_building = frozen_ground_cleared }
 		scope:obstacle_province.county = {
 			change_development_progress_with_overflow = 250
 		}
@@ -8991,7 +9058,7 @@ wastelands.2303 = { # The North Grove
 	}
 }
 
-wastelands.2304 = { # The North Grove
+wastelands.2304 = { # Avalanche!
 	content_source = realms_dlc
 	type = character_event
 	title = wastelands.2304.t
@@ -9002,32 +9069,36 @@ wastelands.2304 = { # The North Grove
 	left_portrait = {
 		character = root
 		animation = disapproval
-    }
+	}
+	
+	immediate = {
+		scope:obstacle_province = { remove_cleaned_blockers_effect = yes }
+	}
 	
 	option = { # Oh well... 
 		name = wastelands.2304.a
 		scope:obstacle_province = { 
-			remove_building = frozen_ground_cleared 
+			#remove_building = frozen_ground_cleared 
 			add_building = frozen_ground
 		}
 	}
 			
 	option = { # We must spare no expense
 		name = wastelands.2304.b
-		scope:obstacle_province = { remove_building = frozen_ground_cleared }
+		#scope:obstacle_province = { remove_building = frozen_ground_cleared }
 		remove_short_term_gold = minor_gold_value
 	}
 	
 	option = { # The locals will have to work harder 
 		name = wastelands.2304.c 
-		scope:obstacle_province = { remove_building = frozen_ground_cleared }
+		#scope:obstacle_province = { remove_building = frozen_ground_cleared }
 		scope:obstacle_province.county = { change_county_control = -50 }
 	}
 }
 
-###################
-#  Stale Air Den  #
-###################
+################
+#  Stale Air   #
+################
 
 wastelands.2401 = { # Toxic Leak!
 	content_source = realms_dlc
@@ -9057,10 +9128,11 @@ wastelands.2401 = { # Toxic Leak!
 	}
 
 	on_trigger_fail = {
-		hidden_effect = { scope:obstacle_province = { remove_building = stale_air_cleared } }
+		scope:obstacle_province = { remove_cleaned_blockers_effect = yes }
 	}
 
 	immediate = {
+		scope:obstacle_province = { remove_cleaned_blockers_effect = yes }
 		add_character_flag = {
 			flag = had_event_wasteland_blocker_0056
 			years = 20
@@ -9095,7 +9167,7 @@ wastelands.2401 = { # Toxic Leak!
 				years = 2
 			}
 		}
-		hidden_effect = { scope:obstacle_province = { remove_building = stale_air_cleared } }
+		#hidden_effect = { scope:obstacle_province = { remove_building = stale_air_cleared } }
 	}
 
 	option = { # They shall get what they need.
@@ -9112,7 +9184,7 @@ wastelands.2401 = { # Toxic Leak!
 			compassionate = minor_stress_loss
 			callous = minor_stress_gain
 		}
-		hidden_effect = { scope:obstacle_province = { remove_building = stale_air_cleared } }
+		#hidden_effect = { scope:obstacle_province = { remove_building = stale_air_cleared } }
 		scope:obstacle_province = { add_building = stale_air }
 	}
 
@@ -9131,7 +9203,7 @@ wastelands.2401 = { # Toxic Leak!
 				COUNTY = scope:obstacle_province.county
 			}
 		}
-		hidden_effect = { scope:obstacle_province = { remove_building = stale_air_cleared } }
+		#hidden_effect = { scope:obstacle_province = { remove_building = stale_air_cleared } }
 		scope:obstacle_province = { add_building = stale_air }
 
 		stress_impact = {
@@ -9165,11 +9237,13 @@ wastelands.2402 = { # Reclaiming the Dead
 		reference = wilderness_underground
 	}
 
+	immediate = {
+		scope:obstacle_province = { remove_cleaned_blockers_effect = yes }
+	}
+
 	option = { 
 		name = wastelands.2402.a
-		hidden_effect = {
-			scope:obstacle_province = { remove_building = stale_air_cleared }
-		}
+		#hidden_effect = { scope:obstacle_province = { remove_building = stale_air_cleared } }
 		send_interface_toast = {
 			left_icon = root
 			title = wastelands.2402.success.toast.t
@@ -9190,9 +9264,7 @@ wastelands.2402 = { # Reclaiming the Dead
 	
 	option = {
 		name = wastelands.2402.b
-		hidden_effect = {
-			scope:obstacle_province = { remove_building = stale_air_cleared }
-		}
+		#hidden_effect = { scope:obstacle_province = { remove_building = stale_air_cleared } }
 		send_interface_toast = {
 			left_icon = root
 			title = wastelands.2402.success.toast.t
@@ -9203,9 +9275,7 @@ wastelands.2402 = { # Reclaiming the Dead
 
 	option = {
 		name = wastelands.2402.c
-		hidden_effect = {
-			scope:obstacle_province = { remove_building = stale_air_cleared }
-		}
+		#hidden_effect = { scope:obstacle_province = { remove_building = stale_air_cleared } }
 		send_interface_toast = {
 			left_icon = root
 			title = wastelands.2402.success.toast.t
@@ -9236,6 +9306,7 @@ wastelands.2403 = { # Bad 'shrooms'
 	}
 
 	immediate = {
+		scope:obstacle_province = { remove_cleaned_blockers_effect = yes }
 		create_character = {
 			culture = root.culture
 			faith = root.faith
@@ -9247,9 +9318,7 @@ wastelands.2403 = { # Bad 'shrooms'
 
 	option = { 
 		name = wastelands.2403.a
-		hidden_effect = {
-			scope:obstacle_province = { remove_building = stale_air_cleared }
-		}
+		#hidden_effect = { scope:obstacle_province = { remove_building = stale_air_cleared } }
 		send_interface_toast = {
 			left_icon = root
 			title = wastelands.2403.success.toast.t
@@ -9273,7 +9342,7 @@ wastelands.2403 = { # Bad 'shrooms'
 					min = -10
 				}
 				desc = wastelands.2403.b.duel_success
-				hidden_effect = { scope:obstacle_province = { remove_building = stale_air_cleared } }
+				#hidden_effect = { scope:obstacle_province = { remove_building = stale_air_cleared } }
 				send_interface_toast = {
 					left_icon = root
 					right_icon = scope:mushroom_picker
@@ -9288,7 +9357,7 @@ wastelands.2403 = { # Bad 'shrooms'
 					min = -25
 				}
 				desc = wastelands.2403.b.duel_failure
-				hidden_effect = { scope:obstacle_province = { remove_building = stale_air_cleared } }
+				#hidden_effect = { scope:obstacle_province = { remove_building = stale_air_cleared } }
 				send_interface_toast = {
 					left_icon = root
 					right_icon = scope:mushroom_picker
@@ -9316,7 +9385,7 @@ wastelands.2403 = { # Bad 'shrooms'
 					has_trait = lifestyle_herbalist
 				}
 				desc = wastelands.2403.c.duel_success
-				hidden_effect = { scope:obstacle_province = { remove_building = stale_air_cleared } }
+				#hidden_effect = { scope:obstacle_province = { remove_building = stale_air_cleared } }
 				send_interface_toast = {
 					left_icon = root
 					right_icon = scope:mushroom_picker
@@ -9337,7 +9406,7 @@ wastelands.2403 = { # Bad 'shrooms'
 					min = -25
 				}
 				desc = wastelands.2403.c.duel_failure
-				hidden_effect = { scope:obstacle_province = { remove_building = stale_air_cleared } }
+				#hidden_effect = { scope:obstacle_province = { remove_building = stale_air_cleared } }
 				send_interface_toast = {
 					left_icon = root
 					right_icon = scope:mushroom_picker
@@ -9361,13 +9430,13 @@ wastelands.2403 = { # Bad 'shrooms'
 	}
 }
 
-###########################
-#  Strange Creatures Den  #
-###########################
+#######################
+#  Strange Creatures  #
+#######################
 
-#####################
-#  Troll caves Den  #
-#####################
+##############
+#  Troll Den #
+##############
 
 wastelands.2601 = { # The Trolls (icy, ispanets)
 	content_source = realms_dlc
@@ -9388,6 +9457,7 @@ wastelands.2601 = { # The Trolls (icy, ispanets)
 	}
 	
 	immediate = {
+		scope:obstacle_province = { remove_cleaned_blockers_effect = yes }
 		if = {
 			limit = {
 				any_martial_councillor = {
@@ -9423,9 +9493,7 @@ wastelands.2601 = { # The Trolls (icy, ispanets)
 					left_icon = root
 					title = wastelands.2601.success.toast.t
 					add_prestige = medium_prestige_gain
-					hidden_effect = {
-						scope:obstacle_province = { remove_building = troll_cave_cleared }
-					}
+					#hidden_effect = { scope:obstacle_province = { remove_building = troll_cave_cleared } }
 				}
 			}
 			30 = {
@@ -9438,9 +9506,7 @@ wastelands.2601 = { # The Trolls (icy, ispanets)
 				send_interface_toast = {
 					left_icon = root
 					title = wastelands.2601.failure.toast.t
-
-					hidden_effect = { scope:obstacle_province = { remove_building = troll_cave_cleared } }
-
+					#hidden_effect = { scope:obstacle_province = { remove_building = troll_cave_cleared } }
 					increase_wounds_effect = { REASON = troll }
 					add_trait = maimed
 				}
@@ -9473,12 +9539,7 @@ wastelands.2601 = { # The Trolls (icy, ispanets)
 							left_icon = root
 							right_icon = scope:marshal
 							title = wastelands.2601.success.toast.t
-							hidden_effect = {
-								scope:obstacle_province = {  
-									remove_building = troll_cave_cleared 
-								}
-							
-							}
+							#hidden_effect = { scope:obstacle_province = { remove_building = troll_cave_cleared } }
 							scope:marshal = {
 								if = {
 									limit = {
@@ -9503,8 +9564,7 @@ wastelands.2601 = { # The Trolls (icy, ispanets)
 							left_icon = root
 							right_icon = scope:marshal
 							title = wastelands.2601.failure.toast.t
-	
-							hidden_effect = { scope:obstacle_province = { remove_building = troll_cave_cleared } }
+							#hidden_effect = { scope:obstacle_province = { remove_building = troll_cave_cleared } }
 							scope:marshal = {
 								increase_wounds_effect = { REASON = troll }
 							}
@@ -9529,6 +9589,7 @@ wastelands.2602 = { # A beast from the Dark (icy, ispanets)
 	}
 	
 	immediate = {
+		scope:obstacle_province = { remove_cleaned_blockers_effect = yes }
 		if = {
 			limit = { 
 				any_knight = { 
@@ -9567,11 +9628,7 @@ wastelands.2602 = { # A beast from the Dark (icy, ispanets)
 					left_icon = root
 					title = wastelands.2602.success.toast.t
 					add_prestige = medium_prestige_gain
-					hidden_effect = {
-						scope:obstacle_province = { 
-							remove_building = troll_cave_cleared 
-						}
-					}
+					#hidden_effect = { scope:obstacle_province = { remove_building = troll_cave_cleared } }
 				}
 			}
 			30 = {
@@ -9584,9 +9641,7 @@ wastelands.2602 = { # A beast from the Dark (icy, ispanets)
 				send_interface_toast = {
 					left_icon = root
 					title = wastelands.2602.failure.toast.t
-
-					hidden_effect = { scope:obstacle_province = { remove_building = troll_cave_cleared } }
-
+					#hidden_effect = { scope:obstacle_province = { remove_building = troll_cave_cleared } }
 					increase_wounds_effect = { REASON = troll }
 					add_trait = maimed
 				}
@@ -9619,11 +9674,7 @@ wastelands.2602 = { # A beast from the Dark (icy, ispanets)
 							left_icon = root
 							right_icon = scope:knight
 							title = wastelands.2602.success.toast.t
-							hidden_effect = {
-								scope:obstacle_province = { 
-									remove_building = troll_cave_cleared
-								}
-							}
+							#hidden_effect = { scope:obstacle_province = { remove_building = troll_cave_cleared } }
 							scope:knight = {
 								if = {
 									limit = {
@@ -9649,8 +9700,7 @@ wastelands.2602 = { # A beast from the Dark (icy, ispanets)
 							left_icon = root
 							right_icon = scope:knight
 							title = wastelands.2602.failure.toast.t
-	
-							hidden_effect = { scope:obstacle_province = { remove_building = troll_cave_cleared } }
+							#hidden_effect = { scope:obstacle_province = { remove_building = troll_cave_cleared } }
 							scope:knight = {
 								increase_wounds_effect = { REASON = troll }						
 							}
@@ -9663,7 +9713,7 @@ wastelands.2602 = { # A beast from the Dark (icy, ispanets)
 
 	option = { # No, thank you
 		name = wastelands.2602.c
-		hidden_effect = { scope:obstacle_province = { remove_building = troll_cave_cleared } }
+		#hidden_effect = { scope:obstacle_province = { remove_building = troll_cave_cleared } }
 		scope:obstacle_province = { add_building = troll_cave }
 
 		add_prestige = medium_prestige_loss
@@ -9680,6 +9730,10 @@ wastelands.2603 = { # A Bargain (icy, ispanets)
 	left_portrait = {
 		character = root
 		animation = personality_bold
+	}
+
+	immediate = {
+		scope:obstacle_province = { remove_cleaned_blockers_effect = yes }
 	}
 	
 	option = { # Bargain
@@ -9698,13 +9752,8 @@ wastelands.2603 = { # A Bargain (icy, ispanets)
 				send_interface_toast = {
 					left_icon = root
 					title = wastelands.2603.success.toast.t
-					hidden_effect = {
-						scope:obstacle_province = { 
-							remove_building = troll_cave_cleared
-						}
-					}
+					#hidden_effect = { scope:obstacle_province = {remove_building = troll_cave_cleared } }
 					remove_short_term_gold = medium_gold_value
-					
 					stress_impact = {
 						brave = minor_stress_gain
 						wrathful = minor_stress_gain			
@@ -9723,11 +9772,8 @@ wastelands.2603 = { # A Bargain (icy, ispanets)
 				send_interface_toast = {
 					left_icon = root
 					title = wastelands.2603.failure.toast.t
-
-					hidden_effect = { scope:obstacle_province = { remove_building = troll_cave_cleared } }
-
+					#hidden_effect = { scope:obstacle_province = {remove_building = troll_cave_cleared } }
 					scope:obstacle_province = { add_building = troll_cave }
-
 					stress_impact = {
 						brave = medium_stress_gain
 						wrathful = medium_stress_gain			
@@ -9755,11 +9801,7 @@ wastelands.2603 = { # A Bargain (icy, ispanets)
 				send_interface_toast = {
 					left_icon = root
 					title = wastelands.2603.success.toast.t
-					hidden_effect = {
-						scope:obstacle_province = { 
-							remove_building = troll_cave_cleared
-						}
-					}
+					#hidden_effect = { scope:obstacle_province = {remove_building = troll_cave_cleared } }
 				}
 			}
 			30 = {
@@ -9772,11 +9814,8 @@ wastelands.2603 = { # A Bargain (icy, ispanets)
 				send_interface_toast = {
 					left_icon = root
 					title = wastelands.2603.failure.toast.t
-
-					hidden_effect = { scope:obstacle_province = { remove_building = troll_cave_cleared } }
-
+					#hidden_effect = { scope:obstacle_province = {remove_building = troll_cave_cleared } }
 					scope:obstacle_province = { add_building = troll_cave }
-
 					increase_wounds_effect = { REASON = troll }
 				}
 			}
@@ -9785,7 +9824,7 @@ wastelands.2603 = { # A Bargain (icy, ispanets)
 
 	option = { # Burn the hall
 		name = wastelands.2603.c
-		hidden_effect = { scope:obstacle_province = { remove_building = troll_cave_cleared } }
+		#hidden_effect = { scope:obstacle_province = {remove_building = troll_cave_cleared } }
 		remove_short_term_gold = major_gold_value
 	}
 }
@@ -9800,6 +9839,10 @@ wastelands.2604 = { # Too much trolling (icy, ispanets)
 	left_portrait = {
 		character = root
 		animation = marshal
+	}
+
+	immediate = {
+		scope:obstacle_province = { remove_cleaned_blockers_effect = yes }
 	}
 	
 	option = { # Charge!
@@ -9818,11 +9861,7 @@ wastelands.2604 = { # Too much trolling (icy, ispanets)
 				send_interface_toast = {
 					left_icon = root
 					title = wastelands.2604.success.toast.t
-					hidden_effect = {
-						scope:obstacle_province = { 
-							remove_building = troll_cave_cleared
-						}
-					}
+					#hidden_effect = { scope:obstacle_province = {remove_building = troll_cave_cleared } }
 					add_prestige = major_prestige_gain
 					if = {
 						limit = { has_trait = lifestyle_blademaster }
@@ -9846,11 +9885,8 @@ wastelands.2604 = { # Too much trolling (icy, ispanets)
 				send_interface_toast = {
 					left_icon = root
 					title = wastelands.2604.failure.toast.t
-
-					hidden_effect = { scope:obstacle_province = { remove_building = troll_cave_cleared } }
-
+					#hidden_effect = { scope:obstacle_province = {remove_building = troll_cave_cleared } }
 					scope:obstacle_province = { add_building = troll_cave }
-
 					increase_wounds_effect = { REASON = troll }
 				}
 			}
@@ -9873,11 +9909,7 @@ wastelands.2604 = { # Too much trolling (icy, ispanets)
 				send_interface_toast = {
 					left_icon = root
 					title = wastelands.2604.success.toast.t
-					hidden_effect = {
-						scope:obstacle_province = { 
-							remove_building = troll_cave_cleared
-						}
-					}
+					#hidden_effect = { scope:obstacle_province = {remove_building = troll_cave_cleared } }
 					add_prestige = major_prestige_gain
 					add_diplomacy_lifestyle_xp = major_lifestyle_xp
 				}
@@ -9892,11 +9924,8 @@ wastelands.2604 = { # Too much trolling (icy, ispanets)
 				send_interface_toast = {
 					left_icon = root
 					title = wastelands.2604.failure.toast.t
-
-					hidden_effect = { scope:obstacle_province = { remove_building = troll_cave_cleared } }
-
+					#hidden_effect = { scope:obstacle_province = {remove_building = troll_cave_cleared } }
 					scope:obstacle_province = { add_building = troll_cave }
-
 					increase_wounds_effect = { REASON = troll }
 					add_prestige = minor_prestige_loss
 				}
@@ -9906,18 +9935,18 @@ wastelands.2604 = { # Too much trolling (icy, ispanets)
 
 	option = { # We are just leaving
 		name = wastelands.2604.c
-		hidden_effect = { scope:obstacle_province = { remove_building = troll_cave_cleared } }
+		#hidden_effect = { scope:obstacle_province = {remove_building = troll_cave_cleared } }
 		scope:obstacle_province = { add_building = troll_cave }
 		add_prestige = medium_prestige_loss
 	}
 }
 
-#############################
-#  Eregion ruin ghosts Den  #
-#############################
+#########################
+#  Eregion Ruin Ghosts  #
+#########################
 
-#### Haunted eregion ruins  - triggered randomly if the blocker is present (before being removed)
-wastelands.2801 = { # Noises and shadows (ispanets)
+# Triggered randomly if the blocker is present (before being removed)
+wastelands.2801 = { # A Haunted Place by ispanets
 	content_source = realms_dlc
 	type = character_event
 	title = wastelands.2801.t
@@ -10022,8 +10051,8 @@ wastelands.2801 = { # Noises and shadows (ispanets)
 		}
 	}
 }
-# Haunted Eregion Ruins
-wastelands.2802 = { # Noises and Shadows
+
+wastelands.2802 = { # Midnight Whispers
 	content_source = realms_dlc
 	type = character_event
 	title = wastelands.2802.t
@@ -10172,6 +10201,7 @@ wastelands.2802 = { # Noises and Shadows
 		}
 	}
 }
+
 # Haunted Eregion Ruins - BLOCKER CLEARANCE
 wastelands.2803 = { # Noises and Shadows
 	content_source = realms_dlc
@@ -10185,7 +10215,6 @@ wastelands.2803 = { # Noises and Shadows
 		character = root
 		animation = personality_bold
 	}
-
 	
 	right_portrait = {
 		character = scope:colonist
@@ -10193,14 +10222,15 @@ wastelands.2803 = { # Noises and Shadows
 	}
 
 	immediate = {
-        create_character = {
-            template = local_artisan_template
-            culture = root.culture
-            faith = root.faith
+		scope:obstacle_province = { remove_cleaned_blockers_effect = yes }
+		create_character = {
+			template = local_artisan_template
+			culture = root.culture
+			faith = root.faith
 			location = scope:obstacle_province
-            gender_female_chance = 50
-            save_scope_as = colonist
-        }
+			gender_female_chance = 50
+			save_scope_as = colonist
+		}
 	}
 	
 	option = { # Diplomacy: convincing the colonists to stay
@@ -10219,12 +10249,7 @@ wastelands.2803 = { # Noises and Shadows
 				send_interface_toast = {
 					left_icon = root
 					title = wastelands.2803.success.toast.t
-					hidden_effect = {
-						scope:obstacle_province = { 
-							remove_building = ghosts_eregion_cleared
-						}
-					}
-					
+					#hidden_effect = { scope:obstacle_province = { remove_building = ghosts_eregion_cleared } }
 					add_prestige = medium_prestige_gain
 				}
 			}
@@ -10238,12 +10263,7 @@ wastelands.2803 = { # Noises and Shadows
 				send_interface_toast = {
 					left_icon = root
 					title = wastelands.2803.success.toast.t
-					hidden_effect = {
-						scope:obstacle_province = { 
-							remove_building = ghosts_eregion_cleared
-						}
-					}
-					
+					#hidden_effect = { scope:obstacle_province = { remove_building = ghosts_eregion_cleared } }
 					scope:obstacle_province = { add_building = ghosts_eregion }
 					add_prestige = minor_prestige_loss
 				}
@@ -10267,12 +10287,7 @@ wastelands.2803 = { # Noises and Shadows
 				send_interface_toast = {
 					left_icon = root
 					title = wastelands.2803.success.toast.t
-					hidden_effect = {
-						scope:obstacle_province = { 
-							remove_building = ghosts_eregion_cleared
-						}
-					}
-					
+					#hidden_effect = { scope:obstacle_province = { remove_building = ghosts_eregion_cleared } }
 					remove_short_term_gold = medium_gold_value
 				}
 			}
@@ -10286,14 +10301,8 @@ wastelands.2803 = { # Noises and Shadows
 				send_interface_toast = {
 					left_icon = root
 					title = wastelands.2803.success.toast.t
-					hidden_effect = {
-						scope:obstacle_province = { 
-							remove_building = ghosts_eregion_cleared
-						}
-					}
-					
+					#hidden_effect = { scope:obstacle_province = { remove_building = ghosts_eregion_cleared } }
 					scope:obstacle_province = { add_building = ghosts_eregion }
-					
 					remove_short_term_gold = minor_gold_value
 					add_piety = minor_piety_loss
 				}
@@ -10317,12 +10326,7 @@ wastelands.2803 = { # Noises and Shadows
 				send_interface_toast = {
 					left_icon = root
 					title = wastelands.2803.success.toast.t
-					hidden_effect = {
-						scope:obstacle_province = { 
-							remove_building = ghosts_eregion_cleared
-						}
-					}
-					
+					#hidden_effect = { scope:obstacle_province = { remove_building = ghosts_eregion_cleared } }
 					add_piety = medium_piety_gain
 				}
 			}
@@ -10336,12 +10340,7 @@ wastelands.2803 = { # Noises and Shadows
 				send_interface_toast = {
 					left_icon = root
 					title = wastelands.2803.success.toast.t
-					hidden_effect = {
-						scope:obstacle_province = { 
-							remove_building = ghosts_eregion_cleared
-						}
-					}
-					
+					#hidden_effect = { scope:obstacle_province = { remove_building = ghosts_eregion_cleared } }
 					scope:obstacle_province = { add_building = ghosts_eregion }
 					
 					add_piety = medium_piety_loss
@@ -10352,25 +10351,20 @@ wastelands.2803 = { # Noises and Shadows
 
 	option = { # Leave!
 		name = wastelands.2803.d
-		hidden_effect = {
-			scope:obstacle_province = { 
-				remove_building = ghosts_eregion_cleared
-			}			
-		}
+		#hidden_effect = { scope:obstacle_province = { remove_building = ghosts_eregion_cleared } }
 		scope:obstacle_province = { 
 			add_building = ghosts_eregion
 		}			
-		
 		make_settlement_county_wilderness = {
 			COUNTY = scope:obstacle_province.county
 		}
 	}
 
 	after = {
-        scope:colonist = {
-            silent_disappearance_effect = yes
-        }
-    }
+		scope:colonist = {
+			silent_disappearance_effect = yes
+		}
+	}
 }
 
 wastelands.2804 = { # Artifacts of old
@@ -10393,14 +10387,15 @@ wastelands.2804 = { # Artifacts of old
 	}
 
 	immediate = {
-        create_character = {
-            template = local_artisan_template
-            culture = root.culture
-            faith = root.faith
+		scope:obstacle_province = { remove_cleaned_blockers_effect = yes }
+		create_character = {
+			template = local_artisan_template
+			culture = root.culture
+			faith = root.faith
 			location = scope:obstacle_province
-            gender_female_chance = 50
-            save_scope_as = colonist
-        }
+			gender_female_chance = 50
+			save_scope_as = colonist
+		}
 	}
 	
 	option = { # Study the artifacts carefully
@@ -10419,17 +10414,17 @@ wastelands.2804 = { # Artifacts of old
 				send_interface_toast = {
 					left_icon = root
 					title = wastelands.2804.a.success.toast.t
-					hidden_effect = {
-						scope:obstacle_province = { 
-							if = {
-								limit = { has_building = ghosts_ost_in_edhil_cleared }
-								remove_building = ghosts_ost_in_edhil_cleared
-							}
-							else = { 
-								remove_building = ghosts_eregion_cleared
-							}
-						}
-					}
+					#hidden_effect = {
+					#	scope:obstacle_province = { 
+					#		if = {
+					#			limit = { has_building = ghosts_ost_in_edhil_cleared }
+					#			remove_building = ghosts_ost_in_edhil_cleared
+					#		}
+					#		else = { 
+					#			remove_building = ghosts_eregion_cleared
+					#		}
+					#	}
+					#}
 					
 					add_learning_skill = 2
 				}
@@ -10444,17 +10439,17 @@ wastelands.2804 = { # Artifacts of old
 				send_interface_toast = {
 					left_icon = root
 					title = wastelands.2804.a.success.toast.t
-					hidden_effect = {
-						scope:obstacle_province = { 
-							if = {
-								limit = { has_building = ghosts_ost_in_edhil_cleared }
-								remove_building = ghosts_ost_in_edhil_cleared
-							}
-							else = { 
-								remove_building = ghosts_eregion_cleared
-							}
-						}
-					}
+					#hidden_effect = {
+					#	scope:obstacle_province = { 
+					#		if = {
+					#			limit = { has_building = ghosts_ost_in_edhil_cleared }
+					#			remove_building = ghosts_ost_in_edhil_cleared
+					#		}
+					#		else = { 
+					#			remove_building = ghosts_eregion_cleared
+					#		}
+					#	}
+					#}
 					
 					add_stress = medium_stress_gain
 				}
@@ -10478,17 +10473,17 @@ wastelands.2804 = { # Artifacts of old
 				send_interface_toast = {
 					left_icon = root
 					title = wastelands.2804.b.success.toast.t
-					hidden_effect = {
-						scope:obstacle_province = { 
-							if = {
-								limit = { has_building = ghosts_ost_in_edhil_cleared }
-								remove_building = ghosts_ost_in_edhil_cleared
-							}
-							else = { 
-								remove_building = ghosts_eregion_cleared
-							}
-						}
-					}
+					#hidden_effect = {
+					#	scope:obstacle_province = { 
+					#		if = {
+					#			limit = { has_building = ghosts_ost_in_edhil_cleared }
+					#			remove_building = ghosts_ost_in_edhil_cleared
+					#		}
+					#		else = { 
+					#			remove_building = ghosts_eregion_cleared
+					#		}
+					#	}
+					#}
 					
 					add_stress = medium_stress_loss
 				}
@@ -10503,17 +10498,17 @@ wastelands.2804 = { # Artifacts of old
 				send_interface_toast = {
 					left_icon = root
 					title = wastelands.2804.b.success.toast.t
-					hidden_effect = {
-						scope:obstacle_province = { 
-							if = {
-								limit = { has_building = ghosts_ost_in_edhil_cleared }
-								remove_building = ghosts_ost_in_edhil_cleared
-							}
-							else = { 
-								remove_building = ghosts_eregion_cleared
-							}
-						}
-					}
+					#hidden_effect = {
+					#	scope:obstacle_province = { 
+					#		if = {
+					#			limit = { has_building = ghosts_ost_in_edhil_cleared }
+					#			remove_building = ghosts_ost_in_edhil_cleared
+					#		}
+					#		else = { 
+					#			remove_building = ghosts_eregion_cleared
+					#		}
+					#	}
+					#}
 					scope:obstacle_province = {
 						add_province_modifier = {
 							modifier = settlers_tempted
@@ -10541,17 +10536,17 @@ wastelands.2804 = { # Artifacts of old
 				send_interface_toast = {
 					left_icon = root
 					title = wastelands.2804.c.success.toast.t
-					hidden_effect = {
-						scope:obstacle_province = { 
-							if = {
-								limit = { has_building = ghosts_ost_in_edhil_cleared }
-								remove_building = ghosts_ost_in_edhil_cleared
-							}
-							else = { 
-								remove_building = ghosts_eregion_cleared
-							}
-						}
-					}
+					#hidden_effect = {
+					#	scope:obstacle_province = { 
+					#		if = {
+					#			limit = { has_building = ghosts_ost_in_edhil_cleared }
+					#			remove_building = ghosts_ost_in_edhil_cleared
+					#		}
+					#		else = { 
+					#			remove_building = ghosts_eregion_cleared
+					#		}
+					#	}
+					#}
 					
 					add_intrigue_skill = 1
 				}
@@ -10566,17 +10561,17 @@ wastelands.2804 = { # Artifacts of old
 				send_interface_toast = {
 					left_icon = root
 					title = wastelands.2804.c.success.toast.t
-					hidden_effect = {
-						scope:obstacle_province = { 
-							if = {
-								limit = { has_building = ghosts_ost_in_edhil_cleared }
-								remove_building = ghosts_ost_in_edhil_cleared
-							}
-							else = { 
-								remove_building = ghosts_eregion_cleared
-							}
-						}
-					}
+					#hidden_effect = {
+					#	scope:obstacle_province = { 
+					#		if = {
+					#			limit = { has_building = ghosts_ost_in_edhil_cleared }
+					#			remove_building = ghosts_ost_in_edhil_cleared
+					#		}
+					#		else = { 
+					#			remove_building = ghosts_eregion_cleared
+					#		}
+					#	}
+					#}
 					scope:obstacle_province = {
 						add_province_modifier = {
 							modifier = settlers_tempted
@@ -10590,17 +10585,17 @@ wastelands.2804 = { # Artifacts of old
 
 	option = { # Pick  up the artifact
 		name = wastelands.2804.d
-		hidden_effect = {
-			scope:obstacle_province = { 
-				if = {
-					limit = { has_building = ghosts_ost_in_edhil_cleared }
-					remove_building = ghosts_ost_in_edhil_cleared
-				}
-				else = { 
-					remove_building = ghosts_eregion_cleared
-				}
-			}
-		}
+		#hidden_effect = {
+		#	scope:obstacle_province = { 
+		#		if = {
+		#			limit = { has_building = ghosts_ost_in_edhil_cleared }
+		#			remove_building = ghosts_ost_in_edhil_cleared
+		#		}
+		#		else = { 
+		#			remove_building = ghosts_eregion_cleared
+		#		}
+		#	}
+		#}
 		random_list = {
 			50 = {
 				trigger = { 
@@ -10679,15 +10674,15 @@ wastelands.2804 = { # Artifacts of old
 	}
 
 	after = {
-        scope:colonist = {
-            silent_disappearance_effect = yes
-        }
-    }
+		scope:colonist = {
+			silent_disappearance_effect = yes
+		}
+	}
 }
 
-#########################
-#  Flooded Tunnels Den  #
-#########################
+######################
+#  Flooded Tunnels   #
+######################
 
 ####################
 # Shadow of Mordor #
@@ -10712,6 +10707,7 @@ wastelands.3201 = { # Unnerving Shadows
 	}
 
 	immediate = {
+		scope:obstacle_province = { remove_cleaned_blockers_effect = yes }
 		random_courtier = {
 			save_scope_as = courtier
 		}
@@ -10726,7 +10722,7 @@ wastelands.3201 = { # Unnerving Shadows
 		}
 		remove_short_term_gold = minor_gold_value
 		scope:obstacle_province.county = { change_development_level = 3 }
-		scope:obstacle_province = { remove_building = shadow_of_mordor_cleared }
+		#scope:obstacle_province = { remove_building = shadow_of_mordor_cleared }
 	}
 
 	option = { # Study the strange happenings
@@ -10743,7 +10739,7 @@ wastelands.3201 = { # Unnerving Shadows
 				send_interface_toast = {
 					left_icon = root
 					title = wastelands.3201.success.toast.t
-					scope:obstacle_province = { remove_building = shadow_of_mordor_cleared }
+					#scope:obstacle_province = { remove_building = shadow_of_mordor_cleared }
 					add_prestige = medium_prestige_gain
 				}
 			}
@@ -10758,7 +10754,7 @@ wastelands.3201 = { # Unnerving Shadows
 				send_interface_toast = {
 					left_icon = root
 					title = wastelands.3201.failure.toast.t
-					hidden_effect = { scope:obstacle_province = { remove_building = shadow_of_mordor_cleared } }
+					#hidden_effect = { scope:obstacle_province = { remove_building = shadow_of_mordor_cleared } }
 					scope:obstacle_province = { add_building = shadow_of_mordor }
 				}
 				
@@ -10797,6 +10793,10 @@ wastelands.3202 = { # A Light in the Darkness
 		animation = interested
 	}
 
+	immediate = {
+		scope:obstacle_province = { remove_cleaned_blockers_effect = yes }
+	}
+
 	option = { # A good omen!
 		name = wastelands.3202.a
 		scope:obstacle_province.county = { 
@@ -10827,7 +10827,7 @@ wastelands.3202 = { # A Light in the Darkness
 				send_interface_toast = {
 					left_icon = root
 					title = wastelands.3202.success.toast.t
-					scope:obstacle_province = { remove_building = shadow_of_mordor_cleared }
+					#scope:obstacle_province = { remove_building = shadow_of_mordor_cleared }
 					add_prestige = medium_prestige_gain
 					scope:obstacle_province.county = { 
 						change_development_level = 3
@@ -10845,7 +10845,7 @@ wastelands.3202 = { # A Light in the Darkness
 				send_interface_toast = {
 					left_icon = root
 					title = wastelands.3202.failure.toast.t
-					hidden_effect = { scope:obstacle_province = { remove_building = shadow_of_mordor_cleared } }
+					#hidden_effect = { scope:obstacle_province = { remove_building = shadow_of_mordor_cleared } }
 					scope:obstacle_province = { add_building = shadow_of_mordor }
 				}
 				
@@ -10887,6 +10887,7 @@ wastelands.3203 = { # The Bold Explorer
 	}
 	
 	immediate = {
+		scope:obstacle_province = { remove_cleaned_blockers_effect = yes }
 		create_character = {
 			template = new_warrior_character
 			dynasty = generate
@@ -10920,7 +10921,7 @@ wastelands.3203 = { # The Bold Explorer
 
 	option = { # This is not a good idea
 		name = wastelands.3203.a
-		scope:obstacle_province = { remove_building = shadow_of_mordor_cleared }
+		#scope:obstacle_province = { remove_building = shadow_of_mordor_cleared }
 		scope:obstacle_province.county = { 
 			change_development_progress = -50
 		}
@@ -10928,7 +10929,7 @@ wastelands.3203 = { # The Bold Explorer
 	
 	option = { # Join me at my court instead
 		name = wastelands.3203.b 
-		scope:obstacle_province = { remove_building = shadow_of_mordor_cleared }
+		#scope:obstacle_province = { remove_building = shadow_of_mordor_cleared }
 		add_courtier = scope:explorer	
 	}
 	
@@ -10944,10 +10945,18 @@ wastelands.3203 = { # The Bold Explorer
 						title = wastelands.3203.c.tt.success
 					}
 				}
-				scope:obstacle_province = { 
-					remove_building = shadow_of_mordor_cleared 
+				#scope:obstacle_province = { remove_building = shadow_of_mordor_cleared }
+				if = { # Check if the county is underground
+					limit = {
+						scope:obstacle_province = {
+							terrain = halls
+						}
+					}
+					scope:obstacle_province = {
+						set_holding_type = dwarven_holding
+					}
 				}
-				if = {
+				else_if = {
 					limit = {
 						has_government = elven_government 
 					}
@@ -11059,9 +11068,7 @@ wastelands.3203 = { # The Bold Explorer
 				}
 				
 				hidden_effect = {
-					scope:obstacle_province = { 
-						remove_building = shadow_of_mordor_cleared 
-					}
+					#scope:obstacle_province = { remove_building = shadow_of_mordor_cleared }
 					if = {
 						limit = {
 							is_elf = yes
@@ -11139,9 +11146,9 @@ wastelands.3203 = { # The Bold Explorer
 	
 }
 
-#######################
-# Pirate Remnants Den #
-#######################
+###################
+# Pirate Remnants #
+###################
 # From AGOT with permission 
 
 wastelands.3301 = { # The Last Raid
@@ -11164,6 +11171,7 @@ wastelands.3301 = { # The Last Raid
 	}
 
 	immediate = {
+		scope:obstacle_province = { remove_cleaned_blockers_effect = yes }
 		scope:obstacle_province.county = {
 			add_county_modifier = {
 				modifier = sacked_by_pirates_modifier
@@ -11187,7 +11195,7 @@ wastelands.3301 = { # The Last Raid
 				send_interface_toast = {
 					left_icon = root
 					title = wastelands.3301.success.toast.t
-					scope:obstacle_province = { remove_building = pirate_remnants_cleared }
+					#scope:obstacle_province = { remove_building = pirate_remnants_cleared }
 				}
 			}
 			30 = {
@@ -11199,9 +11207,7 @@ wastelands.3301 = { # The Last Raid
 				send_interface_toast = {
 					left_icon = root
 					title = wastelands.3301.failure.toast.t
-					hidden_effect = {
-						scope:obstacle_province = { remove_building = pirate_remnants_cleared }
-					}
+					#hidden_effect = { scope:obstacle_province = { remove_building = pirate_remnants_cleared } }
 					scope:obstacle_province = { add_building = pirate_remnants }
 				}
 			}
@@ -11238,7 +11244,7 @@ wastelands.3301 = { # The Last Raid
 				send_interface_toast = {
 					left_icon = root
 					title = wastelands.3301.success.toast.t
-					scope:obstacle_province = { remove_building = pirate_remnants_cleared }
+					#scope:obstacle_province = { remove_building = pirate_remnants_cleared }
 				}
 			}
 			30 = {
@@ -11250,9 +11256,7 @@ wastelands.3301 = { # The Last Raid
 				send_interface_toast = {
 					left_icon = root
 					title = wastelands.3301.failure.toast.t
-					hidden_effect = {
-						scope:obstacle_province = { remove_building = pirate_remnants_cleared }
-					}
+					#hidden_effect = { scope:obstacle_province = { remove_building = pirate_remnants_cleared } }
 					scope:obstacle_province = { add_building = pirate_remnants }
 				}
 			}
@@ -11303,6 +11307,10 @@ wastelands.3302 = { # Shadows Off the Shore
 		is_available_adult = yes
 	}
 
+	immediate = {
+		scope:obstacle_province = { remove_cleaned_blockers_effect = yes }
+	}
+
 	option = {
 		name = wastelands.3302.a
 		skill = martial
@@ -11318,7 +11326,7 @@ wastelands.3302 = { # Shadows Off the Shore
 				send_interface_toast = {
 					left_icon = root
 					title = wastelands.3302.success.toast.t
-					scope:obstacle_province = { remove_building = pirate_remnants_cleared }
+					#scope:obstacle_province = { remove_building = pirate_remnants_cleared }
 				}
 			}
 			30 = {
@@ -11330,9 +11338,7 @@ wastelands.3302 = { # Shadows Off the Shore
 				send_interface_toast = {
 					left_icon = root
 					title = wastelands.3302.failure.toast.t
-					hidden_effect = {
-						scope:obstacle_province = { remove_building = pirate_remnants_cleared }
-					}
+					#hidden_effect = { scope:obstacle_province = { remove_building = pirate_remnants_cleared } }
 					scope:obstacle_province = {
 						add_building = pirate_remnants
 						county = {
@@ -11378,7 +11384,7 @@ wastelands.3302 = { # Shadows Off the Shore
 				send_interface_toast = {
 					left_icon = root
 					title = wastelands.3302.success.toast.t
-					scope:obstacle_province = { remove_building = pirate_remnants_cleared }
+					#scope:obstacle_province = { remove_building = pirate_remnants_cleared }
 				}
 			}
 			30 = {
@@ -11390,9 +11396,7 @@ wastelands.3302 = { # Shadows Off the Shore
 				send_interface_toast = {
 					left_icon = root
 					title = wastelands.3302.failure.toast.t
-					hidden_effect = {
-						scope:obstacle_province = { remove_building = pirate_remnants_cleared }
-					}
+					#hidden_effect = { scope:obstacle_province = { remove_building = pirate_remnants_cleared } }
 					scope:obstacle_province = {
 						add_building = pirate_remnants
 						county = {
@@ -11458,6 +11462,7 @@ wastelands.3303 = { # The Pirate Commander
 	}
 
 	immediate = {
+		scope:obstacle_province = { remove_cleaned_blockers_effect = yes }
 		create_character = {
 			template = new_warrior_character
 			location = root.location
@@ -11483,7 +11488,7 @@ wastelands.3303 = { # The Pirate Commander
 				send_interface_toast = {
 					left_icon = root
 					title = wastelands.3303.success.toast.t
-					scope:obstacle_province = { remove_building = pirate_remnants_cleared }
+					#scope:obstacle_province = { remove_building = pirate_remnants_cleared }
 					scope:pirate_leader = {
 						death = {
 							death_reason = death_duel
@@ -11501,9 +11506,7 @@ wastelands.3303 = { # The Pirate Commander
 				send_interface_toast = {
 					left_icon = root
 					title = wastelands.3303.failure.toast.t
-					hidden_effect = {
-						scope:obstacle_province = { remove_building = pirate_remnants_cleared }
-					}
+					#hidden_effect = { scope:obstacle_province = { remove_building = pirate_remnants_cleared } }
 					scope:obstacle_province = { add_building = pirate_remnants }
 					death = {
 						death_reason = death_duel
@@ -11547,7 +11550,7 @@ wastelands.3303 = { # The Pirate Commander
 				send_interface_toast = {
 					left_icon = root
 					title = wastelands.3303.success.toast.t
-					scope:obstacle_province = { remove_building = pirate_remnants_cleared }
+					#scope:obstacle_province = { remove_building = pirate_remnants_cleared }
 				}
 			}
 			30 = {
@@ -11559,9 +11562,7 @@ wastelands.3303 = { # The Pirate Commander
 				send_interface_toast = {
 					left_icon = root
 					title = wastelands.1503.failure.toast.t
-					hidden_effect = {
-						scope:obstacle_province = { remove_building = pirate_remnants_cleared }
-					}
+					#hidden_effect = { scope:obstacle_province = { remove_building = pirate_remnants_cleared } }
 					scope:obstacle_province = { add_building = pirate_remnants }
 				}
 			}
@@ -11595,7 +11596,7 @@ wastelands.3303 = { # The Pirate Commander
 				send_interface_toast = {
 					left_icon = root
 					title = wastelands.3303.success.toast.t
-					scope:obstacle_province = { remove_building = pirate_remnants_cleared }
+					#scope:obstacle_province = { remove_building = pirate_remnants_cleared }
 				}
 			}
 			30 = {
@@ -11607,9 +11608,7 @@ wastelands.3303 = { # The Pirate Commander
 				send_interface_toast = {
 					left_icon = root
 					title = wastelands.3303.failure.toast.t
-					hidden_effect = {
-						scope:obstacle_province = { remove_building = pirate_remnants_cleared }
-					}
+					#hidden_effect = { scope:obstacle_province = { remove_building = pirate_remnants_cleared } }
 					scope:obstacle_province = { add_building = pirate_remnants }
 				}
 			}
@@ -11632,9 +11631,7 @@ wastelands.3303 = { # The Pirate Commander
 
 	option = {
 		name = wastelands.3303.d
-		hidden_effect = {
-			scope:obstacle_province = { remove_building = pirate_remnants_cleared }
-		}
+		#hidden_effect = { scope:obstacle_province = { remove_building = pirate_remnants_cleared } }
 		scope:obstacle_province = { add_building = pirate_remnants }
 
 		stress_impact = {
@@ -11664,6 +11661,10 @@ wastelands.3304 = { # The Ambush
 		is_available_adult = yes
 	}
 
+	immediate = {
+		scope:obstacle_province = { remove_cleaned_blockers_effect = yes }
+	}
+
 	option = {
 		name = wastelands.3304.a
 		skill = martial
@@ -11679,7 +11680,7 @@ wastelands.3304 = { # The Ambush
 				send_interface_toast = {
 					left_icon = root
 					title = wastelands.3304.success.toast.t
-					scope:obstacle_province = { remove_building = pirate_remnants_cleared }
+					#scope:obstacle_province = { remove_building = pirate_remnants_cleared }
 				}
 			}
 			30 = {
@@ -11691,9 +11692,7 @@ wastelands.3304 = { # The Ambush
 				send_interface_toast = {
 					left_icon = root
 					title = wastelands.3304.failure.toast.t
-					hidden_effect = {
-						scope:obstacle_province = { remove_building = pirate_remnants_cleared }
-					}
+					#hidden_effect = { scope:obstacle_province = { remove_building = pirate_remnants_cleared } }
 					scope:obstacle_province = { add_building = pirate_remnants }
 				}
 			}
@@ -11716,9 +11715,7 @@ wastelands.3304 = { # The Ambush
 
 	option = {
 		name = wastelands.3304.b
-		hidden_effect = {
-			scope:obstacle_province = { remove_building = pirate_remnants_cleared }
-		}
+		#hidden_effect = { scope:obstacle_province = { remove_building = pirate_remnants_cleared } }
 		scope:obstacle_province = { add_building = pirate_remnants }
 		hidden_effect = {
 			random = {
@@ -11753,67 +11750,6 @@ wastelands.3305 = {
 		pirate_adventurer_start_war_effect = { PIRATE = scope:potential_pirate TARGET = scope:obstacle_province.county }
 		scope:obstacle_province = {
 			add_building = pirate_remnants
-		}
-	}
-}
-
-wastelands.9000 = {
-	hidden = yes
-
-	trigger = {
-		OR = {
-			scope:obstacle_province = { has_building = spider_nest_cleared }
-			scope:obstacle_province = { has_building = scorpion_bed_cleared }
-			scope:obstacle_province = { has_building = wolf_den_cleared }
-			scope:obstacle_province = { has_building = bear_den_cleared }
-			scope:obstacle_province = { has_building = ghosts_cleared }
-			scope:obstacle_province = { has_building = ghosts_eregion_cleared }
-			scope:obstacle_province = { has_building = dragon_attack_cleared }
-			scope:obstacle_province = { has_building = wild_orcs_cleared }
-			scope:obstacle_province = { has_building = dense_growth_cleared }
-			scope:obstacle_province = { has_building = flooded_lands_cleared }
-			scope:obstacle_province = { has_building = bandits_cleared }
-			scope:obstacle_province = { has_building = dead_marshes_cleared }
-			scope:obstacle_province = { has_building = frozen_ground_cleared }
-			scope:obstacle_province = { has_building = collapsed_ceiling_cleared }
-			scope:obstacle_province = { has_building = flooded_tunnels_cleared }
-			scope:obstacle_province = { has_building = flooded_tunnels_nogrod_cleared }
-			scope:obstacle_province = { has_building = stale_air_cleared }
-			scope:obstacle_province = { has_building = strange_creatures_cleared }
-			scope:obstacle_province = { has_building = shadow_of_mordor_cleared }
-			scope:obstacle_province = { has_building = ghosts_ost_in_edhil_cleared  }
-			scope:obstacle_province = { has_building = barrow_wights_cleared }
-			scope:obstacle_province = { has_building = pirate_remnants_cleared }
-		}
-	}
-
-	immediate = {
-		scope:obstacle_province = { 
-			switch = {
-				trigger = has_building
-				spider_nest_cleared = { scope:obstacle_province = { remove_building = spider_nest_cleared } }
-				scorpion_bed_cleared = { scope:obstacle_province = { remove_building = scorpion_bed_cleared } }
-				wolf_den_cleared = { scope:obstacle_province = { remove_building = wolf_den_cleared } }
-				bear_den_cleared = { scope:obstacle_province = { remove_building = bear_den_cleared } }
-				ghosts_cleared = { scope:obstacle_province = { remove_building = ghosts_cleared } }
-				ghosts_eregion_cleared = { scope:obstacle_province = { remove_building = ghosts_eregion_cleared } }
-				dragon_attack_cleared = { scope:obstacle_province = { remove_building = dragon_attack_cleared } }
-				wild_orcs_cleared = { scope:obstacle_province = { remove_building = wild_orcs_cleared } }
-				dense_growth_cleared = { scope:obstacle_province = { remove_building = dense_growth_cleared } }
-				flooded_lands_cleared = { scope:obstacle_province = { remove_building = flooded_lands_cleared } }
-				bandits_cleared = { scope:obstacle_province = { remove_building = bandits_cleared } }
-				dead_marshes_cleared = { scope:obstacle_province = { remove_building = dead_marshes_cleared } }
-				frozen_ground_cleared = { scope:obstacle_province = { remove_building = frozen_ground_cleared } }
-				collapsed_ceiling_cleared = { scope:obstacle_province = { remove_building = collapsed_ceiling_cleared } }
-				flooded_tunnels_cleared = { scope:obstacle_province = { remove_building = flooded_tunnels_cleared } }
-				flooded_tunnels_nogrod_cleared = { scope:obstacle_province = { remove_building = flooded_tunnels_nogrod_cleared } }
-				stale_air_cleared = { scope:obstacle_province = { remove_building = stale_air_cleared } }
-				strange_creatures_cleared = { scope:obstacle_province = { remove_building = strange_creatures_cleared } }
-				shadow_of_mordor_cleared = { scope:obstacle_province = { remove_building = shadow_of_mordor_cleared } }
-				ghosts_ost_in_edhil_cleared  = { scope:obstacle_province = { remove_building = ghosts_ost_in_edhil_cleared  } }
-				barrow_wights_cleared = { scope:obstacle_province = { remove_building = barrow_wights_cleared } }
-				pirate_remnants_cleared = { scope:obstacle_province = { remove_building = pirate_remnants_cleared } }
-			}
 		}
 	}
 }
