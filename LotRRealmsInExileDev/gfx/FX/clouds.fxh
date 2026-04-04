@@ -46,6 +46,10 @@ PixelShader = {
 
 		float GetCloudShadowMask( in float2 Coordinate, float FogOfWarAlphaValue )
 		{
+			#ifdef LOW_SPEC_SHADERS
+				return 0.0f;
+			#endif
+
 			if ( _HasCloudShadowEnabled != 1 )
 			{
 				return 0.0f;
@@ -61,7 +65,7 @@ PixelShader = {
 			float ZoomFadeFactor = min( 1.0f, pow( 1.0f - ZoomedInZoomedOutFactor + 0.24f, 6.0f ) );
 
 			// Skip cloud rendering when ZoomFadeFactor is near zero to optimize performance
-			if ( ZoomFadeFactor < 1e-5 )
+			if ( ZoomFadeFactor < 0.01f )
 			{
 				return 0.0f;
 			}
@@ -98,6 +102,10 @@ PixelShader = {
 		}
 		float GetCloudShadowMask( in float2 Coordinate )
 		{
+			#ifdef LOW_SPEC_SHADERS
+				return 0.0f;
+			#endif
+
 			if ( _HasCloudShadowEnabled != 1 )
 			{
 				return 0.0f;

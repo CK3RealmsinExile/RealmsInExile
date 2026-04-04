@@ -524,6 +524,7 @@ japanese_become_shogun_reward_effect = {
 	}
 	add_dread = massive_dread_gain
 	add_legitimacy = monumental_legitimacy_gain
+	add_realm_law = japanese_bureaucracy_1
 	dynasty = { add_dynasty_prestige = monumental_dynasty_prestige_gain }
 	culture = {
 		if = {
@@ -545,69 +546,92 @@ japanese_become_shogun_reward_effect = {
 	}
 }
 
-restore_ceremonial_liege_faction_reward_effect = {
-	top_liege = { save_temporary_scope_as = regent_temp }
-	top_liege.primary_title = {
-		save_temporary_scope_as = realm_temp
-		var:administrative_ui_special_title.holder = { save_temporary_scope_as = ceremonial_liege_temp }
+restore_ceremonial_liege_faction_combined_effect = {
+	top_liege = {
+		save_temporary_scope_as = regent_temp
+		primary_title = {
+			save_temporary_scope_as = realm_temp
+			var:administrative_ui_special_title.holder ?= { save_temporary_scope_as = ceremonial_liege_temp }
+		}
+	}
+	if = {
+		limit = { scope:regent_temp != scope:ceremonial_liege_temp }
+		faction_demand_regent_transfer_effect = {
+			NEW_REGENT = scope:ceremonial_liege_temp
+			REASON = faction_demand
+		}
 	}
 	# GLOBAL VAR
-	if = { #LotR
-		limit = { 
-			always = no # LOTR
-			# top_liege.primary_title = title:e_japan 
-		}
-		japan_clear_flavour_flags_effect = yes
-		set_global_variable = {
-			name = tenno_restored
-			value = yes
-		}
+	japan_clear_flavour_flags_effect = yes
+	set_global_variable = {
+		name = tenno_restored
+		value = yes
 	}
-	# TRANSFER TITLES
-	scope:regent_temp = {
-		every_held_title = {
-			title_tier > barony
-			limit = {
-				is_landless_type_title = no
-			}
-			add_to_list = target_titles
+	show_as_tooltip = { restore_ceremonial_liege_faction_reward_effect = yes }
+	# Event for Ceremonial Liege
+	scope:ceremonial_liege_temp = { trigger_event = tgp_japan_decision.9301 }
+}
+
+restore_ceremonial_liege_faction_reward_effect = {
+	top_liege = {
+		save_temporary_scope_as = regent_temp
+		primary_title = {
+			save_temporary_scope_as = realm_temp
+			var:administrative_ui_special_title.holder = { save_temporary_scope_as = ceremonial_liege_temp }
 		}
 	}
 	scope:ceremonial_liege_temp = {
+		custom_tooltip = tenno_duchy_creation_tt
 		if = {
 			limit = { has_legitimacy = yes }
 			add_legitimacy = major_legitimacy_gain
 		}
-		add_realm_law_skip_effects = single_heir_succession_law
+		else = {
+			show_as_tooltip = { add_legitimacy = major_legitimacy_gain }
+		}
+		if = {
+			limit = {
+				NOT = { has_realm_law = single_heir_succession_law }
+			}
+			add_realm_law_skip_effects = single_heir_succession_law
+		}
 	}
 }
 
-restore_ceremonial_liege_faction_reward_and_titles_effect = {
-	restore_ceremonial_liege_faction_reward_effect = yes
+restore_ceremonial_liege_faction_titles_effect = {
+	top_liege = {
+		save_temporary_scope_as = regent_temp
+		primary_title = {
+			save_temporary_scope_as = realm_temp
+			var:administrative_ui_special_title.holder = { save_temporary_scope_as = ceremonial_liege_temp }
+		}
+	}
 	create_title_and_vassal_change = {
-		type = appointment
+		type = faction_demand
 		save_scope_as = title_change
 		add_claim_on_loss = no
 	}
-	show_as_tooltip = {
-		scope:realm_temp = { # Give top liege title to the Emperor
-			change_title_holder_include_vassals = {
-				holder = scope:ceremonial_liege_temp
-				change = scope:title_change
+	scope:realm_temp = { # Give top liege title to the Emperor
+		change_title_holder_include_vassals = {
+			holder = scope:ceremonial_liege_temp
+			change = scope:title_change
+		}
+		holder ?= {
+			every_held_title = {
+				limit = {
+					tier > tier_barony
+					is_landless_type_title = no
+				}
+				add_to_list = target_titles
 			}
 		}
 	}
 	hidden_effect = {
-		scope:realm_temp.holder ?= {
-			every_held_title = {
-				limit = {
-					is_landless_type_title = no
-					is_noble_family_title = no
-				}
-				change_title_holder_include_vassals = {
-					holder = scope:ceremonial_liege_temp
-					change = scope:title_change
-				}
+		every_in_list = {
+			list = target_titles
+			change_title_holder_include_vassals = {
+				holder = scope:ceremonial_liege_temp
+				change = scope:title_change
 			}
 		}
 	}
@@ -2464,7 +2488,7 @@ faction_demand_regent_transfer_effect = {
 	}
 	# COUNTIES
 	create_title_and_vassal_change = {
-		type = faction_demand
+		type = $REASON$
 		save_scope_as = title_change
 		add_claim_on_loss = no
 	}
@@ -2513,35 +2537,6 @@ faction_demand_regent_transfer_effect = {
 			}
 			change_government = japan_feudal_government
 		}
-		# SUCCESSION LAWS
-		if = {
-			limit = {
-				government_has_flag = government_is_japan_administrative
-				tgp_has_ceremonial_liege_title_trigger = no
-				NOT = {
-					has_realm_law = japanese_regency_succession_law
-				}
-			}
-			add_realm_law_skip_effects = japanese_regency_succession_law
-		}
-		else_if = {
-			limit = {
-				government_has_flag = government_is_meritocratic
-				tgp_has_ceremonial_liege_title_trigger = no
-				NOT = {
-					has_realm_law = meritocratic_regency_succession_law
-				}
-			}
-			add_realm_law_skip_effects = meritocratic_regency_succession_law
-		}
-		else_if = {
-			limit = {
-				NOT = {
-					has_realm_law = single_heir_succession_law # sanity check
-				}
-			}
-			add_realm_law_skip_effects = single_heir_succession_law
-		}
 	}
 }
 
@@ -2560,6 +2555,183 @@ tgp_japan_schoolhouse_education_boost_effect = {
 				japanese_schoolhouse_04 = { scope:student = { education_point_add_general_effect = { VALUE = 4 } } }
 				japanese_schoolhouse_04 = { scope:student = { education_point_add_general_effect = { VALUE = 5 } } }
 				japanese_schoolhouse_04 = { scope:student = { education_point_add_general_effect = { VALUE = 6 } } }
+			}
+		}
+	}
+}
+
+tgp_restore_japanese_monarchy_decision_effect = {
+	save_scope_as = kampaku
+	tgp_restore_japanese_monarchy_yamato_scion_effect = yes
+	add_prestige = major_prestige_value
+	if = {
+		limit = { government_allows = administrative }
+		change_influence = major_influence_value
+	}
+	else = { add_piety = medium_piety_value }
+	if = {
+		limit = { exists = scope:scion }
+		add_hook = {
+			type = strong_favor_hook
+			target = scope:scion
+		}
+	}
+	else = { custom_tooltip = tgp_restore_japanese_monarchy_decision_hook_tt }
+}
+
+tgp_restore_japanese_monarchy_yamato_scion_effect = {
+	title:k_chrysanthemum_throne.previous_holder ?= { save_scope_as = last_tenno }
+	dynasty:japanese_yamato.dynasty_founder.house ?= {
+		save_scope_as = house_yamato
+		if = {
+			limit = { this = scope:kampaku.house }
+			if = { # Avoid display of short tooltips after creation
+				limit = { NOT = { exists = scope:scion } }
+				custom_tooltip = tgp_restore_japanese_monarchy_yamato_scion_kampaku_tt
+			}
+			scope:kampaku = { save_scope_as = scion }
+		}
+		else_if = {
+			limit = {
+				scope:last_tenno ?= { tgp_japan_valid_restore_monarchy_scion_trigger = yes }
+			}
+			if = { # Avoid display of short tooltips after creation
+				limit = { NOT = { exists = scope:scion } }
+				custom_tooltip = tgp_restore_japanese_monarchy_yamato_scion_last_tt
+			}
+			scope:last_tenno = { save_scope_as = scion }
+		}
+		else_if = {
+			limit = {
+				scope:last_tenno ?= {
+					any_child = { tgp_japan_valid_restore_monarchy_scion_trigger = yes }
+				}
+			}
+			if = { # Avoid display of short tooltips after creation
+				limit = { NOT = { exists = scope:scion } }
+				custom_tooltip = tgp_restore_japanese_monarchy_yamato_scion_last_child_tt
+			}
+			scope:last_tenno = {
+				ordered_child = {
+					limit = { tgp_japan_valid_restore_monarchy_scion_trigger = yes }
+					order_by = age
+					save_scope_as = scion
+				}
+			}
+		}
+		else_if = {
+			limit = {
+				scope:last_tenno ?= {
+					any_close_family_member = { tgp_japan_valid_restore_monarchy_scion_trigger = yes }
+				}
+			}
+			if = { # Avoid display of short tooltips after creation
+				limit = { NOT = { exists = scope:scion } }
+				custom_tooltip = tgp_restore_japanese_monarchy_yamato_scion_last_close_family_tt
+			}
+			scope:last_tenno = {
+				ordered_close_family_member = {
+					limit = { tgp_japan_valid_restore_monarchy_scion_trigger = yes }
+					order_by = age
+					save_scope_as = scion
+				}
+			}
+		}
+		else_if = {
+			limit = {
+				any_house_member = {
+					is_ruler = no
+					can_be_combatant_based_on_gender_trigger = { ARMY_OWNER = root.top_liege }
+					is_healthy = yes
+				}
+			}
+			if = { # Avoid display of short tooltips after creation
+				limit = { NOT = { exists = scope:scion } }
+				custom_tooltip = tgp_restore_japanese_monarchy_yamato_scion_found_tt
+			}
+			ordered_house_member = {
+				limit = {
+					top_liege = root.top_liege
+					is_ruler = no
+					can_be_combatant_based_on_gender_trigger = { ARMY_OWNER = root.top_liege }
+					is_healthy = yes
+				}
+				order_by = age
+				save_scope_as = scion
+			}
+		}
+		else = {
+			tgp_restore_japanese_monarchy_yamato_creation_effect = yes
+			if = { # Avoid display of short tooltips after creation
+				limit = { NOT = { exists = scope:scion } }
+				custom_tooltip = tgp_restore_japanese_monarchy_yamato_scion_created_tt
+			}
+		}
+		# Save children for portraits
+		scope:scion = {
+			save_scope_as = background_throne_room_scope
+			ordered_child = {
+				limit = { house = scope:scion.house }
+				max = 3
+				check_range_bounds = no
+				order_by = age
+				switch = {
+					trigger = exists
+					scope:scion_child_2 = { save_scope_as = scion_child_3 }
+					scope:scion_child_1 = { save_scope_as = scion_child_2 }
+					fallback = { save_scope_as = scion_child_1 }
+				}
+			}
+		}
+	}
+}
+
+tgp_restore_japanese_monarchy_yamato_restoration_effect = {
+	add_character_flag = tgp_japan_restore_japanese_monarchy_flag
+	if = {
+		limit = { exists = scope:scion }
+		if = {
+			limit = { exists = title:k_chrysanthemum_throne.holder }
+			create_title_and_vassal_change = {
+				type = usurped
+				save_scope_as = change
+				add_claim_on_loss = yes
+			}
+		}
+		else = {
+			create_title_and_vassal_change = {
+				type = created
+				save_scope_as = change
+			}
+		}
+		title:k_chrysanthemum_throne ?= {
+			change_title_holder = {
+				holder = scope:scion
+				change = scope:change
+			}
+		}
+		if = {
+			limit = {
+				scope:scion.liege != scope:kampaku
+				scope:scion != scope:kampaku
+			}
+			scope:scion ?= {
+				change_liege = {
+					liege = scope:kampaku
+					change = scope:change
+				}
+			}
+		}
+		resolve_title_and_vassal_change = scope:change
+	}
+	remove_character_flag = tgp_japan_restore_japanese_monarchy_flag
+	hidden_effect = {
+		scope:scion = {
+			if = {
+				limit = {
+					NOT = { government_has_flag = government_is_japan_administrative }
+				}
+				change_government = japan_administrative_government
 			}
 		}
 	}
@@ -2917,10 +3089,20 @@ tgp_destroy_ceremonial_liege_title_effect = {
 	if = {
 		limit = {
 			OR = {
+				# Linked regent title has no holder
 				NOT = { exists = scope:ceremonial_title.var:ceremonial_title.holder }
-				scope:ceremonial_title.holder.top_liege != scope:ceremonial_title.var:ceremonial_title.holder.top_liege
-				scope:ceremonial_title.holder.top_liege != scope:ceremonial_title.holder.liege
-				scope:ceremonial_title.holder.top_liege.highest_held_title_tier = tier_hegemony
+				scope:ceremonial_title.holder.top_liege = {
+					OR = {
+						# Regent and Ceremonial titles in different realms
+						this != scope:ceremonial_title.var:ceremonial_title.holder.top_liege
+						# Regent title is not top liege's primary title
+						primary_title != scope:ceremonial_title.var:ceremonial_title
+						# Regent is not liege of Monarch
+						this != scope:ceremonial_title.holder.liege
+						# Hegemony
+						highest_held_title_tier = tier_hegemony
+					}
+				}
 			}
 		}
 		# MESSAGE
@@ -3295,7 +3477,12 @@ tgp_liege_change_bloc_management_effect = {
 								}
 							}
 						}
-						remove_confederation_member_house = scope:vassal_house_temp
+						scope:vassal_house_temp = {
+							tgp_leave_house_bloc_effect = {
+								OPINION = flag:no
+								TRUCE = flag:yes
+							}
+						}
 					}
 					else_if = {
 						limit = { scope:vassal_temp.confederation = scope:current_bloc_temp }
@@ -3394,7 +3581,6 @@ tgp_japan_assert_regional_dominion_government_decision_effect = {
 			}
 			scope:title_scope ?= {
 				any_de_jure_county_holder = {
-					is_landed = yes
 					NOR = {
 						top_liege = scope:super_soryo
 						top_suzerain ?= scope:super_soryo
@@ -3424,8 +3610,7 @@ tgp_japan_assert_regional_dominion_government_decision_effect = {
 			scope:title_scope = {
 				every_de_jure_county_holder = {
 					limit = {
-						top_liege != scope:super_soryo
-						is_landed = yes
+						NOT = { is_liege_or_above_of = scope:super_soryo }
 					}
 					if = {
 						limit = {
@@ -3553,62 +3738,64 @@ tgp_japan_assert_regional_dominion_government_decision_effect = {
 		custom_tooltip = super_soryo_potential_peaceful
 	}
 	else = {
-		scope:title_scope = {
-			create_title_and_vassal_change = {
-				type = created
-				save_scope_as = change
-			}
-			change_title_holder = {
-				holder = scope:super_soryo
-				change = scope:change
-			}
-			every_de_jure_county = {
-				limit = {
-					holder.top_liege = root.top_liege # in same realm
-					holder.liege = root.top_liege # is not already a sub-vassal
-					NOR = {
-						holder = root # held my me
-						holder.liege = root # or my vassal
-					}
-				}
-				if = {
-					limit = {
-						holder = {
-							NOT = { government_allows = administrative }
-							highest_held_title_tier <= tier_county
-						}
-					}
-					hidden_effect = {
-						holder = {
-							change_liege = {
-								liege = root
-								change = scope:change
-							}
-						}
-					}
-				}
-				else_if = {
-					limit = {
-						holder = {
-							OR = {
-								government_allows = administrative
-								this = root.top_liege
-							}
-						}
-					}
-					change_title_holder = {
-						holder = scope:super_soryo
-						change = scope:change
-					}
-				}
-			}
-			resolve_title_and_vassal_change = scope:change
-		}
+		scope:title_scope = { tgp_japan_assert_regional_dominance_war_outcome_effect = yes }
 		add_dread = 15
 		add_legitimacy = 50
 		dynasty = { add_dynasty_prestige = 150 }
 		custom_tooltip = super_soryo_reward_peaceful
 	}
+}
+
+tgp_japan_assert_regional_dominance_war_outcome_effect = {
+	create_title_and_vassal_change = {
+		type = created
+		save_scope_as = change
+	}
+	change_title_holder = {
+		holder = root
+		change = scope:change
+	}
+	every_de_jure_county = {
+		limit = {
+			holder.top_liege = root.top_liege # in same realm
+			holder.liege = root.top_liege # is not already a sub-vassal
+			NOR = {
+				holder = root # held my me
+				holder.liege = root # or my vassal
+				holder = { is_liege_or_above_of = root } # or my liege
+				this = holder.top_liege.capital_county # stop transfer of capital
+			}
+		}
+		if = {
+			limit = {
+				holder = {
+					NOT = { government_allows = administrative }
+					highest_held_title_tier <= tier_county
+				}
+			}
+			holder = {
+				change_liege = {
+					liege = root
+					change = scope:change
+				}
+			}
+		}
+		else_if = {
+			limit = {
+				holder = {
+					OR = {
+						government_allows = administrative
+						this = root.top_liege
+					}
+				}
+			}
+			change_title_holder = {
+				holder = root
+				change = scope:change
+			}
+		}
+	}
+	resolve_title_and_vassal_change = scope:change
 }
 
 tgp_set_minamoto_taira_dynasty_prestige_effect = {
@@ -3654,19 +3841,18 @@ japanese_establish_soryo_administration_reward_effect = {
 			}
 			change_government = japan_feudal_government
 		}
-		add_realm_law = japanese_bureaucracy_0
+		if = {
+			limit = {
+				NOT = { has_realm_law = japanese_bureaucracy_0 }
+			}
+			add_realm_law = japanese_bureaucracy_0
+		}
 		house.house_confederation ?= {
 			custom_tooltip = {
 				text = japanese_establish_soryo_administration_vassal_government_tt
-				scope:winner_temp = {
-					every_vassal_or_below = {
-						limit = {
-							house.house_confederation ?= scope:winner_temp.house.house_confederation
-							highest_held_title_tier > tier_county
-							NOT = { has_government = japan_feudal_government }
-						}
-						change_government = japan_feudal_government
-					}
+				every_confederation_member = {
+					limit = { has_government = japan_administrative_government }
+					change_government = japan_feudal_government
 				}
 			}
 		}
@@ -3771,7 +3957,7 @@ tgp_bloc_members_join_war_effect = {
 	}
 }
 
-tgp_japan_become_a_monk_decision_effect = {
+tgp_renounce_estate_effect = {
 	if = {
 		limit = { is_ai = no }
 		random_held_title = {
@@ -3791,6 +3977,12 @@ tgp_japan_become_a_monk_decision_effect = {
 		}
 	}
 	if = {
+		limit = {
+			NOT = { has_trait = devoted }
+		}
+		add_trait = devoted
+	}
+	if = {
 		limit = { exists = scope:new_player }
 		hidden_effect = {
 			create_title_and_vassal_change = {
@@ -3799,14 +3991,22 @@ tgp_japan_become_a_monk_decision_effect = {
 				add_claim_on_loss = no
 			}
 			every_held_title = {
-				change_title_holder = {
+				limit = { tier > tier_barony }
+				change_title_holder_include_vassals = {
 					holder = scope:new_player
 					change = scope:title_change
 				}
 			}
 			resolve_title_and_vassal_change = scope:title_change
 		}
-		house = { set_house_head = scope:new_player }
+		house = {
+			if = {
+				limit = {
+					NOT = { house_head = scope:new_player }
+				}
+				set_house_head = scope:new_player
+			}
+		}
 		set_player_character = scope:new_player
 		progress_towards_friend_effect = {
 			REASON = friend_retired_from_governorship

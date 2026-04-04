@@ -439,7 +439,7 @@ mordor.1009 = { # Check to see if Sauron can return, fired on Tom
 					completely_controls = title:k_gorgoroth
 				}
 			}
-			trigger_event = mordor.1011
+			title:e_mordor.holder = { trigger_event = mordor.1011 }
 		}
 		else = { # Otherwise Bounce for 20 years
 			trigger_event = {
@@ -467,17 +467,64 @@ mordor.1010 = { # Sauron reacts to being offered to return
 		animation = marshal_mace
 	}
 	immediate = {
-		title:k_morgul.holder = { save_scope_as = witchking }
+		title:e_mordor.holder = { 
+			save_scope_as = witchking
+			every_tributary = {
+				limit = { suzerain = title:e_mordor }
+				add_to_list = tributaries_to_transfer
+			} 
+		}
+
 	}
 	option = { # I will return to Mordor
 		name = mordor.1010.a 
 		show_as_tooltip = {
-			get_title = title:e_mordor
-			get_title = title:k_dark_lord
-			get_title = title:k_gorgoroth
-			get_title = title:d_barad_dur
+			title:c_barad_dur.title_province = {
+				remove_building = wonder_baraddur_02
+				add_special_building = wonder_baraddur_03
+			}
+			# Barad-Dur as Capital
+			if = {
+				limit = { title:e_mordor.title_capital_county != title:c_barad_dur }
+				lotr_move_dejure_capital_effect = { COUNTY = c_barad_dur }
+			}
 			get_title = title:c_barad_dur
-			title:c_barad_dur.title_province = { add_building = wonder_baraddur_03 }
+			get_title = title:d_barad_dur
+			get_title = title:k_gorgoroth
+			get_title = title:k_dark_lord
+			get_title = title:e_mordor
+			change_first_name = "Sauron"
+			give_nickname = nick_the_deceiver_sauron
+
+			# House Banner
+            set_variable = banner_from_house
+            set_variable = startup_banner
+            create_artifact_wall_banner_effect = {
+                OWNER = scope:banner_ruler
+                CREATOR = scope:banner_ruler
+                TARGET = scope:banner_ruler.house
+            }
+            # Dynasty Banner
+            set_variable = banner_from_dynasty
+			set_variable = startup_banner
+			create_artifact_wall_banner_effect = {
+				OWNER = scope:banner_ruler
+				CREATOR = scope:banner_ruler
+				TARGET = scope:banner_ruler.dynasty
+			}
+		
+			every_in_list = { # All of the Witch-king's tributaries (if any) go to Sauron
+				list = tributaries_to_transfer
+				start_tributary = {
+					contract_group = tributary_subjugated
+					suzerain = root
+				}
+			}
+			title:e_mordor.holder = {
+				lotr_transfer_all_maa_regiments = {
+					NEW_OWNER = root
+				}
+			}
 		}
 		ai_chance = { base = 100 }
 		scope:witchking = { trigger_event = mordor.1011 }
@@ -509,6 +556,10 @@ mordor.1011 = { # Return of Sauron
 			limit = { suzerain = root }
 			add_to_list = tributaries_to_transfer
 		}
+		set_variable = {
+			name = wk_legitimacy_level
+			value = legitimacy
+		}
 	}
 	option = { # Lord of Mordor!
 		name = mordor.1011.a 
@@ -530,6 +581,11 @@ mordor.1011 = { # Return of Sauron
 				suzerain = scope:sauron
 			}
 		}
+
+		lotr_transfer_all_maa_regiments = {
+			NEW_OWNER = root
+		}
+		add_short_term_gold = major_gold_value # Compensation for the WK for losing the MAA
 
 		# Witch-King swears fealty	
 		create_title_and_vassal_change = {
@@ -595,6 +651,12 @@ mordor.1011 = { # Return of Sauron
 			add_special_building = wonder_baraddur_03
 		}
 
+		# Barad-Dur as capital
+		if = {
+			limit = { title:e_mordor.title_capital_county != title:c_barad_dur }
+			lotr_move_dejure_capital_effect = { COUNTY = c_barad_dur }
+		}
+
 		# Nazgul innovations 
 		culture:ringwraith = {
 			add_innovation ?= innovation_machicolations
@@ -615,6 +677,14 @@ mordor.1011 = { # Return of Sauron
 			add_innovation ?= innovation_uruks
 			add_innovation ?= innovation_caragor
 			add_innovation ?= innovation_olog_hai
+		}
+
+		# Witch-King looses his builder modifer
+		if = {
+			limit= {
+				has_character_modifier = steward_of_morgul
+			}
+			remove_character_modifier = steward_of_morgul
 		}
 		
 		# Wtich-King chooses who to play
@@ -641,11 +711,14 @@ mordor.1011 = { # Return of Sauron
 				id = mordor.1014
 				days = 12
 			}
+			add_short_term_gold = medium_gold_value # Give him a little liquidity
+			add_legitimacy = root.var:wk_legitimacy_level # Start him at the WK's legitimacy level. 
 		}
 	}
 	
 	after = {
 		scope:sauron = { remove_character_flag = unknown_sauron_flag }
+		add_elven_hope_global_effect = { VALUE = major_elven_hope_loss HOPE_EFFECT = effect_elven_hope_global_evil_increased }
 		if = {
 			limit = { # Major News
 				NOT = { has_game_rule = no_news }
@@ -829,6 +902,7 @@ mordor.1014 = { # Decide what to do with Dol Guldur
 		scope:khamul = { 
 			every_held_title = {
 				limit = {
+					tier >= tier_county
 					empire = title:e_mordor
 				}
 				add_to_list = khamul_titles
@@ -836,6 +910,7 @@ mordor.1014 = { # Decide what to do with Dol Guldur
 		}
 		every_held_title = {
 			limit = {
+				tier >= tier_county
 				empire = title:e_greenwood
 			}
 			add_to_list = dol_guldur_titles
@@ -985,11 +1060,13 @@ mordor.1015 = { # Decide if Khamûl should be independent
 			}
 			resolve_title_and_vassal_change = scope:firstchange
 		}
+		lotr_grant_sauron_strength_game_rule_buff = { CHARACTER = character:nazgul2 } # Khamul gets game rule buffs
 		character:nazgul2 = {
 			start_tributary = {
 				contract_group = tributary_subjugated
 				suzerain = character:lineofsauron
 			}
+			add_legitimacy = massive_legitimacy_gain
 		}
 		every_county_in_region = {
 			region = middleearth_west_rhovanion
@@ -1095,7 +1172,7 @@ mordor.1016 = { # Elves informed of the new threat in Dol Guldur
 	
 	option = { # Dark times are upon us.
 		name = mordor.1016.a 
-		add_elven_hope_effect = { VALUE = major_elven_hope_loss HOPE_EFFECT = effect_elven_very_low_hope }
+		add_elven_hope_effect = { VALUE = major_elven_hope_loss HOPE_EFFECT = effect_elven_hope_global_evil_increased }
 	}
 }
 
@@ -1119,7 +1196,7 @@ mordor.1022 = { # Elves uncover the truth behind the Necromancer
 	} 
 	option = { # We must vanquish this evil 
 		name = mordor.1022.a 
-		add_elven_hope_effect = { VALUE = medium_elven_hope_loss HOPE_EFFECT = effect_elven_very_low_hope }
+		add_elven_hope_effect = { VALUE = medium_elven_hope_loss HOPE_EFFECT = effect_elven_hope_global_evil_increased }
 	}
 }
 
@@ -1196,6 +1273,9 @@ mordor.2000 = { # Watch on Mordor, Orc creates duchy in k_gorgoroth
 	right_portrait = {
 		character = scope:chancellor
 		animation = scheme
+	}
+	trigger = {
+		is_orc = yes # Just in case
 	}
 	immediate = {
 		if = {
