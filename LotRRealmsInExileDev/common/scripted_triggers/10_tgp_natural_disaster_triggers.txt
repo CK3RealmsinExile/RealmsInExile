@@ -1,0 +1,131 @@
+﻿tgp_natural_disaster_great_project_trigger = {
+	is_independent_ruler = yes
+	any_character_situation = {
+		situation_type = natural_disaster_$TYPE$
+		any_participant_group = {
+			participant_group_type = affected_ruler
+			participant_group_has_character = root
+		}
+		NOT = {
+			any_in_list = {
+				variable = great_projects
+				great_project_owner = root
+			}
+		}
+	}
+}
+
+natural_disaster_next_impact_event_trigger = {
+	NOT = {
+		is_target_in_variable_list = { name = impact_events target = flag:$EVENT_ID$ }
+	}
+}
+
+# ROOT: Situation
+tgp_natural_disaster_situation_is_disaster_trigger = {
+	OR = {
+		situation_type = natural_disaster_earthquake
+		situation_type = natural_disaster_flood
+	}
+}
+
+tgp_natural_disaster_is_valid_contributor_trigger = {
+	is_landless_adventurer = no
+}
+
+tgp_natural_disaster_councillor_available_for_task_trigger = {
+	custom_tooltip = {
+		text = "councillor_busy_managing_disaster"
+		NOT = {
+			any_great_project = {
+				exists = var:managing_councillor
+				var:managing_councillor = scope:councillor
+			}
+		}
+	}
+}
+
+tgp_natural_disaster_councillor_available_to_manage_trigger = {
+	custom_tooltip = {
+		text = "councillor_is_available_for_disaster_recovery"
+		trigger_if = {
+			limit = { government_has_flag = government_is_nomadic }
+			any_councillor = {
+				is_kurultai_trigger = yes
+				save_temporary_scope_as = councillor
+				tgp_natural_disaster_councillor_available_for_task_trigger = yes
+			}
+		}
+		trigger_else_if = { #LotR
+			limit = { has_government = orcish_government }
+			any_councillor = {
+				is_orc_councillor_trigger = yes
+				save_temporary_scope_as = councillor
+				tgp_natural_disaster_councillor_available_for_task_trigger = yes
+			}
+		}
+		trigger_else_if = {
+			limit = { government_has_flag = government_is_landless_adventurer }
+			any_entourage_character = {
+				save_temporary_scope_as = councillor
+				tgp_natural_disaster_councillor_available_for_task_trigger = yes
+			}
+		}
+		trigger_else_if = {
+			limit = { tgp_has_access_to_ministry_trigger = yes }
+			cp:minister_works ?= {
+				save_temporary_scope_as = councillor
+				tgp_natural_disaster_councillor_available_for_task_trigger = yes
+			}
+		}
+		trigger_else = {
+			cp:councillor_steward ?= {
+				save_temporary_scope_as = councillor
+				tgp_natural_disaster_councillor_available_for_task_trigger = yes
+			}
+		}
+	}
+}
+
+tpg_great_project_disaster_in_recovery_phase_trigger = {
+	scope:great_project.var:situation ?= {
+		custom_tooltip = {
+			text = situation_in_recovery
+			situation_current_phase = recovery
+		}
+	}
+}
+
+tpg_character_in_any_situation_sub_region_trigger = {
+	any_situation_sub_region = {
+		any_situation_sub_region_county = {
+			root.capital_province.county = this
+		}
+	}
+}
+
+tgp_natural_disaster_character_is_affected_by_any_imminent_disaster_trigger = {
+	any_character_situation = {
+		tgp_natural_disaster_situation_is_disaster_trigger = yes
+		tpg_character_in_any_situation_sub_region_trigger = yes
+		NOT = { situation_current_phase = recovery }
+	}
+}
+
+tgp_natural_disaster_character_is_valid_vassal_participant = {
+	OR = { # permits vassals and landless adventurers to contribute, but doesn't give them their own project
+		is_independent_ruler = no
+		is_landed = no
+	}
+	highest_held_title_tier >= tier_county
+	# Remove adventurers who leave the area
+	trigger_if = {
+		limit = {
+			exists = domicile
+			is_independent_ruler = yes
+		}
+		domicile.domicile_location.county ?= {
+			any_county_situation = { this = scope:situation }
+		}
+	}
+}

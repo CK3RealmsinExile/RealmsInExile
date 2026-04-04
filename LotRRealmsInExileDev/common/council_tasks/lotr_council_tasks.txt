@@ -9,7 +9,7 @@
 	highlight_own_realm = yes
 
 	asset = {
-		icon = "gfx/interface/icons/council_task_types/task_kurultai_raider.dds"
+		icon = "gfx/interface/icons/army_status/army_status_raiding.dds"
 		background = "gfx/interface/buttons/button_round_bg.dds"
 		frame = "gfx/interface/buttons/button_round_frame.dds"
 		glow = "gfx/particles/halo.dds"
@@ -58,6 +58,7 @@
 				trigger = {
 					scope:councillor_liege = {
 						is_maiar_fallen = yes
+						is_evil_istari = no
 						NOT = {
 							capital_county = title:c_amon_lanc
 						}
@@ -428,58 +429,7 @@
 			}
 			add = 200
 		}
-		#else_if = { # Juke note: To convert other orcs, use 'convert culture'
-		#	limit = {
-		#		scope:councillor_liege = {
-		#			OR = {
-		#				gold >= steward_convert_culture_value
-		#				AND = {
-		#					gold > 0
-		#					culture = {
-		#						OR = {
-		#							is_hybrid_culture = yes
-		#							is_divergent_culture = yes
-		#						}
-		#					}
-		#					any_realm_county = {
-		#						culture = {
-		#							save_temporary_scope_as = culture_check
-		#							scope:councillor_liege.culture = {
-		#								any_parent_culture = {
-		#									this = scope:culture_check
-		#								}
-		#							}
-		#						}
-		#					}
-		#				}
-		#			}
-		#		}
-		#	}
-		#	add = 200
-		#}
-		#if = { # Juke note: To convert other orcs, use 'convert culture'
-		#	limit = {
-		#		scope:councillor_liege = {
-		#			culture = {
-		#				OR = {
-		#					is_hybrid_culture = yes
-		#					is_divergent_culture = yes
-		#				}
-		#			}
-		#			any_sub_realm_county = {
-		#				culture = {
-		#					save_temporary_scope_as = culture_check
-		#					scope:councillor_liege.culture = {
-		#						any_parent_culture = {
-		#							this = scope:culture_check
-		#						}
-		#					}
-		#				}
-		#			}
-		#		}
-		#	}
-		#	add = 200
-		#}
+
 		# Motivate the AI with an escalation agenda to take this task
 		if = {
 			limit = {
@@ -498,12 +448,8 @@
 			limit = {
 				scope:councillor_liege = {
 					has_character_flag = no_ai_culture_convert
-					NAND = { # ignore it if in Hostility with escalation
+					NOT = { # ignore it if in Hostility with escalation
 						has_character_flag = agenda_towards_escalation
-						# any_character_struggle = { #LotR
-						# 	involvement = involved
-						# 	is_struggle_phase = struggle_iberia_phase_hostility
-						# }
 					}
 				}
 			}
@@ -707,6 +653,62 @@ task_elven_settlement = {
 			}
 		}
 		
+		# Hope Level Effects 
+		if = {
+			limit = {
+				scope:councillor_liege = {
+					has_lowest_hope = yes
+				}
+			}
+			multiply = {
+				value = 0.5
+				desc = fading_conversion_factor
+			}
+		}
+		else_if = {
+			limit = {
+				scope:councillor_liege = {
+					has_low_hope = yes
+				}
+			}
+			multiply = {
+				value = 0.75
+				desc = waning_conversion_factor
+			}
+		}
+		if = {
+			limit = {
+				scope:councillor_liege = {
+					has_medium_hope = yes
+				}
+			}
+			multiply = {
+				value = 1
+				desc = enduring_conversion_factor
+			}
+		}
+		if = {
+			limit = {
+				scope:councillor_liege = {
+					has_high_hope = yes
+				}
+			}
+			multiply = {
+				value = 1.25
+				desc = renewing_conversion_factor
+			}
+		}
+		if = {
+			limit = {
+				scope:councillor_liege = {
+					has_highest_hope = yes
+				}
+			}
+			multiply = {
+				value = 1.5
+				desc = thriving_conversion_factor
+			}
+		}
 	}
 
 	potential_county = {
@@ -732,7 +734,13 @@ task_elven_settlement = {
 		}
 		trigger_if = {
 			limit = {
-				scope:councillor_liege = { is_ai = yes }
+				scope:councillor_liege = {
+					is_ai = yes
+					NAND = { # AI Directives override this
+						has_character_flag = vassal_directive_elven_settlement
+						vassal_is_valid_and_follows_directive_trigger = { VASSAL = this LIEGE = liege }
+					}
+				}
 			}
 			NOT = { scope:councillor_liege = { restricted_culture = yes } }
 			OR = {
@@ -752,25 +760,11 @@ task_elven_settlement = {
 				}
 			}
 			OR = {
-				is_independent_ruler = yes
-				scope:councillor_liege.primary_title.tier > tier_county
-				scope:councillor_liege.culture = { # All AI's are motivated to spread new Hybrid/Divergent cultures
-					OR = {
-						is_hybrid_culture = yes
-						is_divergent_culture = yes
-					}
-					any_parent_culture = {
-						this = scope:county.culture
-					}
-				}
-			}
-			OR = {
 				scope:county = {
 					any_neighboring_county = {
 						culture = scope:councillor_liege.culture # The AI only wants to convert counties bordering their own culture
 					}
 				}
-				
 				AND = {
 					NOT = {
 						scope:county = {
@@ -782,6 +776,33 @@ task_elven_settlement = {
 				}
 			}
 		}
+		trigger_else_if = { # But AI Directives should still try to look pretty
+			limit = {
+				scope:councillor_liege = {
+					is_ai = yes
+					has_character_flag = vassal_directive_elven_settlement
+					vassal_is_valid_and_follows_directive_trigger = { VASSAL = this LIEGE = liege }
+				}
+			}
+			trigger_if = {
+				limit = {
+					scope:county = {
+						any_neighboring_county = {
+							culture = scope:councillor_liege.culture
+						}
+					}
+				}
+				scope:county = {
+					any_neighboring_county = {
+						culture = scope:councillor_liege.culture # The AI only wants to convert counties bordering their own culture
+					}
+				}
+			}
+			trigger_else = {
+				always = yes
+			}
+		}
+		trigger_else = {}
 	}
 
 	on_finish_task_county = {
@@ -836,9 +857,8 @@ task_elven_settlement = {
 			}
 			set_county_culture = scope:councillor_liege.culture
 			set_county_faith = scope:councillor_liege.faith
-			every_province = {
+			every_county_province = {
 				limit = { 
-					county = scope:county
 					has_holding = yes
 				}
 				set_holding_type = elven_holding

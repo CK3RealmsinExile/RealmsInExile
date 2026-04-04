@@ -100,6 +100,15 @@ PixelShader =
 		SampleModeV = "Clamp"
 	}
 
+	TextureSampler FogBlurTexture
+	{
+		Index = 9
+		MagFilter = "Point"
+		MinFilter = "Point"
+		MipFilter = "Point"
+		SampleModeU = "Clamp"
+		SampleModeV = "Clamp"
+	}
 
 	MainCode PixelShader
 	{
@@ -202,6 +211,12 @@ PixelShader =
 					#endif
 					color.rgb = ( ( AdditionalLensFlare.rgb ) * LensDirt ) + color.rgb;
 				#endif
+
+			#endif
+
+			#ifdef FOG_BLUR_ENABLED
+				float4 FogBlurColor = PdxTex2DLod0( FogBlurTexture, Input.uv );
+				color.rgb = lerp( color.rgb, FogBlurColor.rgb, FogBlurColor.a );
 			#endif
 
 				// MOD(godherja)
@@ -223,6 +238,7 @@ PixelShader =
 
 				// Tonemapping
 				color.rgb = Exposure(color.rgb);
+				color.rgb = ColorContrast( color.rgb );
 				color.rgb = ToneMap(color.rgb);
 
 			#ifdef ALPHA

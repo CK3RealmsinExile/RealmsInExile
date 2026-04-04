@@ -78,7 +78,7 @@ PixelShader =
 		void ApplySecondaryProvinceOverlay( in float2 NormalizedCoordinate, in float DistanceFieldValue, inout float4 Color )
 		{
 			float4 SecondaryColor = BilinearColorSampleAtOffset( NormalizedCoordinate, IndirectionMapSize, InvIndirectionMapSize, ProvinceColorIndirectionTexture, ProvinceColorTexture, SecondaryProvinceColorsOffset );
-			SecondaryColor.a *= smoothstep( GB_EdgeWidth, GB_EdgeWidth + 0.01f, DistanceFieldValue );
+			SecondaryColor.a *= smoothstep( GB_EdgeWidth, GB_EdgeWidth + 0.002f, DistanceFieldValue );
 			ApplyDiagonalStripes( Color, SecondaryColor, 0.8, NormalizedCoordinate );
 		}
 
@@ -124,10 +124,10 @@ PixelShader =
 
 			float GradientAlpha = lerp( GB_GradientAlphaInside, GB_GradientAlphaOutside, RemapClamped( DistanceFieldValue, GB_EdgeWidth + GB_GradientWidth, GB_EdgeWidth, 0.0f, 1.0f ) );
 			float Edge = smoothstep( GB_EdgeWidth + max( 0.0001f, GB_EdgeSmoothness ), GB_EdgeWidth, DistanceFieldValue );
-
+			float EdgeGapAdjustment = lerp( 8.0f, 2.0f, smoothstep( 0.0f, 0.05f, GB_EdgeSmoothness ) );
 			float4 Color;
 			Color.rgb = lerp( PrimaryColor.rgb * GB_GradientColorMul, PrimaryColor.rgb * GB_EdgeColorMul, Edge );
-			Color.a = PrimaryColor.a * max( GradientAlpha * ( 1.0f - pow( Edge, 2 ) ), GB_EdgeAlpha * Edge );
+			Color.a = PrimaryColor.a * max( GradientAlpha * ( 1.0f - pow( Edge, EdgeGapAdjustment ) ), GB_EdgeAlpha * Edge );
 
 			return Color;
 		}

@@ -14,11 +14,7 @@ gift_interaction = {
 
 	ai_targets = {
 		ai_recipients = scripted_relations
-	}
-	ai_targets = {
 		ai_recipients = liege
-	}
-	ai_targets = {
 		ai_recipients = head_of_faith
 	}
 	ai_targets = {
@@ -33,17 +29,22 @@ gift_interaction = {
 	ai_target_quick_trigger = {
 		adult = yes
 	}
-	ai_frequency = 60
+	ai_frequency_by_tier = {
+		barony = 120
+		county = 60
+		duchy = 60
+		kingdom = 36
+		empire = 36
+		hegemony = 36
+	}
 
 	is_shown = {
-		NOT = {
-			scope:recipient = scope:actor
-		}
-		scope:actor = {			
+		scope:recipient != scope:actor
+		scope:actor = { #LotR
 			NOT = { has_culture = culture:wastelands }
 			is_in_valinor = no
 		}
-		scope:recipient = {			
+		scope:recipient = { #LotR
 			NOT = { has_culture = culture:wastelands }
 			is_in_valinor = no
 		}
@@ -76,7 +77,9 @@ gift_interaction = {
 
 	is_valid_showing_failures_only = {
 		scope:actor.gold >= gift_value
-		scope:recipient = { is_busy_in_events_localised = yes }
+		scope:recipient = { 
+			NOT = { is_imprisoned_by = scope:actor }
+		}
 	}
 
 	on_auto_accept = {
@@ -100,7 +103,33 @@ gift_interaction = {
 				gifting_leads_towards_friendship_effect = yes
 			}
 		}
-
+		# HOUSE RELATIONS
+		if = {
+			limit = {
+				scope:actor = {
+					is_house_head = yes
+				}
+				scope:recipient = {
+					is_house_head = yes
+					NOT = {
+						has_opinion_modifier = {
+							target = scope:actor
+							modifier = gift_opinion
+						}
+					}
+				}
+			}
+			scope:recipient.house = {
+				change_house_relation_effect = {
+					HOUSE = scope:actor.house
+					VALUE = house_relation_improve_medium_value
+					REASON = sent_a_gift
+					CHAR = scope:actor
+					TARGET_CHAR = scope:recipient
+					TITLE = scope:dummy_gender
+				}
+			}
+		}
 		scope:actor = {
 			# Warning for multiple gifts
 			if = {
@@ -247,8 +276,7 @@ gift_interaction = {
 					if = {
 						limit = {
 							scope:actor = {
-								exists = dynasty
-								dynasty = { has_dynasty_perk = fp2_urbanism_legacy_4 }
+								dynasty ?= { has_dynasty_perk = fp2_urbanism_legacy_4 }
 							}
 							scope:recipient = {
 								AND = {
@@ -256,9 +284,7 @@ gift_interaction = {
 									government_has_flag = government_is_republic
 								}
 							}
-							NOT = {
-								scope:actor.culture = scope:recipient.capital_province.county.culture
-							}
+							scope:actor.culture != scope:recipient.capital_province.county.culture
 						}
 						scope:recipient.capital_province.county.culture = {
 							change_cultural_acceptance = {
@@ -443,7 +469,7 @@ gift_interaction = {
 		modifier = {
 			desc = AI_STRUGGLE_INTENT
 			scope:recipient = {
-				is_independent_ruler = yes
+				top_liege = this
 				any_character_struggle = {
 					involvement = involved
 				}
@@ -482,7 +508,7 @@ gift_interaction = {
 		NOT = {
 			has_trait = greedy
 		}
-		ai_has_conqueror_personality = no
+		NOT = { has_variable = conqueror }
 		ai_should_focus_on_building_in_their_capital = no
 	}
 	
@@ -532,6 +558,7 @@ gift_interaction = {
 						gold < 0
 					}
 					AND = { # Generous characters will give gifts to their friends/lovers
+						is_ruler = yes
 						OR = {
 							has_secret_relation_lover = scope:actor
 							has_relation_lover = scope:actor
@@ -758,6 +785,14 @@ gift_interaction = {
 			factor = 0.1
 			scope:recipient = {
 				has_relation_rival = scope:actor
+			}
+		}
+
+		modifier = {
+			factor = 2
+			scope:actor.house.house_confederation ?= {
+				has_cohesion_level_parameter = bloc_members_send_leader_gifts
+				leading_house.house_head ?= scope:recipient
 			}
 		}
 	}

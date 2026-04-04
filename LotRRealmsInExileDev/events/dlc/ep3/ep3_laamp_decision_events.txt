@@ -237,6 +237,10 @@ scripted_trigger 1000_is_unsellable_artifact_trigger = {
 		has_variable = banner_house
 		has_variable = banner_dynasty
 		has_variable = 1025_treasure_map
+		trigger_if = { #AI can't sell story artifacts
+			limit = { root = { is_ai = yes } }
+			has_variable = ai_ungiftable
+		}
 	}
 }
 
@@ -4889,25 +4893,21 @@ scripted_effect 1020_calculate_artifact_value_effect = {
 	#Very expensive
 	if = {
 		limit = { rarity = illustrious }
-		#TODO_CD_EP3 Balance: do balance pass once we have tweaked the gold values for landless
 		1020_set_artifact_value_variables_effect = { GOLD_VALUE = root.massive_gold_value } 
 	}
 	#Expensive
 	else_if = {
 		limit = { rarity = famed }
-		#TODO_CD_EP3 Balance: do balance pass once we have tweaked the gold values for landless
 		1020_set_artifact_value_variables_effect = { GOLD_VALUE = root.major_gold_value }
 	}
 	#OK price
 	else_if = {
 		limit = { rarity = masterwork }
-		#TODO_CD_EP3 Balance: do balance pass once we have tweaked the gold values for landless
 		1020_set_artifact_value_variables_effect = { GOLD_VALUE = root.medium_gold_value }
 	}
 	#Cheap
 	else_if = {
 		limit = { rarity = common }
-		#TODO_CD_EP3 Balance: do balance pass once we have tweaked the gold values for landless
 		1020_set_artifact_value_variables_effect = { GOLD_VALUE = root.minor_gold_value }
 	}
 }
@@ -5509,7 +5509,6 @@ ep3_laamp_decision_event.1020 = {
 			#This should always exist
 			50 = {
 				desc = ep3_laamp_decision_event.1020.c.first_artifact
-				#TODO_CD_EP3 Balance: Do we want to weigh this list to more oftenly sell common artifacts or unique artifacts?
 				add_gold = scope:1020_first_artifact_to_sell.var:1020_artifact_sell_high_value
 				scope:1020_first_artifact_to_sell = { set_owner = scope:laamp_artifact_peddler }
 			}
@@ -5730,6 +5729,12 @@ ep3_laamp_decision_event.1021 = {
 				scope:attempted_artifact_haggle = flag:failure
 			}
 			animation = shame
+		}
+		triggered_animation = {
+			trigger = {
+				can_laamp_sell_eagle_trigger = yes
+			}
+			animation = hunting_falcon
 		}
 		animation = thinking
 	}
@@ -6075,6 +6080,13 @@ scripted_effect 1025_set_contract_location_effect = {
 							scope:visiting_location = { geographical_region = middleearth_harad_far }
 			}
 			1025_save_random_county_province_effect = { REGION = middleearth_harad_far }
+		}
+		#Bay of Ormal
+		10 = { #LotR
+			trigger = {
+				scope:visiting_location = { geographical_region = middleearth_harad_bayoformal }
+			}
+			1025_save_random_county_province_effect = { REGION = middleearth_harad_bayoformal }
 		}
 		#Utter South
 		10 = {
@@ -6872,7 +6884,6 @@ scripted_effect 1025_option_picked_spawn_contract_effect = {
 		}
 		#Legendary Contract
 		flag:legendary_contract = {
-			#TODO_CD_EP3_FGK_POLISH [TIT-53424] This badly needs to be revisited when we have more code triggers for contract groups and updated create_task_contract effect to take group
 			hidden_effect = { #Comment out this hidden_effect = { ... } to better survey what contracts become available while debugging
 				#North Europe
 				# if = {
@@ -7014,6 +7025,13 @@ scripted_effect 1025_option_picked_spawn_contract_effect = {
 					}
 					1025_find_ruler_and_spawn_legendary_contract_effect = { REGION = middleearth_harad_far }
 				}
+				#Bay of Ormal
+				else_if = { #LotR
+					limit = {
+						scope:visiting_location = { geographical_region = middleearth_harad_bayoformal }
+					}
+					1025_find_ruler_and_spawn_legendary_contract_effect = { REGION = middleearth_harad_bayoformal }
+				}
 				#Utter South
 				else_if = { #LotR
 					limit = {
@@ -7121,7 +7139,7 @@ scripted_effect 1025_option_picked_spawn_contract_effect = {
 				populate_task_contracts_for_area = {
 					location = scope:visiting_location
 					amount = num_contracts_spawned_value
-					group = { laamp_contracts_hireling_group laamp_contracts_martial_group } #Stashing martial here, for now
+					group = { laamp_contracts_hireling_group laamp_contracts_martial_group laamp_contracts_ranger_group} #Stashing martial here, for now #LotR and ranger contracts too
 				}
 			}	
 		}
@@ -7663,6 +7681,14 @@ scripted_trigger 1025_can_create_legendary_contract_trigger = {
 			scope:visiting_location = { geographical_region = middleearth_harad_far }
 			any_county_in_region = {
 				region = middleearth_harad_far
+				1025_region_has_suitable_employer_trigger = yes
+			}
+		}
+		#Bay of Ormal
+		AND = {
+			scope:visiting_location = { geographical_region = middleearth_harad_bayoformal }
+			any_county_in_region = {
+				region = middleearth_harad_bayoformal
 				1025_region_has_suitable_employer_trigger = yes
 			}
 		}
@@ -9853,7 +9879,7 @@ ep3_laamp_decision_event.1030 = {
 			}
 			lotr_location_can_spawn_laamp_courtiers = yes
 		}
-		show_as_unavailable = { always = yes }
+		show_as_unavailable = { lotr_location_can_spawn_laamp_courtiers = yes }
 		reason = recruitment
 		custom_tooltip = ep3_laamp_decision_event.1030.b.tt
 		#*Withered* - This needs to be done manually because the scope isn't saved before the next event is triggered if it's run in After = { ... }
@@ -11436,7 +11462,7 @@ ep3_laamp_decision_event.1033 = {
 					1010_basic_merchant_checks_trigger = yes
 					#Remotely interesting
 					1033_has_interesting_skillset_trigger = yes
-					lotr_can_recruit_in_laamp = yes
+					root = { lotr_can_recruit = { CHARACTER = prev } } #LotR
 				}
 				save_scope_as = laamp_first_recruit
 			}
@@ -11459,7 +11485,7 @@ ep3_laamp_decision_event.1033 = {
 					#Remotely interesting
 					1033_has_interesting_skillset_trigger = yes
 					NOT = { this = scope:laamp_first_recruit }
-					lotr_can_recruit_in_laamp = yes
+					root = { lotr_can_recruit = { CHARACTER = prev } } #LotR
 				}
 				save_scope_as = laamp_second_recruit
 			}
@@ -11489,7 +11515,7 @@ ep3_laamp_decision_event.1033 = {
 							this = scope:laamp_first_recruit 
 							this = scope:laamp_second_recruit
 						}
-						lotr_can_recruit_in_laamp = yes
+						root = { lotr_can_recruit = { CHARACTER = prev } } #LotR
 					}
 					#More fun this way
 					weight = {
@@ -11579,7 +11605,7 @@ ep3_laamp_decision_event.1033 = {
 						1010_basic_merchant_checks_trigger = yes
 						#Remotely interesting
 						1033_has_interesting_skillset_trigger = yes
-						lotr_can_recruit_in_laamp = yes
+						root = { lotr_can_recruit = { CHARACTER = prev } } #LotR
 						NOR = { 
 							this = scope:laamp_first_recruit 
 							this = scope:laamp_second_recruit
@@ -13092,7 +13118,7 @@ ep3_laamp_decision_event.1037 = {
 			1037_maxed_gallowsbait_track_trigger = no 
 			#Not available if it's the hooded noble
 			NOT = { exists = scope:laamp_disguised_noble }
-			lotr_can_recruit_in_laamp = yes
+			lotr_can_recruit = { CHARACTER = scope:laamp_hooded_figure } #LotR
 		}
 		#Half if you can offer them an attractive position
 		if = {
@@ -13331,7 +13357,7 @@ ep3_laamp_decision_event.1037 = {
 		#Set the variables and redirect us back to the tavern main room
 		1037_hooded_effect = yes
 		ai_chance = {
-			base = 100 #TODO_CD_EP3
+			base = 100
 		}
 	}
 	#I want to go back
@@ -13794,7 +13820,7 @@ ep3_laamp_decision_event.1040 = {
 					random_pool_character = {
 						province = scope:visiting_location
 						limit = {
-							lotr_can_recruit_in_laamp = yes #LotR
+							root = { lotr_can_recruit = { CHARACTER = prev } } #LotR #LotR
 							1010_basic_merchant_checks_trigger = yes
 							save_temporary_scope_as = saved_character_check
 							#Let's avoid double-dipping
@@ -13824,7 +13850,7 @@ ep3_laamp_decision_event.1040 = {
 						random_pool_character = {
 							province = scope:visiting_location
 							limit = { 
-								lotr_can_recruit_in_laamp = yes #LotR
+								root = { lotr_can_recruit = { CHARACTER = prev } } #LotR #LotR
 								1010_basic_merchant_checks_trigger = yes
 								has_trait = devoted
 								learning >= 15
@@ -15363,6 +15389,13 @@ ep3_laamp_decision_event.1043 = {
 			target = scope:laamp_clergy_character
 			gold = minor_gold_value
 		}
+		if = { #LotR
+			limit = { NOT = { has_variable = visit_settlement_church_donation } }
+			set_variable = {
+				name = visit_settlement_church_donation
+				value = 1
+			}
+		}
 		add_piety = visit_settlement_piety_gain_value
 		#Roll for epiphanous clergy
 		hidden_effect = {
@@ -15801,7 +15834,7 @@ ep3_laamp_decision_event.1044 = {
 		trigger = {
 			scope:laamp_clergy_character = { 
 				has_variable = 1043_is_epiphanous
-				lotr_can_recruit_in_laamp = yes
+				root = { lotr_can_recruit = { CHARACTER = prev } } #LotR
 			}
 		}
 		add_courtier = scope:laamp_clergy_character
@@ -16813,7 +16846,7 @@ ep3_laamp_decision_event.1050 = {
 					random_pool_character = {
 						province = scope:visiting_location
 						limit = {
-							lotr_can_recruit_in_laamp = yes #LotR
+							root = { lotr_can_recruit = { CHARACTER = prev } } #LotR #LotR
 							1010_basic_merchant_checks_trigger = yes
 							save_temporary_scope_as = saved_character_check
 							#Let's avoid double-dipping
@@ -16844,7 +16877,7 @@ ep3_laamp_decision_event.1050 = {
 						random_pool_character = {
 							province = scope:visiting_location
 							limit = { 
-								lotr_can_recruit_in_laamp = yes #LotR
+								root = { lotr_can_recruit = { CHARACTER = prev } } #LotR #LotR
 								1010_basic_merchant_checks_trigger = yes
 								is_available_healthy_adult = yes
 								prowess > 15
@@ -17552,7 +17585,7 @@ ep3_laamp_decision_event.1051 = {
 					employs_court_position = master_of_arms_camp_officer
 				}
 			}
-			scope:laamp_disgruntled_moa = { lotr_can_recruit_in_laamp = yes }
+			lotr_can_recruit = { CHARACTER = scope:laamp_disgruntled_moa } #LotR
 		}
 		reason = unlocked_master_of_arms
 		show_as_unavailable = { always = yes }
@@ -17824,7 +17857,7 @@ ep3_laamp_decision_event.1053 = {
 				province = scope:visiting_location
 				limit = { 
 					1053_worse_martial_character_trigger = yes 
-					lotr_can_recruit_in_laamp = yes
+					root = { lotr_can_recruit = { CHARACTER = prev } } #LotR
 				}
 				save_scope_as = laamp_plain_guard
 			}
@@ -17851,7 +17884,7 @@ ep3_laamp_decision_event.1053 = {
 				province = scope:visiting_location
 				limit = { 
 					1053_random_martial_character_trigger = yes 
-					lotr_can_recruit_in_laamp = yes
+					root = { lotr_can_recruit = { CHARACTER = prev } } #LotR
 				}
 				save_scope_as = laamp_plain_guard
 			}
@@ -19210,7 +19243,7 @@ ep3_laamp_decision_event.1060 = {
 					random_pool_character = {
 						province = scope:visiting_location
 						limit = {
-							lotr_can_recruit_in_laamp = yes #LotR
+							root = { lotr_can_recruit = { CHARACTER = prev } } #LotR #LotR
 							1010_basic_merchant_checks_trigger = yes
 							NOT = { has_trait = devoted } #Look, I like weaponsmith nuns as much as the next person, but it looked _slightly_ off
 							save_temporary_scope_as = saved_character_check
@@ -19241,7 +19274,7 @@ ep3_laamp_decision_event.1060 = {
 						random_pool_character = {
 							province = scope:visiting_location
 							limit = { 
-								lotr_can_recruit_in_laamp = yes #LotR
+								root = { lotr_can_recruit = { CHARACTER = prev } } #LotR #LotR
 								1010_basic_merchant_checks_trigger = yes
 								NOT = { has_trait = devoted } #Look, I like weaponsmith nuns as much as the next person, but it looked _slightly_ off
 								stewardship >= 15
@@ -20249,7 +20282,7 @@ ep3_laamp_decision_event.1063 = {
 				text = not_have_armorer_building
 				can_employ_court_position_type = armorer_camp_officer
 			}
-			scope:laamp_armorer_craftsman = { lotr_can_recruit_in_laamp = yes }
+			lotr_can_recruit = { CHARACTER = scope:laamp_armorer_craftsman } #LotR
 		}
 		reason = unlocked_armorer
 		pay_short_term_gold = {
@@ -21105,7 +21138,7 @@ ep3_laamp_decision_event.1101 = {
 	desc = ep3_laamp_decision_event.1101.desc
 	window = visit_settlement_window
 	theme = faith
-	override_background = { reference = holy_site_generic } #TODO_CD_EP3_KL switch to more appropriate background if we get one
+	override_background = { reference = holy_site_generic }
 
 	left_portrait = {
 		character = root
@@ -21233,106 +21266,10 @@ ep3_laamp_decision_event.1103 = {
 	immediate = {
 		location = {
 			save_scope_as = current_location
-			if = {
-				limit = { #Elves and Istari don't convert others to their own faith
-					root = {
-						faith_is_good = yes
-						OR = {
-							is_elf = yes
-							is_istari = yes 
-						}
-					}
-					faith_is_good = no
-					culture = { is_orc_culture = no }
-				}
-				if = {
-					limit = { scope:current_location.faith.religion = { is_in_family = rf_darkness } }
-					if = {
-						limit = {
-							scope:current_location.faith.religion = {
-								any_faith = {
-									OR = { 
-										has_doctrine = doctrine_echoes_of_the_ainur
-										has_doctrine = special_doctrine_is_freepeople_faith
-									}
-								}
-							}
-						}
-						scope:current_location.faith.religion = {
-							random_faith = { #Find a good faith to convert to in the same religion
-								limit = {
-									OR = { 
-										has_doctrine = doctrine_echoes_of_the_ainur
-										has_doctrine = special_doctrine_is_freepeople_faith
-									}
-								}
-								save_scope_as = new_faith
-							}
-						}
-					}
-					else = {
-						faith:faith_edain = { save_scope_as = new_faith }
-					}
-				}
-				else = { #If forces of evil, find an appropriate local faith
-					if = {
-						limit = { culture = { is_dwarf_culture = yes } }
-						faith:faith_khazad = { save_scope_as = new_faith }
-					}
-					else_if = {
-						limit = { culture = { is_hobbit_culture = yes } }
-						faith:faith_hobbit = { save_scope_as = new_faith }
-					}
-					else_if = {
-						limit = { culture = { is_druedain_culture = yes } }
-						faith:faith_druedain = { save_scope_as = new_faith }
-					}
-					else_if = {
-						limit = { geographical_region = middleearth_west_rohan }
-						faith:faith_rohirric = { save_scope_as = new_faith }
-					}
-					else_if = {
-						limit = { geographical_region = middleearth_west_enedhwaith }
-						faith:faith_dunlending_turthalis = { save_scope_as = new_faith }
-					}
-					else_if = {
-						limit = { geographical_region = middleearth_west_rhovanion }
-						faith:faith_woodmen = { save_scope_as = new_faith }
-					}
-					else_if = {
-						limit = { geographical_region = middleearth_west }
-						faith:faith_edain = { save_scope_as = new_faith }
-					}
-					else_if = {
-						limit = { geographical_region = middleearth_rhun_dorwinion }
-						faith:faith_dorwinion = { save_scope_as = new_faith }
-					}
-					else_if = {
-						limit = { geographical_region = middleearth_rhun }
-						faith:faith_rhun_araw_triumvirate = { save_scope_as = new_faith }
-					}
-					else_if = {
-						limit = { geographical_region = middleearth_mordor }
-						faith:faith_rhun_araw_triumvirate = { save_scope_as = new_faith }
-					}
-					else_if = {
-						limit = { geographical_region = middleearth_harad_near }
-						faith:faith_chelkar = { save_scope_as = new_faith }
-					}
-					else_if = {
-						limit = { geographical_region = middleearth_harad_far }
-						faith:faith_conservative_eruism = { save_scope_as = new_faith }
-					}
-					else_if = {
-						limit = { geographical_region = middleearth_uttersouth }
-						faith:faith_gimileth = { save_scope_as = new_faith }
-					}
-					else = {
-						faith:faith_edain = { save_scope_as = new_faith }
-					}
-				}
+			lotr_define_new_location_faith_effect = {#LotR - Define new_faith to convert to
+				ACTOR = root
+				TARGET = scope:current_location
 			}
-			else = { root.faith = { save_scope_as = new_faith } }
 		}
 	}
 
@@ -21341,7 +21278,6 @@ ep3_laamp_decision_event.1103 = {
 		government_has_flag = government_is_landless_adventurer
 		location ?= {
 			has_holding = yes
-			culture = { is_elf_culture = no }
 			OR = {
 				AND = {
 					root = {
@@ -21589,7 +21525,8 @@ ep3_laamp_decision_event.1103 = {
 		hidden_effect = {
 			if = {
 				limit = {
-					location.county.faith ?= root.faith
+					# location.county.faith ?= root.faith #LotR
+					location.county.faith ?= scope:new_faith #LotR
 					exists = var:num_counties_converted
 				}
 				change_variable = {
@@ -21857,7 +21794,7 @@ ep3_laamp_decision_event.1120 = {
 ep3_laamp_decision_event.1130 = { #begin city construction
 	type = character_event
 	title = ep3_laamp_decision_event.1130.t
-	window = visit_settlement_window
+	window = big_event_window
 	desc = ep3_laamp_decision_event.1130.desc
 
 	theme = stewardship
@@ -21871,6 +21808,7 @@ ep3_laamp_decision_event.1130 = { #begin city construction
 
 	immediate = {
 		location = {
+			set_variable = laamp_city_construction
 			save_scope_as = city_location
 		}
 	}
@@ -21906,7 +21844,6 @@ ep3_laamp_decision_event.1130 = { #begin city construction
 					}
 				}
 			}
-			set_variable = laamp_city_construction
 		}
 
 		trigger_event = {
@@ -21936,10 +21873,19 @@ ep3_laamp_decision_event.1130 = { #begin city construction
 ep3_laamp_decision_event.1131 = { #city is finished, wat do
 	type = character_event
 	title = ep3_laamp_decision_event.1131.t
+	window = big_event_window
 	desc = ep3_laamp_decision_event.1131.desc
 
 	theme = stewardship
 
+	override_background = { 
+		trigger = {
+			location = {
+				culture = { has_building_gfx = southeast_asian_building_gfx }
+			}
+		}
+		reference = mpo_rural_village_asian
+	}
 	override_background = { reference = alley_day }
 
 	left_portrait = {
@@ -21950,9 +21896,9 @@ ep3_laamp_decision_event.1131 = { #city is finished, wat do
 	trigger = {
 		scope:city_location = {
 			OR = {
+				has_holding_type = temple_citadel_holding
 				has_holding_type = castle_holding
-				has_holding_type = elven_holding
-				has_holding_type = city_holding
+				has_holding_type = elven_holding #LotR
 			}
 		}
 	}
@@ -21963,66 +21909,90 @@ ep3_laamp_decision_event.1131 = { #city is finished, wat do
 			value = current_year
 		}
 
-		laamp_city_builder_construction_effect = {
-			FLAG = mill
-			BUILDING = watermills
+		if = {
+			limit = { 
+				scope:city_location = { has_holding_type = temple_citadel_holding }
+			}
+			laamp_city_builder_construction_effect = {
+				FLAG = mill
+				BUILDING = watermills
+			}
+			laamp_city_builder_construction_effect = {
+				FLAG = temple_citadel
+				BUILDING = temple_citadel
+			}
+			laamp_city_builder_construction_effect = {
+				FLAG = manor
+				BUILDING = farm_estates
+			}
+			laamp_city_builder_construction_effect = {
+				FLAG = spice_plantation
+				BUILDING = spice_plantation
+			}
+			laamp_city_builder_construction_effect = {
+				FLAG = vihara_halls
+				BUILDING = vihara_halls
+			}
 		}
-
-		laamp_city_builder_construction_effect = {
-			FLAG = castle
-			BUILDING = castle
+		else = {
+			laamp_city_builder_construction_effect = {
+				FLAG = mill
+				BUILDING = watermills
+			}
+			laamp_city_builder_construction_effect = {
+				FLAG = castle
+				BUILDING = castle
+			}
+			laamp_city_builder_construction_effect = {
+				FLAG = manor
+				BUILDING = farm_estates
+			}
+			laamp_city_builder_construction_effect = {
+				FLAG = workshops
+				BUILDING = workshops
+			}
+			laamp_city_builder_construction_effect = {
+				FLAG = prayer_hall
+				BUILDING = monastic_schools
+			}
+	
+			### LotR ###
+			laamp_city_builder_construction_effect = {
+				FLAG = elven_agriculture
+				BUILDING = elven_agriculture
+			}
+	
+			laamp_city_builder_construction_effect = {
+				FLAG = elven_settlement
+				BUILDING = elven_settlement
+			}
+	
+			laamp_city_builder_construction_effect = {
+				FLAG = elven_hunting_grounds
+				BUILDING = elven_hunting_grounds
+			}
+	
+			laamp_city_builder_construction_effect = {
+				FLAG = elven_markets
+				BUILDING = elven_markets
+			}
+	
+			laamp_city_builder_construction_effect = {
+				FLAG = elven_forges
+				BUILDING = elven_forges
+			}
+	
+			laamp_city_builder_construction_effect = {
+				FLAG = city
+				BUILDING = city
+			}
+	
+			laamp_city_builder_construction_effect = {
+				FLAG = guild_halls
+				BUILDING = guild_halls
+			}
 		}
-
-		laamp_city_builder_construction_effect = {
-			FLAG = manor
-			BUILDING = farm_estates
-		}
-
-		laamp_city_builder_construction_effect = {
-			FLAG = guilds
-			BUILDING = guild_halls
-		}
-
-		laamp_city_builder_construction_effect = {
-			FLAG = prayer_hall
-			BUILDING = monastic_schools
-		}
-
-		### LotR ###
-		laamp_city_builder_construction_effect = {
-			FLAG = elven_agriculture
-			BUILDING = elven_agriculture
-		}
-
-		laamp_city_builder_construction_effect = {
-			FLAG = elven_settlement
-			BUILDING = elven_settlement
-		}
-
-		laamp_city_builder_construction_effect = {
-			FLAG = elven_hunting_grounds
-			BUILDING = elven_hunting_grounds
-		}
-
-		laamp_city_builder_construction_effect = {
-			FLAG = elven_markets
-			BUILDING = elven_markets
-		}
-
-		laamp_city_builder_construction_effect = {
-			FLAG = elven_forges
-			BUILDING = elven_forges
-		}
-
-		laamp_city_builder_construction_effect = {
-			FLAG = city
-			BUILDING = city
-		}
-
-		laamp_city_builder_construction_effect = {
-			FLAG = guild_halls
-			BUILDING = guild_halls
-		}
+		
 	}
 
 	on_trigger_fail = {
@@ -22030,9 +22000,7 @@ ep3_laamp_decision_event.1131 = { #city is finished, wat do
 			limit = {
 				scope:city_location = { #somehow, the city is still being built
 					has_ongoing_construction = yes
-					NOT = {
-						has_holding = yes
-					}
+					has_holding = no
 				}
 			}
 			trigger_event = {
@@ -22045,6 +22013,10 @@ ep3_laamp_decision_event.1131 = { #city is finished, wat do
 	option = { #well, actually imma get the whole county
 		name = ep3_laamp_decision_event.1131.a
 
+		set_variable = {
+			name = holding_barony
+			value = scope:city_location.barony
+		}
 		add_pressed_claim = scope:city_location.county
 		add_pressed_claim = scope:city_location.barony
 		start_war = {
@@ -22070,6 +22042,8 @@ ep3_laamp_decision_event.1131 = { #city is finished, wat do
 			months = { 1 1 }
 		}
 		remove_character_flag = laamp_city_builder
+		# remove_variable = city_construction_is_temple_citadel #LotR
+		remove_variable = city_construction_is_castle
 
 		ai_chance = {
 			base = 10
@@ -22077,16 +22051,23 @@ ep3_laamp_decision_event.1131 = { #city is finished, wat do
 	}
 
 	after = {
-		remove_character_flag = laamp_city_builder_guilds
-		remove_character_flag = laamp_city_builder_guilds_upgrade
+		remove_character_flag = laamp_city_builder_mill
+		remove_character_flag = laamp_city_builder_mill_upgrade
+		remove_character_flag = laamp_city_builder_temple_citadel
+		remove_character_flag = laamp_city_builder_temple_citadel_upgrade
 		remove_character_flag = laamp_city_builder_castle
 		remove_character_flag = laamp_city_builder_castle_upgrade
 		remove_character_flag = laamp_city_builder_manor
 		remove_character_flag = laamp_city_builder_manor_upgrade
+		remove_character_flag = laamp_city_builder_spice_plantation
+		remove_character_flag = laamp_city_builder_spice_plantation_upgrade
+		# remove_character_flag = laamp_city_builder_workshops #LotR
+		# remove_character_flag = laamp_city_builder_workshops_upgrade #LotR
+		# remove_character_flag = laamp_city_builder_vihara_halls #LotR
+		# remove_character_flag = laamp_city_builder_vihara_halls_upgrade #LotR
 		remove_character_flag = laamp_city_builder_prayer_hall
 		remove_character_flag = laamp_city_builder_prayer_hall_upgrade
-		remove_character_flag = laamp_city_builder_mill
-		remove_character_flag = laamp_city_builder_mill_upgrade	
+
 		
 		#LotR
 		remove_character_flag = laamp_city_builder_elven_agriculture
@@ -22103,9 +22084,19 @@ ep3_laamp_decision_event.1131 = { #city is finished, wat do
 		remove_character_flag = laamp_city_builder_city_upgrade	
 		remove_character_flag = laamp_city_builder_guild_halls
 		remove_character_flag = laamp_city_builder_guild_halls_upgrade	
-		
 	}
 	
+}
+
+scripted_trigger 1133_holding_still_under_construction_trigger = {
+	scope:city_location = {
+		has_ongoing_construction = yes
+		NOR = {
+			has_holding_type = temple_citadel_holding
+			has_holding_type = castle_holding
+			has_holding_type = elven_holding
+		}
+	}
 }
 
 ep3_laamp_decision_event.1133 = { #get a mill
@@ -22124,14 +22115,7 @@ ep3_laamp_decision_event.1133 = { #get a mill
 	}
 
 	trigger = {
-		scope:city_location = {
-			has_ongoing_construction = yes
-			NOR = { #LotR
-				has_holding_type = castle_holding
-				has_holding_type = elven_holding
-				has_holding_type = city_holding
-			}
-		}
+		1133_holding_still_under_construction_trigger = yes
 		OR = {
 			stewardship >= 18
 			has_trait = architect
@@ -22264,14 +22248,7 @@ ep3_laamp_decision_event.1134 = { #get more settlers, main building upgrade
 	}
 
 	trigger = {
-		scope:city_location = {
-			has_ongoing_construction = yes
-			NOR = { #LotR
-				has_holding_type = castle_holding
-				has_holding_type = elven_holding
-				has_holding_type = city_holding
-			}
-		}
+		1133_holding_still_under_construction_trigger = yes
 		OR = {
 			piety_level >= 3
 			prestige_level >= 3
@@ -22322,7 +22299,12 @@ ep3_laamp_decision_event.1134 = { #get more settlers, main building upgrade
 				}
 			}
 		}
-		remove_short_term_gold = 20
+		remove_short_term_gold = {
+			value = {
+				add = medium_gold_value
+				multiply = 2
+			}
+		} 
 		if = {
 			limit = {
 				piety_level >= 3
@@ -22377,7 +22359,12 @@ ep3_laamp_decision_event.1134 = { #get more settlers, main building upgrade
 				}
 			}
 		}
-		remove_short_term_gold = 40
+		remove_short_term_gold = {
+			value = {
+				add = major_gold_value
+				multiply = 2
+			}
+		}
 		if = {
 			limit = {
 				piety_level >= 3
@@ -22431,20 +22418,11 @@ ep3_laamp_decision_event.1135 = { #argue for more favorable land assigment from 
 	}
 
 	trigger = {
-		scope:city_location = {
-			has_ongoing_construction = yes
-			NOR = { #LotR
-				has_holding_type = castle_holding
-				has_holding_type = elven_holding
-				has_holding_type = city_holding
-			}
-		}
+		1133_holding_still_under_construction_trigger = yes
 		scope:city_location.county.holder = {
-			OR = {
-				reverse_opinion = {
-					target = root
-					value >= 40
-				}
+			reverse_opinion = {
+				target = root
+				value >= 40
 			}
 		}
 		NOR = {
@@ -22537,7 +22515,7 @@ ep3_laamp_decision_event.1135 = { #argue for more favorable land assigment from 
 	
 }
 
-ep3_laamp_decision_event.1136 = { #utilize connections, get guildhall
+ep3_laamp_decision_event.1136 = { #utilize connections, get merchant building
 	type = character_event
 	title = ep3_laamp_decision_event.1136.t
 	window = visit_settlement_window
@@ -22555,14 +22533,7 @@ ep3_laamp_decision_event.1136 = { #utilize connections, get guildhall
 	}
 
 	trigger = {
-		scope:city_location = {
-			has_ongoing_construction = yes
-			NOR = { #LotR
-				has_holding_type = castle_holding
-				has_holding_type = elven_holding
-				has_holding_type = city_holding
-			}
-		}
+		1133_holding_still_under_construction_trigger = yes
 		prestige_level >= 3
 	}
 
@@ -22673,14 +22644,7 @@ ep3_laamp_decision_event.1137 = { #utilize connections, get prayer hall
 	}
 
 	trigger = {
-		scope:city_location = {
-			has_ongoing_construction = yes
-			NOR = { #LotR
-				has_holding_type = castle_holding
-				has_holding_type = elven_holding
-				has_holding_type = city_holding
-			}
-		}
+		1133_holding_still_under_construction_trigger = yes
 		piety_level >= 3
 	}
 
@@ -22723,7 +22687,8 @@ ep3_laamp_decision_event.1137 = { #utilize connections, get prayer hall
 		if = { #LotR
 			limit = { is_elf = yes }
 			add_character_flag = laamp_city_builder_elven_forges_upgrade
-		} else = { add_character_flag = laamp_city_builder_prayer_hall_upgrade }
+		} 
+		else = { add_character_flag = laamp_city_builder_prayer_hall_upgrade }
 		show_as_tooltip = {
 			scope:city_location = {
 				if = { #LotR
@@ -22765,7 +22730,7 @@ ep3_laamp_decision_event.1140 = { #city pays dividend
 	hidden = yes
 
 	trigger = {
-		is_landless_adventurer = yes
+		has_government = landless_adventurer_government
 		current_year <= laamp_city_construction_year_value
 	}
 
@@ -22813,7 +22778,7 @@ ep3_laamp_decision_event.1140 = { #city pays dividend
 scripted_effect 1201_prune_dog_stories_effect = {
 	remove_dog_story_modifiers_effect = yes
 	random_owned_story = {
-		limit = { story_type = story_cycle_pet_dog }
+		type = story_cycle_pet_dog
 		hidden_effect = { end_story = yes }
 	}
 }
@@ -23065,7 +23030,7 @@ ep3_laamp_decision_event.1201 = {
 scripted_effect 1202_prune_cat_stories_effect = {
 	remove_cat_story_modifiers_effect = yes
 	random_owned_story = {
-		limit = { story_type = story_cycle_pet_cat }
+		type = story_cycle_pet_cat
 		hidden_effect = { end_story = yes }
 	}
 }
@@ -23286,9 +23251,7 @@ ep3_laamp_decision_event.1202 = {
 scripted_effect 1203_prune_horse_stories_effect = {
 	remove_horse_story_modifiers_effect = yes
 	random_owned_story = {
-		limit = {
-			story_type = story_cycle_martial_lifestyle_warhorse
-		}
+		type = story_cycle_martial_lifestyle_warhorse
 		end_story = yes
 	}
 }

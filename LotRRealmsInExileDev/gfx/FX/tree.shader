@@ -2,7 +2,7 @@ Includes = {
 	"cw/pdxterrain.fxh"
 	"cw/pdxmesh.fxh"
 
-	"jomini/jomini_lighting.fxh"
+	"jomini/map_lighting.fxh"
 	"jomini/jomini_fog.fxh"
 	# MOD(godherja)
 	#"jomini/jomini_fog_of_war.fxh"
@@ -12,8 +12,12 @@ Includes = {
 	"bordercolor.fxh"
 	"dynamic_masks.fxh"
 	"legend.fxh"
+	"lowspec.fxh"
 	"disease.fxh"
+	"shadow_tint.fxh"
+	"clouds.fxh"
 	"province_effects.fxh"
+	"standardfuncsgfx.fxh"
 }
 
 PixelShader =
@@ -167,6 +171,12 @@ PixelShader =
 
 	Code
 	[[
+		static const float4x4 DitherMatrix = float4x4(
+			0.0f,    0.5f,    0.125f,   0.625f,
+			0.75f,   0.25f,   0.875f,   0.375f,
+			0.1875f, 0.6875f, 0.0625f,  0.5625f,
+			0.9375f, 0.4375f, 0.8125f,  0.3125f
+		);
 		float ApplyOpacity( in float Alpha, in float2 NoiseCoordinate, in uint InstanceIndex )
 		{
 			#ifdef JOMINI_MAP_OBJECT
@@ -177,34 +187,74 @@ PixelShader =
 			return PdxMeshApplyOpacity( Alpha, NoiseCoordinate, Opacity );
 		}
 
-		float3 CalculateLighting( in VS_OUTPUT_TREE Input, in float4 Diffuse, in float3 NormalSample, in float4 Properties, in float SnowHighlight )
+		float DitherThreshold( in float2 ScreenPosition )
 		{
-			float3 InNormal = normalize( Input.Normal );
-			float3x3 TBN = Create3x3( normalize( Input.Tangent ), normalize( Input.Bitangent ), InNormal );
-			float3 Normal = normalize( mul( NormalSample, TBN ) );
+			// 4x4 Bayer dither matrix
+			//float4x4 DitherMatrix = float4x4(
+			//	0.0f / 16.0f,  8.0f / 16.0f,  2.0f / 16.0f, 10.0f / 16.0f,
+			//	12.0f / 16.0f, 4.0f / 16.0f, 14.0f / 16.0f,  6.0f / 16.0f,
+			//	3.0f / 16.0f, 11.0f / 16.0f,  1.0f / 16.0f,  9.0f / 16.0f,
+			//	15.0f / 16.0f, 7.0f / 16.0f, 13.0f / 16.0f,  5.0f / 16.0f
+			//);
+			uint2 PixelPos = uint2( ScreenPosition.xy ) % 4;
+			return DitherMatrix[ PixelPos.y ][ PixelPos.x ];
+		}
 
+		void DitheredAlpha( in float Alpha, in float2 ScreenPosition, in float BaseThreshold )
+		{
+			float DitherValue = DitherThreshold( ScreenPosition );
+			float AdjustedThreshold = BaseThreshold + ( DitherValue - 0.5f ) * 0.6f;
+			clip( Alpha - AdjustedThreshold );
+		}
+
+		float3 CalculateLighting( float2 MapCoords, in VS_OUTPUT_TREE Input, in float4 Diffuse, in float3 Normal, in float4 Properties, in float SnowHighlight )
+		{
+			float FogOfWarAlphaValue = PdxTex2D( FogOfWarAlpha, MapCoords ).r;
 			float3 WorldSpacePos = Input.WorldSpacePos;
-			float2 MapCoords = WorldSpacePos.xz * WorldSpaceToTerrain0To1;
 			float3 BorderColor;
 			float BorderPreLightingBlend;
 			float BorderPostLightingBlend;
 			GetBorderColorAndBlendGame( WorldSpacePos.xz , Diffuse.rgb, BorderColor, BorderPreLightingBlend, BorderPostLightingBlend );
-			Diffuse.rgb = lerp( Diffuse.rgb, BorderColor, BorderPreLightingBlend );
-			ApplyHighlightColor( Diffuse.rgb, MapCoords );
-			CompensateWhiteHighlightColor( Diffuse.rgb, MapCoords, SnowHighlight );
-			
-			SMaterialProperties MaterialProps = GetMaterialProperties( Diffuse.rgb, Normal, Properties.a, Properties.g, Properties.b );
-			SLightingProperties LightingProps = GetSunLightingProperties( WorldSpacePos, ShadowTexture );
 
-			float3 Color = CalculateSunLighting( MaterialProps, LightingProps, EnvironmentMap );
-			ApplyLegendDiffuse( Color, MapCoords );
-			ApplyDiseaseDiffuse( Color, MapCoords );
+			LerpBorderColorWithFogOfWarAlphaValue( Diffuse.rgb, FogOfWarAlphaValue, BorderColor, BorderPreLightingBlend );
+			float4 HighlightColor = GetHighlightColor( MapCoords );
+			ApplyHighlightColor( Diffuse.rgb, HighlightColor );
+			CompensateWhiteHighlightColor( Diffuse.rgb, HighlightColor, SnowHighlight );
+
+			SMaterialProperties MaterialProps = GetMaterialProperties( Diffuse.rgb, Normal, Properties.a, Properties.g, Properties.b );
+
+			#ifdef LOW_SPEC_SHADERS
+				SLightingProperties LightingProps = GetMapLightingProperties( WorldSpacePos, 1.0f );
+				float3 Color = CalculateTerrainSunLightingLowSpec( MaterialProps, LightingProps );
+			#else
+				// Get shadow term for shadow tint calculation
+				SLightingProperties LightingProps = GetMapLightingProperties( WorldSpacePos, ShadowTexture );
+				// Calculate combined shadow mask from clouds and shadow tint
+				float CloudMask = GetCloudShadowMask( WorldSpacePos.xz, FogOfWarAlphaValue );
+				const float3 TerrainNormal = CalculateNormal( WorldSpacePos.xz );
+
+				// Use terrain dual scenario lighting for trees (sunny outside clouds, shadow inside clouds)
+				LightingProps._ToLightDir = ToTerrainSunnySunDir;
+				SShadowTintData ShadowTintData = GetShadowTintData( MapCoords );
+				float TerrainShadowTerm = GetTerrainShadowTintMask( ShadowTintData, LightingProps._ToLightDir, LightingProps._ShadowTerm, TerrainNormal );
+				LightingProps._ShadowTerm = LightingProps._ShadowTerm * ( 1.0f - TerrainShadowTerm );
+
+				float3 Color = CalculateTerrainDualScenarioLighting( LightingProps, MaterialProps, CloudMask, EnvironmentMap );
+				Color = ApplyTreeShadowTintWithClouds( Color, ShadowTintData, CloudMask, LightingProps._ShadowTerm, Normal, TerrainNormal );
+
+				ApplyTreeLegendDiffuse( Color, MapCoords );
+				ApplyTreeDiseaseDiffuse( Color, MapCoords );
+			#endif
+
+			// MOD(godherja)
+			//Color = ApplyFogOfWar( Color, WorldSpacePos, FogOfWarAlpha );
 			Color = GH_ApplyAtmosphericEffects( Color, WorldSpacePos, FogOfWarAlpha );
-			Color = ApplyDistanceFog( Color, WorldSpacePos );
+			// END MOD
+			Color = ApplyMapDistanceFogWithoutFoW( Color, WorldSpacePos );
 
 			Color.rgb = lerp( Color.rgb, BorderColor, BorderPostLightingBlend );
 
-			DebugReturn( Color, MaterialProps, LightingProps, EnvironmentMap );
+			// DebugReturn( Color, MaterialProps, LightingProps, EnvironmentMap );
 			return Color;
 		}
 	]]
@@ -219,45 +269,68 @@ PixelShader =
 			{
 				float2 ColorMapCoords = Input.WorldSpacePos.xz * WorldSpaceToTerrain0To1;
 				float4 Diffuse = PdxTex2D( DiffuseMap, Input.UV0 );
-				float3 NormalSample = UnpackRRxGNormal( PdxTex2D( NormalMap, Input.UV0 ) );
+
+				//Opacity
+				Diffuse.a = ApplyOpacity( Diffuse.a, Input.Position.xy, Input.InstanceIndex );
+
+				// Use dithered alpha test for smooth edges
+				if ( _HasTreeDitheringEnabled == 1 )
+				{
+					#ifdef TREE_LOD
+						clip( Diffuse.a - 0.4f );
+					#endif
+				}
+				else
+				{
+					clip( Diffuse.a - 0.4f );
+				}
+
+				float4 NormalMapSample = PdxTex2D( NormalMap, Input.UV0 );
+				float3 NormalSample = UnpackRRxGNormal( NormalMapSample );
 				float3x3 TBN = Create3x3( normalize( Input.Tangent ), normalize( Input.Bitangent ), normalize( Input.Normal ) );
 				float3 Normal = normalize( mul( NormalSample, TBN ) );
 
 				float4 Properties = PdxTex2D( PropertiesMap, Input.UV0 );
 
-				//Opacity
-				Diffuse.a = ApplyOpacity( Diffuse.a, Input.Position.xy, Input.InstanceIndex );
-				
 				EffectIntensities ConditionData;
 				SampleProvinceEffectsMask( ColorMapCoords, ConditionData );
 				ApplyProvinceEffectsTree( ConditionData, Diffuse, ColorMapCoords, Input.WorldSpacePos.xz );
-
-				clip( Diffuse.a - 0.4f );
 
 				//Tint
 				float3 Tint = PdxTex2DLod0( TintMap, float2( Input.Scale_Seed_Yaw.y, 0.5f ) ).rgb;
 				Tint = GetOverlay( Diffuse.rgb, Tint, 1.0 );
 
-				Diffuse.rgb = lerp( Diffuse.rgb, Tint, PdxTex2D( NormalMap, Input.UV0 ).b );
-
-
+				Diffuse.rgb = lerp( Diffuse.rgb, Tint, NormalMapSample.b );
 
 				//Colormap
 				float SnowHighlight = 0.0f;
 				//Diffuse.rgb = ApplyDynamicMasksDiffuse( Diffuse.rgb, Normal, ColorMapCoords, SnowHighlight );
-				ApplySnowMaterialMesh( ConditionData, Diffuse.rgb, Properties, Normal, Input.WorldSpacePos.xz, SnowHighlight );
+				ApplySnowMaterialMesh( Diffuse.rgb, Properties, Normal, Input.WorldSpacePos.xz, ColorMapCoords, SnowHighlight, 5.0f );
+				Diffuse.a = lerp( Diffuse.a, smoothstep( 0.8f, 0.85f, Diffuse.a ), SnowHighlight );
+				if ( _HasTreeDitheringEnabled == 1 )
+				{
+					#ifdef TREE_LOD
+						clip( Diffuse.a - 0.4f );
+					#else
+						DitheredAlpha( Diffuse.a, Input.Position.xy, 0.4f );
+					#endif
+				}
+				else
+				{
+					clip( Diffuse.a - 0.4f );
+				}
 
+				Diffuse.rgb = lerp( Diffuse.rgb, Diffuse.rgb * 1.5f, SnowHighlight );
 #if defined( PDX_OSX ) && defined( PDX_OPENGL )
 				// The amount of texture samplers is limited on Mac, so we don't read the data for the ColorMap directly
 				// from a texture. Instead we assign a default gray value here. This is also done for the terrain (on Mac)
 				// to make sure we have the same color variation for both the terrain and the trees
 				float3 ColorMap = float3( vec3( 0.5 ) );
 #else
-				float3 ColorMap = PdxTex2D( ColorTexture, float2( ColorMapCoords.x, 1.0 - ColorMapCoords.y ) ).rgb;
+				float3 ColorMap = ToLinear( PdxTex2D( ColorTexture, float2( ColorMapCoords.x, 1.0 - ColorMapCoords.y ) ).rgb);
 #endif
-				Diffuse.rgb = GetOverlay( Diffuse.rgb, ColorMap, 1.0 );
-
-				float3 Color = CalculateLighting( Input, Diffuse, NormalSample, Properties, SnowHighlight );
+				Diffuse.rgb = Overlay( ColorMap, Diffuse.rgb );
+				float3 Color = CalculateLighting( ColorMapCoords, Input, Diffuse, Normal, Properties, SnowHighlight );
 
 				return float4( Color, Diffuse.a );
 			}
@@ -352,6 +425,7 @@ Effect tree_lod
 	VertexShader = VS_standard
 	PixelShader = PS_leaf
 	BlendState = BlendStateLod
+	Defines = { "TREE_LOD" }
 }
 Effect tree_lodShadow
 {

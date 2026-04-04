@@ -81,7 +81,7 @@ raiding.0002 = {	#Less hidden event: I do get a sacking!
 	type = character_event
 	title = raiding.0002.t
 	desc = raiding.0002.desc
-	theme = battle
+	theme = raid
 	override_background = {
 		trigger = {
 			lotr_was_corsair_raid_trigger = yes
@@ -153,7 +153,7 @@ raiding.0002 = {	#Less hidden event: I do get a sacking!
 			holder = {
 				trigger_event = raiding.0003
 				if = {
-					limit = { is_independent_ruler = no }
+					limit = { top_liege != this }
 					liege = { trigger_event = raiding.0004 }
 				}
 			}
@@ -261,7 +261,7 @@ raiding.0002 = {	#Less hidden event: I do get a sacking!
 			}
 			holder = {
 				if = {
-					limit = { is_independent_ruler = yes }
+					limit = { top_liege = this }
 					trigger_event = raiding.0003
 				}
 				else = {
@@ -303,7 +303,7 @@ raiding.0002 = {	#Less hidden event: I do get a sacking!
 			}
 			holder = {
 				if = {
-					limit = { is_independent_ruler = yes }
+					limit = { top_liege = this }
 					trigger_event = raiding.0003
 				}
 				else = {
@@ -371,21 +371,21 @@ raiding.0003 = {
 			triggered_desc = {	#If the holding was raided for skilled slaves, let us know of such.
 				trigger = {
 					scope:sack_status = flag:admin_plundered
-					is_independent_ruler = yes
+					top_liege = this
 				}
 				desc = raiding.0003.desc.admin_plundered_independent
 			}
 			triggered_desc = {	#If the holding was raided for gold, then tell us our shinies are gone.
 				trigger = {
 					scope:sack_status = flag:gold_plundered
-					is_independent_ruler = yes
+					top_liege = this
 				}
 				desc = raiding.0003.desc.gold_plundered_independent
 			}
 			triggered_desc = {	#If the holding was spared, we have a lukewarm one response.
 				trigger = {
 					scope:sack_status = flag:spared_plundered
-					is_independent_ruler = yes
+					top_liege = this
 				}
 				desc = 	raiding.0003.desc.spared_plundered_independent
 			}
@@ -400,7 +400,7 @@ raiding.0003 = {
 			desc = raiding.0003.desc.spared_plundered_vassal
 		}
 	}
-	theme = battle
+	theme = raid
 	override_background = {
 		trigger = {
 			lotr_was_corsair_raid_trigger = yes
@@ -470,7 +470,7 @@ raiding.0003 = {
 	option = {
 		name = raiding.0003.c
 		trigger = {
-			is_independent_ruler = yes
+			top_liege = this
 			NOT = { scope:sack_status = flag:spared_plundered }
 			NOT = { government_has_flag = government_is_tribal }	#Tribes don't care about development.
 			NOT = { government_has_flag = government_is_nomadic }
@@ -479,7 +479,7 @@ raiding.0003 = {
 				short_term_gold >= scope:sacked_barony.county.title_province.raid_gold_value
 			}
 		}
-		remove_short_term_gold = scope:sacked_barony.county.title_province.raid_gold_value
+		remove_treasury_or_gold = scope:sacked_barony.county.title_province.raid_gold_value
 		scope:sacked_county = {
 			add_county_modifier = {
 				modifier = rebuilding_after_sacking_modifier
@@ -540,7 +540,7 @@ raiding.0004 = {
 			desc = 	raiding.0004.desc.spared_plundered #If the holding was spared, we have a lukewarm one response.
 		}
 	}
-	theme = battle
+	theme = raid
 	override_background = {
 		trigger = {
 			lotr_was_corsair_raid_trigger = yes
@@ -618,9 +618,9 @@ raiding.0004 = {
 				short_term_gold >= medium_gold_value
 			}
 		}
-		pay_short_term_gold = {
+		pay_treasury_or_gold = {
 			target = scope:sacked_county.holder
-			gold = scope:sacked_barony.county.title_province.raid_gold_value
+			value = scope:sacked_barony.county.title_province.raid_gold_value
 		}
 		scope:sacked_county.holder = {
 			add_opinion = {
@@ -657,7 +657,7 @@ raiding.0004 = {
 				short_term_gold >= scope:sacked_barony.county.title_province.raid_gold_value
 			}
 		}
-		remove_short_term_gold = scope:sacked_barony.county.title_province.raid_gold_value
+		remove_treasury_or_gold = scope:sacked_barony.county.title_province.raid_gold_value
 		scope:sacked_county.holder = {
 			add_opinion = {
 				target = liege
@@ -845,6 +845,7 @@ scripted_trigger raiding_0012_can_be_captured = {
 
 		# Is imprisoned in the barony stay prisoners (special case, any courtiers/vassals of the raider will get released elsewhere).
 		is_imprisoned = yes
+		cannot_be_killed = yes #LotR
 	}
 }
 
@@ -973,6 +974,10 @@ raiding.0013 = {
 					}
 					add = -20
 				}
+				modifier = { #LotR
+					is_elf = yes
+					add = -30
+				}
 
 				modifier = {
 					root = { raid_intent = capture_intent_nomadic }
@@ -990,6 +995,12 @@ raiding.0013 = {
 								scope:raider = { has_perk = kidnapper_perk }
 							}
 							add = 10
+						}
+						if = {
+							limit = {
+								scope:raider.culture ?= { has_innovation = innovation_motte }
+							}
+							add = 5
 						}
 					}
 				}
@@ -1023,7 +1034,7 @@ raiding.0013 = {
 						save_temporary_scope_as = notification_target
 						any_in_list = {
 							list = captured_targets_effects
-							NOT = { this = scope:notification_target}
+							this != scope:notification_target
 						}
 					}
 					trigger_event = siege.0003
@@ -1103,6 +1114,7 @@ raiding.0013 = {
 
 scripted_trigger raiding_0014_artifact_can_be_stolen = {
 	exists = this
+	NOT = { has_variable = ring_of_power }
 	OR = {
 		scope:barony.holder = { # If the character is in the province and not leading an army, their stuff is probably valid to steal
 			location = scope:barony.title_province
@@ -1245,8 +1257,7 @@ raiding.0022 = {
 	scope = army
 
 	trigger = {
-		exists = army_commander
-		army_commander = {
+		army_commander ?= {
 			has_variable = raid_counter
 			var:raid_counter >= 20
 			NOT = { has_trait = viking }
@@ -1329,8 +1340,7 @@ raiding.0031 = {
 
 	trigger = {
 		#You need to be Hereward, plus leading your own forces.
-		exists = army_commander
-		army_commander = {
+		army_commander ?= {
 			has_trait = the_wake
 		}
 
@@ -1372,6 +1382,10 @@ raiding.0040 = {
 						}
 					} # Nothing happens
 					5 = {
+						modifier = {
+							scope:raider.culture ?= { has_innovation = innovation_motte }
+							add = 2
+						}
 						scope:raider = {
 							send_interface_message = {
 								type = event_raid_good
@@ -1409,6 +1423,10 @@ raiding.0040 = {
 						trigger = {
 							county = { development_level > 0 }
 						}
+						modifier = {
+							scope:raider.culture ?= { has_innovation = innovation_motte }
+							add = 2
+						}
 						scope:raider = {
 							send_interface_message = {
 								type = event_raid_good
@@ -1435,6 +1453,10 @@ raiding.0040 = {
 					5 = {
 						trigger = {
 							num_buildings > 1
+						}
+						modifier = {
+							scope:raider.culture ?= { has_innovation = innovation_motte }
+							add = 2
 						}
 						destroy_random_building_variable_effect = yes
 						scope:raider = {
@@ -1481,6 +1503,12 @@ raiding.0040 = {
 							has_raid_intent_protection = yes
 						}
 						divide = 2
+					}
+					if = {
+						limit = {
+							scope:raider.culture ?= { has_innovation = innovation_motte }
+						}
+						add = 1
 					}
 				}
 				scope:raider = {

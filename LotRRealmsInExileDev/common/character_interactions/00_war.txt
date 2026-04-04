@@ -10,9 +10,7 @@
 	desc = declare_war_desc
 
 	is_shown = {
-		NOT = {
-			scope:recipient = scope:actor
-		}
+		scope:recipient != scope:actor
 		scope:recipient = {
 			is_playable_character = yes
 			NOT = { has_culture = culture:wastelands } #LotR
@@ -29,6 +27,10 @@
 
 	is_valid_showing_failures_only = {
 		scope:actor = {
+			custom_tooltip = {
+				text = sworn_peace_tt
+				NOT = { has_character_flag = sworn_peace }
+			}
 			NOT = { has_trait = incapable }
 			can_attack_in_hierarchy = scope:recipient
 			trigger_if = {
@@ -57,7 +59,7 @@
 			}
 			custom_description = {
 				text = "is_not_bankrupt"
-				gold > 0
+				is_in_debt = no
 			}
 			NOT = {
 				custom_description = {
@@ -96,8 +98,17 @@
 					}
 				}
 			}
+			trigger_if = {
+				limit = {
+					has_realm_law = japanese_bureaucracy_3
+					this != top_liege
+				}
+				custom_tooltip = {
+					text = non_admin_vassal_japanese_bureaucracy_3
+					government_allows = administrative
+				}
+			}
 		}
-		scope:recipient = { NOT = { has_strong_hook = scope:actor } }
 		scope:recipient = {
 			custom_tooltip = {
 				text = is_a_herder_recipient_tt
@@ -107,10 +118,15 @@
 			NOT = { has_strong_hook = scope:actor }
 			trigger_if = {
 				limit = { is_imprisoned = yes }
-				NOT = {
-					imprisoner = scope:actor
-				}
+				imprisoner != scope:actor
 			}
+			custom_tooltip = { #LotR vassals can't attack protectorates/guaranted tributaries
+	 			text = IS_GUARANTEED_BY_ATTACKERS_TOP_LIEGE_TRIGGER_CB
+				NAND = {
+					is_tributary_of = scope:actor.top_liege 
+					subject_contract_has_flag = tributary_contract_suzerain_guarantee_override
+				}
+	 		}
 		}
 		scope:actor = {
 			trigger_if = {
@@ -118,7 +134,10 @@
 					NOT = { government_allows = administrative }
 					liege ?= {
 						has_realm_law_flag = vassal_all_wars_banned_permanent
-						NOT = { this = scope:actor }
+						this != scope:actor
+					}
+					NOT = {
+						culture = { has_cultural_parameter = internal_wars_always_allowed } #LOTR
 					}
 				}
 				custom_tooltip = {
@@ -131,7 +150,13 @@
 					government_allows = administrative
 					top_liege = scope:recipient.top_liege
 					scope:recipient = { government_allows = administrative }
-					NOT = { top_liege = scope:recipient }
+					top_liege != scope:recipient
+					NOT = {
+						top_participant_group:dynastic_cycle ?= {
+							has_participant_group_parameter = dynastic_cycle_vassal_internal_wars_allowed
+						}
+					}
+					NOT = { culture = { has_cultural_parameter = internal_wars_always_allowed } } #LOTR
 				}
 				custom_tooltip = {
 					text = admin_cannot_declare_internal_wars
@@ -141,11 +166,12 @@
 			trigger_if = { # Admin - Laws only allow frontier and naval themes to declare war
 				limit = {
 					government_allows = administrative
-					is_independent_ruler = no
+					top_liege != this
 					top_liege = {
 						this != scope:recipient.top_liege
 						has_realm_law_flag = admin_vassal_wars_restricted
 					}
+					NOT = {culture = { has_cultural_parameter = internal_wars_always_allowed } } #LOTR
 				}
 				custom_tooltip = {
 					text = admin_all_vassal_wars_banned
@@ -167,6 +193,7 @@
 						has_realm_law_flag = admin_vassal_wars_permission_only
 						NOT = { has_realm_law_flag = admin_vassal_wars_banned }
 					}
+					NOT = {culture = { has_cultural_parameter = internal_wars_always_allowed } } #LOTR
 				}
 				custom_tooltip = {
 					text = admin_vassal_wars_permission_only_desc
@@ -184,16 +211,33 @@
 						this != scope:recipient.top_liege
 						has_realm_law_flag = admin_vassal_wars_banned
 					}
+					NOT = {culture = { has_cultural_parameter = internal_wars_always_allowed } } #LOTR
 				}
 				custom_tooltip = {
 					text = admin_all_vassal_wars_banned
 					always = no
 				}
 			}
+			trigger_if = {
+				limit = {
+					scope:recipient = {
+						OR = {
+							has_subject_contract_group = tributary_celestial
+							has_subject_contract_group = tributary_hegemonic
+						}
+					}
+					is_independent_ruler = no # to avoid duplicating tooltips already applying to the top_liege
+				}
+				NOT = {
+					scope:recipient = {
+						is_tributary_of = scope:actor.top_liege
+					}
+				}
+			}
 		}
 		scope:actor = {
 			trigger_if = {
-				limit = { is_landless_adventurer = yes }
+				limit = { has_government = landless_adventurer_government }
 				custom_tooltip = {
 					text = camp_located_in_defender_realm.tt
 					domicile.domicile_location.county.holder = {
@@ -289,7 +333,7 @@
 					exists = var:promised_war
 					var:promised_war = {
 						is_alive = yes
-						NOT = { this = scope:recipient }
+						this != scope:recipient
 					}
 				}
 				trigger_event = {
@@ -312,7 +356,7 @@
 						casus_belli = {
 							primary_attacker = scope:actor
 							primary_defender = scope:recipient
-							any_target_title = { count >= 1 }
+							any_target_title = { }
 						}
 					}
 				}
@@ -437,7 +481,14 @@ end_war_attacker_victory_interaction = {
 		ai_recipients = primary_war_enemies
 	}
 
-	ai_frequency = 1
+	ai_frequency_by_tier = {
+		barony = 0
+		county = 1
+		duchy = 1
+		kingdom = 1
+		empire = 1
+		hegemony = 1
+	}
 
 	# Depending on who was the attacker, we need to send a different notification message to the recipient.
 	notification_text = {
@@ -567,11 +618,11 @@ end_war_attacker_victory_interaction = {
 				if = {
 					limit = {
 						any_vassal = {
-							NOT = { this = scope:defender_loser }
+							this != scope:defender_loser
 						}
 					}
 					every_vassal = {
-						limit = { NOT = { this = scope:defender_loser } }
+						limit = { this != scope:defender_loser }
 						send_interface_toast = {
 							type = msg_liege_war_ended_attacker_win
 							title = war_event.notification_liege_win.t
@@ -585,11 +636,11 @@ end_war_attacker_victory_interaction = {
 			scope:defender_loser = {
 				if = {
 					limit = {
-						any_vassal = { NOT = { this = scope:attacker_winner } }
+						any_vassal = { this != scope:attacker_winner }
 					}
 					every_vassal = {
 						limit = {
-							NOT = { this = scope:attacker_winner }
+							this != scope:attacker_winner
 						}
 						send_interface_toast = {
 							type = msg_liege_war_ended_attacker_win
@@ -668,7 +719,7 @@ end_war_attacker_victory_interaction = {
 				}
 				primary_defender = {
 					is_ai = yes
-					ai_has_conqueror_personality = yes
+					has_variable = conqueror
 				}
 			}
 		}
@@ -738,7 +789,7 @@ end_war_attacker_victory_interaction = {
 						}
 						primary_defender = {
 							is_ai = yes
-							ai_has_conqueror_personality = yes
+							has_variable = conqueror
 						}
 					}
 				}
@@ -767,7 +818,7 @@ end_war_attacker_victory_interaction = {
 			scope:war.casus_belli = {
 				primary_attacker = {
 					has_perk = peacemaker_perk
-					NOT = { this = scope:recipient }
+					this != scope:recipient
 				}
 			}
 
@@ -890,7 +941,7 @@ end_war_attacker_victory_interaction = {
 						}
 						primary_defender = {
 							is_ai = yes
-							ai_has_conqueror_personality = yes
+							has_variable = conqueror
 							this = scope:recipient
 						}
 					}
@@ -951,7 +1002,7 @@ end_war_attacker_victory_interaction = {
 					text = hostage_no_land_after_war_tt
 					scope:recipient = {
 						any_held_title = {
-							tier = tier_county
+							title_tier = county
 							NOT = {
 								any_this_title_or_de_jure_above = { is_in_list = target_titles }
 							}
@@ -990,7 +1041,14 @@ end_war_attacker_white_peace_interaction = {
 		ai_recipients = primary_war_enemies
 	}
 
-	ai_frequency = 12
+	ai_frequency_by_tier = {
+		barony = 0
+		county = 12
+		duchy = 12
+		kingdom = 12
+		empire = 12
+		hegemony = 12
+	}
 
 	# Depending on who was the attacker, we need to send a different notification message to the recipient.
 	notification_text = {
@@ -1119,11 +1177,11 @@ end_war_attacker_white_peace_interaction = {
 			scope:attacker_white_peace = {
 				if = {
 					limit = {
-						any_vassal = { NOT = { this = scope:defender_white_peace } }
+						any_vassal = { this != scope:defender_white_peace }
 					}
 					every_vassal = {
 						limit = {
-							NOT = { this = scope:defender_white_peace }
+							this != scope:defender_white_peace
 						}
 						send_interface_toast = {
 							type = msg_liege_war_ended_white_peace
@@ -1138,11 +1196,11 @@ end_war_attacker_white_peace_interaction = {
 			scope:defender_white_peace = {
 				if = {
 					limit = {
-						any_vassal = { NOT = { this = scope:attacker_white_peace } }
+						any_vassal = { this != scope:attacker_white_peace }
 					}
 					every_vassal = {
 						limit = {
-							NOT = { this = scope:attacker_white_peace }
+							this != scope:attacker_white_peace
 						}
 						send_interface_toast = {
 							type = msg_liege_war_ended_white_peace
@@ -1218,7 +1276,7 @@ end_war_attacker_white_peace_interaction = {
 				attacker_war_score <= 0
 			}
 			any_character_war = {
-				NOT = { this = scope:war }
+				this != scope:war
 				casus_belli = {
 					primary_defender = root
 				}
@@ -1322,7 +1380,10 @@ end_war_attacker_white_peace_interaction = {
 			scope:war.casus_belli = {
 				primary_defender = root
 			}
-			debt_level >= 1
+			OR = {
+				debt_level >= 1
+				treasury_debt_level >= 1
+			}
 
 			add = {
 				value = debt_level
@@ -1349,7 +1410,11 @@ end_war_attacker_white_peace_interaction = {
 			scope:war.casus_belli = {
 				primary_attacker = root
 			}
-			debt_level >= 1
+			OR = {
+				debt_level >= 1
+				treasury_debt_level >= 1
+			}
+
 
 			add = {
 				value = debt_level
@@ -1532,7 +1597,7 @@ end_war_attacker_white_peace_interaction = {
 			scope:war.casus_belli = {
 				primary_defender = {
 					this = scope:actor
-					ai_has_conqueror_personality = yes
+					has_variable = conqueror
 				}
 				primary_attacker = { is_ai = yes }
 			}
@@ -1587,7 +1652,11 @@ end_war_attacker_white_peace_interaction = {
 			scope:war.casus_belli = {
 				primary_defender = root
 			}
-			debt_level >= 1
+			OR = {
+				debt_level >= 1
+				treasury_debt_level >= 1
+			}
+
 
 			add = {
 				value = debt_level
@@ -1603,7 +1672,7 @@ end_war_attacker_white_peace_interaction = {
 			}
 			scope:recipient = {
 				any_character_war = {
-					NOT = { this = scope:war }
+					this != scope:war
 					primary_defender = scope:recipient
  				}
 			}
@@ -1837,6 +1906,42 @@ end_war_attacker_white_peace_interaction = {
 			desc = "STRUGGLE_INVOLVED_OR_INTERLOPER_PHASE_BONUS"
 		}
 
+		# GoK war
+		modifier = {
+			desc = WAR_OVERVIEW_WHITE_PEACE_GOK
+			add = -70
+			scope:war = {
+				using_cb = mpo_gok_onslaught_cb
+				primary_defender = scope:actor
+			}
+		}
+		# GoK war but have counties occupied
+		modifier = {
+			desc = WAR_OVERVIEW_WHITE_PEACE_GOK_OCCUPATION
+			add = {
+				value = 0
+				scope:war.primary_defender = {
+					every_sub_realm_county = {
+						limit = {
+							county_controller = scope:war.primary_attacker
+						}
+						add = 2
+					}
+				}
+				max = 200
+			}
+			scope:war = {
+				using_cb = mpo_gok_onslaught_cb
+				attacker_war_score <= 25
+				primary_defender = {
+					any_sub_realm_county = {
+						county_controller = scope:war.primary_attacker
+					}
+				}
+				primary_defender = scope:actor
+			}
+		}
+
 		# Hostages
 		modifier = {
 			exists = scope:secondary_actor
@@ -1890,7 +1995,14 @@ end_war_attacker_defeat_interaction = {
 		ai_recipients = primary_war_enemies
 	}
 	
-	ai_frequency = 1
+	ai_frequency_by_tier = {
+		barony = 0
+		county = 1
+		duchy = 1
+		kingdom = 1
+		empire = 1
+		hegemony = 1
+	}
 	
 	# Depending on who was the attacker, we need to send a different notification message to the recipient.
 	notification_text = {
@@ -2021,12 +2133,12 @@ end_war_attacker_defeat_interaction = {
 				if = {
 					limit = {
 						any_vassal = {
-							NOT = { this = scope:defender_winner }
+							this != scope:defender_winner
 						}
 					}
 					every_vassal = {
 						limit = {
-							NOT = { this = scope:defender_winner }
+							this != scope:defender_winner
 						}
 						send_interface_toast = {
 							type = msg_liege_war_ended_defender_win
@@ -2041,11 +2153,11 @@ end_war_attacker_defeat_interaction = {
 			scope:defender_winner = {
 				if = {
 					limit = {
-						any_vassal = { NOT = { this = scope:attacker_loser } }
+						any_vassal = { this != scope:attacker_loser }
 					}
 					every_vassal = {
 						limit = {
-							NOT = { this = scope:attacker_loser }
+							this != scope:attacker_loser
 						}
 						send_interface_toast = {
 							type = msg_liege_war_ended_defender_win
@@ -2200,7 +2312,7 @@ end_war_attacker_defeat_interaction = {
 			scope:war.casus_belli = {
 				primary_defender = {
 					has_perk = peacemaker_perk
-					NOT = { this = scope:recipient }
+					this != scope:recipient
 				}
 			}
 			
@@ -2243,7 +2355,7 @@ end_war_attacker_defeat_interaction = {
 					culture = {
 						has_cultural_parameter = can_end_defensive_wars_earlier
 					}
-					NOT = { this = scope:recipient }
+					this != scope:recipient
 				}
 			}
 			
