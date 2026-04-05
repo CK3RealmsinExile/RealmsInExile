@@ -38,8 +38,13 @@ decision_claim_high_kingship = {
 
 	is_shown = {
 		OR = {
-			root.father = character:lineoforodreth4 # Custom children of Gil-galad should be able to claim the title
+			root = { house = house:house_orodreth } # Custom descendants of Orodreth (Gil-galad) should be able to claim the title
+			root = { house = house:house_fingolfin } # Custom descendants of Fingolfin can claim it
 			root = { house = house:house_elrond } # Elrond is the strongest claimant left to the High-Kingship (Get outta here Galadriel!)
+			AND = {
+				NOT = { root = character:lineoffeanor2 } # Maglor has to defeat Sauron first
+				root = { house = house:house_feanor } # Custom descendants of Feanor can claim it
+			}
 			AND = { # Vector approved Maglor path
 				has_variable = maglor_defensive
 				has_character_flag = maglor_new_noldolante
@@ -60,6 +65,10 @@ decision_claim_high_kingship = {
 		prestige_level >= 5
 		piety_level >= 5
 		has_high_hope_or_higher = yes
+		trigger_if = { # Harder to take if you're not Elrond or his kids 
+			limit = { NOT = { root = { house = house:house_elrond } } }
+			legitimacy_level >= 5 
+		}
 		trigger_if = {
 			limit = { 
 				exists = title:e_lindon.holder
@@ -78,6 +87,12 @@ decision_claim_high_kingship = {
 
 	# EFFECT
 	effect = {
+		# If you're landless, you get Mithlond
+		if = {
+			limit = { has_government = landless_adventurer_government }
+			get_title = title:c_mithrhulond
+		}
+	
 		#Create the title and make it primary
 		create_title_and_vassal_change = {
 			type = created
@@ -298,13 +313,13 @@ decision_noldor_eriador = {
 			}
 		}
 
-		# No independent rulers
+		# No non-tributized independent rulers
 		custom_tooltip = {
 			text = no_independent_rulers_in_eriador
 			any_county_in_region = {
 				region = custom_eriador
 				OR = {
-					holder.top_liege ?= root
+					holder.top_overlord ?= root
 					holder.top_liege ?= title:k_wastelands.holder
 				}
 				count = all
@@ -316,7 +331,7 @@ decision_noldor_eriador = {
 			any_county_in_region = {
 				region = middleearth_west_beleriand
 				OR = {
-					holder.top_liege ?= root
+					holder.top_overlord ?= root
 					holder.top_liege ?= title:k_wastelands.holder
 				}
 				count = all
@@ -342,7 +357,6 @@ decision_noldor_eriador = {
 					limit = { has_county_modifier = elven_homeland_county_modifier }
 					holder.top_liege = root
 				}
-
 				count = all
 			}
 		}
@@ -477,13 +491,13 @@ decision_noldor_anduin = {
 			}
 		}
 
-		# No independent rulers
+		# No non-tributized independent rulers
 		custom_tooltip = {
 			text = no_independent_rulers_in_eriador
 			any_county_in_region = {
 				region = custom_eriador
 				OR = {
-					holder.top_liege ?= root
+					holder.top_overlord ?= root
 					holder.top_liege ?= title:k_wastelands.holder
 				}
 				count = all
@@ -495,7 +509,7 @@ decision_noldor_anduin = {
 			any_county_in_region = {
 				region = middleearth_west_beleriand
 				OR = {
-					holder.top_liege ?= root
+					holder.top_overlord ?= root
 					holder.top_liege ?= title:k_wastelands.holder
 				}
 				count = all
@@ -505,9 +519,9 @@ decision_noldor_anduin = {
 		custom_tooltip = {
 			text = no_independent_rulers_in_lorien
 			any_county_in_region = {
-				region = middleearth_west_rhovanion_lothlorien
+				region =  middleearth_west_rhovanion_lothlorien
 				OR = {
-					holder.top_liege ?= root
+					holder.top_overlord ?= root
 					holder.top_liege ?= title:k_wastelands.holder
 				}
 				count = all
@@ -533,7 +547,6 @@ decision_noldor_anduin = {
 					limit = { has_county_modifier = elven_homeland_county_modifier }
 					holder.top_liege = root
 				}
-
 				count = all
 			}
 		}
@@ -4526,8 +4539,6 @@ decision_sail_to_valinor = {
 	}
 
 	is_valid = {
-		is_at_war = no
-		NOT = { is_ai = yes } # To be extra safe
 		NOT = {
 			has_character_modifier = elf_childraising_modifier
 		}
@@ -4550,6 +4561,7 @@ decision_sail_to_valinor = {
 	is_valid_showing_failures_only = {
 		is_imprisoned = no
 		is_available_adult = yes
+		is_at_war = no
 	}
 
 	effect = {
@@ -5273,62 +5285,428 @@ decision_reunite_kinnlai = {
 				target = flag:decision_reunite_kinnlai
 			}
 		}
+
+		# Neither is extinct
+		house:house_shelepinn = {
+			any_house_member = { count > 0 }
+		}
+		house:house_tulanal = {
+			any_house_member = { count > 0 }
+		}
 	}
+
 	is_valid = {
+		#Set scopes for Tulanal side. (by Trig)
+		# Checks first for landed house head, then for k_talilan, then for proper-faith culture head, and finally for proper-faith strongest indep ruler. If none, you need to make one
+		trigger_if = {
+			limit = { # House head
+				house:house_tulanal.house_head ?= {
+					is_landed = yes
+					save_temporary_scope_as = talilan_ruler
+				}
+			}
+		}
+		trigger_else_if = {
+			limit = { # King of Talilan
+				title:k_talilan.holder ?= {
+					is_elf = yes
+					save_temporary_scope_as = talilan_ruler
+				}
+			}
+		}
+		trigger_else_if = {
+			limit = { # Culture head of Kinn-lai
+				culture:kinnlai.culture_head ?= {
+					faith = faith:faith_kinnlai_tree
+					save_temporary_scope_as = talilan_ruler
+				}
+			}
+		}
+		trigger_else_if = {
+			limit = { # Top Faith ruler
+				faith:faith_kinnlai_tree = {
+					any_faith_ruler = { # Jank a top ruler for faith
+						is_independent_ruler = yes
+						save_temporary_scope_as = faith_head
+						faith = {
+							any_faith_ruler = {
+								domain_size > scope:faith_head.domain_size
+								count = 0
+							}
+						}
+						save_temporary_scope_as = talilan_ruler
+					}
+				}
+			}
+		}
+		trigger_else = { # Find someone to unite with first
+			custom_tooltip = {
+				text = landed_tree_faith_ruler
+				always = no
+			}
+		}
+
+		#Set scope for Shelepinn side. (By Trig)
+		# Checks first for landed house head, then for k_usakan, then d_gard_kinn, then for proper-faith culture head, and finally for proper-faith strongest indep ruler. If none, you need to make one
+		trigger_if = {
+			limit = { # House head
+				house:house_shelepinn.house_head ?= {
+					is_landed = yes
+					save_temporary_scope_as = shelepinn_ruler
+				}
+			}
+		}
+		trigger_else_if = {
+			limit = { # King of Usakan
+				title:k_usakan.holder ?= {
+					is_elf = yes
+					save_temporary_scope_as = shelepinn_ruler
+				}
+			}
+		}
+		trigger_else_if = {
+			limit = { # Ruler of Gard Kinn
+				title:d_gard_kinn.holder ?= {
+					is_elf = yes
+					save_temporary_scope_as = shelepinn_ruler
+				}
+			}
+		}
+		trigger_else_if = {
+			limit = { # Culture head of Kinn-lai
+				culture:kinnlai.culture_head ?= {
+					faith = faith:faith_kinnlai_martial
+					save_temporary_scope_as = shelepinn_ruler
+				}
+			}
+		}
+		trigger_else_if = {
+			limit = { # Top Faith ruler
+				faith:faith_kinnlai_martial = {
+					any_faith_ruler = { # Jank a top ruler for faith
+						is_independent_ruler = yes
+						save_temporary_scope_as = faith_head
+						faith = {
+							any_faith_ruler = {
+								domain_size > scope:faith_head.domain_size
+								count = 0
+							}
+						}
+						save_temporary_scope_as = shelepinn_ruler
+					}
+				}
+			}
+		}
+		trigger_else = { # Find someone to unite with first
+			custom_tooltip = {
+				text = landed_martial_faith_ruler
+				always = no
+			}
+		}
+
+		# You need to be the one in charge here
+		trigger_if = {
+			limit = {
+				NOR = {
+					this = scope:shelepinn_ruler 
+					this = scope:talilan_ruler
+				}
+			}
+			custom_tooltip = {
+				text = be_the_one_in_charge
+				OR = {
+					this = scope:shelepinn_ruler 
+					this = scope:talilan_ruler
+				}
+			}
+		}
+
+		# You're a faith that's involved
+		trigger_if = {
+			limit = {
+				NOR = {
+					faith = faith:faith_kinnlai_martial
+					faith = faith:faith_kinnlai_tree
+				}
+			}
+			OR = {
+				faith = faith:faith_kinnlai_martial
+				faith = faith:faith_kinnlai_tree
+			}
+		}
+		
+		# Now the normal requirements
 		highest_held_title_tier >= tier_kingdom
+		legitimacy_level >= 5
+		prestige_level >= 3
 		piety_level >= 4
-		OR = {
-			faith = faith:faith_kinnlai_martial
-			faith = faith:faith_kinnlai_tree
-		}
 		has_medium_hope_or_higher = yes
-		prestige_level >= high_prestige_level
+		
+		# You hold your side's realm
 		OR = {
-			# completely_controls = title:d_gard_kinn
-			completely_controls = title:k_talilan
-			completely_controls = title:k_usakan
+			has_title = title:k_talilan
+			has_title = title:k_usakan 
 		}
+		OR = {
+			custom_tooltip = {
+				text = hold_all_elven_homelands_in_usakan
+				any_county_in_region = {
+					region = middleearth_uttersouth_usakan
+					trigger_if = {
+						limit = { has_county_modifier = elven_homeland_county_modifier }
+						holder.top_liege = root
+					}
+					count = all
+				}
+			}
+			custom_tooltip = {
+				text = hold_all_elven_homelands_in_mumakan
+				any_county_in_region = {
+					region = middleearth_uttersouth_mumakan
+					trigger_if = {
+						limit = { has_county_modifier = elven_homeland_county_modifier }
+						holder.top_liege = root
+					}
+					count = all
+				}
+			}
+		}
+
+		# The other side likes you
 		trigger_if = {
 			limit = {
-				has_title = title:k_usakan
-				NOT = { has_title = title:k_talilan }
+				OR = {
+					this = scope:shelepinn_ruler
+					faith = faith:faith_kinnlai_martial # For tt purposes
+				}
 			}
-			has_relation_friend = title:k_talilan.holder
+			has_relation_friend = scope:talilan_ruler
+			is_allied_to = scope:talilan_ruler
+			scope:talilan_ruler = {
+				trigger_if = {
+					limit = {
+						any_vassal = { count > 0 }
+					}
+					any_vassal = {
+						count = all
+						opinion = {
+							target = root
+							value >= very_high_positive_opinion
+						}
+					}
+				}
+			}
 		}
+		trigger_else_if = {
+			limit = {
+				OR = {
+					this = scope:talilan_ruler
+					faith = faith:faith_kinnlai_tree # For tt purposes
+				}
+			}
+			has_relation_friend = scope:shelepinn_ruler
+			is_allied_to = scope:shelepinn_ruler
+			scope:shelepinn_ruler= {
+				trigger_if = {
+					limit = {
+						any_vassal = { count > 0 }
+					}
+					any_vassal = {
+						count = all
+						opinion = {
+							target = root
+							value >= very_high_positive_opinion
+						}
+					}
+				}
+			}
+		}
+		trigger_else = {} # This is needed for errors
+
+		# Your side likes you
 		trigger_if = {
 			limit = {
-				has_title = title:k_talilan
-				NOT = { has_title = title:d_gard_kinn }
+				any_vassal = { count > 0 }
 			}
-			has_relation_friend = title:d_gard_kinn.holder
-		}
-		trigger_if = {
-			limit = {
-				has_title = title:k_usakan
-				NOT = { has_title = title:k_talilan }
+			any_vassal = {
+				count = all
+				opinion = {
+					target = root
+					value >= very_high_positive_opinion
+				}
 			}
-			is_allied_to = title:k_talilan.holder
-		}
-		trigger_if = {
-			limit = {
-				has_title = title:k_talilan
-				NOT = { has_title = title:d_gard_kinn }
-			}
-			is_allied_to = title:d_gard_kinn.holder
 		}
 	}
 
 	cost = {
+		gold = 500
+		piety = major_piety_value
+		prestige = major_prestige_value 
 	}
 
 	effect = {
+		# Save scopes pt 2
+		#Set scopes for Tulanal side. (by Trig)
+		# Checks first for landed house head, then for k_talilan, then for proper-faith culture head, and finally for proper-faith strongest indep ruler. If none, you need to make one
+		if = {
+			limit = { # House head
+				house:house_tulanal.house_head ?= {
+					is_landed = yes
+				}
+			}
+			house:house_tulanal.house_head ?= {
+				save_scope_as = talilan_ruler
+			}
+		}
+		else_if = {
+			limit = { # King of Talilan
+				title:k_talilan.holder ?= {
+					is_elf = yes
+				}
+			}
+			title:k_talilan.holder ?= {
+				save_scope_as = talilan_ruler
+			}
+		}
+		else_if = {
+			limit = { # Culture head of Kinn-lai
+				culture:kinnlai.culture_head ?= {
+					faith = faith:faith_kinnlai_tree
+				}
+			}
+			culture:kinnlai.culture_head ?= {
+				save_scope_as = talilan_ruler
+			}
+		}
+		else_if = {
+			limit = { # Top Faith ruler
+				faith:faith_kinnlai_tree = {
+					any_faith_ruler = { # Jank a top ruler for faith
+						is_independent_ruler = yes
+						save_temporary_scope_as = faith_head
+						faith = {
+							any_faith_ruler = {
+								domain_size > scope:faith_head.domain_size
+								count = 0
+							}
+						}
+					}
+				}
+			}
+			faith:faith_kinnlai_tree = {
+				ordered_faith_ruler = { # Jank a top ruler for faith
+					limit = { is_independent_ruler = yes }
+					order_by = domain_size
+					save_scope_as = talilan_ruler
+				}
+			}
+		}
+		else = { # Find someone to unite with first
+			custom_tooltip = {
+				text = landed_tree_faith_ruler
+			}
+		}
+
+		#Set scope for Shelepinn side. (By Trig)
+		# Checks first for landed house head, then for k_usakan, then d_gard_kinn, then for proper-faith culture head, and finally for proper-faith strongest indep ruler. If none, you need to make one
+		if = {
+			limit = { # House head
+				house:house_shelepinn.house_head ?= {
+					is_landed = yes
+				}
+			}
+			house:house_shelepinn.house_head ?= {
+				save_scope_as = shelepinn_ruler
+			}
+		}
+		else_if = {
+			limit = { # King of Talilan
+				title:k_usakan.holder ?= {
+					is_elf = yes
+				}
+			}
+			title:k_usakan.holder ?= {
+				save_scope_as = shelepinn_ruler
+			}
+		}
+		else_if = {
+			limit = { # Lord of Gard Kinn
+				title:d_gard_kinn.holder ?= {
+					is_elf = yes
+				}
+			}
+			title:d_gard_kinn.holder ?= {
+				save_scope_as = shelepinn_ruler
+			}
+		}
+		else_if = {
+			limit = { # Culture head of Kinn-lai
+				culture:kinnlai.culture_head ?= {
+					faith = faith:faith_kinnlai_martial
+				}
+			}
+			culture:kinnlai.culture_head ?= {
+				save_scope_as = shelepinn_ruler
+			}
+		}
+		else_if = {
+			limit = { # Top Faith ruler
+				faith:faith_kinnlai_martial = {
+					any_faith_ruler = { # Jank a top ruler for faith
+						is_independent_ruler = yes
+						save_temporary_scope_as = faith_head
+						faith = {
+							any_faith_ruler = {
+								domain_size > scope:faith_head.domain_size
+								count = 0
+							}
+						}
+					}
+				}
+			}
+			faith:faith_kinnlai_martial = {
+				ordered_faith_ruler = { # Jank a top ruler for faith
+					limit = { is_independent_ruler = yes }
+					order_by = domain_size
+					save_scope_as = shelepinn_ruler
+				}
+			}
+		}
+		else = { # Find someone to unite with first
+			custom_tooltip = {
+				text = landed_martial_faith_ruler
+			}
+		}
+
+		#Get Empire title
+		create_title_and_vassal_change = {
+			type = created
+			save_scope_as = title_change
+			add_claim_on_loss = yes
+		}
+		title:e_kinnlai = { # Historical Host of the Kinn-lai
+			change_title_holder = {
+				holder = root
+				change = scope:title_change
+			}
+		}
+		resolve_title_and_vassal_change = scope:title_change
+		hidden_effect = {
+			if = {
+				limit = { highest_held_title_tier < tier_hegemony }
+				set_primary_title_to = title:e_kinnlai
+			}
+		}
+
 		if = {
 			limit = {
-				NOT = { has_title = title:k_talilan }
+				OR = {
+					this = scope:shelepinn_ruler
+					faith = faith:faith_kinnlai_martial
+				}
 			}
-			title:k_talilan.holder = { save_scope_as = kinnlai_ruler }
-			get_title = title:k_talilan
-			title:d_tauldol.holder = {
+			scope:talilan_ruler ?= { 
+				save_scope_as = kinnlai_ruler
 				create_title_and_vassal_change = {
 					type = swear_fealty
 					save_scope_as = change
@@ -5343,10 +5721,12 @@ decision_reunite_kinnlai = {
 		}
 		else_if = {
 			limit = { 
-				title:d_gard_kinn.holder = { is_independent_ruler = yes } 
-				NOT = { exists = title:k_usakan.holder }
+				OR = {
+					this = scope:talilan_ruler
+					faith = faith:faith_kinnlai_tree
+				}
 			}
-			title:d_gard_kinn.holder = {
+			scope:shelepinn_ruler ?= {
 				save_scope_as = kinnlai_ruler
 				create_title_and_vassal_change = {
 					type = swear_fealty
@@ -5367,22 +5747,7 @@ decision_reunite_kinnlai = {
 				save_scope_as = kinnlai_ruler
 			}
 		}
-		else = {
-			title:k_usakan.holder = { save_scope_as = kinnlai_ruler }
-			get_title = title:k_usakan
-			title:d_gard_kinn.holder = {
-				create_title_and_vassal_change = {
-					type = swear_fealty
-					save_scope_as = change
-					add_claim_on_loss = yes
-				}
-				change_liege = {
-					liege = root
-					change = scope:change
-				}
-				resolve_title_and_vassal_change = scope:change
-			}
-		}
+	
 		root.dynasty = { add_dynasty_prestige = 1000 }
 
 		root.capital_province ?= {
@@ -5409,29 +5774,14 @@ decision_reunite_kinnlai = {
 			create_artifact_pendant_of_tainalann_effect = { OWNER = root }
 		}
 
-		create_title_and_vassal_change = {
-			type = created
-			save_scope_as = title_change
-			add_claim_on_loss = yes
-		}
-		title:e_kinnlai = { # Historical Host of the Kinn-lai
-			change_title_holder = {
-				holder = root
-				change = scope:title_change
-			}
-		}
-		resolve_title_and_vassal_change = scope:title_change
-		if = {
-			limit = { NOT = { has_title = title:h_utter_south } }
-			set_primary_title_to = title:e_kinnlai
-		}
-
 		title:k_talilan = { set_de_jure_liege_title = title:e_usakan }
 
         add_to_global_variable_list = {
 			name = unavailable_unique_decisions
 			target = flag:decision_reunite_kinnlai
 		}
+
+		add_elven_hope_effect = { VALUE = monumental_elven_hope_value HOPE_EFFECT = effect_elven_hope_kinnlai_reunited }
 
 		trigger_event = elven.0750
 	}
@@ -5485,29 +5835,85 @@ decision_utter_south_elven = {
 
 	# IS VALID
 	is_valid = {
-		legitimacy_level >= 5
-		prestige_level >= 5
-		piety_level >= 5
+        has_title = title:e_kinnlai
 
-		custom_tooltip = { # Hope 5 or higher
-			text = hope_5_or_higher_tt
-			has_highest_hope = yes
+		# No non-tributized independent rulers
+		custom_tooltip = {
+			text = no_independent_rulers_in_usakan
+			any_county_in_region = {
+				region = middleearth_uttersouth_usakan
+				OR = {
+					holder.top_overlord ?= root
+					holder.top_liege ?= title:k_wastelands.holder
+				}
+				count = all
+			}
 		}
 
-        has_title = title:e_mumakan
-        has_title = title:e_shayn
-        has_title = title:e_usakan
-
-        OR = {
-			culture ?= culture:kinnlai
-			culture ?= { any_parent_culture_or_above = { this = culture:kinnlai } }
+		custom_tooltip = {
+			text = no_independent_rulers_in_mumakan
+			any_county_in_region = {
+				region = middleearth_uttersouth_mumakan
+				OR = {
+					holder.top_overlord ?= root
+					holder.top_liege ?= title:k_wastelands.holder
+				}
+				count = all
+			}
 		}
+
+		custom_tooltip = {
+			text = no_independent_rulers_in_shayn
+			any_county_in_region = {
+				region = middleearth_uttersouth_shayn
+				OR = {
+					holder.top_overlord ?= root
+					holder.top_liege ?= title:k_wastelands.holder
+				}
+				count = all
+			}
+		}
+
+		# Hold all Elven homelands
+		custom_tooltip = {
+			text = hold_all_elven_homelands_in_usakan
+			any_county_in_region = {
+				region = middleearth_uttersouth_usakan
+				trigger_if = {
+					limit = { has_county_modifier = elven_homeland_county_modifier }
+					holder.top_liege = root
+				}
+				count = all
+			}
+		}
+
+		custom_tooltip = {
+			text = hold_all_elven_homelands_in_mumakan
+			any_county_in_region = {
+				region = middleearth_uttersouth_mumakan
+				trigger_if = {
+					limit = { has_county_modifier = elven_homeland_county_modifier }
+					holder.top_liege = root
+				}
+				count = all
+			}
+		}
+
+		# Ardinak/Dilsulinol Cleansed
 		custom_tooltip = {
 			text = unify_utter_south_ardinak_cleansed
 			is_target_in_global_variable_list = {
 				name = unavailable_unique_decisions
 				target = flag:decision_delve_ardinak
 			}
+		}
+
+		legitimacy_level >= 5
+		prestige_level >= 5
+		piety_level >= 5
+		custom_tooltip = { # Hope 5 or higher
+			text = hope_5_or_higher_tt
+			has_highest_hope = yes
 		}
 	}
 
@@ -5524,7 +5930,9 @@ decision_utter_south_elven = {
 
 	# EFFECT
 	effect = {
-		title:h_utter_south = { lotr_move_dejure_capital_effect = { COUNTY = c_ardinak } }
+		hidden_effect = { 
+			title:h_utter_south = { lotr_move_dejure_capital_effect = { COUNTY = c_ardinak } } 
+		}
         #Create the title and make it primary
 		create_title_and_vassal_change = {
 			type = created
