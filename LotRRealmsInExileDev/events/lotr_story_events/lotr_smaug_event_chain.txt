@@ -21,25 +21,35 @@ smaug_event_chain.0001 = {	# Firing event for all effected rulers
 		title:k_durins_dummy = {
 			copy_title_history = title:k_durins_folk
 		}
-
+		
 		# Erebor
-		title:k_erebor.holder ?= { trigger_event = smaug_event_chain.0100 }
+		title:k_erebor = { add_to_list = smaug_desolated_titles }
 		title:d_erebor = {
-			every_de_jure_county_holder = {
-				trigger_event = smaug_event_chain.0100 #Smaug sacks rulers holding
-			}
+			add_to_list = smaug_desolated_titles
+			every_de_jure_county = { add_to_list = smaug_desolated_counties }
 		}
-		# Dalelands
-		title:d_dalelands.holder ?= { trigger_event = smaug_event_chain.0100 }
-		title:c_dale.holder ?= { trigger_event = smaug_event_chain.0100 }
-		title:c_felagsgard.holder ?= { trigger_event = smaug_event_chain.0100 }
-		title:c_lang_marish.holder = { trigger_event = smaug_event_chain.0100 }
+
+		# Dale
+		title:d_dalelands = { add_to_list = smaug_desolated_titles }
+		title:c_dale = { add_to_list = smaug_desolated_counties }
+		title:c_felagsgard = { add_to_list = smaug_desolated_counties }
+		title:c_lang_marish = { add_to_list = smaug_desolated_counties }
+
 
 		# Drakkenvast
-		title:d_drakkenvast.holder ?= { trigger_event = smaug_event_chain.0100 }
-		title:c_steinholl.holder = { trigger_event = smaug_event_chain.0100 }
-		title:c_orlmond.holder = { trigger_event = smaug_event_chain.0100 }
-		title:c_vargurat.holder = { trigger_event = smaug_event_chain.0100 }
+		title:d_drakkenvast = { add_to_list = smaug_desolated_titles }
+		title:c_vargurat = { add_to_list = smaug_desolated_counties }
+		title:c_steinholl = { add_to_list = smaug_desolated_counties }
+		title:c_orlmond = { add_to_list = smaug_desolated_counties }
+		
+		title:k_durins_folk.holder = { save_scope_as = durin_leader }
+		
+		every_in_list = {
+			list = smaug_desolated_counties
+			holder = { trigger_event = smaug_event_chain.0100 } #Smaug sacks rulers holding
+		}
+		
+		add_elven_hope_global_effect = { VALUE = medium_elven_hope_loss HOPE_EFFECT = effect_elven_hope_global_evil_increased }
 	}
 }
 
@@ -85,26 +95,10 @@ smaug_event_chain.0100 = {
 
 	trigger = {
 		is_wastelands = no
-		is_independent_ruler = yes
+		any_held_title = { is_in_list = smaug_desolated_counties }
 	}
 
 	immediate = {
-		# Erebor
-		title:d_erebor = {
-			every_de_jure_county = { add_to_list = smaug_desolated_counties }
-		}
-
-		# Dale
-		title:c_dale = { add_to_list = smaug_desolated_counties }
-		title:c_felagsgard = { add_to_list = smaug_desolated_counties }
-		title:c_lang_marish = { add_to_list = smaug_desolated_counties }
-
-
-		# Drakkenvast
-		title:c_vargurat = { add_to_list = smaug_desolated_counties }
-		title:c_steinholl = { add_to_list = smaug_desolated_counties }
-		title:c_orlmond = { add_to_list = smaug_desolated_counties }
-
 		root.primary_title = { save_scope_as = primary_title }
 
 		every_courtier = {
@@ -178,14 +172,48 @@ smaug_event_chain.0100 = {
 		custom_tooltip = smaug_event_chain.0100.a.tt
 
 		hidden_effect = { #Handle Tributaries/Destroying Duke/Kingdom titles
-			every_tributary = { #Free all tributaries
-				limit = { suzerain = root }
-				end_tributary = yes
+			if = { #Rulers without land outside the Smaug zone lose all subjects
+				limit = {
+					NOT = {
+						any_held_title = {
+							tier = tier_county
+							NOT = { is_in_list = smaug_desolated_counties }
+						}
+					}
+				}
+				
+				every_tributary = { #Free all tributaries
+					limit = { suzerain = root }
+					end_tributary = yes
+				}
+				
+				every_vassal = {
+					create_title_and_vassal_change = {
+						type = independency
+						save_scope_as = change
+						add_claim_on_loss = yes
+					}
+					becomes_independent = {
+						change = scope:change
+					}
+					resolve_title_and_vassal_change = scope:change
+				}
+			}
+
+			every_held_title = {
+				limit = {
+					tier > tier_county
+					is_in_list = smaug_desolated_titles # You only lose what's in or around Erebor
+				}
+				holder = { destroy_title = prev }
 			}
 
 			every_in_list = {
 				list = smaug_desolated_counties
-			#	limit = { this.holder.top_liege = root }
+				limit = {
+					holder = root
+					tier = tier_county
+				}
 
 				every_county_province = {
 					limit = { is_county_capital = no }
@@ -270,14 +298,6 @@ smaug_event_chain.0100 = {
 					}
 				}
 			}
-
-			every_held_title = {
-				limit = {
-					tier > tier_county
-					is_in_list = smaug_desolated_counties # You only lose what's in Erebor
-				}
-				holder = { destroy_title = prev }
-			}
 		}
 
 		if = { #Major News
@@ -292,8 +312,6 @@ smaug_event_chain.0100 = {
 			}
 		}
 
-		add_elven_hope_global_effect = { VALUE = medium_elven_hope_loss HOPE_EFFECT = effect_elven_hope_global_evil_increased }
-
 		if = { #Handling Girion of Dale effects
 			limit = {
 				dynasty = dynasty:dynasty_aivadiuria
@@ -306,7 +324,7 @@ smaug_event_chain.0100 = {
 					is_ai = yes
 					title:c_esgaroth.holder = { is_ai = yes }
 				}
-				depose = yes
+				#depose = yes
 				every_close_or_extended_family_member = {
 					limit = {
 						is_landed = no
@@ -322,7 +340,6 @@ smaug_event_chain.0100 = {
 					is_ai = no
 					title:c_esgaroth.holder = { is_ai = yes }
 				}
-				set_designated_heir_unsafe = title:c_harbjarg.holder
 				trigger_event = { #Player Girion gets option to play lake town
 					id = smaug_event_chain.0402
 					days = 3
@@ -334,15 +351,12 @@ smaug_event_chain.0100 = {
 		if = {
 			limit = {
 				has_ep3_dlc_trigger = yes
+				OR = {
+					is_ai = no
+					this = scope:durin_leader
+				}
 				NOT = {
-					any_county = {
-						holder.top_liege = root
-						NOT = { is_in_list = smaug_desolated_counties }
-					}
-					AND = {
-						is_ai = yes
-						dynasty = dynasty:dynasty_aivadiuria
-					}
+					any_county = { holder = root }
 				}
 			}
 			hidden_effect = {
@@ -353,12 +367,12 @@ smaug_event_chain.0100 = {
 
 				scope:new_landless_adventurer_title ?= {
 					set_coa = holder.house
-					copy_title_history = title:k_durins_dummy
 					if = {
 						limit = {
 							root.dynasty = dynasty:dynasty_durin
-							root = { is_dynast = yes }
+							root = scope:durin_leader
 						}
+						copy_title_history = title:k_durins_dummy
 						set_title_name = Thror_camp_name
 					}
 				}
@@ -414,9 +428,12 @@ smaug_event_chain.0100 = {
 				list = courtiers_list
 				limit = {
 					is_landed = no
-					NOT = { host = root }
+					NOR = {
+						host = root
+						host = scope:durin_leader
+					}
 				}
-				root = {
+				scope:durin_leader = {
 					if = {
 						limit = { is_landless_adventurer = yes }
 						add_courtier = prev
@@ -852,10 +869,6 @@ smaug_event_chain.0106 = {
 	hidden = yes
 
 	immediate = {
-		add_to_global_variable_list = {
-			name = unavailable_unique_decisions
-			target = flag:decision_can_enter_moria
-		}
 		if = { #Effects for AI
 			limit = {
 				is_ai = yes
@@ -2808,7 +2821,7 @@ smaug_event_chain.0129 = { # Event if Erebor is nuked while Thror has holdings e
 
 	option = { # Just you wait, dragon... Vengeance will be ours
 		name = smaug_event_chain.0129.a
-		add_legitimacy = minor_legitimacy_gain
+		add_legitimacy_effect = { LEGITIMACY = minor_legitimacy_gain }
 		custom_tooltip = smaug_event_chain.0129.a.tt
 	}
 	option = { # Into exile I will go.
@@ -2816,14 +2829,31 @@ smaug_event_chain.0129 = { # Event if Erebor is nuked while Thror has holdings e
 		custom_tooltip = smaug_event_chain.0129.b.tt
 		trigger = {
 			has_ep3_dlc_trigger = yes
+			root.dynasty = dynasty:dynasty_durin
+			root = { is_dynast = yes }
 		}
 		hidden_effect = {
 			every_held_title = {
-				limit = {
-					tier > tier_county
-				}
+				limit = { tier > tier_county }
 				holder = { destroy_title = prev }
 			}
+			
+			create_title_and_vassal_change = {
+				type = created
+				save_scope_as = title_change
+				add_claim_on_loss = no
+			}
+			
+			every_held_title = {
+				limit = { tier = tier_county }
+				change_title_holder = {
+					holder = root.player_heir
+					change = scope:title_change
+				}
+			}
+			
+			resolve_title_and_vassal_change = scope:title_change
+			
 			create_landless_adventurer_title_effect = {
 				REASON = flag:wanderer
 				FLAVOR_CHAR = root
@@ -2832,13 +2862,7 @@ smaug_event_chain.0129 = { # Event if Erebor is nuked while Thror has holdings e
 			scope:new_landless_adventurer_title ?= {
 				set_coa = holder.house
 				copy_title_history = title:k_durins_dummy
-				if = {
-					limit = {
-						root.dynasty = dynasty:dynasty_durin
-						root = { is_dynast = yes }
-						}
-					set_title_name = Thror_camp_name
-				}
+				set_title_name = Thror_camp_name
 			}
 
 			trigger_event = {
