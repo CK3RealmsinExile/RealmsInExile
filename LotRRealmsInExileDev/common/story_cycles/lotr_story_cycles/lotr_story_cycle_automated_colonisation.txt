@@ -1,0 +1,219 @@
+﻿story_cycle_automated_colonisation = {
+	
+	on_setup = {
+		set_variable = {
+			name = title_to_colonise
+			value = story_owner.var:automated_colonisation_for_title
+		}
+		story_owner = { remove_variable = automated_colonisation_for_title }
+
+		switch = {
+			trigger = var:title_to_colonise.tier
+			tier_county = { set_variable = { name = title_tier_to_colonise value = flag:county } }
+			tier_duchy = { set_variable = { name = title_tier_to_colonise value = flag:duchy } }
+			tier_kingdom = { set_variable = { name = title_tier_to_colonise value = flag:kingdom } }
+			tier_empire = { set_variable = { name = title_tier_to_colonise value = flag:empire } }
+			tier_hegemony = { set_variable = { name = title_tier_to_colonise value = flag:hegemony } }
+		}
+	}
+
+	on_end = {
+	}
+
+	on_owner_death = {
+		# end_story = yes
+	}
+
+	effect_group = { # Remove blockers - WAI
+		months = 3
+		trigger = { #ai_attempt_to_build_building_effect 
+			has_variable = title_to_colonise
+		}
+		triggered_effect = {
+			effect = {
+				story_owner = { save_scope_as = original_title_holder }
+				create_character = {
+					employer = root.story_owner
+					culture = root.story_owner.culture
+					faith = root.story_owner.faith
+					gender_female_chance = 0
+					save_scope_as = temporary_title_holder
+				}
+				if = {
+					limit = { var:title_tier_to_colonise = flag:county }
+					var:title_to_colonise = {
+						title_province = {
+							if = {
+								limit = { 
+									has_building_with_flag = obstacle
+									NOT = { has_construction_with_flag = obstacle }
+								}
+							}
+							lotr_wastelands_automation_transfer_to_build_building_effect = {
+								COUNTY = prev
+								HOLDER = scope:temporary_title_holder
+							}
+
+							prev.holder = { ai_attempt_to_build_building_effect = yes }
+
+							lotr_wastelands_automation_transfer_to_build_building_effect = {
+								COUNTY = prev
+								HOLDER = root.story_owner
+							}
+						}
+					}
+				}
+				else_if = {
+					limit = { var:title_tier_to_colonise != flag:county }
+					var:title_to_colonise = {
+						every_de_jure_county = {
+							limit = {
+								holder = root.story_owner
+								title_province = {
+									has_holding_type = settlement_holding
+									has_building_with_flag = obstacle
+									NOT = { has_construction_with_flag = obstacle }
+								}
+							}
+							save_scope_as = scoped_county
+							scope:temporary_title_holder = {
+								trigger_event = wastelands.9999
+								trigger_event = { id = wastelands.9998 days = 1 }
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+	
+	effect_group = { # Colonise a wastelands county + Upgrade holding 
+		months = 18
+		triggered_effect = { #Colonise wastelands county - WAI
+			trigger = {
+				story_owner = {
+					below_settlement_limit = yes
+					gold >= colonise_cost_val
+					trigger_if = {
+						limit = {
+							is_elf = yes
+						}
+						has_medium_hope_or_higher = yes
+					}
+				}
+			}
+			effect = {
+				if = {
+					limit = { var:title_tier_to_colonise = flag:county }
+					var:title_to_colonise = { save_scope_as = county_to_colonise }
+				}
+				else = {
+					var:title_to_colonise = {
+						random_de_jure_county = {
+							limit = {
+								is_wastelands = yes
+								NOR = {
+									has_county_modifier = block_settlement_ability
+									trigger_if = {
+										limit = { title:c_throne_of_erebor.title_province = { has_building = smaug } }
+										title_province = { has_building = smaug_desolation }
+									}
+								}
+								any_title_to_title_neighboring_and_across_water_county = { 
+									holder = root.story_owner.top_liege
+								}
+							}
+							save_scope_as = county_to_colonise
+						}
+					}
+				}
+				story_owner = {
+					send_interface_message = {
+						type = send_interface_message_good
+						title = INTERFACE_TOAST_COUNTY_COLONISED
+						left_icon = root.story_owner
+						right_icon = scope:county_to_colonise
+						ai_colonisation_effect = { WASTELANDS = scope:county_to_colonise ROOT_SCOPE = root.story_owner }
+					}
+					correct_wastelands_tracker = yes
+				}
+			}
+		}
+		triggered_effect = { #Upgrade settlement holding - WIP
+			trigger = {
+
+			}
+			effect = {
+				
+			}
+		}
+	}
+
+	effect_group = { #Settlement Buildings - WIP
+		months = 6
+		trigger = {
+			OR = {
+				is_target_in_global_variable_list = {
+					name = lotr_WAC_building_stockade_settings
+					target = scope:player_value
+				}
+				is_target_in_global_variable_list = {
+					name = lotr_WAC_building_trading_outposts_settings
+					target = scope:player_value
+				}
+				is_target_in_global_variable_list = {
+					name = lotr_WAC_building_local_militia_settings
+					target = scope:player_value
+				}
+				is_target_in_global_variable_list = {
+					name = lotr_WAC_building_construction_guilds_settings
+					target = scope:player_value
+				}
+			}
+		}
+		triggered_effect = {  #Stockade
+			trigger = {
+				is_target_in_global_variable_list = {
+					name = lotr_WAC_building_stockade_settings
+					target = scope:player_value
+				}
+			}
+			effect = {
+
+			}
+		}
+		triggered_effect = { #Trading Outposts
+			trigger = {
+				is_target_in_global_variable_list = {
+					name = lotr_WAC_building_trading_outposts_settings
+					target = scope:player_value
+				}
+			}
+			effect = {
+				
+			}
+		}
+		triggered_effect = { #Local Militia
+			trigger = {
+				is_target_in_global_variable_list = {
+					name = lotr_WAC_building_local_militia_settings
+					target = scope:player_value
+				}
+			}
+			effect = {
+				
+			}
+		}
+		triggered_effect = { #Construction Guilds
+			trigger = {
+				is_target_in_global_variable_list = {
+					name = lotr_WAC_building_construction_guilds_settings
+					target = scope:player_value
+				}
+			}
+			effect = {
+				
+			}
+		}
+	}
+}
