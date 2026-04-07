@@ -1,0 +1,840 @@
+﻿story_cycle_automated_colonisation = {
+	
+	on_setup = {
+		set_variable = {
+			name = title_to_colonise
+			value = story_owner.var:automated_colonisation_for_title
+		}
+		story_owner = { remove_variable = automated_colonisation_for_title }
+
+		switch = {
+			trigger = var:title_to_colonise.tier
+			tier_county = { set_variable = { name = title_tier_to_colonise value = flag:county } }
+			tier_duchy = { set_variable = { name = title_tier_to_colonise value = flag:duchy } }
+			tier_kingdom = { set_variable = { name = title_tier_to_colonise value = flag:kingdom } }
+			tier_empire = { set_variable = { name = title_tier_to_colonise value = flag:empire } }
+			tier_hegemony = { set_variable = { name = title_tier_to_colonise value = flag:hegemony } }
+		}
+	}
+	effect_group = { # Remove blockers - WAI
+		months = 3
+		trigger = { 
+			has_variable = title_to_colonise
+		}
+		triggered_effect = {
+			effect = {
+				story_owner = { save_scope_as = original_title_holder }
+				create_character = {
+					employer = root.story_owner
+					culture = root.story_owner.culture
+					faith = root.story_owner.faith
+					gender_female_chance = 0
+					save_scope_as = temporary_title_holder
+				}
+				if = {
+					limit = { var:title_tier_to_colonise = flag:county }
+					var:title_to_colonise = {
+						if = {
+							limit = { 
+								title_province = {
+									has_building_with_flag = obstacle
+									NOT = { has_construction_with_flag = obstacle }
+								}
+							}
+							save_scope_as = scoped_county
+						}
+					}
+				}
+				else_if = {
+					limit = { var:title_tier_to_colonise != flag:county }
+					var:title_to_colonise = {
+						every_de_jure_county = {
+							limit = {
+								holder = root.story_owner
+								title_province = {
+									has_holding_type = settlement_holding
+									has_building_with_flag = obstacle
+									NOT = { has_construction_with_flag = obstacle }
+								}
+							}
+							add_to_list = settlement_counties
+							save_scope_as = scoped_county
+						}
+					}
+				}
+				every_in_list = {
+					list = settlement_counties
+					save_scope_as = scoped_county
+					scope:temporary_title_holder = { trigger_event = wastelands.9999 }
+				}
+				scope:temporary_title_holder = { trigger_event = wastelands.9998 }
+			}
+		}
+	}
+	
+	effect_group = { # Colonise a wastelands county + Upgrade holding
+		months = 6
+		triggered_effect = { #Colonise wastelands county - WAI
+			trigger = {
+				story_owner = {
+					gold >= lotr_WAC_gold_limit_value
+					gold >= colonise_cost_val
+					below_settlement_limit = yes
+					trigger_if = {
+						limit = {
+							is_elf = yes
+						}
+						has_medium_hope_or_higher = yes
+					}
+				}
+			}
+			effect = {
+				if = {
+					limit = { var:title_tier_to_colonise = flag:county }
+					var:title_to_colonise = { save_scope_as = county_to_colonise }
+				}
+				else = {
+					var:title_to_colonise = {
+						random_de_jure_county = {
+							limit = {
+								is_wastelands = yes
+								any_neighboring_county = { 
+									OR = {
+										holder = { any_liege_or_above = { this = root.story_owner } }
+										holder = root.story_owner
+									}
+								}
+								NOR = {
+									has_county_modifier = block_settlement_ability
+									trigger_if = {
+										limit = { title:c_throne_of_erebor.title_province = { has_building = smaug } }
+										title_province = { has_building = smaug_desolation }
+									}
+								}
+							}
+							save_scope_as = county_to_colonise
+						}
+					}
+				}
+				if = {
+					limit = { 
+						exists = scope:county_to_colonise
+					}
+					story_owner = {
+						send_interface_message = {
+							type = send_interface_message_good
+							title = INTERFACE_TOAST_COUNTY_COLONISED
+							left_icon = root.story_owner
+							right_icon = scope:county_to_colonise
+							ai_colonisation_effect = { WASTELANDS = scope:county_to_colonise ROOT_SCOPE = root.story_owner }
+						}
+						correct_wastelands_tracker = yes
+					}
+				}
+			}
+		}
+		triggered_effect = { #Upgrade settlement holding | TIER 2 | - WAI
+			trigger = {
+				story_owner = {
+					gold >= lotr_WAC_gold_limit_value
+					gold > 150
+				}
+				lotr_WAC_basic_holding_trigger = { 
+					HOLDING_LEVEL = 01
+				}
+			}
+			effect = {
+				lotr_WAC_build_settlement_building_effect = {
+					BUILDING = settlement_02
+					GOLD_AMOUNT = 150
+					PRESTIGE_AMOUNT = 0
+				}
+			}
+		}
+		triggered_effect = { #Upgrade settlement holding | TIER 3 |- WAI
+			trigger = {
+				story_owner = {
+					gold >= lotr_WAC_gold_limit_value
+					gold > 200
+				}
+				lotr_WAC_basic_holding_trigger = { 
+					HOLDING_LEVEL = 02
+				}
+			}
+			effect = {
+				lotr_WAC_build_settlement_building_effect = {
+					BUILDING = settlement_03
+					GOLD_AMOUNT = 200
+					PRESTIGE_AMOUNT = 0
+				}
+			}
+		}
+	}
+
+	effect_group = { #Settlement Buildings - WAI
+		years = 1
+		trigger = {
+			story_owner = {
+				any_owned_story = {
+					story_type = story_cycle_automated_colonisation_settings
+					OR = {
+						has_variable = lotr_WAC_building_stockade_settings
+						has_variable = lotr_WAC_building_trading_outposts_settings
+						has_variable = lotr_WAC_building_local_militia_settings
+						has_variable = lotr_WAC_building_construction_guilds_settings
+					}
+				}
+			}
+		}
+		triggered_effect = {  #Stockade
+			trigger = {
+				story_owner = {
+					gold >= lotr_WAC_gold_limit_value
+					trigger_if = {
+						limit = { has_government = tribal_government }
+						gold > 50
+						prestige > 200
+					}
+					trigger_else = {
+						gold > 75
+					}
+					any_owned_story = {
+						story_type = story_cycle_automated_colonisation_settings
+						has_variable = lotr_WAC_building_stockade_settings
+					}
+				}
+				lotr_WAC_basic_building_trigger = yes
+			}
+			effect = {
+				if = {
+					limit = { story_owner = { has_government = tribal_government } }
+					lotr_WAC_build_settlement_building_effect = {
+						BUILDING = tribal_stockades_01
+						GOLD_AMOUNT = 50
+						PRESTIGE_AMOUNT = 200
+					}
+				}
+				else = {
+					lotr_WAC_build_settlement_building_effect = {
+						BUILDING = stockades_01
+						GOLD_AMOUNT = 75
+						PRESTIGE_AMOUNT = 0
+					}
+				}
+			}
+		}
+		triggered_effect = { #Trading Outposts
+			trigger = {
+				story_owner = {
+					gold >= lotr_WAC_gold_limit_value
+					trigger_if = {
+						limit = { has_government = tribal_government }
+						gold > 50
+						prestige > 200
+					}
+					trigger_else = {
+						gold > 75
+					}
+					any_owned_story = {
+						story_type = story_cycle_automated_colonisation_settings
+						has_variable = lotr_WAC_building_trading_outposts_settings
+					}
+				}
+				lotr_WAC_basic_building_trigger = yes
+			}
+			effect = {
+				if = {
+					limit = { story_owner = { has_government = tribal_government } }
+					lotr_WAC_build_settlement_building_effect = {
+						BUILDING = tribal_trading_outposts_01
+						GOLD_AMOUNT = 50
+						PRESTIGE_AMOUNT = 200
+					}
+				}
+				else = {
+					lotr_WAC_build_settlement_building_effect = {
+						BUILDING = trading_outposts_01
+						GOLD_AMOUNT = 75
+						PRESTIGE_AMOUNT = 0
+					}
+				}
+			}
+		}
+		triggered_effect = { #Local Militia
+			trigger = {
+				story_owner = {
+					gold >= lotr_WAC_gold_limit_value
+					trigger_if = {
+						limit = { has_government = tribal_government }
+						gold > 50
+						prestige > 200
+					}
+					trigger_else = {
+						gold > 75
+					}
+					any_owned_story = {
+						story_type = story_cycle_automated_colonisation_settings
+						has_variable = lotr_WAC_building_local_militia_settings
+					}
+				}
+				lotr_WAC_basic_building_trigger = yes
+			}
+			effect = {
+				if = {
+					limit = { story_owner = { has_government = tribal_government } }
+					lotr_WAC_build_settlement_building_effect = {
+						BUILDING = tribal_local_militia_01
+						GOLD_AMOUNT = 50
+						PRESTIGE_AMOUNT = 200
+					}
+				}
+				else = {
+					lotr_WAC_build_settlement_building_effect = {
+						BUILDING = local_militia_01
+						GOLD_AMOUNT = 75
+						PRESTIGE_AMOUNT = 0
+					}
+				}
+			}
+		}
+		triggered_effect = { #Construction Guilds
+			trigger = {
+				story_owner = {
+					gold >= lotr_WAC_gold_limit_value
+					trigger_if = {
+						limit = { has_government = tribal_government }
+						gold > 50
+						prestige > 200
+					}
+					trigger_else = {
+						gold > 75
+					}
+					any_owned_story = {
+						story_type = story_cycle_automated_colonisation_settings
+						has_variable = lotr_WAC_building_construction_guilds_settings
+					}
+				}
+				lotr_WAC_basic_building_trigger = yes
+			}
+			effect = {
+				if = {
+					limit = { story_owner = { has_government = tribal_government } }
+					lotr_WAC_build_settlement_building_effect = {
+						BUILDING = tribal_construction_guilds_01
+						GOLD_AMOUNT = 50
+						PRESTIGE_AMOUNT = 200
+					}
+				}
+				else = {
+					lotr_WAC_build_settlement_building_effect = {
+						BUILDING = construction_guilds_01
+						GOLD_AMOUNT = 75
+						PRESTIGE_AMOUNT = 0
+					}
+				}
+			}
+		}
+	}
+	
+	effect_group = { #Councillor Task - WAI
+		years = 2
+		trigger = {
+			story_owner = {
+				trigger_if = {
+					limit = { is_orc = yes }
+					any_councillor = { }
+				}
+				trigger_else = {
+					exists = cp:councillor_steward
+				}
+				
+				any_owned_story = {
+					story_type = story_cycle_automated_colonisation_settings
+					has_variable = lotr_WAC_councillor_task
+				}
+			}
+		}
+		triggered_effect = {
+			effect = {
+				if = {
+					limit = { story_owner = { is_orc = yes } }
+					story_owner = {
+						random_councillor = { save_scope_as = stewardship_councillor }
+					}
+				}
+				else = {
+					story_owner = {
+						cp:councillor_steward = { save_scope_as = stewardship_councillor }
+					}
+				}
+				if = {
+					limit = { var:title_tier_to_colonise = flag:county }
+					var:title_to_colonise = {
+						if = {
+							limit = {
+								trigger_if = {
+									limit = { root.story_owner = { has_government = tribal_government } }
+									development_level < 2
+								}
+								trigger_else = {
+									development_level < 3
+								}
+							}
+							save_scope_as = scoped_county
+						}
+					}
+				}
+				else_if = {
+					limit = { var:title_tier_to_colonise != flag:county }
+					var:title_to_colonise = {
+						random_de_jure_county = {
+							limit = {
+								holder = root.story_owner
+								title_province = { has_holding_type = settlement_holding }
+								trigger_if = {
+									limit = { root.story_owner = { has_government = tribal_government } }
+									development_level < 2
+								}
+								trigger_else = {
+									development_level < 3
+								}
+							}
+							save_scope_as = scoped_county
+						}
+					}
+				}
+				if = {
+					limit = { exists = scope:scoped_county }
+					if = {
+						limit = { story_owner = { is_orc = yes } }
+						if = {
+							limit = {
+								exists = cp:councillor_orc_1
+								cp:councillor_orc_1 = scope:stewardship_councillor
+							}
+							scope:stewardship_councillor = {
+								set_council_task = {
+									task_type = task_orc_1_develop_county
+									target = scope:scoped_county.title_province
+								}
+							}
+						}
+						else_if = {
+							limit = {
+								exists = cp:councillor_orc_2
+								cp:councillor_orc_2 = scope:stewardship_councillor
+							}
+							scope:stewardship_councillor = {
+								set_council_task = {
+									task_type = task_orc_2_develop_county
+									target = scope:scoped_county.title_province
+								}
+							}
+						}
+						else_if = {
+							limit = {
+								exists = cp:councillor_orc_3
+								cp:councillor_orc_3 = scope:stewardship_councillor
+							}
+							scope:stewardship_councillor = {
+								set_council_task = {
+									task_type = task_orc_3_develop_county
+									target = scope:scoped_county.title_province
+								}
+							}
+						}
+						else_if = {
+							limit = {
+								exists = cp:councillor_orc_4
+								cp:councillor_orc_4 = scope:stewardship_councillor
+							}
+							scope:stewardship_councillor = {
+								set_council_task = {
+									task_type = task_orc_4_develop_county
+									target = scope:scoped_county.title_province
+								}
+							}
+						}
+					}
+					else = {
+						scope:stewardship_councillor = {
+							set_council_task = {
+								task_type = task_develop_county
+								target = scope:scoped_county.title_province
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+	
+	effect_group = { #Upgrade into proper holding + hand-out to vassal/ruler- WIP
+		years = 5
+		trigger = {
+			trigger_if = {
+				limit = { 
+					trigger_if = {
+						limit = { var:title_tier_to_colonise = flag:county }
+						var:title_to_colonise = { save_temporary_scope_as = target }
+					}
+					trigger_else = {
+						var:title_to_colonise = {
+							any_de_jure_county = {
+								title_province = { has_holding_type = settlement_holding }
+								save_temporary_scope_as = target
+							}
+						}
+					}
+				}
+			}
+			trigger_if = { limit = { story_owner = { save_temporary_scope_as = actor } } }
+			story_owner = {
+				gold >= lotr_WAC_gold_limit_value
+				gold >= feudalize_tribal_holding_interaction_cost
+			}
+			
+			trigger_if = {
+				limit = { var:title_tier_to_colonise = flag:county }
+				var:title_to_colonise = {
+					title_province = {
+						NOT = { has_building_with_flag = obstacle }
+						has_building = settlement_03
+					}
+					trigger_if = {
+						limit = { root.story_owner = { has_government = tribal_government } }
+						development_level >= 2
+					}
+					trigger_else = {
+						development_level >= 3
+					}
+				}
+			}
+			trigger_else = {
+				var:title_to_colonise = {
+					any_de_jure_county = {
+						title_province = {
+							NOT = { has_building_with_flag = obstacle }
+							has_building = settlement_03
+						}
+						trigger_if = {
+							limit = { root.story_owner = { has_government = tribal_government } }
+							development_level >= 2
+						}
+						trigger_else = {
+							development_level >= 3
+						}
+					}
+				}
+			}
+		}
+		triggered_effect = {
+			effect = {
+				story_owner = { save_scope_as = actor }
+				if = {
+					limit = { var:title_tier_to_colonise = flag:county }
+					var:title_to_colonise = {
+						if = {
+							limit = {
+								title_province = {
+									NOT = { has_building_with_flag = obstacle }
+									has_building = settlement_03
+								}
+								trigger_if = {
+									limit = { root.story_owner = { has_government = tribal_government } }
+									development_level >= 2
+								}
+								trigger_else = {
+									development_level >= 3
+								}
+							}
+							save_scope_as = target
+						}
+					}
+				}
+				else_if = {
+					limit = { var:title_tier_to_colonise != flag:county }
+					var:title_to_colonise = {
+						random_de_jure_county = {
+							limit = {
+								holder = root.story_owner
+								title_province = {
+									NOT = { has_building_with_flag = obstacle }
+									has_building = settlement_03
+								}
+								trigger_if = {
+									limit = { root.story_owner = { has_government = tribal_government } }
+									development_level >= 2
+								}
+								trigger_else = {
+									development_level >= 3
+								}
+							}
+							save_scope_as = target
+						}
+					}
+				}
+				
+				if = {
+					limit = {
+						scope:target.title_province = { terrain = halls }
+						story_owner = {
+							any_owned_story = {
+								story_type = story_cycle_automated_colonisation_settings
+								has_variable = lotr_WAC_holding_delving_settings
+							}
+						}
+					}
+					scope:target.title_province = { set_holding_type = dwarven_holding }
+					story_owner = { remove_short_term_gold = feudalize_tribal_holding_interaction_cost }
+				}
+				else_if = {
+					limit = {
+						story_owner = {
+							government_has_flag = government_is_tribal
+							any_owned_story = {
+								story_type = story_cycle_automated_colonisation_settings
+								has_variable = lotr_WAC_holding_tribe_settings
+							}
+						} 
+					}
+					scope:target.title_province = { set_holding_type = tribal_holding }
+					story_owner = { remove_short_term_gold = feudalize_tribal_holding_interaction_cost }
+				}
+				else_if = {
+					limit = {
+						story_owner = {
+							any_owned_story = {
+								story_type = story_cycle_automated_colonisation_settings
+								has_variable = lotr_WAC_holding_castle_settings
+							}
+							OR = {
+								government_has_flag = government_is_feudal
+								government_has_flag = government_is_orcish
+								government_has_flag = government_is_clan
+								government_has_flag = government_is_celestial
+							}
+						}
+					}
+					scope:target.title_province = { set_holding_type = castle_holding }
+					story_owner = { remove_short_term_gold = feudalize_tribal_holding_interaction_cost }
+				}
+				else_if = {
+					limit = {
+						story_owner = {
+							government_has_flag = government_is_elven
+							any_owned_story = {
+								story_type = story_cycle_automated_colonisation_settings
+								has_variable = lotr_WAC_holding_refuge_settings
+							}
+						}
+					}
+					scope:target.title_province = { set_holding_type = elven_holding }
+					story_owner = { remove_short_term_gold = feudalize_tribal_holding_interaction_cost }
+				}
+				else_if = {
+					limit = {
+						story_owner = {
+							OR = {
+								government_has_flag = government_is_hobbit
+								government_has_flag = government_is_oligarchy
+							}
+							any_owned_story = {
+								story_type = story_cycle_automated_colonisation_settings
+								has_variable = lotr_WAC_holding_city_settings
+							}
+						}
+					}
+					scope:target.title_province = { set_holding_type = city_holding }
+					story_owner = { remove_short_term_gold = feudalize_tribal_holding_interaction_cost }
+				}
+				else_if = {
+					limit = {
+						story_owner = { government_has_flag = government_is_nomadic }
+					}
+					scope:target.title_province = { set_holding_type = nomad_holding }
+					story_owner = { remove_short_term_gold = feudalize_tribal_holding_interaction_cost }
+				}
+				else_if = {
+					limit = {
+						story_owner = {
+							any_owned_story = {
+								story_type = story_cycle_automated_colonisation_settings
+								has_variable = lotr_WAC_holding_temple_settings
+							}
+							government_has_flag = government_is_theocracy
+						}
+					}
+					scope:target.title_province = { set_holding_type = church_holding }
+					story_owner = { remove_short_term_gold = feudalize_tribal_holding_interaction_cost }
+				}
+
+				if = {
+					limit = { NOT = { scope:target.title_province = { has_holding_type = settlement_holding } } }
+					if = {
+						limit = {
+							story_owner = {
+								any_owned_story = {
+									story_type = story_cycle_automated_colonisation_settings
+									has_variable = lotr_WAC_generated_ruler_settings
+								}
+							}
+						}
+						story_owner.faith = { save_scope_as = holder_faith }
+						create_character = {
+							age = { 20 30 }
+							location = root.story_owner.capital_province
+							gender_female_chance = holder_faith_dominant_gender_female_chance
+							culture = root.story_owner.culture
+							faith = root.story_owner.faith
+							random_traits = yes
+							save_scope_as = generated_ruler
+							after_creation = { 
+								lotr_character_template_age_traits_effect = {
+									MAX = middle_age
+									MIN = young_age
+								}
+							}
+						}
+						
+						if = {
+							limit = { exists = scope:generated_ruler }
+							create_title_and_vassal_change = {
+								type = granted
+								save_scope_as = change
+								add_claim_on_loss = no
+							}
+							scope:target = {
+								change_title_holder = {
+									holder = scope:generated_ruler
+									change = scope:change
+									take_baronies = yes
+								}
+							}
+							resolve_title_and_vassal_change = scope:change
+
+							story_owner = {
+								send_interface_message = {
+									type = send_interface_message_good
+									title = INTERFACE_TOAST_COUNTY_HANDED_OUT
+									left_icon = scope:target
+									right_icon = scope:generated_ruler
+									show_as_tooltip = {
+										create_title_and_vassal_change = {
+											type = granted
+											save_scope_as = change
+											add_claim_on_loss = no
+										}
+										scope:target = {
+											change_title_holder = {
+												holder = scope:generated_ruler
+												change = scope:change
+												take_baronies = yes
+											}
+										}
+										resolve_title_and_vassal_change = scope:change
+									}
+								}
+							}
+						}
+					}
+					else_if = {
+						limit = {
+							story_owner = {
+								any_owned_story = {
+									story_type = story_cycle_automated_colonisation_settings
+									has_variable = lotr_WAC_vassal_ruler_settings
+								}
+							}
+						}
+						scope:target = {
+							random_neighboring_county = {
+								limit = {
+									NOT = { holder = root.story_owner }
+									holder = { any_liege_or_above = { this = root.story_owner } }
+								}
+								holder = { save_scope_as = vassal_ruler }
+							}
+						}
+
+
+						if = {
+							limit = { exists = scope:vassal_ruler }
+							create_title_and_vassal_change = {
+								type = granted
+								save_scope_as = change
+								add_claim_on_loss = no
+							}
+							scope:target = {
+								change_title_holder = {
+									holder = scope:vassal_ruler
+									change = scope:change
+									take_baronies = yes
+								}
+							}
+							resolve_title_and_vassal_change = scope:change
+								
+							story_owner = {
+								send_interface_message = {
+									type = send_interface_message_good
+									title = INTERFACE_TOAST_COUNTY_HANDED_OUT
+									left_icon = scope:target
+									right_icon = scope:vassal_ruler
+									show_as_tooltip = {
+										create_title_and_vassal_change = {
+											type = granted
+											save_scope_as = change
+											add_claim_on_loss = no
+										}
+										scope:target = {
+											change_title_holder = {
+												holder = scope:vassal_ruler
+												change = scope:change
+												take_baronies = yes
+											}
+										}
+										resolve_title_and_vassal_change = scope:change
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
+	effect_group = {
+		years = 20
+		triggered_effect = {
+			trigger = {
+				trigger_if = {
+					limit = { var:title_tier_to_colonise = flag:county }
+					NOT = {
+						var:title_to_colonise = {
+							OR = {
+								title_province = { has_holding_type = settlement_holding }
+								is_wastelands = yes
+							}
+						}
+					}
+				}
+				trigger_else = {
+					NOT = {
+						var:title_to_colonise = {
+							any_de_jure_county = {
+								OR = {
+									title_province = { has_holding_type = settlement_holding }
+									is_wastelands = yes
+								}
+							}
+						}
+					}
+				}
+			}
+			effect = {
+				end_story = yes
+			}
+		}
+	}
+}
