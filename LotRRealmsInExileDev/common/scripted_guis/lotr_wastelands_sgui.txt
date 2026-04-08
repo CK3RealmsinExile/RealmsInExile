@@ -33,7 +33,6 @@ gui_not_is_province_wastelands = {
 	}
 }
 
-
 gui_is_character_wastelands = {
 	scope = character
 
@@ -95,8 +94,8 @@ gui_can_colonise = {
 			custom_tooltip = {
 				text = block_settlement_smaug_tooltip
 				NOT = { scope:wastelands.county.title_province = { has_building = smaug_desolation } }
-			}				
-		}	 
+			}
+		}
 
 		# Elves need at least hope tier 3 to colonize
 		trigger_if = {
@@ -182,5 +181,318 @@ gui_settlement_count = {
 				var:num_settled_wilderness > 0 
 			}
 		}
+	}
+}
+
+#########################################
+### Wastelands Automated Colonisation ###
+#########################################
+
+lotr_WAC_toggle_story_as_var = {
+	effect = {
+		if = {
+			limit = { NOT = { has_variable = WAC_setttings } }
+			if = {
+				limit = { any_owned_story = { story_type = story_cycle_automated_colonisation_settings } }
+				random_owned_story = {
+					limit = { story_type = story_cycle_automated_colonisation_settings }
+					save_scope_as = story_as_var
+				}
+				set_variable = {
+					name = WAC_setttings
+					value = scope:story_as_var
+				}
+			}
+		}
+		else = {
+			remove_variable = WAC_setttings
+		}
+	}
+}
+
+lotr_WAC_toast_visibility = {
+	saved_scopes = {
+		title_scope
+	}
+	is_shown = {
+		trigger_if = {
+			limit = {
+				exists = scope:title_scope 
+				scope:title_scope.tier = tier_county
+			}
+			scope:title_scope = {
+				NOT = { has_variable = WAC_transfer_effect }
+			}
+		}
+	}
+}
+lotr_WAC_rotation_button = {
+	saved_scopes = {
+		targeted_title
+	}
+
+	is_valid = {
+		NOT = {
+			any_owned_story = {
+				story_type = story_cycle_automated_colonisation
+				has_variable = title_to_colonise
+				var:title_to_colonise = scope:targeted_title
+			}
+		}
+	}
+
+	is_shown = { #Used to get different loc keys for " WASTELANDS_AUTOMATION_TOGGLE_TT_DESC "
+		any_owned_story = {
+			story_type = story_cycle_automated_colonisation
+			has_variable = title_to_colonise
+			var:title_to_colonise = scope:targeted_title
+			has_variable = custom_settings
+		}
+	}
+}
+lotr_WAC_effect_button = {
+	effect = {
+		if = { #If already colonising, stop it
+			limit = { 
+				any_owned_story = {
+					story_type = story_cycle_automated_colonisation
+					has_variable = title_to_colonise
+					var:title_to_colonise = scope:targeted_title
+				}
+			}
+			random_owned_story = {
+				limit = {
+					story_type = story_cycle_automated_colonisation
+					has_variable = title_to_colonise
+					var:title_to_colonise = scope:targeted_title
+				}
+				end_story = yes
+			}
+		}
+		else = { #If not colonising, start automation
+			set_variable = {
+				name = automated_colonisation_for_title
+				value = scope:targeted_title
+			}
+			every_owned_story = {
+				limit = {
+					story_type = story_cycle_automated_colonisation
+					has_variable = title_to_colonise
+					var:title_to_colonise = { save_temporary_scope_as = saved_title_scope }
+					scope:targeted_title = {
+						any_in_de_jure_hierarchy = { this = scope:saved_title_scope }
+					}
+				}
+				end_story = yes
+			}
+			create_story = story_cycle_automated_colonisation
+		}
+	}
+}
+
+lotr_WAC_higher_title_already_selected_tooltip = {
+	saved_scopes = {
+		targeted_title
+	}
+
+	is_valid = {
+		trigger_if = {
+			limit = {
+				scope:targeted_title = {
+					any_de_jure_county = { 
+						OR = {
+							is_wastelands = yes	
+							title_province = { has_holding_type = settlement_holding }
+						}
+					}
+				}
+			}
+			trigger_if = {
+				limit = { owns_story_of_type = story_cycle_automated_colonisation }
+				any_owned_story = {
+					story_type = story_cycle_automated_colonisation
+					has_variable = title_to_colonise
+					trigger_if = {
+						limit = { var:title_to_colonise != scope:targeted_title }
+						NOT = {
+							var:title_to_colonise = {
+								any_in_de_jure_hierarchy = { this = scope:targeted_title }
+							}
+						}
+					}
+				}
+			}
+			trigger_else = {
+				always = yes
+			}
+		}
+		trigger_else = {
+			always = no
+		}
+	}
+}
+
+### Settlement Buildings ###
+
+lotr_WAC_building_stockade_settings = {
+	effect = {
+		lotr_WAC_create_settings_story_cycle = yes
+		lotr_WAC_adjust_settings_effect = { VAR = lotr_WAC_building_stockade_settings }
+	}
+}
+
+lotr_WAC_building_trading_outposts_settings = {
+	effect = {
+		lotr_WAC_create_settings_story_cycle = yes
+		lotr_WAC_adjust_settings_effect = { VAR = lotr_WAC_building_trading_outposts_settings }
+	}
+}
+
+lotr_WAC_building_local_militia_settings = {
+	effect = {
+		lotr_WAC_create_settings_story_cycle = yes
+		lotr_WAC_adjust_settings_effect = { VAR = lotr_WAC_building_local_militia_settings }
+	}
+}
+
+lotr_WAC_building_construction_guilds_settings = {
+	effect = {
+		lotr_WAC_create_settings_story_cycle = yes
+		lotr_WAC_adjust_settings_effect = { VAR = lotr_WAC_building_construction_guilds_settings }
+	}
+}
+
+### Holdings ###
+
+lotr_WAC_holding_castle_settings = {
+	effect = {
+		lotr_WAC_create_settings_story_cycle = yes
+		lotr_WAC_adjust_settings_effect = { VAR = lotr_WAC_holding_castle_settings }
+	}
+}
+
+lotr_WAC_holding_city_settings = {
+	effect = {
+		lotr_WAC_create_settings_story_cycle = yes
+		lotr_WAC_adjust_settings_effect = { VAR = lotr_WAC_holding_city_settings }
+	}
+}
+
+lotr_WAC_holding_temple_settings = {
+	effect = {
+		lotr_WAC_create_settings_story_cycle = yes
+		lotr_WAC_adjust_settings_effect = { VAR = lotr_WAC_holding_temple_settings }
+	}
+}
+
+lotr_WAC_holding_tribe_settings = {
+	effect = {
+		lotr_WAC_create_settings_story_cycle = yes
+		lotr_WAC_adjust_settings_effect = { VAR = lotr_WAC_holding_tribe_settings }
+	}
+}
+
+lotr_WAC_holding_delving_settings = {
+	effect = {
+		lotr_WAC_create_settings_story_cycle = yes
+		lotr_WAC_adjust_settings_effect = { VAR = lotr_WAC_holding_delving_settings }
+	}
+}
+
+lotr_WAC_holding_refuge_settings = {
+	effect = {
+		lotr_WAC_create_settings_story_cycle = yes
+		lotr_WAC_adjust_settings_effect = { VAR = lotr_WAC_holding_refuge_settings }
+	}
+}
+
+### Titles ###
+
+lotr_WAC_generated_ruler_settings = {
+	effect = {
+		lotr_WAC_create_settings_story_cycle = yes
+		lotr_WAC_adjust_settings_effect = { VAR = lotr_WAC_generated_ruler_settings }
+	}
+}
+
+lotr_WAC_vassal_ruler_settings = {
+	effect = {
+		lotr_WAC_create_settings_story_cycle = yes
+		lotr_WAC_adjust_settings_effect = { VAR = lotr_WAC_vassal_ruler_settings }
+	}
+}
+
+### Gold ###
+
+lotr_WAC_increase_gold_settings = {
+	is_valid = {
+		custom_tooltip = {
+			text = "WASTELANDS_AUTOMATION_SETTINGS_INREASE_GOLD_LIMIT_VALID_TT"
+			trigger_if = {
+				limit = {
+					any_owned_story = { 
+						story_type = story_cycle_automated_colonisation_settings
+						has_variable = lotr_WAC_gold_setting
+					}
+				}
+				any_owned_story = {
+					story_type = story_cycle_automated_colonisation_settings
+					var:lotr_WAC_gold_setting < 15000
+				}
+			}
+			trigger_else = {
+				always = yes
+			}
+		}
+	}
+
+	effect = {
+		custom_description_no_bullet = { text = "WAC_INCREASE_GOLD_EFFECT" }
+		lotr_WAC_create_settings_story_cycle = yes
+		if = {
+			limit = { has_variable = WAC_setttings }
+			 var:WAC_setttings = {
+				increase_variable = {
+					NAME = lotr_WAC_gold_setting
+					AMOUNT = 500
+				}
+			}
+		}
+	}
+}
+
+lotr_WAC_decrease_gold_settings = {
+	is_valid = {
+		custom_tooltip = {
+			text = "WASTELANDS_AUTOMATION_SETTINGS_DECREASE_GOLD_LIMIT_VALID_TT"
+			any_owned_story = {
+				story_type = story_cycle_automated_colonisation_settings
+				has_variable = lotr_WAC_gold_setting
+				var:lotr_WAC_gold_setting > 0
+			}
+		}
+	}
+
+	effect = {
+		custom_description_no_bullet = { text = "WAC_DECREASE_GOLD_EFFECT" }
+		lotr_WAC_create_settings_story_cycle = yes
+		if = {
+			limit = { has_variable = WAC_setttings }
+			 var:WAC_setttings = {
+				decrease_variable = {
+					NAME = lotr_WAC_gold_setting
+					AMOUNT = 500
+				}
+			}
+		}
+	}
+}
+
+### Councillor Task ###
+
+lotr_WAC_councillor_task = {
+	effect = {
+		lotr_WAC_create_settings_story_cycle = yes
+		lotr_WAC_adjust_settings_effect = { VAR = lotr_WAC_councillor_task }
 	}
 }
