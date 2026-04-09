@@ -11,6 +11,7 @@ derei.1000 = { # Derei sets off to ask for advice
         character = root
         animation = thinking
     }
+    trigger = { is_landless_ruler = no }
     immediate = {
         character:lineofmeglasul3 = { save_scope_as = terilaen }
         hidden_effect = { #give free caravan master
@@ -823,6 +824,7 @@ derei.1010 = { # A refugee girl is brought to Terilaen
         trigger = {
             character:lineofgimilethtwo107 = {
                 is_alive = yes
+                is_landless_ruler = no
             }
         }
         scope:derei_wife = {
@@ -1046,6 +1048,7 @@ derei.1015 = { # Visiting the vassals
         character = root
         animation = survey
     }
+    trigger = { is_landless_ruler = no }
     option = { # Let's go
         name = derei.1015.a
         trigger = {
@@ -1054,9 +1057,9 @@ derei.1015 = { # Visiting the vassals
         }
         start_travel_plan = {
             destination = title:b_kharadukal.title_province
+            destination = title:c_gulurath.title_province
             players_use_planner = no
-            on_arrival_event = derei.1016
-            on_arrival_destinations = first
+            on_arrival_on_action = derei_vassals_on_action
         }
     }
     option = { # Not right now
@@ -1064,7 +1067,7 @@ derei.1015 = { # Visiting the vassals
         custom_tooltip = derei.1015.b.tt
         trigger_event = {
             id = derei.1015
-            months = 2
+            months = 4
         }
     }
 }
@@ -1107,15 +1110,6 @@ derei.1016 = { # City Vassal
                 opinion = 100
                 target = root
             }
-        }
-    }
-    after = {
-        start_travel_plan = {
-            destination = title:c_gulurath.title_province
-            players_use_planner = no
-            return_trip = no
-            on_arrival_event = derei.1017
-            on_arrival_destinations = first
         }
     }
 }
@@ -1226,7 +1220,29 @@ derei.1018 = { # Derei has plans!
         animation = interested_left
     }
     immediate = {
-        primary_spouse = { save_scope_as = derei_wife }
+        if = {
+            limit = { any_courtier_or_guest = { is_spouse_of = root } }
+            root.primary_spouse ?= { save_scope_as = derei_wife }
+        }
+        else_if = {
+            limit = { any_relation = { type = best_friend } }
+            random_relation = {
+                limit = { this != title:k_drel.holder }
+                type = best_friend
+                save_scope_as = derei_wife
+            }
+        }
+        else_if = {
+            limit = { any_relation = { type = friend } }
+            random_relation = {
+                limit = { this != title:k_drel.holder }
+                type = friend
+                save_scope_as = derei_wife
+            }
+        }
+        else = {
+            root.dynasty = { random_dynasty_member = { save_scope_as = derei_wife } }
+        }
     }
     option = { # Visit Terilaen
         name = derei.1018.a
@@ -1347,11 +1363,7 @@ derei.1021 = { # Choose a Prince
     desc = {
         first_valid = {
             triggered_desc = {
-                trigger = {
-                    NOT = {
-                        scope:balan_lai_leader = { has_faith = faith:faith_gimileth }
-                    }
-                }
+                trigger = { exists = scope:balan_lai_leader }
                 desc = derei.1021.leader.desc
             }
             desc = derei.1021.desc
@@ -1372,9 +1384,35 @@ derei.1021 = { # Choose a Prince
     lower_right_portrait = scope:balan_lai_3
     
     immediate = {
-        primary_spouse = { save_scope_as = derei_wife }
-        title:d_balan_lai_leader.holder = { save_scope_as = balan_lai_leader }
         root = { save_scope_as = derei }
+        if = {
+            limit = { any_courtier_or_guest = { is_spouse_of = root } }
+            root.primary_spouse ?= { save_scope_as = derei_wife }
+        }
+        else_if = {
+            limit = { any_relation = { type = best_friend } }
+            random_relation = {
+                type = best_friend
+                save_scope_as = derei_wife
+            }
+        }
+        else_if = {
+            limit = { any_relation = { type = friend } }
+            random_relation = {
+                type = friend
+                save_scope_as = derei_wife
+            }
+        }
+        else = {
+            root.dynasty = { random_dynasty_member = { save_scope_as = derei_wife } }
+        }
+        if = {
+            limit = { 
+                title:d_balan_lai_leader.holder != root
+                title:d_balan_lai_leader.holder.faith != root.faith
+            }
+            title:d_balan_lai_leader.holder = { save_scope_as = balan_lai_leader }
+        }
         confederation = {
             ordered_confederation_member = {
                 limit = {
@@ -1390,7 +1428,7 @@ derei.1021 = { # Choose a Prince
                 position = 1
                 save_scope_as = balan_lai_1
             }
-            ordered_confederation_member = {
+            random_confederation_member = {
                 limit = {
                     NOR = {
                         this = root
@@ -1398,14 +1436,12 @@ derei.1021 = { # Choose a Prince
                         has_faith = faith:faith_gimileth
                         is_adult = no
                         has_character_flag = refused_conversion
+                        this = scope:balan_lai_1
                     }
                 }
-                order_by = ai_honor
-                position = 2
-                check_range_bounds = no
                 save_scope_as = balan_lai_2
             }
-            ordered_confederation_member = {
+            random_confederation_member = {
                 limit = {
                     NOR = {
                         this = root
@@ -1413,11 +1449,10 @@ derei.1021 = { # Choose a Prince
                         has_faith = faith:faith_gimileth
                         is_adult = no
                         has_character_flag = refused_conversion
+                        this = scope:balan_lai_1
+                        this = scope:balan_lai_2
                     }
                 }
-                order_by = ai_honor
-                position = 3
-                check_range_bounds = no
                 save_scope_as = balan_lai_3
             }
         }
@@ -1425,9 +1460,7 @@ derei.1021 = { # Choose a Prince
 
     option = { #Balan lai leader
         name = derei.1021.a
-        trigger = {
-            NOT = { scope:balan_lai_leader = { has_faith = faith:faith_gimileth } }
-        }
+        trigger = { exists = scope:balan_lai_leader }
         scope:balan_lai_leader = { save_scope_as = target_prince }
     }
     option = { # First candidate
@@ -1436,15 +1469,11 @@ derei.1021 = { # Choose a Prince
     }
     option = { # Second candidate
         name = derei.1021.c
-        trigger = {
-            scope:balan_lai_1 != scope:balan_lai_2
-        }
+        trigger = { exists = scope:balan_lai_2 }
         scope:balan_lai_2 = { save_scope_as = target_prince }
     }
     option = { # Third candidate
-        trigger = {
-            scope:balan_lai_2 != scope:balan_lai_3
-        }
+        trigger = { exists = scope:balan_lai_3 }
         name = derei.1021.d
         scope:balan_lai_3 = { save_scope_as = target_prince }
     }
@@ -1507,13 +1536,13 @@ derei.1022 = { # Send the letter
                         limit = {
                             scope:target_prince = { has_title = title:d_balan_lai_leader }
                         }
-                        dynasty:dynasty_gimilethtwo = { add_dynasty_prestige = 300 }
+                        root.dynasty = { add_dynasty_prestige = 300 }
                         scope:target_prince = { 
                             set_character_faith = faith:faith_gimileth
                         }
                     }
                     else = {
-                        dynasty:dynasty_gimilethtwo = { add_dynasty_prestige = 150 }
+                        root.dynasty = { add_dynasty_prestige = 150 }
                         scope:target_prince = { 
                             set_character_faith = faith:faith_gimileth
                         }
@@ -1528,7 +1557,7 @@ derei.1022 = { # Send the letter
                     months = 1
                 }
                 show_as_tooltip = {
-                    dynasty:dynasty_gimilethtwo = { add_dynasty_prestige = minor_dynasty_prestige_loss }
+                    root.dynasty = { add_dynasty_prestige = minor_dynasty_prestige_loss }
                     add_stress = medium_stress_gain
                 }
             }
@@ -1597,7 +1626,7 @@ derei.1023 = { # They have converted!
             limit = {
                 scope:target_prince = { has_title = title:d_balan_lai_leader }
             }
-            dynasty:dynasty_gimilethtwo = { add_dynasty_prestige = 300 }
+            root.dynasty = { add_dynasty_prestige = 300 }
             scope:target_prince = { 
                 set_character_faith = faith:faith_gimileth
                 hidden_effect = {
@@ -1609,7 +1638,7 @@ derei.1023 = { # They have converted!
             }
         }
         else = {
-            dynasty:dynasty_gimilethtwo = { add_dynasty_prestige = 150 }
+            root.dynasty = { add_dynasty_prestige = 150 }
             scope:target_prince = { 
                 set_character_faith = faith:faith_gimileth
                 hidden_effect = {
@@ -1631,12 +1660,12 @@ derei.1024 = { # They refuse!
     
     option = {
         name = derei.1024.a
-        dynasty:dynasty_gimilethtwo = { add_dynasty_prestige = minor_dynasty_prestige_loss }
+        root.dynasty = { add_dynasty_prestige = minor_dynasty_prestige_loss }
         add_stress = medium_stress_gain
         scope:target_prince = { 
             add_character_flag = {
                 flag = refused_conversion
-                years = 10
+                years = 5
             }
         }
     }
@@ -1659,10 +1688,10 @@ derei.1025 = { # Player's choice whether to convert
                     limit = {
                         scope:target_prince = { has_title = title:d_balan_lai_leader }
                     }
-                    dynasty:dynasty_gimilethtwo = { add_dynasty_prestige = 300 }
+                    root.dynasty = { add_dynasty_prestige = 300 }
                 }
                 else = {
-                    dynasty:dynasty_gimilethtwo = { add_dynasty_prestige = 150 }
+                    root.dynasty = { add_dynasty_prestige = 150 }
                 }
                 show_as_tooltip = {
                     scope:target_prince = {
@@ -1686,10 +1715,10 @@ derei.1025 = { # Player's choice whether to convert
                     limit = {
                         scope:target_prince = { has_title = title:d_balan_lai_leader }
                     }
-                    dynasty:dynasty_gimilethtwo = { add_dynasty_prestige = 300 }
+                    root.dynasty = { add_dynasty_prestige = 300 }
                 }
                 else = {
-                    dynasty:dynasty_gimilethtwo = { add_dynasty_prestige = 150 }
+                    root.dynasty = { add_dynasty_prestige = 150 }
                 }
                 show_as_tooltip = {
                     scope:target_prince = {
@@ -1709,7 +1738,7 @@ derei.1025 = { # Player's choice whether to convert
             send_interface_toast = {
                 title = derei.1025.c.toast
                 left_icon = scope:target_prince
-                dynasty:dynasty_gimilethtwo = { add_dynasty_prestige = minor_dynasty_prestige_loss }
+                root.dynasty = { add_dynasty_prestige = minor_dynasty_prestige_loss }
                 add_stress = medium_stress_gain
             }
         }
@@ -1763,6 +1792,7 @@ derei.1026 = { # The Kharadunai reform!
                     has_faith = faith:faith_gimileth
                     NOT = {
                         this = root
+                        this = scope:balan_lai_1
                     }
                 }
                 order_by = ai_honor
@@ -1774,6 +1804,8 @@ derei.1026 = { # The Kharadunai reform!
                     has_faith = faith:faith_gimileth
                     NOT = {
                         this = root
+                        this = scope:balan_lai_1
+                        this = scope:balan_lai_2
                     }
                 }
                 order_by = ai_honor
@@ -1792,7 +1824,7 @@ derei.1026 = { # The Kharadunai reform!
 
     option = { # Sign it into law
         name = derei.1026.a
-        dynasty:dynasty_gimilethtwo = { add_dynasty_prestige = 500 }
+        root.dynasty = { add_dynasty_prestige = 500 }
         culture = {
 			remove_culture_tradition = tradition_kharadunai
 			add_culture_tradition = tradition_reformed_kharadunai
@@ -1807,6 +1839,7 @@ derei.1026 = { # The Kharadunai reform!
                 id = derei.1027
                 weeks = 12
             }
+            title:k_drel.holder = { trigger_event = derei.1028 }
         }
     }
     after = {
@@ -1818,7 +1851,7 @@ derei.1026 = { # The Kharadunai reform!
 				trigger_event = news_event.0085
 			}
 		}
-		add_elven_hope_effect = { VALUE = massive_elven_hope_value HOPE_EFFECT = effect_elven_hope_global_evil_decreased }
+		show_as_tooltip = { add_elven_hope_effect = { VALUE = massive_elven_hope_value HOPE_EFFECT = effect_elven_hope_global_evil_decreased } }
     }
 }
 
@@ -1873,5 +1906,17 @@ derei.1027 = { # Terilaen comes to congratulate Derei
 			    }
 		    }
 	    }
+    }
+}
+
+derei.1028 = {
+    hidden = yes
+    immediate = {
+        send_interface_toast = {
+            title = derei.1028.toast
+            left_icon = root
+            right_icon = character:lineofgimilethtwo107
+            add_elven_hope_effect = { VALUE = massive_elven_hope_value HOPE_EFFECT = effect_elven_hope_global_evil_decreased }
+        }
     }
 }
