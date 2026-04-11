@@ -6521,6 +6521,67 @@ invade_bellakar_cb = {
 			limit = {scope:attacker = {has_character_flag = mardat_stormhost_promise}}
 			scope:mardat = {trigger_event = ray_story.0212}
 		}
+		if = {
+			limit = {
+				global_var:bellakar_north_focus = yes
+				scope:defender = {
+					any_vassal = {
+						OR = {
+							faith = faith:faith_corsair
+							faith = faith:faith_kings_men_castamir
+						}
+						opinion = {
+							target = scope:defender
+							value < 0
+						}
+					}
+				}
+			}
+			scope:defender = {
+				trigger_event = {
+					id = bellakar_story.0220
+					days = 30
+				}
+				every_vassal = {
+					limit = {
+						OR = {
+							faith = faith:faith_corsair
+							faith = faith:faith_kings_men_castamir
+						}
+						OR = {
+							is_ai = no
+							opinion = {
+								target = scope:defender
+								value < 0
+							}							
+						}
+					}
+					trigger_event = {
+						id = bellakar_story.0221
+						days = 30
+					}					
+				}
+			}
+			scope:attacker = {
+				trigger_event = {
+					id = bellakar_story.0222
+					days = 30
+				}
+			}
+		}
+		if = {
+			limit = {
+				title:k_tedjin.holder = {
+					is_tributary_of_suzerain_or_above = scope:defender
+				}
+			}
+			title:k_tedjin.holder = {
+				trigger_event = {
+					id = bellakar_story.0224
+					days = 30
+				}	
+			}
+		}
 	}
 
 	on_victory_desc = {
@@ -6587,6 +6648,7 @@ invade_bellakar_cb = {
 				trigger_event = ray_story.0215
 			}
 		}
+
 
 		# go through the dejure hierarchy under target titles, transfer eligible vassals and sieze counties from ineligible ones
 		every_in_list = {
@@ -6704,9 +6766,13 @@ invade_bellakar_cb = {
 				trigger_event = news_event.0029
 			}
 		}
-
 		# EP3: note gold gained from military assistance/join war contracts and their war contribution threshold
 		laamp_as_mercenary_payout_tooltip_effect = yes
+		
+		scope:attacker = { #Dynamic Peace Deal effects
+			trigger_event = bellakar_story.0226
+		}
+		
 	}
 
 	on_white_peace_desc = {
@@ -6810,6 +6876,42 @@ invade_bellakar_cb = {
 				}
 			}
 		}
+
+		if = {
+			limit = { # Major News
+				NOR = { 
+					has_game_rule = no_news 
+					scope:attacker = {faith = faith:faith_haruze}
+				}
+			}
+			every_player = { #Global News Announcement
+				trigger_event = news_event.0030
+			}
+		}
+
+		scope:attacker = { # Imprison any war participant that isn't already in the faction.
+			every_character_war = {
+				limit = {
+					is_defender = scope:defender
+				}
+				every_war_attacker = {
+					limit = {
+						is_imprisoned = no
+					}
+					reverse_add_opinion = {
+						modifier = vassal_lost_faction_revolt_war
+						target = scope:defender
+						opinion = -15
+					}					
+					hidden_effect = {
+						hard_imprison_character_effect = {
+							TARGET = this
+							IMPRISONER = scope:defender
+						}
+					}
+				}
+			}
+		}		
 
 		# EP3: note gold gained from military assistance/join war contracts and their war contribution threshold
 		laamp_as_mercenary_payout_tooltip_effect = yes
@@ -14290,6 +14392,24 @@ ray_doom_war_cb = {
 
 	on_declaration = {
 		on_declared_war = yes
+		title:e_bellakar.holder = {save_scope_as = bellakar_emperor}
+		if = {
+			limit = {scope:attacker = {has_character_flag = ray_bellakar_alliance}}
+			scope:bellakar_emperor = {trigger_event = bellakar_story.0121}
+		}		
+#		if = {
+	#		limit = {
+#				scope:attacker = {
+#					has_character_flag = ray_bellakar_alliance
+#				}
+#			}
+#			title:e_bellakar.holder = {
+#				trigger_event = {
+#					id = bellakar_story.0121
+#					#days = 7
+#				}
+#			}
+#		}
 		scope:defender = {
 			trigger_event = ray_story.0331
 			every_vassal = {
@@ -14603,8 +14723,22 @@ ray_doom_war_cb = {
 						change = scope:title_change
 					}
 				}
-				resolve_title_and_vassal_change = scope:title_change
+				resolve_title_and_vassal_change = scope:title_change		
 			}
+			title:e_bellakar.holder = {save_scope_as = bellakar_emperor}
+			if = {
+				limit = {
+					OR = {
+						scope:attacker = {has_character_flag = bellakar_ray_tribute_demanded}
+						scope:bellakar_emperor = {has_character_flag = bellakar_ray_tribute_demanded}
+					}
+				}
+				scope:attacker = {
+					trigger_event = {
+						id = bellakar_story.0123
+					}		
+				}				
+			}							
 		}
 
 	on_defeat_desc = {
@@ -15484,3 +15618,482 @@ zantaka_lyneria_cb = {
 
 	attacker_wargoal_percentage = 0.8
 }
+
+destroy_stormhost_cb = {
+	group = conquest
+
+	white_peace_possible = no
+
+	combine_into_one = yes
+	should_show_war_goal_subview = yes
+	mutually_exclusive_titles = { always = yes }
+
+	allowed_for_character = {
+		always = no
+	}
+
+	target_titles = all
+	target_title_tier = all
+	target_de_jure_regions_above = yes
+	ignore_effect = change_title_holder
+
+	transfer_behavior = transfer
+
+	on_primary_attacker_death = inherit
+	on_primary_defender_death = inherit
+
+	attacker_allies_inherit = yes
+	defender_allies_inherit = yes
+
+	war_name = "INVADE_STORMHOST_WAR_NAME"
+	war_name_base = "INVADE_STORMHOST_WAR_NAME"
+	cb_name = "destroy_stormhost_cb"
+
+	interface_priority = 79
+
+	use_de_jure_wargoal_only = yes
+
+	attacker_wargoal_percentage = 0.8
+
+	should_invalidate = {
+		NOT = {
+			any_in_list = {
+				list = target_titles
+				any_in_de_jure_hierarchy = {
+					tier = tier_county
+					holder = {
+						target_is_same_character_or_above = scope:defender
+					}
+				}
+			}
+		}
+	}
+
+	on_invalidated_desc = msg_religious_war_invalidation_region_message
+
+	on_invalidated = {
+	}
+
+	on_declaration = {
+		on_declared_war = yes
+		#title:e_thon_an_kharlokh.holder = {
+		#	trigger_event = { # Revolt begins
+		#		id = lotr_thani_hazad.2010
+		#		days = 30
+		#	}
+		#}
+	}
+
+	on_victory_desc = {
+		first_valid = {
+			triggered_desc = {
+				trigger = { scope:attacker = { is_local_player = yes } }
+				desc = county_conquest_cb_victory_desc_attacker
+			}
+			desc = county_conquest_cb_victory_desc
+		}
+	}
+
+	on_victory = {
+		# Legitimacy
+		add_legitimacy_attacker_victory_effect = yes
+
+		scope:attacker = { show_pow_release_message_effect = yes }
+		create_title_and_vassal_change = {
+			type = conquest
+			save_scope_as = change
+			add_claim_on_loss = yes
+		}
+
+
+		title:e_bozisha_miraz = {
+            every_in_de_jure_hierarchy = {
+                limit = {
+                    holder.top_liege ?= scope:defender
+					tier >= tier_county
+                }
+                change_title_holder_include_vassals = {
+                    holder = scope:attacker
+                    change = scope:change
+                }
+            }
+        }
+		scope:attacker = {
+			trigger_event = bellakar_story.0117
+		}
+
+		# go through the dejure hierarchy under target titles, transfer eligible vassals and sieze counties from ineligible ones
+		every_in_list = {
+			list = target_titles
+			custom_tooltip = CONQUEST_CB_TITLE
+
+			save_scope_as = target_title # For the vassalization trigger.
+
+			# Compile a list of all counties in the kingdom we will take from the defender.
+			every_in_de_jure_hierarchy = {
+				continue = {
+					tier > tier_county
+				}
+				limit = {
+					tier = tier_county
+					exists = holder
+					holder = {
+						OR = {
+							this = scope:defender
+							target_is_liege_or_above = scope:defender
+						}
+					}
+				}
+				add_to_list = titles_taken
+			}
+		}
+
+		every_in_list = {
+			list = titles_taken
+			change_title_holder = {
+				holder = scope:attacker
+				change = scope:change
+				take_baronies = yes
+			}
+		}
+
+		resolve_title_and_vassal_change = scope:change
+
+		# Prestige Progress for the Attacker
+		every_in_list = {
+			list = target_titles
+			scope:attacker = {
+				add_prestige_experience = medium_prestige_value
+			}
+		}
+
+		# Allies on both sides get full prestige value for helping in the war, based on their war participation.
+		modify_allies_of_participants_fame_values = {
+			WINNER = scope:attacker
+			FAME_BASE = medium_prestige_value
+			IS_RELIGIOUS_WAR = no
+			WINNER_ALLY_FAME_SCALE = 1
+			LOSER_ALLY_FAME_SCALE = 1
+		}
+
+		# Truce
+		add_truce_attacker_victory_effect = yes
+
+		# FP1: note the victory for future memorialisation via stele (if applicable).
+		scope:attacker = { fp1_remember_recent_conquest_victory_effect = yes }
+
+		if = { # Warning that only counties are changing hands
+			limit = {
+				any_in_list = {
+					list = target_titles
+					tier = tier_duchy
+				}
+			}
+			random_in_list = {
+				list = target_titles
+				limit = { tier = tier_duchy }
+				save_scope_as = de_jure_target
+			}
+			if = { # LotR - reordered to clean up errorlog
+				limit = {
+					any_in_list = {
+						list = target_titles
+						tier = tier_duchy
+						holder = scope:defender
+					}
+				}
+				if = {
+					limit = {
+						scope:defender = {
+							any_held_title = {
+								tier = tier_county
+								NOT = { target_is_de_jure_liege_or_above = scope:de_jure_target }
+							}
+						}
+					}
+					custom_tooltip = conquest_title_not_transferred_tt
+				}
+				else = { custom_tooltip = conquest_title_destroyed_tt }
+			}
+			else = {
+				if = {
+					limit = {
+						any_in_list = {
+							list = target_titles
+							tier = tier_duchy
+							is_title_created = yes
+						}
+					}
+					custom_tooltip = conquest_title_usurp_tt
+				}
+				else = { custom_tooltip = conquest_title_create_tt }
+			}
+		}
+
+		if = {
+			limit = { # Major News
+				NOR = { 
+					has_game_rule = no_news 
+					scope:attacker = {faith = faith:faith_haruze}
+				}
+			}
+			every_player = { #Global News Announcement
+				trigger_event = news_event.0030
+			}
+		}		
+		destroy_title = title:e_thon_an_kharlokh
+
+		# EP3: note gold gained from military assistance/join war contracts and their war contribution threshold
+		laamp_as_mercenary_payout_tooltip_effect = yes
+	}
+
+	on_white_peace_desc = {
+		desc = WHITE_PEACE_DISABLED
+	}
+
+	on_defeat_desc = {
+		first_valid = {
+			triggered_desc = {
+				trigger = { scope:defender = { is_local_player = yes } }
+				desc = county_conquest_cb_defeat_desc_defender
+			}
+			triggered_desc = {
+				trigger = {
+					scope:attacker = {
+						is_local_player = yes
+						has_targeting_faction = yes
+					}
+				}
+				desc = county_conquest_cb_defeat_desc_attacker
+			}
+			desc = county_conquest_cb_defeat_desc
+		}
+	}
+
+	on_defeat = {
+		# Legitimacy
+		add_legitimacy_attacker_defeat_effect = yes
+
+		scope:attacker = { show_pow_release_message_effect = yes }
+
+		# Legitimacy
+		add_legitimacy_attacker_defeat_effect = yes
+
+		# Prestige loss for the attacker
+		scope:attacker = {
+			pay_short_term_gold_reparations_effect = {
+				GOLD_VALUE = 3
+			}
+			add_prestige = {
+				value = major_prestige_value
+				multiply = -1.0
+			}
+		}
+
+		# Prestige for Defender
+		scope:defender = {
+			add_prestige_war_defender_effect = {
+				PRESTIGE_VALUE = major_prestige_value
+			}
+		}
+
+		# Allies on both sides get full prestige value for helping in the war, based on their war participation.
+		modify_allies_of_participants_fame_values = {
+			WINNER = scope:defender
+			FAME_BASE = medium_prestige_value
+			IS_RELIGIOUS_WAR = no
+			WINNER_ALLY_FAME_SCALE = 1
+			LOSER_ALLY_FAME_SCALE = 1
+		}
+
+		add_truce_attacker_defeat_effect = yes
+
+		scope:attacker = {
+			save_temporary_scope_as = loser
+		}
+		on_lost_aggression_war_discontent_loss = yes
+
+		# EP3: note gold gained from military assistance/join war contracts and their war contribution threshold
+		laamp_as_mercenary_payout_tooltip_effect = yes
+	}
+}
+
+bellakar_kingdom_cb = {
+	group = invasion
+
+	combine_into_one = yes
+	should_show_war_goal_subview = yes
+	mutually_exclusive_titles = { always = yes }
+	white_peace_possible = yes
+
+	allowed_for_character = {
+		always = no
+		scope:attacker = {
+			NOT = {
+				has_culture = culture:wastelands
+			}
+		}
+	}
+
+	target_titles = all
+	target_title_tier = all
+	target_de_jure_regions_above = yes
+	ignore_effect = change_title_holder
+
+	on_declaration = {
+		on_declared_war = yes
+	}
+
+	on_invalidated_desc = msg_invalidate_war_title
+
+	on_victory_desc = {
+		first_valid = {
+			triggered_desc = {
+				trigger = { scope:attacker = { is_local_player = yes } }
+				desc = invasion_war_victory_desc_attacker
+			}
+			desc = invasion_war_victory_desc
+		}
+		triggered_desc = {
+			trigger = { scope:attacker = { is_local_player = yes } }
+			desc = invasion_war_warning_desc
+		}
+	}
+
+	on_victory = {
+		# Legitimacy
+		add_legitimacy_attacker_victory_effect = yes
+
+		scope:attacker = { show_pow_release_message_effect = yes }
+		create_title_and_vassal_change = {
+			type = conquest
+			save_scope_as = change
+			add_claim_on_loss = yes
+		}
+
+		setup_invasion_cb = {
+			titles = target_titles
+			attacker = scope:attacker
+			defender = scope:defender
+			change = scope:change
+			take_occupied = yes
+		}
+		resolve_title_and_vassal_change = scope:change
+
+		# Attacker gets Prestige Experience, Defender loses Prestige, all other participants gain Prestige based on their war contribution.
+		modify_all_participants_fame_values = {
+			WINNER = scope:attacker
+			LOSER = scope:defender
+			FAME_BASE = scope:cb_prestige_factor # Set by 'setup_invasion_cb'
+			IS_RELIGIOUS_WAR = no
+			WINNER_FAME_SCALE = 10
+			LOSER_FAME_SCALE = -10
+			WINNER_ALLY_FAME_SCALE = 10
+			LOSER_ALLY_FAME_SCALE = 10
+		}	
+
+		# Truce
+		add_truce_attacker_victory_effect = yes
+
+		# FP1: note the victory for future memorialisation via stele (if applicable).
+		scope:attacker = { fp1_remember_recent_conquest_victory_effect = yes }
+
+		# EP3: note gold gained from military assistance/join war contracts and their war contribution threshold
+		laamp_as_mercenary_payout_tooltip_effect = yes
+	}
+
+	on_white_peace_desc = {
+		first_valid = {
+			triggered_desc = {
+				trigger = { scope:defender = { is_local_player = yes } }
+				desc = invasion_war_white_peace_desc_defender
+			}
+			desc = invasion_war_white_peace_desc
+		}
+	}
+
+	on_white_peace = {
+		# EP3: note gold gained from military assistance/join war contracts and their war contribution threshold
+		laamp_as_mercenary_payout_tooltip_effect = yes
+	}
+
+	on_defeat_desc = {
+		first_valid = {
+			triggered_desc = {
+				trigger = { scope:defender = { is_local_player = yes } }
+				desc = invasion_war_white_peace_desc_defender
+			}
+			desc = invasion_war_white_peace_desc
+		}
+	}
+
+	on_defeat = {
+		# Legitimacy
+		add_legitimacy_attacker_defeat_effect = yes
+
+		scope:attacker = { show_pow_release_message_effect = yes }
+
+		# Prestige loss for the attacker
+		scope:attacker = {
+			pay_short_term_gold = {
+				gold = 5
+				target = scope:defender
+				yearly_income = yes
+			}
+			add_prestige = {
+				value = massive_prestige_value
+				multiply = -1.0
+			}
+		}
+
+		setup_invasion_cb = {
+			titles = target_titles
+			attacker = scope:attacker
+			defender = scope:defender
+			claimant = scope:claimant
+			victory = no
+		}
+
+		# Attacker loses Prestige, all other war participants gain Prestige (Defender gains full prestige, all allies on both sides gain based on war contribution).
+		modify_all_participants_fame_values = {
+			WINNER = scope:defender
+			LOSER = scope:attacker
+			FAME_BASE = scope:cb_prestige_factor # Set by 'setup_invasion_cb'
+			IS_RELIGIOUS_WAR = no
+			WINNER_FAME_SCALE = 10
+			LOSER_FAME_SCALE = -10
+			WINNER_ALLY_FAME_SCALE = 10
+			LOSER_ALLY_FAME_SCALE = 10
+		}
+
+		add_truce_attacker_defeat_effect = yes
+
+		scope:attacker = {
+			save_temporary_scope_as = loser
+		}
+
+		on_lost_aggression_war_discontent_loss = yes
+
+		# EP3: note gold gained from military assistance/join war contracts and their war contribution threshold
+		laamp_as_mercenary_payout_tooltip_effect = yes
+	}
+
+	transfer_behavior = transfer
+
+	on_primary_attacker_death = inherit
+	on_primary_defender_death = inherit
+
+	attacker_allies_inherit = yes
+	defender_allies_inherit = yes
+
+	war_name = "INVASION_WAR_NAME"
+	war_name_base = "INVASION_WAR_NAME_BASE"
+	cb_name = "INVASION_CB_NAME"
+
+	interface_priority = 100
+
+	use_de_jure_wargoal_only = yes
+
+	attacker_wargoal_percentage = 0.8
+}
+
