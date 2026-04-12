@@ -1,0 +1,466 @@
+﻿# @gained_mandate_of_heaven = 4000
+# @gained_mandate_of_heaven_halved = 2000
+# @lost_mandate_of_heaven = 4000
+# @lost_mandate_of_heaven_halved = 2000
+# @mandate_of_heaven_flavorful_points = @[gained_mandate_of_heaven + 1000]
+
+kin_strife = {
+	is_unique = yes # It can only exist once in the world
+	migration = no
+
+	gui_window_name = "lotr_window_kin_strife_situation"
+	gui_participation_window_name = "window_kin_strife_participant_groups"
+	illustration = "gfx/interface/illustrations/terrain_types/mpo_season_abudant_grazing.dds"
+	situation_group_type = major
+	map_mode = participant_groups
+	
+	##################################################
+	# Regions
+	##################################################
+	sub_regions = {
+		core = {
+			icon = "gfx/interface/icons/situation_types/dynastic_cycle.dds"
+		}
+	}
+
+	##################################################
+	# On Actions
+	##################################################
+	on_monthly = {
+		# trigger_event = {
+		# 	on_action = dynastic_cycle_monthly_pulse
+		# }
+	}
+	on_yearly = {
+	}
+
+	##################################################
+	# Groups
+	##################################################
+	participant_groups = {
+		loyalist_leader = {
+			icon = "gfx/interface/icons/dynastic_cycle/dynastic_cycle_group_emperor.dds"
+			require_realm_in_sub_region = yes
+			
+			map_color = rgb{ 200 200 200 }
+
+			is_character_valid = {
+				lotr_can_be_loyalist_leader = yes
+			}
+			on_join = {
+			}
+		}
+		
+		purist_leader = {
+			icon = "gfx/interface/icons/dynastic_cycle/dynastic_cycle_group_independent.dds"
+			require_realm_in_sub_region = yes
+			
+			map_color = rgb{ 150 150 150 }
+
+			is_character_valid = {
+				lotr_can_be_purist_leader = yes
+			}
+			on_join = {
+			}
+		}
+
+		loyalist_group = {
+			icon = "gfx/interface/icons/dynastic_cycle/dynastic_cycle_group_independent.dds"
+			require_realm_in_sub_region = yes
+			
+			map_color = rgb{ 100 100 100 }
+
+			is_character_valid = {
+				lotr_can_be_loyalist_group = yes
+			}
+			on_join = {
+			}
+		}
+
+		purist_group = {
+			icon = "gfx/interface/icons/dynastic_cycle/dynastic_cycle_group_independent.dds"
+			require_realm_in_sub_region = yes
+			
+			map_color = { 50 50 50 }
+
+			is_character_valid = {
+				lotr_can_be_purist_group = yes
+			}
+			on_join = {
+			}
+		}
+
+		neutral_group = {
+			icon = "gfx/interface/icons/dynastic_cycle/dynastic_cycle_group_independent.dds"
+			require_realm_in_sub_region = yes
+			
+			map_color = { 1 1 1 }
+
+			is_character_valid = {
+				lotr_can_be_neutral_group = yes
+			}
+			on_join = {
+			}
+		}
+	}
+
+	##################################################
+	# Phases
+	##################################################
+	start_phase = kin_strife_build_up
+
+	on_start = {
+		root.situation_sub_region:core = { add_dejure_title_to_sub_region = title:e_gondor }
+		root.situation_sub_region:core = { add_character_realm_to_sub_region = title:e_gondor.holder }
+		every_situation_county = { #Assign positions for characters in situation
+			limit = {
+				holder.top_liege = title:e_gondor.holder
+			}
+			holder = {
+				if = {
+					limit = {
+						OR = {
+							has_trait = kin_strife_loyalist
+							has_trait = kin_strife_purist
+						}
+						NOT = { has_variable = kin_strife_participant }
+					}
+					if = {
+						limit = { has_trait = kin_strife_loyalist }
+						set_variable = {
+							name = kin_strife_participant
+							value = flag:loyalist_group
+						}
+					}
+					else_if = {
+						limit = { has_trait = kin_strife_purist }
+						set_variable = {
+							name = kin_strife_participant
+							value = flag:purist_group
+						}
+					}
+				}
+				else_if = {
+					limit = { NOT = { has_variable = kin_strife_participant } }
+					random_list = {
+						30 = { #Loyalist group
+							modifier = {
+								add = lotr_kin_strife_join_loyalist_group_chance
+								add = lotr_kin_strife_join_purists_group_chance.neg
+							}
+							set_variable = {
+								name = kin_strife_participant
+								value = flag:loyalist_group
+							}
+							add_trait = kin_strife_loyalist
+						}
+						30 = { #Purists group
+							modifier = {
+								add = lotr_kin_strife_join_purists_group_chance
+								add = lotr_kin_strife_join_loyalist_group_chance.neg
+							}
+							set_variable = {
+								name = kin_strife_participant
+								value = flag:purist_group
+							}
+							add_trait = kin_strife_purist
+						}
+						30 = { #Neutral group
+							modifier = {
+								add = lotr_kin_strife_join_purists_group_chance.neg
+								add = lotr_kin_strife_join_loyalist_group_chance.neg
+							}
+							set_variable = {
+								name = kin_strife_participant
+								value = flag:neutral_group
+							}
+						}
+					}
+					save_scope_as = future_participant
+					root = { add_manual_participant = scope:future_participant }	
+				}
+				else_if = {
+					limit = {
+						has_variable = kin_strife_participant
+						var:kin_strife_participant != flag:neutral_group
+						NOR = {
+							has_trait = kin_strife_loyalist
+							has_trait = kin_strife_purist
+						}
+					}
+					if = {
+						limit = { var:kin_strife_participant != flag:loyalist_group }
+						add_trait = kin_strife_loyalist
+					}
+					else_if = {
+						limit = { var:kin_strife_participant != flag:purist_group }
+						add_trait = kin_strife_purist
+					}
+				}
+			}
+		}
+	}
+	on_join = {
+		if = {
+			limit = {
+				is_ai = yes
+				NOT = { has_variable = kin_strife_participant }
+			}
+			random_list = {
+				30 = { #Loyalist group
+					modifier = {
+						add = lotr_kin_strife_join_loyalist_group_chance
+						add = lotr_kin_strife_join_purists_group_chance.neg
+					}
+					set_variable = {
+						name = kin_strife_participant
+						value = flag:loyalist_group
+					}
+					add_trait = kin_strife_loyalist
+				}
+				30 = { #Purists group
+					modifier = {
+						add = lotr_kin_strife_join_purists_group_chance
+						add = lotr_kin_strife_join_loyalist_group_chance.neg
+					}
+					set_variable = {
+						name = kin_strife_participant
+						value = flag:purist_group
+					}
+					add_trait = kin_strife_purist
+				}
+				30 = { #Neutral group
+					modifier = {
+						add = lotr_kin_strife_join_purists_group_chance.neg
+						add = lotr_kin_strife_join_loyalist_group_chance.neg
+					}
+					set_variable = {
+						name = kin_strife_participant
+						value = flag:neutral_group
+					}
+				}
+			}
+			save_scope_as = future_participant
+			root = { add_manual_participant = scope:future_participant }	
+		}
+		else_if = {
+			limit = {
+				has_variable = kin_strife_participant
+				var:kin_strife_participant != flag:neutral_group
+				NOR = {
+					has_trait = kin_strife_loyalist
+					has_trait = kin_strife_purist
+				}
+			}
+			if = {
+				limit = { var:kin_strife_participant != flag:loyalist_group }
+				add_trait = kin_strife_loyalist
+			}
+			else_if = {
+				limit = { var:kin_strife_participant != flag:purist_group }
+				add_trait = kin_strife_purist
+			}
+		}
+	}
+
+	phases = {
+		kin_strife_build_up = {
+			illustration = "gfx/interface/illustrations/situation_phase/warning.dds"
+			icon = "gfx/interface/icons/situation_types/icon_silk_road_city_state.dds"
+
+			on_start = {
+			}
+
+			parameters = {
+				
+			}
+
+			future_phases = {
+				kin_strife_civil_war = {
+					takeover_type = points
+					takeover_points = 1
+				}
+			}
+
+			modifier_sets = {
+				kin_strife_government_effects = {
+					loyalist_leader = {
+
+					}
+					purist_leader = {
+
+					}
+					loyalist_group = {
+
+					}
+					purist_group = {
+
+					}
+					neutral_group = {
+
+					}
+				}
+				kin_strife_character_effects = {
+					all = {
+						parameters = {
+							kin_strife_offensive_wars_ban = yes
+						}
+					}
+					loyalist_leader = {
+					}
+					purist_leader = {
+					}
+					loyalist_group = {
+					}
+					purist_group = {
+					}
+					neutral_group = {
+					}
+				}
+			}
+		}
+		kin_strife_civil_war = {
+			illustration = "gfx/interface/illustrations/situation_phase/impact.dds"
+			icon = "gfx/interface/icons/situation_types/dynastic_cycle.dds"
+
+			on_start = {
+			}
+
+			parameters = {
+				# era_type_stable = yes
+				# dynastic_cycle_choose_stability_phase = yes
+				# dynastic_cycle_hegemon_increased_protectorate_limit = yes
+				# dynastic_cycle_hegemon_unlocks_external_casus_belli = yes
+				# kin_strife_offensive_wars_ban = yes
+			}
+
+			on_end = {
+			}
+
+			future_phases = {
+				kin_strife_build_up = {
+					takeover_type = points
+					takeover_points = 1
+				}
+			}
+			modifier_sets = {
+				kin_strife_government_effects = {
+					loyalist_leader = {
+
+					}
+					purist_leader = {
+
+					}
+					loyalist_group = {
+
+					}
+					purist_group = {
+
+					}
+					neutral_group = {
+
+					}
+				}
+				kin_strife_character_effects = {
+					all = {
+						parameters = {
+							kin_strife_offensive_wars_ban = yes
+						}
+					}
+					loyalist_leader = {
+					}
+					purist_leader = {
+					}
+					loyalist_group = {
+					}
+					purist_group = {
+					}
+					neutral_group = {
+					}
+				}
+			}
+		}
+		kin_strife_exile = { #Exile. Loop back to civil war or build-up phase
+			illustration = "gfx/interface/illustrations/situation_phase/impact.dds"
+			icon = "gfx/interface/icons/situation_types/dynastic_cycle.dds"
+
+			on_start = {
+			}
+
+			parameters = {
+				# era_type_stable = yes
+				# dynastic_cycle_choose_stability_phase = yes
+				# dynastic_cycle_hegemon_increased_protectorate_limit = yes
+				# dynastic_cycle_hegemon_unlocks_external_casus_belli = yes
+				# kin_strife_offensive_wars_ban = yes
+			}
+
+			on_end = {
+			}
+
+			future_phases = {
+				kin_strife_build_up = {
+					takeover_type = points
+					takeover_points = 1
+				}
+				kin_strife_civil_war = {
+					takeover_type = points
+					takeover_points = 1
+				}
+			}
+			modifier_sets = {
+				kin_strife_government_effects = {
+					loyalist_leader = {
+
+					}
+					purist_leader = {
+
+					}
+					loyalist_group = {
+
+					}
+					purist_group = {
+
+					}
+					neutral_group = {
+
+					}
+				}
+				kin_strife_character_effects = {
+					all = {
+						parameters = {
+							kin_strife_offensive_wars_ban = yes
+						}
+					}
+					loyalist_leader = {
+					}
+					purist_leader = {
+					}
+					loyalist_group = {
+					}
+					purist_group = {
+					}
+					neutral_group = {
+					}
+				}
+			}
+		}
+	}
+
+	##################################################
+	# UI
+	##################################################
+	icon = {
+		trigger = {
+			situation_current_phase = kin_strife_build_up
+		}
+		reference = "gfx/interface/icons/dynastic_cycle/dynastic_cycle_phase_chaos.dds"
+	}
+
+	icon = {
+		trigger = {
+			situation_current_phase = kin_strife_civil_war
+		}
+		reference = "gfx/interface/icons/dynastic_cycle/dynastic_cycle_phase_advancement.dds"
+	}
+}
